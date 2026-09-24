@@ -1,0 +1,6 @@
+# I'm a bit rusty on this, but I guess when you build an image, it copies the entire
+# folder with the Dockerfile into its context? IDK, whatever I guess, not a lot to add
+.git
+orig/
+pc/build32/
+ignore/
