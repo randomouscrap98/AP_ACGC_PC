@@ -14,5 +14,5 @@ RUN curl -fsSL \
       | tar xz -C /opt
 
 WORKDIR /build
-CMD ["./build_docker.sh"]
+CMD ["./build_mingw.sh"]
 
