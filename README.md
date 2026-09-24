@@ -8,44 +8,27 @@ This repository does not contain any game assets or assembly whatsoever. An exis
 
 Supported versions: GAFE01_00: Rev 0 (USA)
 
-## Quick Start (Pre-built Release)
-
-Pre-built releases are available on the [Releases](https://github.com/flyngmt/ACGC-PC-Port/releases) page. No build tools required.
-
-1. Download and extract the latest release zip
-2. Place your disc image in the `rom/` folder
-3. Run `AnimalCrossing.exe`
-
 The game reads all assets directly from the disc image at startup. No extraction or preprocessing step is needed.
 
 ## Building from Source
 
-Only needed if you want to modify the code. Otherwise, use the [pre-built release](https://github.com/flyngmt/ACGC-PC-Port/releases) above.
-
 ### Requirements
 
-- **MSYS2** (https://www.msys2.org/)
+- **podman**
 - **Animal Crossing (USA) disc image** (ISO, GCM, or CISO format)
 
-### MSYS2 Packages
-
-Open **MSYS2 MINGW32** from your Start menu and install:
-
-```bash
-pacman -S mingw-w64-i686-gcc mingw-w64-i686-cmake mingw-w64-i686-SDL2 mingw-w64-i686-make
-```
 
 ### Build Steps
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/flyngmt/ACGC-PC-Port.git
-   cd ACGC-PC-Port
+   git clone https://github.com/randomouscrap98/AP_ACGC_PC.git
+   cd AP_ACGC_PC
    ```
 
-2. Build (from **MSYS2 MINGW32** shell):
+2. Build (in bash or something; bash for windows might work?)
    ```bash
-   ./build_pc.sh
+   ./build_podman.sh
    ```
 
 3. Place your disc image in the `rom/` folder:
@@ -118,7 +101,12 @@ This project would not be possible without the work of the [ACreTeam](https://gi
 
 ## AI Notice
 
-AI tools such as Claude were used in this project (PC port code only).
+I (randomouscrap98) forked this from https://github.com/flyngmt/ACGC-PC-Port, which has the following AI notice:
+
+> AI tools such as Claude were used in this project (PC port code only).
+
+I am **not** using AI to make the AP portion of this code, but I understand that "any" AI that touches code at all
+can be contentious. This notice is retained for anyone who wishes not to use this because of that.
 
 ## FAQ
 
