@@ -1,3 +1,5 @@
+ignore/
+
 # IDE folders
 .idea/
 .vs/
