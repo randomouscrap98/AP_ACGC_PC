@@ -33,7 +33,13 @@ fork of the ACGC-PC port.
 - Tools (nook will not sell them until you unlock them, or perhaps
   never sells them and you just receive them in the mail)
 
-
+### Ideas:
+- Items sent by mail (tools, which are priority, etc)
+- Nooksanity: can buy archipelago items in nook's shop? maybe could have
+  the shop sell specific things in a pool in specific months? maybe 
+  could unlock specific weekdays? kind of confusing but would give you
+  7 days times 12 months worth of items, but with nook's shop changing
+  how many items it sells, this might not work
 
 ## QOL plans:
 
@@ -47,6 +53,9 @@ fork of the ACGC-PC port.
 - Cost multiplier (to make things easier to buy)
 - Increase the chance villagers give you new items for helping them, maybe up to 100%.
 - Starting town fruit (random)
+- Villager whitelist/blacklist
+  - plus blacklist/whitelist by personality
+- Starting town grass shape? is that a thing in this version?
 
 ### Implemented
 
