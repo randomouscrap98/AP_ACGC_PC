@@ -27,5 +27,11 @@ cmake -S pc -B "$BUILD_DIR" \
 
 cmake --build "$BUILD_DIR" -j"$(nproc)"
 
+# Rewrite container paths to host paths so clangd/LSP can find the files
+# (HOST_DIR is passed in by build_podman.sh).
+if [ -n "$HOST_DIR" ] && [ -f "$BUILD_DIR/compile_commands.json" ]; then
+  sed -i "s|$PWD/|$HOST_DIR/|g" "$BUILD_DIR/compile_commands.json"
+fi
+
 cp "$SDL2_DIR/bin/SDL2.dll" "$BUILD_DIR/bin/"
 
