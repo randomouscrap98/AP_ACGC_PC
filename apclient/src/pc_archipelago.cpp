@@ -4,6 +4,8 @@
 #include <apuuid.hpp>
 #include <memory>
 #include <fstream>
+#include <sstream>
+#include <string>
 #include "ap_log.h"
 
 #define INI_IMPLEMENTATION
@@ -14,7 +16,7 @@ static std::unique_ptr<APClient> g_ap;
 
 // Attempt to load config at given path. If it does not exist or
 // some other error occurs, returns non-zero
-int _ap_loadconfig(const char * path, ap_config * out) {
+static int load_config(const char * path, ap_config * out) {
   APLOG_DEBUG("Loading AP config file %s", path);
   // Reading files in c++ is weird... I'm used to c. sorry if this is weird?
   std::ifstream f(path, std::ios::binary);
@@ -30,14 +32,18 @@ int _ap_loadconfig(const char * path, ap_config * out) {
   int hostp = ini_find_property(ini, INI_GLOBAL_SECTION, "host", 0);
   int slotp = ini_find_property(ini, INI_GLOBAL_SECTION, "slotname", 0);
   int passwordp = ini_find_property(ini, INI_GLOBAL_SECTION, "password", 0);
-  if (hostp == INI_NOT_FOUND || slotp == INI_NOT_FOUND || passwordp == INI_NOT_FOUND) {
-    APLOG_WARN("Malformed AP config file at %s", path);
+  if (hostp == INI_NOT_FOUND || slotp == INI_NOT_FOUND) {
+    APLOG_WARN("Malformed AP config file at %s (needs host and slotname)", path);
+    ini_destroy(ini);
     return 1;
   }
   snprintf(out->host, sizeof(out->host), "%s", ini_property_value(ini, INI_GLOBAL_SECTION, hostp));
-  snprintf(out->password, sizeof(out->password), "%s", ini_property_value(ini, INI_GLOBAL_SECTION, passwordp));
   snprintf(out->slotname, sizeof(out->slotname), "%s", ini_property_value(ini, INI_GLOBAL_SECTION, slotp));
+  // password is optional
+  snprintf(out->password, sizeof(out->password), "%s",
+           passwordp == INI_NOT_FOUND ? "" : ini_property_value(ini, INI_GLOBAL_SECTION, passwordp));
 
+  ini_destroy(ini);
   return 0;
 }
 
@@ -46,7 +52,7 @@ int ap_start() {
   APLOG_INFO("Starting AP system");
 
   ap_config config;
-  int result = _ap_loadconfig(AP_CONFIGNAME, &config);
+  int result = load_config(AP_CONFIGNAME, &config);
   if (result) { return result; }
 
   std::string uuid = ap_get_uuid("uuid");          // persists a uuid in a file

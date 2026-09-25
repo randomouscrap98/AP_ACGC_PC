@@ -1,5 +1,5 @@
-#ifndef __AP_LOG_H__
-#define __AP_LOG_H__
+#ifndef AP_LOG_H
+#define AP_LOG_H
 
 #include <stddef.h>
 #include <stdint.h>

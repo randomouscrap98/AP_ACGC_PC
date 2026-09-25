@@ -35,9 +35,8 @@ size_t ap_log_get(size_t max_count, ApLogEntry* out) {
   std::lock_guard<std::mutex> lock(g_mtx);
   size_t s = 0;
   for (s = 0; s < max_count; s++) {
-    int64_t pos = g_next_seq - s - 1;
-    if(pos < 0) { break; }
-    out[s] = g_ring[pos % AP_LOG_RING_SIZE];
+    if(s >= g_next_seq) { break; }
+    out[s] = g_ring[(g_next_seq - s - 1) % AP_LOG_RING_SIZE];
   }
   return s;
   }
