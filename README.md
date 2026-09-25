@@ -105,8 +105,9 @@ I (randomouscrap98) forked this from https://github.com/flyngmt/ACGC-PC-Port, wh
 
 > AI tools such as Claude were used in this project (PC port code only).
 
-I am **not** using AI to make the AP portion of this code, but I understand that "any" AI that touches code at all
-can be contentious. This notice is retained for anyone who wishes not to use this because of that.
+I am **not** using AI to write the AP portion of this code, but I understand that "any" AI that touches 
+a repo at all can be contentious. This notice is retained for anyone who wishes not to use this because 
+of the warning in the parent repo.
 
 ## FAQ
 

@@ -12,6 +12,8 @@ set -e
 # if you're building through that)
 SDL2_VERSION="${SDL2_VERSION:-2.30.10}"
 SDL2_DIR="${SDL2_DIR:-/opt/SDL2-${SDL2_VERSION}/i686-w64-mingw32}"
+OPENSSL_VERSION="${OPENSSL_VERSION:-3.5.8}"
+OPENSSL_DIR="${OPENSSL_DIR:-/opt/openssl-${OPENSSL_VERSION}/i686-w64-mingw32}"
 BUILD_DIR="${BUILD_DIR:-pc/build32}"
  
 if [ ! -d "$SDL2_DIR" ]; then
@@ -20,9 +22,16 @@ if [ ! -d "$SDL2_DIR" ]; then
   exit 1
 fi
 
+if [ ! -d "$OPENSSL_DIR" ]; then
+  echo "OpenSSL not found at $OPENSSL_DIR" >&2
+  echo "Set OPENSSL_DIR, or rebuild the docker image with --build-arg OPENSSL_VERSION=$OPENSSL_VERSION" >&2
+  exit 1
+fi
+
 cmake -S pc -B "$BUILD_DIR" \
   -DCMAKE_TOOLCHAIN_FILE="$PWD/pc/cmake/Toolchain-mingw32.cmake" \
   -DCMAKE_PREFIX_PATH="$SDL2_DIR" \
+  -DOPENSSL_ROOT_DIR="$OPENSSL_DIR" \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 cmake --build "$BUILD_DIR" -j"$(nproc)"
@@ -42,3 +51,7 @@ fi
 
 cp "$SDL2_DIR/bin/SDL2.dll" "$BUILD_DIR/bin/"
 
+
+# Third-party license text for statically linked OpenSSL
+mkdir -p "$BUILD_DIR/bin/licenses"
+cp "$OPENSSL_DIR/LICENSE.txt" "$BUILD_DIR/bin/licenses/OpenSSL-LICENSE.txt"
