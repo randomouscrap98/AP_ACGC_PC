@@ -55,8 +55,6 @@ fork of the ACGC-PC port.
 ## Issues:
 
 ### Pending:
-- Saving and quitting sends you back to the title menu, but then start game takes you
-  back as though you never saved
 - Weather seems randomized at startup, is this normal? Or did it just happen to rain 
   between two points?
 
@@ -67,10 +65,18 @@ fork of the ACGC-PC port.
   - Acre transitions had a wonky camera that went close to the ground
 - ONE import was bad due to windows paths:
   - src/static/jaudio_NES/internal/ja_calc.c
+- Saving and quitting sends you back to the title menu, but then start game takes you
+  back as though you never saved
+  - I'm not quite sure the way I solved it is any good; apparently this whole system was
+    tacked on by the pc port and eeeghhhh we'll see I guess.
 
 
 ## Build
-- Using a clang lsp, there's some issues:
+- Changed to use podman instead of requiring a specific setup on your pc
+  - Podman is a generally easy install on most systems...: https://podman.io/docs/installation
+- Build goes to ./pc/build32, which is where the original put it. I'm not a fan but I don't 
+  feel like changing it right now.
+- I'm using a clang lsp, there's some issues:
   - Needed to produce compile_commands.json, but we're using a container, so it's a bit complicated
     - Bunch of sed crap to edit the compile commands to not point at /build
   - Container means no mingw, so if you're on arch, install `mingw-w64-headers` and `mingw-w64-winpthreads`
