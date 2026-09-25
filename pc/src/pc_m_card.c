@@ -292,7 +292,14 @@ static void pc_save_pre_write_side_effects(int save_mode) {
 }
 
 static int pc_save_write_gci(void) {
-    return pc_save_write_gci_to(PC_GCI_PATH, PC_GCI_TMP_PATH);
+    int ok = pc_save_write_gci_to(PC_GCI_PATH, PC_GCI_TMP_PATH);
+
+    /* A save now exists on disk, so later title-screen reloads must use it
+     * even if there was no save at boot. */
+    if (ok) {
+        pc_save_loaded = TRUE;
+    }
+    return ok;
 }
 
 static int pc_save_write_gci_to(const char* gci_path, const char* tmp_path) {

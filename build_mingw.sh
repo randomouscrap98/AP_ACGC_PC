@@ -22,7 +22,8 @@ fi
 
 cmake -S pc -B "$BUILD_DIR" \
   -DCMAKE_TOOLCHAIN_FILE="$PWD/pc/cmake/Toolchain-mingw32.cmake" \
-  -DCMAKE_PREFIX_PATH="$SDL2_DIR"
+  -DCMAKE_PREFIX_PATH="$SDL2_DIR" \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 cmake --build "$BUILD_DIR" -j"$(nproc)"
 
