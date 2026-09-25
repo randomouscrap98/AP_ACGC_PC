@@ -6,7 +6,7 @@ This project is dual-licensed:
 
 - The PC port layer (pc/ directory and all #ifdef TARGET_PC additions
   to decomp files) is licensed under the MIT License below.
-- The AP portion is also licinsed under MIT
+- The AP portion is also licensed under MIT
 
 
 MIT License
