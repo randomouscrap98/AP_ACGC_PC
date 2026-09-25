@@ -38,12 +38,15 @@ fork of the ACGC-PC port.
 ## QOL plans:
 
 ### Pending:
-- Skip the intro (supply name and city)
+- Skip the Rover intro (supply name and city)
   - Name is 5 chars
   - City is ? chars
+- Skip the Tom Nook tutorial
+  - Might have to pre-select a house?
 - Friendship multiplier (to make it go faster)
 - Cost multiplier (to make things easier to buy)
 - Increase the chance villagers give you new items for helping them, maybe up to 100%.
+- Starting town fruit (random)
 
 ### Implemented
 
@@ -52,6 +55,10 @@ fork of the ACGC-PC port.
 ## Issues:
 
 ### Pending:
+- Saving and quitting sends you back to the title menu, but then start game takes you
+  back as though you never saved
+- Weather seems randomized at startup, is this normal? Or did it just happen to rain 
+  between two points?
 
 ### Resolved
 - Required msys, I'm not a Windows user. Replaced with Podman, which should also work on Windows?
