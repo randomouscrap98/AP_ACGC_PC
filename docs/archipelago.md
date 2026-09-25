@@ -97,7 +97,12 @@ fork of the ACGC-PC port.
 - I'm using a clang lsp, there's some issues:
   - Needed to produce compile_commands.json, but we're using a container, so it's a bit complicated
     - Bunch of sed crap to edit the compile commands to not point at /build
-  - Container means no mingw, so if you're on arch, install `mingw-w64-headers` and `mingw-w64-winpthreads`
+    - also have to move some of the build files into a ".host" version of the file before editing
+      so the container isn't rebuilt every single time due to edits
+  - containerized build means a lot of the stuff you might need for an lsp is not on your system.
+    the build scripts take care of this: build once, and it copies all the headers out of the
+    container into an ignore folder and sets up a .clangd for you (gitignored) specific to your 
+    system
 
 ### Additional info
 - Followed the instructions at https://github.com/black-sliver/apclientpp:
