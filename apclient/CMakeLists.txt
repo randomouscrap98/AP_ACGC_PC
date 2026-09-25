@@ -84,6 +84,7 @@ target_include_directories(ap_client
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/apclientpp/include
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/wswrap/include
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/json/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/ini
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/valijson/include
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/websocketpp/include
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/asio/include
@@ -123,6 +124,7 @@ set(THIRD_PARTY_LICENSES
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/apclientpp/LICENSE|apclientpp-LICENSE.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/wswrap/LICENSE|wswrap-LICENSE.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/json/LICENSE.MIT|nlohmann-json-LICENSE.txt"
+    "${CMAKE_CURRENT_SOURCE_DIR}/lib/ini/LICENSE|ini-LICENSE.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/valijson/LICENSE|valijson-LICENSE.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/websocketpp/COPYING|websocketpp-COPYING.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/asio/LICENSE_1_0.txt|asio-LICENSE.txt"
