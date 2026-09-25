@@ -49,8 +49,12 @@ typedef int BOOL;
 #endif
 #endif
 
+#ifdef TARGET_PC
+#include <limits.h>
+#else
 #define INT_MIN -2147483648
 #define INT_MAX 2147483647
+#endif
 
 #ifndef NULL
 #ifndef __cplusplus

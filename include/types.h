@@ -82,7 +82,7 @@ typedef u32 unknown;
 #define NULL 0
 #endif
 #endif
-#ifndef __cplusplus
+#if !defined(__cplusplus) && !defined(TARGET_PC)
 #define nullptr 0
 #endif
 
