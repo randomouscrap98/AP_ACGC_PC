@@ -27,10 +27,17 @@ cmake -S pc -B "$BUILD_DIR" \
 
 cmake --build "$BUILD_DIR" -j"$(nproc)"
 
-# Rewrite container paths to host paths so clangd/LSP can find the files
-# (HOST_DIR is passed in by build_podman.sh).
+# I want to use compile_commands.json for my clang lsp but we need to do two things:
+# - I don't want full rebuilds, so I can't modify anything the system depends on
+# - I have to change /build to the actual directory on my machine.
+# This means that, in order for your lsp to work, you need to build once.
 if [ -n "$HOST_DIR" ] && [ -f "$BUILD_DIR/compile_commands.json" ]; then
-  sed -i "s|$PWD/|$HOST_DIR/|g" "$BUILD_DIR/compile_commands.json"
+  find "$BUILD_DIR" -name '*.rsp' | while read -r rsp; do
+    sed "s|$PWD/|$HOST_DIR/|g" "$rsp" > "$rsp.host"
+  done
+  sed -i -e "s|$PWD/|$HOST_DIR/|g" \
+         -e 's|\.rsp\.host|.rsp|g' \
+         -e 's|\(@[^ ]*\.rsp\)|\1.host|g' "$BUILD_DIR/compile_commands.json"
 fi
 
 cp "$SDL2_DIR/bin/SDL2.dll" "$BUILD_DIR/bin/"

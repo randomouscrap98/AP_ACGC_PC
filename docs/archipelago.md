@@ -67,3 +67,11 @@ fork of the ACGC-PC port.
   - Acre transitions had a wonky camera that went close to the ground
 - ONE import was bad due to windows paths:
   - src/static/jaudio_NES/internal/ja_calc.c
+
+
+## Build
+- Using a clang lsp, there's some issues:
+  - Needed to produce compile_commands.json, but we're using a container, so it's a bit complicated
+    - Bunch of sed crap to edit the compile commands to not point at /build
+  - Container means no mingw, so if you're on arch, install `mingw-w64-headers` and `mingw-w64-winpthreads`
+
