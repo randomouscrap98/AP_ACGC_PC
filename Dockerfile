@@ -9,7 +9,7 @@ ENV OPENSSL_DIR=/opt/openssl-${OPENSSL_VERSION}/i686-w64-mingw32
 RUN apt-get update && apt-get install -y --no-install-recommends \
   curl \
   ca-certificates \
-  gcc-mingw-w64-i686 g++-mingw-w64-i686 cmake make perl \
+  gcc-mingw-w64-i686 g++-mingw-w64-i686 libz-mingw-w64-dev cmake make perl \
   && update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix \
   && update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix \
   && rm -rf /var/lib/apt/lists/*

@@ -1,5 +1,5 @@
 # =============================================================================
-# Archipelago client DLL (apclientpp + websocketpp/asio + OpenSSL, no zlib)
+# Archipelago client DLL (apclientpp + websocketpp/asio + OpenSSL + zlib)
 # =============================================================================
 # Built as its own shared library so its C++ runtime and operator new are
 # separate from the game's (the game replaces global operator new with JKRHeap,
@@ -34,6 +34,18 @@ else()
     find_package(OpenSSL REQUIRED)
     set(AP_OPENSSL_INCLUDE "")
     set(AP_OPENSSL_LIBS OpenSSL::SSL OpenSSL::Crypto)
+endif()
+
+# -----------------------------------------------------------------------------
+# zlib (websocket permessage-deflate; Archipelago is moving to require it)
+# -----------------------------------------------------------------------------
+if(WIN32)
+    # libz-mingw-w64-dev (see Dockerfile) installs into the toolchain sysroot
+    find_library(ZLIB_STATIC_LIB libz.a REQUIRED)
+    set(AP_ZLIB_LIBS ${ZLIB_STATIC_LIB})
+else()
+    find_package(ZLIB REQUIRED)
+    set(AP_ZLIB_LIBS ZLIB::ZLIB)
 endif()
 
 # -----------------------------------------------------------------------------
@@ -82,7 +94,6 @@ target_compile_definitions(ap_client PRIVATE
     AP_CLIENT_EXPORTS
     ASIO_STANDALONE
     _WEBSOCKETPP_CPP11_THREAD_
-    WSWRAP_NO_COMPRESSION
     $<$<BOOL:${WIN32}>:_WIN32_WINNT=0x0601>
 )
 target_compile_options(ap_client PRIVATE -O2 -Wno-deprecated-declarations)
@@ -90,7 +101,7 @@ if(MINGW)
     # The template-heavy headers exceed the PE object 32k section limit
     target_compile_options(ap_client PRIVATE -Wa,-mbig-obj)
 endif()
-target_link_libraries(ap_client PRIVATE ${AP_OPENSSL_LIBS})
+target_link_libraries(ap_client PRIVATE ${AP_OPENSSL_LIBS} ${AP_ZLIB_LIBS})
 
 if(WIN32)
     # ap_client.dll, not libap_client.dll; static runtime so no extra DLLs
@@ -115,6 +126,7 @@ set(THIRD_PARTY_LICENSES
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/valijson/LICENSE|valijson-LICENSE.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/websocketpp/COPYING|websocketpp-COPYING.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/asio/LICENSE_1_0.txt|asio-LICENSE.txt"
+    "${CMAKE_CURRENT_SOURCE_DIR}/lib/zlib/LICENSE|zlib-LICENSE.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/cacert/LICENSE-MPL-2.0.txt|cacert-MPL-2.0.txt"
 )
 foreach(entry IN LISTS THIRD_PARTY_LICENSES)
