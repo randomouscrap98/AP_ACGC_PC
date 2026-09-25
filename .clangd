@@ -1,4 +1,0 @@
-CompileFlags:
-  CompilationDatabase: pc/build32
-  # This is the path for Arch; sorry!!
-  Add: [-I/usr/include/SDL2]
