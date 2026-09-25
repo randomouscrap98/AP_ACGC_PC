@@ -76,6 +76,8 @@ fork of the ACGC-PC port.
     at the start of main.
   - Had to move ALL the apclient stuff into its own dll so it can use normal allocators
     and whatever, while the actual game itself can continue using its own fancy crap
+- apclient complains that although zlib is not required now, it WILL be required
+  in the future. I don't know how truthful that is but might as well...
 
 
 ## Build
