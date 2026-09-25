@@ -76,7 +76,7 @@ endif()
 # -----------------------------------------------------------------------------
 # ap_client shared library
 # -----------------------------------------------------------------------------
-add_library(ap_client SHARED src/pc_archipelago.cpp)
+add_library(ap_client SHARED src/pc_archipelago.cpp src/ap_log.cpp)
 
 target_include_directories(ap_client
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include   # C API header, used by the game
