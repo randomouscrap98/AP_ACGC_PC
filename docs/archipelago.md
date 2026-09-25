@@ -103,10 +103,14 @@ fork of the ACGC-PC port.
     the build scripts take care of this: build once, and it copies all the headers out of the
     container into an ignore folder and sets up a .clangd for you (gitignored) specific to your 
     system
+  - lib/gcc/*/include is excluded from the container copy because it interferes with system
+    headers clangd uses (got a _mm_prefetch multiple define error)
 
 ### Additional info
 - Followed the instructions at https://github.com/black-sliver/apclientpp:
   - Vendored a bunch of crap: asio, cacert, json, valijson, websocketpp, wswrap (and apclientpp itself)
+    - additional vendor for myself: ini.h and zlib. zlib not necessarily required for apclientpp now,
+      but will be in the future?
   - Required VERY specific versions of some of these:
     - websocketpp uses stuff from asio removed in newer versions, pinned 1.30.2
     - OpenSSL pinned to 3.5.8 because 4 is a large change
