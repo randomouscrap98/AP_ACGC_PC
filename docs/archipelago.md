@@ -69,6 +69,13 @@ fork of the ACGC-PC port.
   back as though you never saved
   - I'm not quite sure the way I solved it is any good; apparently this whole system was
     tacked on by the pc port and eeeghhhh we'll see I guess.
+- Game uses custom allocator, breaks some of the libraries apclientpp requires
+  - I tried the most basic apclient initialization I could, and the game crashed before
+    it even got to main? Some global allocations failed because, I THINK, the allocator
+    is overridden for the game and the allocator is not setup until the game sets it up
+    at the start of main.
+  - Had to move ALL the apclient stuff into its own dll so it can use normal allocators
+    and whatever, while the actual game itself can continue using its own fancy crap
 
 
 ## Build
@@ -80,4 +87,13 @@ fork of the ACGC-PC port.
   - Needed to produce compile_commands.json, but we're using a container, so it's a bit complicated
     - Bunch of sed crap to edit the compile commands to not point at /build
   - Container means no mingw, so if you're on arch, install `mingw-w64-headers` and `mingw-w64-winpthreads`
+
+### Additional info
+- Followed the instructions at https://github.com/black-sliver/apclientpp:
+  - Vendored a bunch of crap: asio, cacert, json, valijson, websocketpp, wswrap (and apclientpp itself)
+  - Required VERY specific versions of some of these:
+    - websocketpp uses stuff from asio removed in newer versions, pinned 1.30.2
+    - OpenSSL pinned to 3.5.8 because 4 is a large change
+    - SDL2 pinned to 2.30.10 because the pc port indicated it wanted that (not sure if that's required)
+
 
