@@ -11,6 +11,7 @@
 #include "pc_settings_menu.h"
 #include "pc_profiler.h"
 #include "m_kankyo.h"
+#include "pc_archipelago.h"
 
 /* prefer discrete GPU on laptops */
 #ifdef _WIN32
@@ -132,6 +133,10 @@ static void pc_speedhack_toggle(void) {
 }
 
 void pc_platform_shutdown(void) {
+    // NEW: PROBABLY safe to shutdown archipelago first... it's 
+    // probably the least important system?
+    ap_stop();
+
     pc_audio_shutdown();
     pc_audio_mq_shutdown();
     PADCleanup();
@@ -164,6 +169,8 @@ int pc_platform_poll_events(void) {
     SDL_Event event;
 
     pc_typing_update();
+    // NEW: Archipelago polling
+    ap_poll();
 
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -381,6 +388,9 @@ int main(int argc, char* argv[]) {
 
     SDL_SetMainReady();
     pc_settings_load();
+    // NEW: read settings off disk rather than use UI 
+    // (this won't work well for non-PC systems...)
+    ap_start("wss://localhost:38281", "Nobody", "");
     pc_keybindings_load();
     pc_platform_init();
     pc_disc_init();
