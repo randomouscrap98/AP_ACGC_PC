@@ -235,8 +235,7 @@ static void build_fst_table(DiscFile* df) {
             /* directory: push onto stack */
             if (stack_depth < 32) {
                 dir_stack[stack_depth].next_entry = be32(buf + 8);
-                strncpy(dir_stack[stack_depth].name, name, 127);
-                dir_stack[stack_depth].name[127] = '\0';
+                snprintf(dir_stack[stack_depth].name, sizeof dir_stack[stack_depth].name, "%s", name);
                 stack_depth++;
             }
         } else {
@@ -252,8 +251,7 @@ static void build_fst_table(DiscFile* df) {
                 }
                 strncat(path, name, sizeof(path) - strlen(path) - 1);
 
-                strncpy(g_fst_files[g_fst_file_count].path, path, 255);
-                g_fst_files[g_fst_file_count].path[255] = '\0';
+                snprintf(g_fst_files[g_fst_file_count].path, sizeof g_fst_files[g_fst_file_count].path, "%s", path);
                 g_fst_files[g_fst_file_count].disc_offset = be32(buf + 4);
                 g_fst_files[g_fst_file_count].file_size = be32(buf + 8);
                 g_fst_file_count++;
