@@ -199,7 +199,7 @@ void pc_text_draw(struct game_s* game, const char* s, f32 x, f32 y,
 
         /* Build triangle index list. 2 tris per glyph, contiguous. */
         int tri_count = batch_n * 2;
-        int idx[PC_TEXT_CHARS_PER_BATCH * 2][3];
+        int idx[PC_TEXT_CHARS_PER_BATCH * 2][3] = {0}; /* To shut up gcc false uninitialized */
         for (int i = 0; i < batch_n; i++) {
             int bs = i * 4;
             idx[i * 2 + 0][0] = bs + 0;

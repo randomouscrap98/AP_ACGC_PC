@@ -265,8 +265,8 @@ static void build_fst_table(DiscFile* df) {
         printf("[PC] FST: %d files indexed\n", g_fst_file_count);
         for (int fi = 0; fi < g_fst_file_count; fi++)
             printf("[PC] FST[%d]: %s (%u bytes @ 0x%X)\n", fi,
-                   g_fst_files[fi].path, g_fst_files[fi].file_size,
-                   g_fst_files[fi].disc_offset);
+                   g_fst_files[fi].path, (unsigned)g_fst_files[fi].file_size,
+                   (unsigned)g_fst_files[fi].disc_offset);
     }
 }
 
@@ -380,7 +380,7 @@ u8* pc_disc_extract_dol(void) {
         return NULL;
     }
     if (g_pc_verbose)
-        printf("[PC] DOL: %u bytes (offset 0x%X)\n", g_dol_size, g_dol_offset);
+        printf("[PC] DOL: %u bytes (offset 0x%X)\n", (unsigned)g_dol_size, (unsigned)g_dol_offset);
     return buf;
 }
 
@@ -410,11 +410,11 @@ u8* pc_disc_extract_rel(void) {
             return NULL;
         }
         if (g_pc_verbose)
-            printf("[PC] REL: %u bytes (Yaz0: %u -> %u)\n", dec_sz, sz, dec_sz);
+            printf("[PC] REL: %u bytes (Yaz0: %u -> %u)\n", (unsigned)dec_sz, (unsigned)sz, (unsigned)dec_sz);
         return dec;
     }
 
-    if (g_pc_verbose) printf("[PC] REL: %u bytes (raw)\n", sz);
+    if (g_pc_verbose) printf("[PC] REL: %u bytes (raw)\n", (unsigned)sz);
     return raw;
 }
 
