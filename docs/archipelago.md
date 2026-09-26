@@ -87,6 +87,14 @@ fork of the ACGC-PC port.
     and whatever, while the actual game itself can continue using its own fancy crap
 - apclient complains that although zlib is not required now, it WILL be required
   in the future. I don't know how truthful that is but might as well...
+- Saw some concerning memory bounds warnings for operations involving mail/diary/etc. 
+  The ATTRIBUTE_ALIGN(32) is applied to the typedef, not the struct (I didn't even know this
+  was possible???). This isn't a problem when compiling for gamecube, since everything is 
+  aligned regardless, but when using gcc it gives an incorrect sizeof() for `mCD_keep_mail_c`
+  and `mCD_keep_diary_c`. This manifests in the pc port as a memcpy overflow for the
+  memory card saves/etc. Probably not caught because they're the diary and mail or
+  something? Fix is to move the ATTRIBUTE_ALIGN(32) forward in the typedef struct so it
+  applies to the struct instead of the typedef
 
 
 ## Build

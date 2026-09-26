@@ -149,7 +149,7 @@ typedef struct {
     u8 folder_names[mCD_KEEP_ORIGINAL_PAGE_COUNT][mCD_KEEP_ORIGINAL_FOLDER_NAME_LEN];
     mNW_original_design_c original[mCD_KEEP_ORIGINAL_PAGE_COUNT][mCD_KEEP_ORIGINAL_COUNT];
     int _CC80; // force size to 0xCCA0
-} mCD_keep_original_c ATTRIBUTE_ALIGN(32);
+} ATTRIBUTE_ALIGN(32) mCD_keep_original_c;
 
 #define mCD_KEEP_ORIGINAL_SIZE ALIGN_NEXT(sizeof(mCD_keep_original_c), 32)
 
@@ -162,7 +162,7 @@ typedef struct {
     u16 landid;
     u8 folder_names[mCD_KEEP_MAIL_PAGE_COUNT][mCD_KEEP_MAIL_FOLDER_NAME_LEN];
     Mail_c mail[mCD_KEEP_MAIL_PAGE_COUNT][mCD_KEEP_MAIL_COUNT];
-} mCD_keep_mail_c ATTRIBUTE_ALIGN(32);
+} ATTRIBUTE_ALIGN(32) mCD_keep_mail_c;
 
 #define mCD_KEEP_MAIL_SIZE ALIGN_NEXT(sizeof(mCD_keep_mail_c), 32)
 
@@ -172,7 +172,7 @@ typedef struct {
 typedef struct {
     u16 checksum;
     mDi_entry_c entries[mCD_KEEP_DIARY_COUNT][mCD_KEEP_DIARY_ENTRY_COUNT];
-} mCD_keep_diary_c ATTRIBUTE_ALIGN(32);
+} ATTRIBUTE_ALIGN(32) mCD_keep_diary_c;
 
 #define mCD_KEEP_DIARY_SIZE ALIGN_NEXT(sizeof(mCD_keep_diary_c), 32)
 
@@ -262,7 +262,7 @@ typedef union {
         PresentSave_c save;
     };
     u8 __align_sector[mCD_MEMCARD_SECTORSIZE];
-} PresentSaveFile_c ATTRIBUTE_ALIGN(32);
+} ATTRIBUTE_ALIGN(32) PresentSaveFile_c;
 
 typedef struct {
     MemcardHeader_c header;

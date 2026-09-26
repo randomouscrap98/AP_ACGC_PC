@@ -93,7 +93,7 @@ typedef struct graph_s {
     /* 0x0368 */ double dt; // number of seconds that have passed since the last execution frame
     /* 0x0370 */ double dt_num_60fps_frames; // the number of 60FPS frames that have passed since the last execution frame
     /* 0x0378 */ double dt_total_60fps_frames;
-} GRAPH ATTRIBUTE_ALIGN(8);       // one of the missing structs is likely aligned to 8 bytes.
+} ATTRIBUTE_ALIGN(8) GRAPH;       // one of the missing structs is likely aligned to 8 bytes.
 
 extern void graph_proc(void* arg);
 extern void graph_ct(GRAPH* graph);
