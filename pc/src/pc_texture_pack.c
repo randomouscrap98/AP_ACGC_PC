@@ -1173,27 +1173,31 @@ GLuint pc_texture_pack_lookup(const void* data, int data_size,
 
         if (pal_min > pal_max) { pal_min = 0; pal_max = 0; }
 
-        int used_entries = (int)(pal_max + 1 - pal_min);
-        int tlut_offset = (int)(pal_min * 2);
-        int tlut_bytes = used_entries * 2;
+        size_t tlut_total = (size_t)tlut_entries * 2;
+        size_t tlut_offset = (size_t)pal_min * 2;
+        size_t tlut_bytes = (size_t)(pal_max + 1 - pal_min) * 2;
 
-        if (tlut_offset + tlut_bytes > tlut_entries * 2)
-            tlut_bytes = tlut_entries * 2 - tlut_offset;
-        if (tlut_bytes <= 0) tlut_bytes = tlut_entries * 2;
+        if (tlut_offset >= tlut_total) {
+            /* Indices point past the palette: hash the whole palette instead */
+            tlut_offset = 0;
+            tlut_bytes = tlut_total;
+        } else if (tlut_offset + tlut_bytes > tlut_total) {
+            tlut_bytes = tlut_total - tlut_offset;
+        }
 
         const unsigned char* tlut_src = (const unsigned char*)tlut_data + tlut_offset;
 
         if (tlut_is_be) {
-            tlut_hash = xxhash64(tlut_src, tlut_bytes);
+            tlut_hash = xxhash64(tlut_src, (int)tlut_bytes);
         } else {
             /* Swap u16s to BE for Dolphin compatibility */
             unsigned char* tmp = (unsigned char*)malloc(tlut_bytes);
             if (!tmp) return 0;
-            for (int i = 0; i < tlut_bytes; i += 2) {
+            for (size_t i = 0; i < tlut_bytes; i += 2) {
                 tmp[i] = tlut_src[i + 1];
                 tmp[i + 1] = tlut_src[i];
             }
-            tlut_hash = xxhash64(tmp, tlut_bytes);
+            tlut_hash = xxhash64(tmp, (int)tlut_bytes);
             free(tmp);
         }
     }
