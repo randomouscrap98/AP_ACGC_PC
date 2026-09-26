@@ -5,6 +5,7 @@
  * index scan for TLUT hash (only used entries, in BE byte order).
  * DDS: BC7, BC1/DXT1, BC3/DXT5, or uncompressed RGBA. */
 #include "pc_texture_pack.h"
+#include <dolphin/gx/GXEnum.h>
 #include "pc_gx_internal.h"
 #include "pc_settings.h"
 #include "pc_profiler.h"
@@ -580,20 +581,20 @@ static GLuint load_dds_file(const char* filepath, int* out_w, int* out_h) {
 static int gc_texture_data_size(int w, int h, unsigned int fmt) {
     int bw, bh, block_bytes;
     switch (fmt) {
-        case 0:  /* GX_TF_I4 */
-        case 8:  /* GX_TF_C4 */
+        case GX_TF_I4:
+        case GX_TF_C4:
             bw = 8; bh = 8; block_bytes = 32; break;
-        case 14: /* GX_TF_CMPR */
+        case GX_TF_CMPR:
             bw = 8; bh = 8; block_bytes = 32; break;
-        case 1:  /* GX_TF_I8 */
-        case 2:  /* GX_TF_IA4 */
-        case 9:  /* GX_TF_C8 */
+        case GX_TF_I8:
+        case GX_TF_IA4:
+        case GX_TF_C8:
             bw = 8; bh = 4; block_bytes = 32; break;
-        case 3:  /* GX_TF_IA8 */
-        case 4:  /* GX_TF_RGB565 */
-        case 5:  /* GX_TF_RGB5A3 */
+        case GX_TF_IA8:
+        case GX_TF_RGB565:
+        case GX_TF_RGB5A3:
             bw = 4; bh = 4; block_bytes = 32; break;
-        case 6:  /* GX_TF_RGBA8 */
+        case GX_TF_RGBA8:
             bw = 4; bh = 4; block_bytes = 64; break;
         default:
             bw = 8; bh = 4; block_bytes = 32; break;
@@ -1147,7 +1148,7 @@ GLuint pc_texture_pack_lookup(const void* data, int data_size,
 
         /* Index width comes from the texture format, not the palette size: a C4
          * texture can use a palette bigger than 16 entries and vice versa. */
-        if (fmt == 8) { /* GX_TF_C4 */
+        if (fmt == GX_TF_C4) {
             /* CI4: each byte = 2 pixels, 4 bits each */
             for (int i = 0; i < hash_size; i++) {
                 unsigned int lo = tex_bytes[i] & 0xF;
@@ -1157,7 +1158,7 @@ GLuint pc_texture_pack_lookup(const void* data, int data_size,
                 if (lo > pal_max) pal_max = lo;
                 if (hi > pal_max) pal_max = hi;
             }
-        } else if (fmt == 9) { /* GX_TF_C8 */
+        } else if (fmt == GX_TF_C8) {
             /* CI8: each byte = 1 pixel index */
             for (int i = 0; i < hash_size; i++) {
                 unsigned int idx = tex_bytes[i];
