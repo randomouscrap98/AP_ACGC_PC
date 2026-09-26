@@ -457,7 +457,6 @@ static int pc_save_read_gci(const char* path) {
     CARDDir dir_hdr;
     u8* file_data;
     Save_t* save_src;
-    u32 offset;
     long file_size;
 
     fp = fopen(path, "rb");
@@ -575,7 +574,6 @@ static int pc_save_read_gci_to_keep(const char* path) {
     CARDDir dir_hdr;
     u8* file_data;
     Save_t* save_src;
-    u32 offset;
 
     fp = fopen(path, "rb");
     if (!fp) return FALSE;

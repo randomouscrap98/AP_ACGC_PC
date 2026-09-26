@@ -29861,7 +29861,7 @@ extern void _pc_load_src_game_m_choice_draw_c_inc(void);
 extern void _pc_load_src_static_bootdata_logo_nin_c(void);
 
 int pc_assets_init(void) {
-    int i, loaded = 0, failed = 0, rom_mode = 0;
+    int i, loaded = 0, rom_mode = 0;
     int total = (int)(sizeof(s_assets) / sizeof(s_assets[0]));
 
     /* Try disc image (CISO/ISO/GCM) — pc_disc_init() already called from main */
