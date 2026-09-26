@@ -1145,7 +1145,9 @@ GLuint pc_texture_pack_lookup(const void* data, int data_size,
         const unsigned char* tex_bytes = (const unsigned char*)data;
         unsigned int pal_min = 0xFFFF, pal_max = 0;
 
-        if (tlut_entries <= 16) {
+        /* Index width comes from the texture format, not the palette size: a C4
+         * texture can use a palette bigger than 16 entries and vice versa. */
+        if (fmt == 8) { /* GX_TF_C4 */
             /* CI4: each byte = 2 pixels, 4 bits each */
             for (int i = 0; i < hash_size; i++) {
                 unsigned int lo = tex_bytes[i] & 0xF;
@@ -1155,7 +1157,7 @@ GLuint pc_texture_pack_lookup(const void* data, int data_size,
                 if (lo > pal_max) pal_max = lo;
                 if (hi > pal_max) pal_max = hi;
             }
-        } else if (tlut_entries <= 256) {
+        } else if (fmt == 9) { /* GX_TF_C8 */
             /* CI8: each byte = 1 pixel index */
             for (int i = 0; i < hash_size; i++) {
                 unsigned int idx = tex_bytes[i];
