@@ -7,6 +7,16 @@
 # for archipelago, I don't have to worry about other stuff.
 
 set -e
+
+# --clean: remove compiled outputs (objects, exe, dll) before building, via cmake's clean
+# target. Never deletes BUILD_DIR itself: bin/ holds saves, the ROM and ap_config.ini.
+CLEAN=0
+for arg in "$@"; do
+  case "$arg" in
+    --clean) CLEAN=1 ;;
+    *) echo "Unknown option: $arg (supported: --clean)" >&2; exit 1 ;;
+  esac
+done
  
 # Some defaults (also defined in the dockerfile but the dockerfile overrides these
 # if you're building through that)
@@ -33,6 +43,10 @@ cmake -S pc -B "$BUILD_DIR" \
   -DCMAKE_PREFIX_PATH="$SDL2_DIR" \
   -DOPENSSL_ROOT_DIR="$OPENSSL_DIR" \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+if [ "$CLEAN" = 1 ]; then
+  cmake --build "$BUILD_DIR" --target clean
+fi
 
 cmake --build "$BUILD_DIR" -j"$(nproc)"
 
