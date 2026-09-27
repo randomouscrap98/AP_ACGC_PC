@@ -13,6 +13,8 @@
 
 
 static std::unique_ptr<APClient> g_ap;
+static ap_config g_ap_config;
+static ap_connectstate g_ap_connectstate;
 
 // Attempt to load config at given path. If it does not exist or
 // some other error occurs, returns non-zero
@@ -47,30 +49,67 @@ static int load_config(const char * path, ap_config * out) {
   return 0;
 }
 
-int ap_start() {
+// This is a big project, don't pollute the namespace unless you need the functions
+static void ap_connectstate_init(ap_connectstate * state) {
+  state->state = AP_CSTATE_UNKNOWN;
+  state->last_refuse_reason[0] = 0;
+  state->last_connect_error[0] = 0;
+  state->connect_once = 0;
+}
+
+static void ap_config_init(ap_config * config) {
+  config->host[0] = 0;
+  config->slotname[0] = 0;
+  config->password[0] = 0;
+}
+
+int ap_start(void) {
                  
   APLOG_INFO("Starting AP system");
 
-  ap_config config;
-  int result = load_config(AP_CONFIGNAME, &config);
+  ap_config_init(&g_ap_config);
+  ap_connectstate_init(&g_ap_connectstate);
+
+  int result = load_config(AP_CONFIGNAME, &g_ap_config);
   if (result) { return result; }
 
   std::string uuid = ap_get_uuid("uuid");          // persists a uuid in a file
-  std::string pw = config.password, name = config.slotname;
+  std::string pw = g_ap_config.password, name = g_ap_config.slotname;
 
-  g_ap = std::make_unique<APClient>(uuid, AP_GAMENAME, config.host, AP_CERTPATH);
+  g_ap = std::make_unique<APClient>(uuid, AP_GAMENAME, g_ap_config.host, AP_CERTPATH);
+  g_ap_connectstate.state = AP_CSTATE_CONNECTING;
 
-  g_ap->set_socket_error_handler([](const std::string& e) { 
-    /* show "can't reach server" */ 
-  });
-  g_ap->set_room_info_handler([name, pw] {
-    g_ap->ConnectSlot(name, pw, 0b111 /* items_handling */);
-  });
   g_ap->set_slot_connected_handler([](const nlohmann::json& slot_data) { 
-    /* ready */ 
+    g_ap_connectstate.connect_once = 1;
+    g_ap_connectstate.state = AP_CSTATE_CONNECTED;
+    APLOG_INFO("SLOT CONNECTED: %s", g_ap_config.slotname);
   });
   g_ap->set_slot_refused_handler([](const std::list<std::string>& why) { 
-    /* bad slot/pw */ 
+    g_ap_connectstate.state = AP_CSTATE_SLOTREFUSED;
+    g_ap_connectstate.last_refuse_reason[0] = 0;
+    for (auto& e : why) {
+      size_t n = strlen(g_ap_connectstate.last_refuse_reason);
+      snprintf(g_ap_connectstate.last_refuse_reason + n, 
+          sizeof(g_ap_connectstate.last_refuse_reason) - n, "%s%s", n ? ", " : "", e.c_str());
+    }
+    APLOG_ERROR("SLOT REFUSED: %s", g_ap_connectstate.last_refuse_reason);
+  });
+  g_ap->set_socket_error_handler([](const std::string& e) { 
+    g_ap_connectstate.state = g_ap_connectstate.connect_once ? AP_CSTATE_RECONNECTING : AP_CSTATE_CONNECTING;
+    snprintf(g_ap_connectstate.last_connect_error, 
+        sizeof(g_ap_connectstate.last_connect_error), "%s", e.c_str());
+    APLOG_ERROR("CONNECTION ERROR (RECONNECTING): %s", g_ap_connectstate.last_connect_error);
+  });
+  g_ap->set_socket_disconnected_handler([](void) { 
+    g_ap_connectstate.state = g_ap_connectstate.connect_once ? AP_CSTATE_RECONNECTING : AP_CSTATE_CONNECTING;
+    snprintf(g_ap_connectstate.last_connect_error, 
+        sizeof(g_ap_connectstate.last_connect_error), "Disconnected");
+    APLOG_ERROR("CONNECTION END (RECONNECTING): %s", g_ap_connectstate.last_connect_error);
+  });
+  g_ap->set_room_info_handler([name, pw] {
+    g_ap_connectstate.state = AP_CSTATE_JOINING;
+    APLOG_INFO("CONNECTED - WAITING ON SLOT: %s", g_ap_config.slotname);
+    g_ap->ConnectSlot(name, pw, 0b111 /* items_handling */);
   });
   g_ap->set_items_received_handler([](const std::list<APClient::NetworkItem>& items) {
     for (auto& i : items) { 
@@ -81,6 +120,19 @@ int ap_start() {
   return 0;
 }
 
-void ap_poll() { if (g_ap) g_ap->poll(); }         // call once per frame
-void ap_stop() { g_ap.reset(); }
+ap_config * ap_getconfig(void) {
+  return &g_ap_config;
+}
+
+ap_connectstate * ap_getconnectstate(void) {
+  return &g_ap_connectstate;
+}
+
+void ap_poll(void) { 
+  if (g_ap) g_ap->poll(); 
+}         // call once per frame
+void ap_stop(void) { 
+  g_ap.reset(); 
+  ap_connectstate_init(&g_ap_connectstate);
+}
 
