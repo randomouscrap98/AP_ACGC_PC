@@ -22,6 +22,8 @@ AP_API void ap_stop(void);
 // Eh, keep it simple I guess
 #define AP_CONFIGNAME "ap_config.ini"
 #define AP_MAXSTRING       1024
+#define AP_GAMENAME   "Animal Crossing"
+#define AP_CERTPATH   "cacert.pem"
 
 typedef struct {
   char host[AP_MAXSTRING];
