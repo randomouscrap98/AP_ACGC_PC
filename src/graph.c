@@ -30,6 +30,7 @@
 #include "pc_diag.h"
 #include "pc_platform.h"
 #include "pc_pause_menu.h"
+#include "pc_ap_overlay.h"
 #include "pc_text_draw.h"
 #include "pc_profiler.h"
 extern int g_pc_running;
@@ -389,6 +390,7 @@ static void graph_main(GRAPH* this, GAME* game) {
     PC_DIAG(10, "graph_main: game_main returned, frame_counter=%d\n", this->frame_counter);
 #ifdef TARGET_PC
     pc_pause_menu_draw(game);
+    pc_ap_overlay_draw(game);
 #endif
     GRAPH_SET_DOING_POINT(this, GAME_MAIN_FINISHED);
     if (ResetStatus < IRQ_RESET_DELAY) {
