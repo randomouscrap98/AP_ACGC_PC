@@ -18,12 +18,15 @@ extern "C" {
 
 struct game_s;
 
+// Resets the per-frame glyph pools. Called once per frame before game_main.
+void pc_text_begin_frame(void);
+
 /* Pixel width of a null-terminated string at scale=1. */
 int  pc_text_width(const char* s);
 
 /* Same convention as mFont_SetLineStrings. 
- * The string renders into font_thaga so the caller
- * must already be inside a font draw phase. */
+ * Commands and vertices go into port-owned pools; the font list only
+ * gets a gSPDisplayList to them. Text past the pool size is clipped. */
 void pc_text_draw(struct game_s* game, const char* s, f32 x, f32 y,
                   int r, int g, int b, int a, f32 scale);
 

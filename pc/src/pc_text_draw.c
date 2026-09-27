@@ -19,6 +19,7 @@
 #include "dataobject.h"                 /* FONT_nes_tex_font1 */
 #include "libforest/gbi_extensions.h"   /* gDPLoadTextureTile_4b_Dolphin */
 
+#include <stdio.h>
 #include <string.h>
 #include <math.h>
 
@@ -31,6 +32,27 @@
 
 /* 5-bit indexing caps vertex cache index at 31. 7 glyphs × 4 verts = 28. */
 #define PC_TEXT_CHARS_PER_BATCH 7
+
+// Port-owned per-frame pools, so text doesn't eat the game's font list or poly_opa.
+// Reset by pc_text_begin_frame() before game_main; emu64 reads them later in the same graph_main.
+#define PC_TEXT_POOL_VTX 4096 // 4 per glyph -> 1024 glyphs per frame
+#define PC_TEXT_POOL_GFX 2048
+
+// Gfx cost of one call: 6 setup + end, and at most 5 per batch
+// (gSPVertex + init packet + 3 continuation packets for 14 triangles).
+#define PC_TEXT_GFX_SETUP 7
+#define PC_TEXT_GFX_PER_BATCH 5
+
+static Vtx s_pool_vtx[PC_TEXT_POOL_VTX];
+static Gfx s_pool_gfx[PC_TEXT_POOL_GFX];
+static int s_used_vtx;
+static int s_used_gfx;
+static int s_warned;
+
+void pc_text_begin_frame(void) {
+    s_used_vtx = 0;
+    s_used_gfx = 0;
+}
 
 extern void mFont_gppSetMode(Gfx** gfx_pp);
 
@@ -116,10 +138,25 @@ void pc_text_draw(struct game_s* game, const char* s, f32 x, f32 y,
     if (len <= 0) return;
     if (fabsf(scale) < 0.001f) return;
 
+    // Clip to what's left in the pools instead of overflowing
+    int room_vtx = (PC_TEXT_POOL_VTX - s_used_vtx) / 4;
+    int room_gfx = (PC_TEXT_POOL_GFX - s_used_gfx - PC_TEXT_GFX_SETUP) / PC_TEXT_GFX_PER_BATCH
+                   * PC_TEXT_CHARS_PER_BATCH;
+    int room = room_vtx < room_gfx ? room_vtx : room_gfx;
+    if (len > room) {
+        if (!s_warned) {
+            fprintf(stderr, "[TEXT] per-frame text pool full, clipping text\n");
+            s_warned = 1;
+        }
+        len = room;
+    }
+    if (len <= 0) return;
+
     GRAPH* graph = game->graph;
 
-    OPEN_DISP(graph);
-    Gfx* gfx = NOW_FONT_DISP;
+    // Our commands go in s_pool_gfx; the game's font list only gets one jump to them
+    Gfx* start = &s_pool_gfx[s_used_gfx];
+    Gfx* gfx = start;
 
     /* --- One-shot state setup (same as mFontSentence_gppDraw_before) --- */
     mFont_gppSetMode(&gfx);
@@ -144,8 +181,8 @@ void pc_text_draw(struct game_s* game, const char* s, f32 x, f32 y,
         int batch_n = len - pos;
         if (batch_n > PC_TEXT_CHARS_PER_BATCH) batch_n = PC_TEXT_CHARS_PER_BATCH;
 
-        Vtx* vtx = GRAPH_ALLOC_TYPE(graph, Vtx, batch_n * 4);
-        if (!vtx) break;
+        Vtx* vtx = &s_pool_vtx[s_used_vtx];
+        s_used_vtx += batch_n * 4;
 
         for (int i = 0; i < batch_n; i++) {
             int c = (u8)s[pos + i];
@@ -246,6 +283,10 @@ void pc_text_draw(struct game_s* game, const char* s, f32 x, f32 y,
         pos += batch_n;
     }
 
-    SET_FONT_DISP(gfx);
+    gSPEndDisplayList(gfx++);
+    s_used_gfx += (int)(gfx - start);
+
+    OPEN_DISP(graph);
+    gSPDisplayList(NOW_FONT_DISP++, start);
     CLOSE_DISP(graph);
 }

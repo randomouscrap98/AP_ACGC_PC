@@ -30,6 +30,7 @@
 #include "pc_diag.h"
 #include "pc_platform.h"
 #include "pc_pause_menu.h"
+#include "pc_text_draw.h"
 #include "pc_profiler.h"
 extern int g_pc_running;
 #endif
@@ -377,6 +378,7 @@ static void graph_main(GRAPH* this, GAME* game) {
     {
         Uint64 pc_prof_t;
         pc_profiler_begin_frame();
+        pc_text_begin_frame();
         pc_prof_t = pc_profiler_begin_timer();
         game_main(game);
         pc_profiler_add_time(PC_PROF_TIMER_GAME_LOGIC, pc_prof_t);
