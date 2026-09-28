@@ -59,7 +59,6 @@
 #define GCI_SAVE_BACK_OFFSET (OTHERS_SIZE + sizeof(Save))  /* 0x4C000 */
 #define GCI_SECTOR_SIZE      mCD_MEMCARD_SECTORSIZE /* 0x2000 */
 
-int pc_save_loaded = 0;
 static int pc_save_ready = 0;
 
 /* --- Travel state --- */
@@ -285,17 +284,6 @@ static void pc_save_pre_write_side_effects(int save_mode) {
     Common_Set(copy_protect, copy_protect);
     Save_Set(copy_protect, copy_protect);
     Save_Set(travel_hard_time, lbRTC_HardTime());
-}
-
-static int pc_save_write_gci(void) {
-    int ok = pc_save_write_gci_to(PC_GCI_PATH, PC_GCI_TMP_PATH);
-
-    /* A save now exists on disk, so later title-screen reloads must use it
-     * even if there was no save at boot. */
-    if (ok) {
-        pc_save_loaded = TRUE;
-    }
-    return ok;
 }
 
 static int pc_save_write_gci_to(const char* gci_path, const char* tmp_path) {
@@ -675,18 +663,9 @@ static int pc_save_scan_gci_dir(void) {
     return FALSE;
 }
 
-/* Reload save from GCI file on disk. PC equivalent of GC re-reading the
- * memory card. */
-int pc_save_reload(void) {
-    struct stat st;
-    if (!pc_save_loaded) return 0;
-    if (stat(PC_GCI_PATH, &st) == 0) {
-        return pc_save_read_gci(PC_GCI_PATH);
-    }
-    return pc_save_scan_gci_dir();
-}
-
-int pc_save_check_and_load(void) {
+/* Read the home town save into common_data (main file, then any GCI in card_a,
+ * then .tmp/.bak recovery). Only called from mCD_LoadLand. */
+static int pc_save_check_and_load(void) {
     struct stat st;
     {
         char cwd[512];
@@ -770,18 +749,16 @@ void mCD_InitAll(void) {
 int mCD_InitGameStart_bg(int player_no, int card_private_idx, int start_cond, s32* mounted_chan) {
     static int init_done = 0;
 
-    /* On GC, save is re-read from the memory card each game start.
-     * On PC, the save was already reloaded from disk in common_data_reinit
-     * and aAL_title_game_data_init_start_select. We just need to allow
-     * mSDI_StartDataInit to re-process it. */
-    if (init_done && pc_save_loaded) {
+    /* mCD_LoadLand already read the save at Start (like GC). If there is one,
+     * allow mSDI_StartDataInit to re-process it on every game start. */
+    if (init_done && mFRm_CheckSaveData()) {
         init_done = 0;
     }
 
     if (!init_done) {
         init_done = 1; /* before call — prevents re-entry via crash recovery */
 
-        if (pc_save_loaded) {
+        if (mFRm_CheckSaveData()) {
             static int init_mode_table[] = { mSDI_INIT_MODE_NEW, mSDI_INIT_MODE_FROM,
                                              mSDI_INIT_MODE_NEW_PLAYER, mSDI_INIT_MODE_PAK,
                                              mSDI_INIT_MODE_PAK };
@@ -820,7 +797,7 @@ int mCD_InitGameStart_bg(int player_no, int card_private_idx, int start_cond, s3
                     Common_Set(copy_protect, copy_protect);
                     Save_Set(copy_protect, copy_protect);
                     Save_Set(travel_hard_time, lbRTC_HardTime());
-                    if (!pc_save_write_gci()) {
+                    if (!pc_save_write_gci_to(PC_GCI_PATH, PC_GCI_TMP_PATH)) {
                         OSReport("[PC] InitGameStart: reset-code persist failed\n");
                     }
                 }
@@ -850,7 +827,7 @@ int mCD_InitGameStart_bg(int player_no, int card_private_idx, int start_cond, s3
                     Common_Set(copy_protect, copy_protect);
                     Save_Set(copy_protect, copy_protect);
                     Save_Set(travel_hard_time, lbRTC_HardTime());
-                    if (!pc_save_write_gci()) {
+                    if (!pc_save_write_gci_to(PC_GCI_PATH, PC_GCI_TMP_PATH)) {
                         OSReport("[PC] InitGameStart: return-home persist failed\n");
                         if (mounted_chan) *mounted_chan = mCD_SLOT_A;
                         return mCD_TRANS_ERR_IOERROR;
@@ -869,8 +846,22 @@ int mCD_InitGameStart_bg(int player_no, int card_private_idx, int start_cond, s3
     return mCD_TRANS_ERR_NONE;
 }
 
+/* Called on Start from the title screen (title_action_data_init_start_select),
+ * the only point where GC reads the home town. Mirrors m_card.c:3795 minus the
+ * card-error states: no save just leaves the wiped common_data, and
+ * decide_next_scene_no then starts a new town via mFRm_CheckSaveData(). */
 void mCD_LoadLand(void) {
-    (void)pc_save_loaded;
+    if (pc_save_check_and_load()) {
+        Common_Set(copy_protect, Save_Get(copy_protect));
+    }
+
+    Common_Set(save_error_type, 0);
+    Common_Set(memcard_slot, mCD_SLOT_A);
+
+    if (mFRm_CheckSaveData_common(Save_GetPointer(save_check), Save_Get(land_info).id) &&
+        Save_Get(save_check).version == 5) {
+        memcpy(Save_GetPointer(saved_auto_nwrite_time), &Save_Get(save_check).time, sizeof(lbRTC_time_c));
+    }
 }
 
 int mCD_SaveHome_bg(int param_1, int* chan) {
@@ -887,7 +878,7 @@ int mCD_SaveHome_bg(int param_1, int* chan) {
         result = pc_save_write_gci_to(l_card_b_gci_path, tmp_path);
         if (chan) *chan = mCD_SLOT_B;
     } else {
-        result = pc_save_write_gci();
+        result = pc_save_write_gci_to(PC_GCI_PATH, PC_GCI_TMP_PATH);
         if (chan) *chan = mCD_SLOT_A;
     }
 
@@ -1076,7 +1067,7 @@ int mCD_SaveStation_NextLand_bg(s32* chan) {
     }
 
     /* 3. Save home town to Card A (with player marked as away) */
-    if (!pc_save_write_gci()) {
+    if (!pc_save_write_gci_to(PC_GCI_PATH, PC_GCI_TMP_PATH)) {
         /* Restore player state on failure */
         if (Now_Private != NULL) Now_Private->exists = TRUE;
         OSReport("[PC] SaveStation_NextLand: failed to save home town\n");
@@ -1206,8 +1197,8 @@ void mCD_toNextLand(void) {
 void mCD_ReCheckLoadLand(GAME_PLAY* play) {
     int scene = Save_Get(scene_no);
 
-    /* Reload home town from Card A */
-    pc_save_check_and_load();
+    /* Reload home town from Card A (GC calls mCD_LoadLand here too) */
+    mCD_LoadLand();
     Save_Set(scene_no, scene);
 
     if (mFRm_CheckSaveData()) {

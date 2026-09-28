@@ -122,7 +122,6 @@ extern int pc_emu64_frame_cull_rejected;
 extern int pc_gx_draw_call_count;
 
 /* --- Audio --- */
-extern int pc_save_loaded;
 int  pc_audio_get_buffer_fill(void);
 int  pc_audio_is_active(void);
 void pc_audio_set_paused(int paused);
