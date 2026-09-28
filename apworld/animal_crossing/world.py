@@ -73,4 +73,8 @@ class AnimalCrossingWorld(World):
             "gender": self.options.gender.value,
             "face": self.options.face.value,
             "house": self.options.house.value,
+            "flowers_never_wilt": self.options.flowers_never_wilt.value,
+            "no_cockroaches": self.options.no_cockroaches.value,
+            "shops_always_open": self.options.shops_always_open.value,
+            "no_weeds": self.options.no_weeds.value,
         }

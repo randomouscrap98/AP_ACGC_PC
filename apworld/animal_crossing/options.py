@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import Choice, FreeText, PerGameCommonOptions
+from Options import Choice, DefaultOnToggle, FreeText, PerGameCommonOptions, Toggle
 
 
 class SkipIntro(Choice):
@@ -61,6 +61,26 @@ class House(Choice):
     default = "random"
 
 
+class FlowersNeverWilt(DefaultOnToggle):
+    """Flowers never wilt or die, even without watering."""
+    display_name = "Flowers Never Wilt"
+
+
+class NoCockroaches(DefaultOnToggle):
+    """Cockroaches never appear in your house, even if you're away for a while."""
+    display_name = "No Cockroaches"
+
+
+class ShopsAlwaysOpen(Toggle):
+    """Shops are open at any hour."""
+    display_name = "Shops Always Open"
+
+
+class NoWeeds(DefaultOnToggle):
+    """Weeds never grow in your town."""
+    display_name = "No Weeds"
+
+
 @dataclass
 class AnimalCrossingOptions(PerGameCommonOptions):
     skip_intro: SkipIntro
@@ -69,3 +89,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     gender: Gender
     face: Face
     house: House
+    flowers_never_wilt: FlowersNeverWilt
+    no_cockroaches: NoCockroaches
+    shops_always_open: ShopsAlwaysOpen
+    no_weeds: NoWeeds
