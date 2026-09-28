@@ -4,16 +4,14 @@ from typing import Any
 from BaseClasses import Item, ItemClassification, Location, Region
 from worlds.AutoWorld import World
 
+from .items import ITEM_NAME_TO_ID
 from .options import AnimalCrossingOptions
 
 GAME_NAME = "Animal Crossing"
 NAME_MAX = 8  # PLAYER_NAME_LEN / LAND_NAME_SIZE in the game
 DEFAULT_TOWN = "Archi"
 
-# Placeholders so the generator has something to place. Real checks/items come later.
-ITEM_NAME_TO_ID = {
-    "Bells (1000)": 1,
-}
+# Placeholder so the generator has something to place. Real checks come later.
 LOCATION_NAME_TO_ID = {
     "Arrive in Town": 1,
 }
