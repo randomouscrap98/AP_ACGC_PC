@@ -803,7 +803,7 @@ static void aAL_pc_menu_draw(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
     // Dark box behind the three labels, sized to the widest one at the selected scale
     f32 box_w = (f32)pc_text_width(labels[0]) * PC_MENU_SCALE_SELECTED + 16.0f;
     pc_menu_dim_box(graph, (SCREEN_WIDTH_F - box_w) * 0.5f, y_base - 6.0f,
-                    box_w, 3 * line_h + 8.0f, aAL_PC_MENU_BOX_ALPHA);
+                    box_w, 3 * line_h + 10.0f, aAL_PC_MENU_BOX_ALPHA);
 
     for (int i = 0; i < 3; i++) {
       int on = (sel == i);
