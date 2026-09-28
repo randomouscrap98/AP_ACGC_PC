@@ -25,6 +25,7 @@
 #include "pc_settings.h"
 #include "pc_settings_menu.h"
 #include "pc_menu_util.h"
+#include "pc_text_draw.h"
 #include "main.h"
 #include <stdio.h>
 #endif
@@ -765,6 +766,8 @@ static void aAL_title_draw(GAME* game, ANIMAL_LOGO_ACTOR* actor) {
 }
 
 #ifdef PC_ENHANCEMENTS
+#define aAL_PC_MENU_BOX_ALPHA 127 // same as the AP overlay's box
+
 static void aAL_pc_menu_draw(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
   GRAPH* graph = game->graph;
   int td = actor->titledemo_no;
@@ -783,9 +786,10 @@ static void aAL_pc_menu_draw(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
   static const u32 sel_r[5] = { 255, 255, 255, 120, 165 };
   static const u32 sel_g[5] = {  90, 135, 100, 205, 245 };
   static const u32 sel_b[5] = {  30,   0, 255, 245,   0 };
-  static const u32 dim_r[5] = {  70,  60,  60,  40,  40 };
-  static const u32 dim_g[5] = {  40,  50,  40,  50,  50 };
-  static const u32 dim_b[5] = {  40,  30,  60,  70,  60 };
+  // Unselected: light tints of the selected colors, readable on the dark box
+  static const u32 dim_r[5] = { 225, 225, 215, 185, 205 };
+  static const u32 dim_g[5] = { 190, 205, 190, 210, 220 };
+  static const u32 dim_b[5] = { 180, 170, 225, 225, 170 };
 
   static const char* const labels[3] = { "Start Game", "Options", "Quit Game" }; // me when const
 
@@ -796,6 +800,11 @@ static void aAL_pc_menu_draw(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
   /* Hide the title's main menu items while the Options overlay is open, else
    * Start/Options/Quit bleed through the dimmed backdrop. */
   if (!actor->pc_options_open) {
+    // Dark box behind the three labels, sized to the widest one at the selected scale
+    f32 box_w = (f32)pc_text_width(labels[0]) * PC_MENU_SCALE_SELECTED + 16.0f;
+    pc_menu_dim_box(graph, (SCREEN_WIDTH_F - box_w) * 0.5f, y_base - 6.0f,
+                    box_w, 3 * line_h + 8.0f, aAL_PC_MENU_BOX_ALPHA);
+
     for (int i = 0; i < 3; i++) {
       int on = (sel == i);
       pc_menu_draw_centered(game, labels[i], y_base + i * line_h,
