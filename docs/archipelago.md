@@ -45,8 +45,8 @@ fork of the ACGC-PC port.
 
 ### Pending:
 - Skip the Rover intro (supply name and city)
-  - Name is 5 chars
-  - City is ? chars
+  - Name is 8 chars (variable width tested)
+  - City is 8 chars
 - Skip the Tom Nook tutorial
   - Might have to pre-select a house?
 - Friendship multiplier (to make it go faster)

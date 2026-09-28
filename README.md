@@ -101,13 +101,16 @@ This project would not be possible without the work of the [ACreTeam](https://gi
 
 ## AI Notice
 
-I (randomouscrap98) forked this from https://github.com/flyngmt/ACGC-PC-Port, which has the following AI notice:
+I (randomouscrap98) forked this from https://github.com/flyngmt/ACGC-PC-Port, which came 
+with the following AI notice:
 
 > AI tools such as Claude were used in this project (PC port code only).
 
-I am **not** using AI to write the AP portion of this code, but I understand that "any" AI that touches 
-a repo at all can be contentious. This notice is retained for anyone who wishes not to use this because 
-of the warning in the parent repo.
+All the new Archipelago code written for the executable (c, cpp, etc) is handwritten by me, 
+for better or worse, unless it is a shallow copy of existing code in the pc port 
+(such as font rendering etc). 
+
+AI assistance was used for the tedious aspects of the apworld (such as the thousands of items, etc)
 
 ## FAQ
 

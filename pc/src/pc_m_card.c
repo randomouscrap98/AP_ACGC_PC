@@ -52,10 +52,6 @@
 #define PC_SAVE_DIR       "save"
 #define PC_SAVE_MAX_BACKUPS 3
 
-/* Legacy paths for migration from flat save/ layout */
-#define PC_GCI_PATH_LEGACY     "save/DobutsunomoriP_MURA.gci"
-#define PC_GCI_TMP_PATH_LEGACY "save/DobutsunomoriP_MURA.gci.tmp"
-
 #define GCI_HEADER_SIZE      sizeof(CARDDir)        /* 64 bytes */
 #define GCI_FILE_DATA_SIZE   mCD_LAND_SAVE_SIZE     /* 0x72000 */
 #define GCI_OTHERS_OFFSET    0
@@ -646,41 +642,6 @@ static int pc_save_read_gci_to_keep(const char* path) {
     return TRUE;
 }
 
-/* Migrate legacy flat save/ layout to save/card_a/ */
-static void pc_save_migrate_legacy(void) {
-    struct stat st_legacy, st_new;
-
-    if (stat(PC_GCI_PATH_LEGACY, &st_legacy) == 0 &&
-        stat(PC_GCI_PATH, &st_new) != 0) {
-        int b;
-        OSReport("[PC] Migrating save from '%s' to '%s'\n", PC_GCI_PATH_LEGACY, PC_GCI_PATH);
-        pc_ensure_save_dirs();
-
-        /* Move main save */
-        remove(PC_GCI_PATH); /* in case it somehow exists */
-        rename(PC_GCI_PATH_LEGACY, PC_GCI_PATH);
-
-        /* Move backups */
-        for (b = 1; b <= PC_SAVE_MAX_BACKUPS; b++) {
-            char old_bak[300], new_bak[300];
-            snprintf(old_bak, sizeof(old_bak), "%s.bak%d", PC_GCI_PATH_LEGACY, b);
-            snprintf(new_bak, sizeof(new_bak), "%s.bak%d", PC_GCI_PATH, b);
-            remove(new_bak);
-            rename(old_bak, new_bak);
-        }
-
-        /* Move temp file if orphaned */
-        {
-            char old_tmp[300];
-            snprintf(old_tmp, sizeof(old_tmp), "%s.tmp", PC_GCI_PATH_LEGACY);
-            remove(PC_GCI_TMP_PATH);
-            rename(old_tmp, PC_GCI_TMP_PATH);
-        }
-
-        OSReport("[PC] Migration complete\n");
-    }
-}
-
 static int pc_save_scan_gci_dir(void) {
     /* Try common AC save filenames in card_a/ */
     static const char* gci_names[] = {
@@ -735,7 +696,6 @@ int pc_save_check_and_load(void) {
     }
 
     pc_ensure_save_dirs();
-    pc_save_migrate_legacy();
 
     if (stat(PC_GCI_PATH, &st) == 0) {
         OSReport("[PC] Found GCI save: %s (%ld bytes)\n", PC_GCI_PATH, (long)st.st_size);
