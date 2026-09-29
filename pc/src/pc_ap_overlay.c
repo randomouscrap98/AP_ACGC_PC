@@ -1,5 +1,5 @@
 #include "pc_ap_overlay.h"
-#include "pc_archipelago.h"
+#include "ap_archipelago.h"
 
 #include "pc_menu_util.h"
 #include "pc_text_draw.h"

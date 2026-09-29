@@ -1,5 +1,5 @@
-#ifndef PC_ARCHIPELAGO_H
-#define PC_ARCHIPELAGO_H
+#ifndef AP_ARCHIPELAGO_H
+#define AP_ARCHIPELAGO_H
 
 #if defined(_WIN32) && defined(AP_CLIENT_EXPORTS)
 #define AP_API __declspec(dllexport)

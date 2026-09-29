@@ -11,7 +11,7 @@
 #include "pc_settings_menu.h"
 #include "pc_profiler.h"
 #include "m_kankyo.h"
-#include "pc_archipelago.h"
+#include "ap_archipelago.h"
 
 /* prefer discrete GPU on laptops */
 #ifdef _WIN32

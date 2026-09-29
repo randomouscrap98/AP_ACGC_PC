@@ -21,7 +21,7 @@
 #include "m_time.h"
 #include "m_scene.h"
 #include "m_name_table.h"
-#include "pc_archipelago.h"
+#include "ap_archipelago.h"
 #include "sys_math3d.h"
 #include "sys_math.h"
 #include "zurumode.h"

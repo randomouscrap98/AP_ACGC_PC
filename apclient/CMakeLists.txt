@@ -4,7 +4,7 @@
 # Built as its own shared library so its C++ runtime and operator new are
 # separate from the game's (the game replaces global operator new with JKRHeap,
 # which does not exist until after startup). The game only sees the C API in
-# include/pc_archipelago.h.
+# include/ap_archipelago.h.
 #
 # NOTE: this directory is added before the game's include/compile settings so
 # none of them (decomp headers, TARGET_PC, etc.) leak into this target.
@@ -76,7 +76,7 @@ endif()
 # -----------------------------------------------------------------------------
 # ap_client shared library
 # -----------------------------------------------------------------------------
-add_library(ap_client SHARED src/pc_archipelago.cpp src/ap_log.cpp)
+add_library(ap_client SHARED src/ap_archipelago.cpp src/ap_log.cpp)
 
 target_include_directories(ap_client
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include   # C API header, used by the game
