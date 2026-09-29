@@ -11,12 +11,15 @@ extern "C" {
 #endif
 
 int pc_card_dir_set_root(const char * dir);
+// Set root based on archipelago data
+void pc_card_dir_set_root_ap(const char * seed, int team, int player);
 void pc_card_dir_out(s32 chan, char * out, size_t size);
 void pc_card_file_out(s32 chan, char * out, size_t size, const char * fname);
 void pc_card_dir_create(void);
 void pc_mkdir_p(const char * path);
 
 int pc_card_filename_safe(const char* name);
+void pc_path_sanitize(char* path);
 
 #ifdef __cplusplus
 }

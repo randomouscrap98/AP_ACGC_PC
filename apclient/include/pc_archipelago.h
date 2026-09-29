@@ -43,8 +43,17 @@ AP_API ap_config * ap_getconfig(void);
 #define AP_CSTATE_SLOTREFUSED   -1
 
 typedef struct {
+  char seed[AP_MAXSTRING];
+  int team;
+  int player;
+} ap_roomplayer;
+
+AP_API int ap_roomplayer_valid(const ap_roomplayer * rp);
+
+typedef struct {
   char last_refuse_reason[AP_MAXSTRING];
   char last_connect_error[AP_MAXSTRING];
+  ap_roomplayer roomplayer; // only set once!!
   int state;
   int connect_once; // ever connected once
 } ap_connectstate;

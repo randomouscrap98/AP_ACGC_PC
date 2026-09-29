@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 
 #ifdef _WIN32
 #include <direct.h>
@@ -19,6 +20,14 @@ int pc_card_dir_set_root(const char * dir) {
   strcpy(g_pc_saveroot, dir);
   pc_card_dir_create();
   return 0;
+}
+
+
+void pc_card_dir_set_root_ap(const char * seed, int team, int player) {
+  snprintf(g_pc_saveroot, sizeof(g_pc_saveroot), "saves/ap_%s_%d_%d",
+      seed, team, player);
+  pc_path_sanitize(g_pc_saveroot);
+  pc_card_dir_create();
 }
 
 
@@ -78,9 +87,37 @@ void pc_card_dir_create(void) {
 }
 
 int pc_card_filename_safe(const char* name) {
+  static const char* reserved[] = { "CON", "PRN", "AUX", "NUL", NULL };
+  size_t len, base;
+  int i;
+
   if (!name || !name[0]) return 0;
+  len = strlen(name);
+  if (len > 32) return 0;
   if (strstr(name, "..")) return 0;
-  if (strchr(name, '/') || strchr(name, '\\')) return 0;
+  for (i = 0; name[i]; i++) {
+    unsigned char c = (unsigned char)name[i];
+    if (c < 32 || strchr("/\\<>:\"|?*", c)) return 0;
+  }
+  if (name[len - 1] == '.' || name[len - 1] == ' ') return 0;
+
+  // device names, with or without extension
+  base = strcspn(name, ".");
+  for (i = 0; reserved[i]; i++) {
+    if (base == 3 && strncasecmp(name, reserved[i], 3) == 0) return 0;
+  }
+  if (base == 4 && (strncasecmp(name, "COM", 3) == 0 || strncasecmp(name, "LPT", 3) == 0) &&
+      name[3] >= '1' && name[3] <= '9') return 0;
   return 1;
 }
 
+// very very basic sanitization, over-zealous
+void pc_path_sanitize(char* path) {
+  for (; *path; path++) {
+    char c = *path;
+    if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+          c == '_' || c == '-' || c == '/')) {
+      *path = '_';
+    }
+  }
+}

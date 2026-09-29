@@ -49,18 +49,29 @@ static int load_config(const char * path, ap_config * out) {
   return 0;
 }
 
+static void ap_roomplayer_init(ap_roomplayer * rp) {
+  rp->seed[0] = 0;
+  rp->player = 0;
+  rp->team = 0;
+}
+
 // This is a big project, don't pollute the namespace unless you need the functions
 static void ap_connectstate_init(ap_connectstate * state) {
   state->state = AP_CSTATE_UNKNOWN;
   state->last_refuse_reason[0] = 0;
   state->last_connect_error[0] = 0;
   state->connect_once = 0;
+  ap_roomplayer_init(&state->roomplayer);
 }
 
 static void ap_config_init(ap_config * config) {
   config->host[0] = 0;
   config->slotname[0] = 0;
   config->password[0] = 0;
+}
+
+int ap_roomplayer_valid(const ap_roomplayer * rp) {
+  return strlen(rp->seed) > 0;
 }
 
 int ap_start(void) {
@@ -82,8 +93,18 @@ int ap_start(void) {
   g_ap->set_slot_connected_handler([](const nlohmann::json& slot_data) { 
     g_ap_connectstate.connect_once = 1;
     g_ap_connectstate.state = AP_CSTATE_CONNECTED;
+    if(!ap_roomplayer_valid(&g_ap_connectstate.roomplayer)) {
+      g_ap_connectstate.roomplayer.player = g_ap->get_player_number();
+      g_ap_connectstate.roomplayer.team = g_ap->get_team_number();
+      snprintf(g_ap_connectstate.roomplayer.seed, 
+          sizeof(g_ap_connectstate.roomplayer.seed), "%s", 
+          g_ap->get_seed().c_str());
+      APLOG_DEBUG("SET ROOMINFO: %s/%d/%d", g_ap_connectstate.roomplayer.seed,
+          g_ap_connectstate.roomplayer.team, g_ap_connectstate.roomplayer.player);
+    }
     APLOG_INFO("SLOT CONNECTED: %s", g_ap_config.slotname);
   });
+
   g_ap->set_slot_refused_handler([](const std::list<std::string>& why) { 
     g_ap_connectstate.state = AP_CSTATE_SLOTREFUSED;
     g_ap_connectstate.last_refuse_reason[0] = 0;
@@ -94,23 +115,27 @@ int ap_start(void) {
     }
     APLOG_ERROR("SLOT REFUSED: %s", g_ap_connectstate.last_refuse_reason);
   });
+
   g_ap->set_socket_error_handler([](const std::string& e) { 
     g_ap_connectstate.state = g_ap_connectstate.connect_once ? AP_CSTATE_RECONNECTING : AP_CSTATE_CONNECTING;
     snprintf(g_ap_connectstate.last_connect_error, 
         sizeof(g_ap_connectstate.last_connect_error), "%s", e.c_str());
     APLOG_ERROR("CONNECTION ERROR (RECONNECTING): %s", g_ap_connectstate.last_connect_error);
   });
+
   g_ap->set_socket_disconnected_handler([](void) { 
     g_ap_connectstate.state = g_ap_connectstate.connect_once ? AP_CSTATE_RECONNECTING : AP_CSTATE_CONNECTING;
     snprintf(g_ap_connectstate.last_connect_error, 
         sizeof(g_ap_connectstate.last_connect_error), "Disconnected");
     APLOG_ERROR("CONNECTION END (RECONNECTING): %s", g_ap_connectstate.last_connect_error);
   });
+
   g_ap->set_room_info_handler([name, pw] {
     g_ap_connectstate.state = AP_CSTATE_JOINING;
     APLOG_INFO("CONNECTED - WAITING ON SLOT: %s", g_ap_config.slotname);
     g_ap->ConnectSlot(name, pw, 0b111 /* items_handling */);
   });
+
   g_ap->set_items_received_handler([](const std::list<APClient::NetworkItem>& items) {
     for (auto& i : items) { 
       /* queue i.item, apply at a safe point */ 
