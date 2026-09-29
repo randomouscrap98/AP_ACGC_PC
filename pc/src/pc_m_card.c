@@ -47,7 +47,9 @@
 /* --- Path constants --- */
 //#define PC_CARD_A_DIR     "save/card_a"
 //#define PC_CARD_B_DIR     "save/card_b"
-#define PC_GCI_FILENAME   "DobutsunomoriP_MURA.gci"
+#define PC_GCI_FILENAME     "DobutsunomoriP_MURA.gci"
+#define PC_GCI_TMP_FILENAME PC_GCI_FILENAME ".tmp"
+#define PC_GCI_ALT_FILENAME "8P-GAFE-DobutsunomoriP_MURA.gci"
 //#define PC_GCI_PATH       PC_CARD_A_DIR "/" PC_GCI_FILENAME
 //#define PC_GCI_TMP_PATH   PC_CARD_A_DIR "/" PC_GCI_FILENAME ".tmp"
 // #define PC_SAVE_DIR       "save"
@@ -622,8 +624,8 @@ static int pc_save_read_gci_to_keep(const char* path) {
 static int pc_save_scan_gci_dir(void) {
   /* Try common AC save filenames in card_a/ */
   static const char* gci_names[] = {
-    "DobutsunomoriP_MURA.gci",
-    "8P-GAFE-DobutsunomoriP_MURA.gci",
+    PC_GCI_FILENAME,
+    PC_GCI_ALT_FILENAME,
     NULL
   };
   int i;
@@ -657,6 +659,8 @@ static int pc_save_scan_gci_dir(void) {
  * then .tmp/.bak recovery). Only called from mCD_LoadLand. */
 static int pc_save_check_and_load(void) {
   struct stat st;
+  char gci_path[PC_PATHSIZE];
+  char tmp_path[PC_PATHSIZE];
   {
     char cwd[512];
     if (getcwd(cwd, sizeof(cwd))) {
@@ -665,16 +669,18 @@ static int pc_save_check_and_load(void) {
   }
 
   pc_card_dir_create();
+  pc_card_file_out(0, gci_path, sizeof(gci_path), PC_GCI_FILENAME);
+  pc_card_file_out(0, tmp_path, sizeof(tmp_path), PC_GCI_TMP_FILENAME);
 
-  if (stat(PC_GCI_PATH, &st) == 0) {
-    OSReport("[PC] Found GCI save: %s (%ld bytes)\n", PC_GCI_PATH, (long)st.st_size);
-    if (pc_save_read_gci(PC_GCI_PATH)) {
+  if (stat(gci_path, &st) == 0) {
+    OSReport("[PC] Found GCI save: %s (%ld bytes)\n", gci_path, (long)st.st_size);
+    if (pc_save_read_gci(gci_path)) {
       OSReport("[PC] GCI save loaded successfully\n");
       return TRUE;
     }
     OSReport("[PC] GCI save load FAILED\n");
   } else {
-    OSReport("[PC] No GCI save at %s\n", PC_GCI_PATH);
+    OSReport("[PC] No GCI save at %s\n", gci_path);
   }
 
   OSReport("[PC] Scanning for other GCI files...\n");
@@ -684,18 +690,18 @@ static int pc_save_check_and_load(void) {
   }
 
   /* recovery: try temp file, then backups */
-  if (stat(PC_GCI_TMP_PATH, &st) == 0) {
-    OSReport("[PC] Found orphaned temp save '%s', recovering...\n", PC_GCI_TMP_PATH);
-    if (rename(PC_GCI_TMP_PATH, PC_GCI_PATH) == 0 && pc_save_read_gci(PC_GCI_PATH)) {
+  if (stat(tmp_path, &st) == 0) {
+    OSReport("[PC] Found orphaned temp save '%s', recovering...\n", tmp_path);
+    if (rename(tmp_path, gci_path) == 0 && pc_save_read_gci(gci_path)) {
       OSReport("[PC] Recovered save from temp file\n");
       return TRUE;
     }
   }
   {
-    char bak_path[300];
+    char bak_path[PC_PATHSIZE + 8];
     int b;
     for (b = 1; b <= PC_SAVE_MAX_BACKUPS; b++) {
-      snprintf(bak_path, sizeof(bak_path), "%s.bak%d", PC_GCI_PATH, b);
+      snprintf(bak_path, sizeof(bak_path), "%s.bak%d", gci_path, b);
       if (stat(bak_path, &st) == 0) {
         OSReport("[PC] Found backup save '%s', recovering...\n", bak_path);
         if (pc_save_read_gci(bak_path)) {
@@ -787,7 +793,11 @@ int mCD_InitGameStart_bg(int player_no, int card_private_idx, int start_cond, s3
                     Common_Set(copy_protect, copy_protect);
                     Save_Set(copy_protect, copy_protect);
                     Save_Set(travel_hard_time, lbRTC_HardTime());
-                    if (!pc_save_write_gci_to(PC_GCI_PATH, PC_GCI_TMP_PATH)) {
+                    char gci_path[PC_PATHSIZE];
+                    char gci_tmp_path[PC_PATHSIZE];
+                    pc_card_file_out(0, gci_path, sizeof(gci_path), PC_GCI_FILENAME);
+                    pc_card_file_out(0, gci_tmp_path, sizeof(gci_tmp_path), PC_GCI_TMP_FILENAME);
+                    if (!pc_save_write_gci_to(gci_path, gci_tmp_path)) {
                         OSReport("[PC] InitGameStart: reset-code persist failed\n");
                     }
                 }
@@ -817,7 +827,11 @@ int mCD_InitGameStart_bg(int player_no, int card_private_idx, int start_cond, s3
                     Common_Set(copy_protect, copy_protect);
                     Save_Set(copy_protect, copy_protect);
                     Save_Set(travel_hard_time, lbRTC_HardTime());
-                    if (!pc_save_write_gci_to(PC_GCI_PATH, PC_GCI_TMP_PATH)) {
+                    char gci_path[PC_PATHSIZE];
+                    char gci_tmp_path[PC_PATHSIZE];
+                    pc_card_file_out(0, gci_path, sizeof(gci_path), PC_GCI_FILENAME);
+                    pc_card_file_out(0, gci_tmp_path, sizeof(gci_tmp_path), PC_GCI_TMP_FILENAME);
+                    if (!pc_save_write_gci_to(gci_path, gci_tmp_path)) {
                         OSReport("[PC] InitGameStart: return-home persist failed\n");
                         if (mounted_chan) *mounted_chan = mCD_SLOT_A;
                         return mCD_TRANS_ERR_IOERROR;
@@ -868,7 +882,11 @@ int mCD_SaveHome_bg(int param_1, int* chan) {
         result = pc_save_write_gci_to(l_card_b_gci_path, tmp_path);
         if (chan) *chan = mCD_SLOT_B;
     } else {
-        result = pc_save_write_gci_to(PC_GCI_PATH, PC_GCI_TMP_PATH);
+        char gci_path[PC_PATHSIZE];
+        char gci_tmp_path[PC_PATHSIZE];
+        pc_card_file_out(0, gci_path, sizeof(gci_path), PC_GCI_FILENAME);
+        pc_card_file_out(0, gci_tmp_path, sizeof(gci_tmp_path), PC_GCI_TMP_FILENAME);
+        result = pc_save_write_gci_to(gci_path, gci_tmp_path);
         if (chan) *chan = mCD_SLOT_A;
     }
 
@@ -918,7 +936,9 @@ int mCD_CheckStation_bg(s32* chan) {
     if (is_foreigner) {
         Save_t temp_save;
         if (chan) *chan = mCD_SLOT_B;
-        if (pc_read_gci_land_info(PC_GCI_PATH, &temp_save)) {
+        char gci_path[PC_PATHSIZE];
+        pc_card_file_out(0, gci_path, sizeof(gci_path), PC_GCI_FILENAME);
+        if (pc_read_gci_land_info(gci_path, &temp_save)) {
             if (mLd_CheckId(temp_save.land_info.id) &&
                 !mLd_CheckThisLand(temp_save.land_info.name, temp_save.land_info.id)) {
                 OSReport("[PC] CheckStation: Card A has home town '%.*s' (id=0x%04X) — return available\n",
@@ -999,7 +1019,9 @@ int mCD_SaveStation_NextLand_bg(s32* chan) {
             OSReport("[PC] SaveStation_NextLand(return): no Card B path cached\n");
         }
 
-        if (!pc_save_read_gci_to_keep(PC_GCI_PATH)) {
+        char gci_path[PC_PATHSIZE];
+        pc_card_file_out(0, gci_path, sizeof(gci_path), PC_GCI_FILENAME);
+        if (!pc_save_read_gci_to_keep(gci_path)) {
             OSReport("[PC] SaveStation_NextLand(return): failed to load home town\n");
             if (chan) *chan = mCD_SLOT_A;
             return mCD_TRANS_ERR_CORRUPT;
@@ -1057,7 +1079,11 @@ int mCD_SaveStation_NextLand_bg(s32* chan) {
     }
 
     /* 3. Save home town to Card A (with player marked as away) */
-    if (!pc_save_write_gci_to(PC_GCI_PATH, PC_GCI_TMP_PATH)) {
+    char gci_path[PC_PATHSIZE];
+    char gci_tmp_path[PC_PATHSIZE];
+    pc_card_file_out(0, gci_path, sizeof(gci_path), PC_GCI_FILENAME);
+    pc_card_file_out(0, gci_tmp_path, sizeof(gci_tmp_path), PC_GCI_TMP_FILENAME);
+    if (!pc_save_write_gci_to(gci_path, gci_tmp_path)) {
         /* Restore player state on failure */
         if (Now_Private != NULL) Now_Private->exists = TRUE;
         OSReport("[PC] SaveStation_NextLand: failed to save home town\n");
