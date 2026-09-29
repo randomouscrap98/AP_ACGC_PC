@@ -329,6 +329,9 @@ static void aAL_fade_out_start_wait_init(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
 }
 
 #ifdef PC_ENHANCEMENTS
+// 0 = not seen yet, 1 = seen waiting on AP, 2 = ready. Per boot, not per title visit
+static int aAL_pc_ap_ready_state = 0;
+
 static void aAL_pc_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
   GAME_PLAY* play = (GAME_PLAY*)game;
   f32 dt = (f32)game->graph->dt_num_60fps_frames;
@@ -337,6 +340,18 @@ static void aAL_pc_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
 
   /* No blinking — full opacity for menu */
   actor->press_start_opacity = 255.0f;
+
+  // Chime once when "Connecting" turns into "Start Game" while the menu is up.
+  // Already ready when the menu first shows = no chime.
+  {
+    int ready = pc_ap_start_allowed();
+    if (aAL_pc_ap_ready_state == 0) {
+      aAL_pc_ap_ready_state = ready ? 2 : 1;
+    } else if (aAL_pc_ap_ready_state == 1 && ready) {
+      aAL_pc_ap_ready_state = 2;
+      sAdo_SysTrgStart(NA_SE_SENTAKU_KETTEI);
+    }
+  }
 
   if (play->fb_fade_type == FADE_TYPE_SELECT_END) {
     aAL_setupAction(actor, game, aAL_ACTION_6);
@@ -795,6 +810,7 @@ static void aAL_pc_menu_draw(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
   static const u32 dim_b[5] = { 180, 170, 225, 225, 170 };
 
   static const char* const labels[3] = { "Start Game", "Options", "Quit Game" }; // me when const
+  static const char* const wait_label = "Connecting"; // replaces Start until AP is ready
 
   f32 y_base = 135.0f;
   f32 line_h = 18.0f;
@@ -804,12 +820,22 @@ static void aAL_pc_menu_draw(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
    * Start/Options/Quit bleed through the dimmed backdrop. */
   if (!actor->pc_options_open) {
     // Dark box behind the three labels, sized to the widest one at the selected scale
-    f32 box_w = (f32)pc_text_width(labels[0]) * PC_MENU_SCALE_SELECTED + 16.0f;
+    int ap_ready = pc_ap_start_allowed();
+    int widest = pc_text_width(labels[0]);
+    if (pc_text_width(wait_label) > widest) widest = pc_text_width(wait_label);
+    f32 box_w = (f32)widest * PC_MENU_SCALE_SELECTED + 16.0f;
     pc_menu_dim_box(graph, (SCREEN_WIDTH_F - box_w) * 0.5f, y_base - 6.0f,
                     box_w, 3 * line_h + 10.0f, aAL_PC_MENU_BOX_ALPHA);
 
     for (int i = 0; i < 3; i++) {
       int on = (sel == i);
+      if (i == 0 && !ap_ready) {
+        // Subdued while waiting on AP: muted orange when selected, gray otherwise
+        pc_menu_draw_centered(game, wait_label, y_base + i * line_h,
+          on ? 200 : 150, on ? 145 : 145, on ? 90 : 140, on ? 230 : 180,
+          on ? PC_MENU_SCALE_SELECTED : 1.0f);
+        continue;
+      }
       pc_menu_draw_centered(game, labels[i], y_base + i * line_h,
         on ? sel_r[td] : dim_r[td],
         on ? sel_g[td] : dim_g[td],
