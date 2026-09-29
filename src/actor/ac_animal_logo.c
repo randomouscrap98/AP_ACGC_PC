@@ -22,6 +22,7 @@
 #include "libultra/libultra.h"
 #include "m_flashrom.h"
 #ifdef PC_ENHANCEMENTS
+#include "pc_ap_logic.h"
 #include "pc_settings.h"
 #include "pc_settings_menu.h"
 #include "pc_menu_util.h"
@@ -400,9 +401,11 @@ static void aAL_pc_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
   if (on_btn & (BUTTON_A | BUTTON_START)) {
     switch (actor->pc_menu_sel) {
       case 0: /* Start Game */
-        if (mLd_CheckStartFlag() == TRUE &&
-            aAL_wipe_end_check(game) == TRUE &&
-            mTD_tdemo_button_ok_check()) {
+        if (!pc_ap_start_allowed()) {
+          sAdo_SysTrgStart(MONO(NA_SE_3));
+        } else if(mLd_CheckStartFlag() == TRUE &&
+              aAL_wipe_end_check(game) == TRUE &&
+              mTD_tdemo_button_ok_check()) {
           aAL_setupAction(actor, game, aAL_ACTION_FADE_OUT_START);
         }
         break;
