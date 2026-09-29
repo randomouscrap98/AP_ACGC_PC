@@ -78,7 +78,7 @@ static union {
 } l_mcd_foreigner_file;
 
 static int l_mcd_keep_startCond = 0;
-static char l_card_b_gci_path[300] = {0};      /* Path to the Card B GCI file, if found */
+static char l_card_b_gci_path[PC_PATHSIZE + 256] = {0};      /* Path to the Card B GCI file, if found */
 
 /* External: scan card_b/ for valid AC GCI file (defined in pc_card.c) */
 extern int pc_card_scan_for_gci(int chan, char* out_path, int out_size);
@@ -200,7 +200,7 @@ static void put_be16(u8* dst, u16 val) {
 
 /* rotate backups: .bak3→delete, .bak2→.bak3, .bak1→.bak2, current→.bak1 */
 static void pc_save_rotate_backups(const char* base_path) {
-    char older[300], newer[300];
+    char older[PC_PATHSIZE + 256 + 8], newer[PC_PATHSIZE + 256 + 8];
     int i;
     struct stat st;
 
@@ -414,7 +414,7 @@ static int pc_save_write_gci_to(const char* gci_path, const char* tmp_path) {
         OSReport("[PC] GCI save: rename '%s' -> '%s' failed, recovering...\n",
                  tmp_path, gci_path);
         {
-            char bak1[300];
+            char bak1[PC_PATHSIZE + 256 + 8];
             snprintf(bak1, sizeof(bak1), "%s.bak1", gci_path);
             rename(bak1, gci_path);
         }
@@ -632,7 +632,8 @@ static int pc_save_scan_gci_dir(void) {
   struct stat st;
 
   for (i = 0; gci_names[i] != NULL; i++) {
-    const char * path = pc_card_file(0, gci_names[i]);
+    char path[PC_PATHSIZE];
+    pc_card_file_out(0, path, sizeof(path), gci_names[i]);
       if (stat(path, &st) == 0) {
         OSReport("[PC] GCI scan: found '%s'\n", path);
         if (pc_save_read_gci(path)) {
@@ -643,7 +644,7 @@ static int pc_save_scan_gci_dir(void) {
 
   /* Also try dynamic scan of card_a/ for any GCI */
   {
-    char found_path[300];
+    char found_path[PC_PATHSIZE + 256];
     if (pc_card_scan_for_gci(0, found_path, sizeof(found_path))) {
       OSReport("[PC] GCI scan: found '%s' via directory scan\n", found_path);
       if (pc_save_read_gci(found_path)) {
@@ -877,7 +878,7 @@ int mCD_SaveHome_bg(int param_1, int* chan) {
 
     if (slot == mCD_SLOT_B && l_card_b_gci_path[0] != '\0') {
         /* Visiting Card B's town — save to Card B GCI */
-        char tmp_path[300];
+        char tmp_path[PC_PATHSIZE + 256 + 8];
         snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", l_card_b_gci_path);
         result = pc_save_write_gci_to(l_card_b_gci_path, tmp_path);
         if (chan) *chan = mCD_SLOT_B;
@@ -1008,7 +1009,7 @@ int mCD_SaveStation_NextLand_bg(s32* chan) {
 
         /* Persist visited-town state to its Card B GCI. */
         if (l_card_b_gci_path[0] != '\0') {
-            char tmp_path[320];
+            char tmp_path[PC_PATHSIZE + 256 + 8];
             snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", l_card_b_gci_path);
             if (!pc_save_write_gci_to(l_card_b_gci_path, tmp_path)) {
                 OSReport("[PC] SaveStation_NextLand(return): failed to save visited town\n");

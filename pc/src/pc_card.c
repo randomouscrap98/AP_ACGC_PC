@@ -114,10 +114,10 @@ s32 CARDUnmount(s32 chan) {
 }
 
 s32 CARDOpen(s32 chan, const char* fileName, CARDFileInfo_PC* fileInfo) {
-  char path[512];
+  char path[PC_PATHSIZE];
   CARDOpenSlot* slot;
   if (!card_filename_safe(fileName)) return CARD_RESULT_NAMETOOLONG;
-  snprintf(path, sizeof(path), "%s/%s", pc_card_dir(chan), fileName);
+  pc_card_file_out(chan, path, sizeof(path), fileName);
 
   fileInfo->chan = chan;
   fileInfo->offset = 0;
@@ -149,10 +149,10 @@ s32 CARDClose(CARDFileInfo_PC* fileInfo) {
 }
 
 s32 CARDCreate(s32 chan, const char* fileName, u32 size, CARDFileInfo_PC* fileInfo) {
-    char path[512];
+    char path[PC_PATHSIZE];
     CARDOpenSlot* slot;
     if (!card_filename_safe(fileName)) return CARD_RESULT_NAMETOOLONG;
-    snprintf(path, sizeof(path), "%s/%s", pc_card_dir(chan), fileName);
+    pc_card_file_out(chan, path, sizeof(path), fileName);
 
     fileInfo->chan = chan;
     fileInfo->offset = 0;
@@ -215,9 +215,9 @@ s32 CARDWriteAsync(void* fileInfo, const void* buf, s32 length, s32 offset, void
 }
 
 s32 CARDDelete(s32 chan, const char* fileName) {
-    char path[512];
+    char path[PC_PATHSIZE];
     if (!card_filename_safe(fileName)) return CARD_RESULT_NAMETOOLONG;
-    snprintf(path, sizeof(path), "%s/%s", pc_card_dir(chan), fileName);
+    pc_card_file_out(chan, path, sizeof(path), fileName);
     remove(path);
     return CARD_RESULT_READY;
 }
@@ -287,10 +287,10 @@ s32 CARDSetStatusAsync(s32 chan, s32 fileNo, void* stat, void* callback) {
 }
 
 s32 CARDRename(s32 chan, const char* oldName, const char* newName) {
-    char oldPath[512], newPath[512];
+    char oldPath[PC_PATHSIZE], newPath[PC_PATHSIZE];
     if (!card_filename_safe(oldName) || !card_filename_safe(newName)) return CARD_RESULT_NAMETOOLONG;
-    snprintf(oldPath, sizeof(oldPath), "%s/%s", pc_card_dir(chan), oldName);
-    snprintf(newPath, sizeof(newPath), "%s/%s", pc_card_dir(chan), newName);
+    pc_card_file_out(chan, oldPath, sizeof(oldPath), oldName);
+    pc_card_file_out(chan, newPath, sizeof(newPath), newName);
     rename(oldPath, newPath);
     return CARD_RESULT_READY;
 }
@@ -310,12 +310,13 @@ s32 CARDFormatAsync(s32 chan, void* callback) {
 /* Scan a card directory for the first valid AC GCI file.
  * Returns 1 and writes full path to out_path if found, 0 otherwise. */
 int pc_card_scan_for_gci(s32 chan, char* out_path, int out_size) {
-    const char* dir = pc_card_dir(chan);
+    char dir[PC_PATHSIZE];
+    pc_card_dir_out(chan, dir, sizeof(dir));
 
 #ifdef _WIN32
     WIN32_FIND_DATAA fd;
     HANDLE h;
-    char search[300];
+    char search[PC_PATHSIZE + 8];
     snprintf(search, sizeof(search), "%s\\*.gci", dir);
     h = FindFirstFileA(search, &fd);
     if (h == INVALID_HANDLE_VALUE) return 0;
@@ -323,7 +324,7 @@ int pc_card_scan_for_gci(s32 chan, char* out_path, int out_size) {
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
         /* Quick-validate: read first 4 bytes of GCI header (gameName) */
         {
-            char full[512];
+            char full[PC_PATHSIZE + 256];
             FILE* fp;
             u8 hdr[4];
             snprintf(full, sizeof(full), "%s/%s", dir, fd.cFileName);
@@ -350,7 +351,7 @@ int pc_card_scan_for_gci(s32 chan, char* out_path, int out_size) {
         if (len < 5) continue;
         if (strcasecmp(name + len - 4, ".gci") != 0) continue;
         {
-            char full[512];
+            char full[PC_PATHSIZE + 256];
             FILE* fp;
             u8 hdr[4];
             snprintf(full, sizeof(full), "%s/%s", dir, name);
