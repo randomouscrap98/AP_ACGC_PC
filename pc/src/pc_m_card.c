@@ -21,6 +21,7 @@
 #include "m_time.h"
 #include "m_scene.h"
 #include "m_name_table.h"
+#include "pc_archipelago.h"
 #include "sys_math3d.h"
 #include "sys_math.h"
 #include "zurumode.h"
@@ -856,17 +857,23 @@ int mCD_InitGameStart_bg(int player_no, int card_private_idx, int start_cond, s3
  * card-error states: no save just leaves the wiped common_data, and
  * decide_next_scene_no then starts a new town via mFRm_CheckSaveData(). */
 void mCD_LoadLand(void) {
-    if (pc_save_check_and_load()) {
-        Common_Set(copy_protect, Save_Get(copy_protect));
-    }
+  ap_connectstate * cs = ap_getconnectstate();
+  if(ap_roomplayer_valid(&cs->roomplayer)) {
+    pc_card_dir_set_root_ap(cs->roomplayer.seed, cs->roomplayer.team,
+        cs->roomplayer.player);
+  }
+  if (pc_save_check_and_load()) {
+    Common_Set(copy_protect, Save_Get(copy_protect));
+  }
 
-    Common_Set(save_error_type, 0);
-    Common_Set(memcard_slot, mCD_SLOT_A);
+  Common_Set(save_error_type, 0);
+  Common_Set(memcard_slot, mCD_SLOT_A);
 
-    if (mFRm_CheckSaveData_common(Save_GetPointer(save_check), Save_Get(land_info).id) &&
-        Save_Get(save_check).version == 5) {
-        memcpy(Save_GetPointer(saved_auto_nwrite_time), &Save_Get(save_check).time, sizeof(lbRTC_time_c));
-    }
+  if (mFRm_CheckSaveData_common(Save_GetPointer(save_check), Save_Get(land_info).id) &&
+      Save_Get(save_check).version == 5) {
+    memcpy(Save_GetPointer(saved_auto_nwrite_time), &Save_Get(save_check).time, 
+        sizeof(lbRTC_time_c));
+  }
 }
 
 int mCD_SaveHome_bg(int param_1, int* chan) {
