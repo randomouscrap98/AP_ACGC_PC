@@ -77,3 +77,10 @@ void pc_card_dir_create(void) {
   pc_mkdir_p(dir);
 }
 
+int pc_card_filename_safe(const char* name) {
+  if (!name || !name[0]) return 0;
+  if (strstr(name, "..")) return 0;
+  if (strchr(name, '/') || strchr(name, '\\')) return 0;
+  return 1;
+}
+

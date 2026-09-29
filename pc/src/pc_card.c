@@ -82,13 +82,6 @@ static void card_slot_free(CARDFileInfo_PC* fi) {
 static int card_mounted[2] = {0, 0};
 
 /* reject path traversal */
-static int card_filename_safe(const char* name) {
-  if (!name || !name[0]) return 0;
-  if (strstr(name, "..")) return 0;
-  if (strchr(name, '/') || strchr(name, '\\')) return 0;
-  return 1;
-}
-
 #define CARD_SECTOR_SIZE 8192
 
 void CARDInit(void) {
@@ -116,7 +109,7 @@ s32 CARDUnmount(s32 chan) {
 s32 CARDOpen(s32 chan, const char* fileName, CARDFileInfo_PC* fileInfo) {
   char path[PC_PATHSIZE];
   CARDOpenSlot* slot;
-  if (!card_filename_safe(fileName)) return CARD_RESULT_NAMETOOLONG;
+  if (!pc_card_filename_safe(fileName)) return CARD_RESULT_NAMETOOLONG;
   pc_card_file_out(chan, path, sizeof(path), fileName);
 
   fileInfo->chan = chan;
@@ -151,7 +144,7 @@ s32 CARDClose(CARDFileInfo_PC* fileInfo) {
 s32 CARDCreate(s32 chan, const char* fileName, u32 size, CARDFileInfo_PC* fileInfo) {
     char path[PC_PATHSIZE];
     CARDOpenSlot* slot;
-    if (!card_filename_safe(fileName)) return CARD_RESULT_NAMETOOLONG;
+    if (!pc_card_filename_safe(fileName)) return CARD_RESULT_NAMETOOLONG;
     pc_card_file_out(chan, path, sizeof(path), fileName);
 
     fileInfo->chan = chan;
@@ -216,7 +209,7 @@ s32 CARDWriteAsync(void* fileInfo, const void* buf, s32 length, s32 offset, void
 
 s32 CARDDelete(s32 chan, const char* fileName) {
     char path[PC_PATHSIZE];
-    if (!card_filename_safe(fileName)) return CARD_RESULT_NAMETOOLONG;
+    if (!pc_card_filename_safe(fileName)) return CARD_RESULT_NAMETOOLONG;
     pc_card_file_out(chan, path, sizeof(path), fileName);
     remove(path);
     return CARD_RESULT_READY;
@@ -288,7 +281,7 @@ s32 CARDSetStatusAsync(s32 chan, s32 fileNo, void* stat, void* callback) {
 
 s32 CARDRename(s32 chan, const char* oldName, const char* newName) {
     char oldPath[PC_PATHSIZE], newPath[PC_PATHSIZE];
-    if (!card_filename_safe(oldName) || !card_filename_safe(newName)) return CARD_RESULT_NAMETOOLONG;
+    if (!pc_card_filename_safe(oldName) || !pc_card_filename_safe(newName)) return CARD_RESULT_NAMETOOLONG;
     pc_card_file_out(chan, oldPath, sizeof(oldPath), oldName);
     pc_card_file_out(chan, newPath, sizeof(newPath), newName);
     rename(oldPath, newPath);

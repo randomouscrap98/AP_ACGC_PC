@@ -16,6 +16,8 @@ void pc_card_file_out(s32 chan, char * out, size_t size, const char * fname);
 void pc_card_dir_create(void);
 void pc_mkdir_p(const char * path);
 
+int pc_card_filename_safe(const char* name);
+
 #ifdef __cplusplus
 }
 #endif
