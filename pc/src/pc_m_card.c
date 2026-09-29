@@ -26,6 +26,7 @@
 #include "zurumode.h"
 #include "pc_save_bswap.h"
 #include "pc_settings.h"
+#include "pc_dirs.h"
 #include "m_cockroach.h"
 #include "m_all_grow_ovl.h"
 #include "m_home.h"
@@ -44,12 +45,12 @@
 #include <dolphin/os.h>  /* OSReport */
 
 /* --- Path constants --- */
-#define PC_CARD_A_DIR     "save/card_a"
-#define PC_CARD_B_DIR     "save/card_b"
+//#define PC_CARD_A_DIR     "save/card_a"
+//#define PC_CARD_B_DIR     "save/card_b"
 #define PC_GCI_FILENAME   "DobutsunomoriP_MURA.gci"
-#define PC_GCI_PATH       PC_CARD_A_DIR "/" PC_GCI_FILENAME
-#define PC_GCI_TMP_PATH   PC_CARD_A_DIR "/" PC_GCI_FILENAME ".tmp"
-#define PC_SAVE_DIR       "save"
+//#define PC_GCI_PATH       PC_CARD_A_DIR "/" PC_GCI_FILENAME
+//#define PC_GCI_TMP_PATH   PC_CARD_A_DIR "/" PC_GCI_FILENAME ".tmp"
+// #define PC_SAVE_DIR       "save"
 #define PC_SAVE_MAX_BACKUPS 3
 
 #define GCI_HEADER_SIZE      sizeof(CARDDir)        /* 64 bytes */
@@ -219,18 +220,6 @@ static void pc_save_rotate_backups(const char* base_path) {
     }
 }
 
-static void pc_ensure_save_dirs(void) {
-#ifdef _WIN32
-    _mkdir(PC_SAVE_DIR);
-    _mkdir(PC_CARD_A_DIR);
-    _mkdir(PC_CARD_B_DIR);
-#else
-    mkdir(PC_SAVE_DIR, 0755);
-    mkdir(PC_CARD_A_DIR, 0755);
-    mkdir(PC_CARD_B_DIR, 0755);
-#endif
-}
-
 static int pc_save_write_gci_to(const char* gci_path, const char* tmp_path);
 
 /* mCD_get_land_copyProtect */
@@ -296,7 +285,7 @@ static int pc_save_write_gci_to(const char* gci_path, const char* tmp_path) {
 
     if (!pc_save_ready) return TRUE;
 
-    pc_ensure_save_dirs();
+    pc_card_dir_create();
 
     Save_Get(save_exist) = TRUE;
     Save_Get(save_check).version = mFRm_VERSION;
@@ -631,93 +620,94 @@ static int pc_save_read_gci_to_keep(const char* path) {
 }
 
 static int pc_save_scan_gci_dir(void) {
-    /* Try common AC save filenames in card_a/ */
-    static const char* gci_names[] = {
-        PC_CARD_A_DIR "/DobutsunomoriP_MURA.gci",
-        PC_CARD_A_DIR "/8P-GAFE-DobutsunomoriP_MURA.gci",
-        NULL
-    };
-    int i;
-    struct stat st;
+  /* Try common AC save filenames in card_a/ */
+  static const char* gci_names[] = {
+    "DobutsunomoriP_MURA.gci",
+    "8P-GAFE-DobutsunomoriP_MURA.gci",
+    NULL
+  };
+  int i;
+  struct stat st;
 
-    for (i = 0; gci_names[i] != NULL; i++) {
-        if (stat(gci_names[i], &st) == 0) {
-            OSReport("[PC] GCI scan: found '%s'\n", gci_names[i]);
-            if (pc_save_read_gci(gci_names[i])) {
-                return TRUE;
-            }
+  for (i = 0; gci_names[i] != NULL; i++) {
+    const char * path = pc_card_file(0, gci_names[i]);
+      if (stat(path, &st) == 0) {
+        OSReport("[PC] GCI scan: found '%s'\n", path);
+        if (pc_save_read_gci(path)) {
+          return TRUE;
         }
-    }
+      }
+  }
 
-    /* Also try dynamic scan of card_a/ for any GCI */
-    {
-        char found_path[300];
-        if (pc_card_scan_for_gci(0, found_path, sizeof(found_path))) {
-            OSReport("[PC] GCI scan: found '%s' via directory scan\n", found_path);
-            if (pc_save_read_gci(found_path)) {
-                return TRUE;
-            }
-        }
+  /* Also try dynamic scan of card_a/ for any GCI */
+  {
+    char found_path[300];
+    if (pc_card_scan_for_gci(0, found_path, sizeof(found_path))) {
+      OSReport("[PC] GCI scan: found '%s' via directory scan\n", found_path);
+      if (pc_save_read_gci(found_path)) {
+        return TRUE;
+      }
     }
+  }
 
-    return FALSE;
+  return FALSE;
 }
 
 /* Read the home town save into common_data (main file, then any GCI in card_a,
  * then .tmp/.bak recovery). Only called from mCD_LoadLand. */
 static int pc_save_check_and_load(void) {
-    struct stat st;
-    {
-        char cwd[512];
-        if (getcwd(cwd, sizeof(cwd))) {
-            OSReport("[PC] Save: current working directory = '%s'\n", cwd);
+  struct stat st;
+  {
+    char cwd[512];
+    if (getcwd(cwd, sizeof(cwd))) {
+      OSReport("[PC] Save: current working directory = '%s'\n", cwd);
+    }
+  }
+
+  pc_card_dir_create();
+
+  if (stat(PC_GCI_PATH, &st) == 0) {
+    OSReport("[PC] Found GCI save: %s (%ld bytes)\n", PC_GCI_PATH, (long)st.st_size);
+    if (pc_save_read_gci(PC_GCI_PATH)) {
+      OSReport("[PC] GCI save loaded successfully\n");
+      return TRUE;
+    }
+    OSReport("[PC] GCI save load FAILED\n");
+  } else {
+    OSReport("[PC] No GCI save at %s\n", PC_GCI_PATH);
+  }
+
+  OSReport("[PC] Scanning for other GCI files...\n");
+  if (pc_save_scan_gci_dir()) {
+    OSReport("[PC] GCI save loaded via scan\n");
+    return TRUE;
+  }
+
+  /* recovery: try temp file, then backups */
+  if (stat(PC_GCI_TMP_PATH, &st) == 0) {
+    OSReport("[PC] Found orphaned temp save '%s', recovering...\n", PC_GCI_TMP_PATH);
+    if (rename(PC_GCI_TMP_PATH, PC_GCI_PATH) == 0 && pc_save_read_gci(PC_GCI_PATH)) {
+      OSReport("[PC] Recovered save from temp file\n");
+      return TRUE;
+    }
+  }
+  {
+    char bak_path[300];
+    int b;
+    for (b = 1; b <= PC_SAVE_MAX_BACKUPS; b++) {
+      snprintf(bak_path, sizeof(bak_path), "%s.bak%d", PC_GCI_PATH, b);
+      if (stat(bak_path, &st) == 0) {
+        OSReport("[PC] Found backup save '%s', recovering...\n", bak_path);
+        if (pc_save_read_gci(bak_path)) {
+          OSReport("[PC] Recovered save from backup %d\n", b);
+          return TRUE;
         }
+      }
     }
+  }
 
-    pc_ensure_save_dirs();
-
-    if (stat(PC_GCI_PATH, &st) == 0) {
-        OSReport("[PC] Found GCI save: %s (%ld bytes)\n", PC_GCI_PATH, (long)st.st_size);
-        if (pc_save_read_gci(PC_GCI_PATH)) {
-            OSReport("[PC] GCI save loaded successfully\n");
-            return TRUE;
-        }
-        OSReport("[PC] GCI save load FAILED\n");
-    } else {
-        OSReport("[PC] No GCI save at %s\n", PC_GCI_PATH);
-    }
-
-    OSReport("[PC] Scanning for other GCI files...\n");
-    if (pc_save_scan_gci_dir()) {
-        OSReport("[PC] GCI save loaded via scan\n");
-        return TRUE;
-    }
-
-    /* recovery: try temp file, then backups */
-    if (stat(PC_GCI_TMP_PATH, &st) == 0) {
-        OSReport("[PC] Found orphaned temp save '%s', recovering...\n", PC_GCI_TMP_PATH);
-        if (rename(PC_GCI_TMP_PATH, PC_GCI_PATH) == 0 && pc_save_read_gci(PC_GCI_PATH)) {
-            OSReport("[PC] Recovered save from temp file\n");
-            return TRUE;
-        }
-    }
-    {
-        char bak_path[300];
-        int b;
-        for (b = 1; b <= PC_SAVE_MAX_BACKUPS; b++) {
-            snprintf(bak_path, sizeof(bak_path), "%s.bak%d", PC_GCI_PATH, b);
-            if (stat(bak_path, &st) == 0) {
-                OSReport("[PC] Found backup save '%s', recovering...\n", bak_path);
-                if (pc_save_read_gci(bak_path)) {
-                    OSReport("[PC] Recovered save from backup %d\n", b);
-                    return TRUE;
-                }
-            }
-        }
-    }
-
-    OSReport("[PC] No save file found\n");
-    return FALSE;
+  OSReport("[PC] No save file found\n");
+  return FALSE;
 }
 
 /* --- Card B scanning --- */

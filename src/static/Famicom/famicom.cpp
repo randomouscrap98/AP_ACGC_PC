@@ -6,27 +6,28 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <dirent.h>
+#include "pc_dirs.h"
 extern "C" {
-    void pc_fixnes_init(unsigned char* ines_data, int ines_size);
-    void pc_fixnes_set_input(unsigned char buttons);
-    unsigned short* pc_fixnes_frame(void);
-    void pc_fixnes_render_frame(unsigned short* fb);
-    void pc_fixnes_cleanup(void);
-    void pc_fixnes_reset(void);
+  void pc_fixnes_init(unsigned char* ines_data, int ines_size);
+  void pc_fixnes_set_input(unsigned char buttons);
+  unsigned short* pc_fixnes_frame(void);
+  void pc_fixnes_render_frame(unsigned short* fb);
+  void pc_fixnes_cleanup(void);
+  void pc_fixnes_reset(void);
 
-    /* fixNES battery RAM — sync with famicomCommon.bbramp for save persistence */
-    extern unsigned char* emuPrgRAM;
-    extern unsigned int emuPrgRAMsize;
+  /* fixNES battery RAM — sync with famicomCommon.bbramp for save persistence */
+  extern unsigned char* emuPrgRAM;
+  extern unsigned int emuPrgRAMsize;
 
-    /* fixNES WRAM → sp->wram sync for high-score persistence */
-    void pc_fixnes_sync_wram(unsigned char* dst_wram);
+  /* fixNES WRAM → sp->wram sync for high-score persistence */
+  void pc_fixnes_sync_wram(unsigned char* dst_wram);
 
-    /* Card slot for current town (A=0 home, B=1 visiting) */
-    int mCD_GetThisLandSlotNo(void);
+  /* Card slot for current town (A=0 home, B=1 visiting) */
+  int mCD_GetThisLandSlotNo(void);
 }
 
 static const char* pc_nes_save_dir(void) {
-    return (mCD_GetThisLandSlotNo() == 1) ? "save/card_b" : "save/card_a";
+  return pc_card_dir(mCD_GetThisLandSlotNo());
 }
 
 static void pc_sync_bbramp_to_prgram() {

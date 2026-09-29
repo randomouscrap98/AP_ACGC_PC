@@ -27,7 +27,7 @@ int pc_ap_overlay_toggle(void) {
 #define _APO_WIDTH      320.0f
 #define _APO_HEIGHT     240.0f
 
-#define _APO_BLUE       0x2040FFFF
+#define _APO_BLUE       0x70A0FFFF
 #define _APO_YELLOW     0xFFAA20FF
 #define _APO_GRAY       0x777777FF
 #define _APO_RED        0xFF5050FF

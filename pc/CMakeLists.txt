@@ -286,6 +286,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_typing.c
     ${DECOMP_ROOT}/src/static/dolphin/pad/Padclamp.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_card.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_dirs.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_vi.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_audio.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_aram.c
