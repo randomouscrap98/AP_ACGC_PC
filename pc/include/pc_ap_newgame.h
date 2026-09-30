@@ -13,7 +13,8 @@ int pc_ap_skip_full_intro(void);
 
 // Called right after the new town is built (mCD_InitGameStart_bg). Does what
 // the train and the job would have set up, then changes scene to the town,
-// in front of the player's house. Replaces the goto_other_scene to the train.
+// in front of the player's house, with the town map. Replaces the rest of
+// aNPS_setup_game_start (the scene change to the train).
 void pc_ap_newgame(struct game_play_s* play);
 
 #ifdef __cplusplus

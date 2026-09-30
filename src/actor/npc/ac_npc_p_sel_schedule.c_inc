@@ -9,7 +9,8 @@ static int aNPS_setup_game_start(GAME_PLAY* play) {
 #ifdef TARGET_PC
         if (pc_ap_skip_full_intro()) {
             pc_ap_newgame(play);
-        } else
+            return TRUE;
+        }
 #endif
         goto_other_scene(play, &door_data, TRUE);
         Common_Set(transition.wipe_type, WIPE_TYPE_FADE_BLACK);

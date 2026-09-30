@@ -137,6 +137,11 @@ static void pc_ap_newgame_goto_house(GAME_PLAY* play) {
   door_data.wipe_type = WIPE_TYPE_FADE_BLACK;
 
   goto_other_scene(play, &door_data, TRUE);
+  Common_Set(transition.wipe_type, WIPE_TYPE_FADE_BLACK);
+
+  // The map Nook hands over at the end of the job. Not saved: on later loads
+  // the continue path sets it again because the job is done.
+  Common_Set(map_flag, TRUE);
 }
 
 void pc_ap_newgame(GAME_PLAY* play) {

@@ -113,7 +113,8 @@ if [ -n "$HOST_DIR" ]; then
   } > .clangd
 fi
 
-cp "$SDL2_DIR/bin/SDL2.dll" "$BUILD_DIR/bin/"
+# Only copy when changed: cp rewrites in place, which crashes a running game
+cmp -s "$SDL2_DIR/bin/SDL2.dll" "$BUILD_DIR/bin/SDL2.dll" || cp "$SDL2_DIR/bin/SDL2.dll" "$BUILD_DIR/bin/"
 
 
 # Third-party license text for statically linked OpenSSL
