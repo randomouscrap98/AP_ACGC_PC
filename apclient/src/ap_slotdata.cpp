@@ -21,6 +21,7 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   sd->gender = slot_data.value("gender", 0) % 2;
   sd->face = slot_data.value("face", 0) % 8;
   sd->house = slot_data.value("house", 0) % 4;
+  sd->town_fruit = slot_data.value("town_fruit", 0) % 5;
   sd->no_cockroaches = slot_data.value("no_cockroaches", 0) % 2;
   sd->shops_always_open = slot_data.value("shops_always_open", 0) % 2;
   sd->no_weeds = slot_data.value("no_weeds", 0) % 2;

@@ -60,6 +60,17 @@ class House(Choice):
     default = "random"
 
 
+class TownFruit(Choice):
+    """Your town's native fruit (applies to every new town, with or without the intro skip)."""
+    display_name = "Town Fruit"
+    option_apple = 0
+    option_cherry = 1
+    option_pear = 2
+    option_peach = 3
+    option_orange = 4
+    default = "random"
+
+
 class NoCockroaches(DefaultOnToggle):
     """Cockroaches never appear in your house, even if you're away for a while."""
     display_name = "No Cockroaches"
@@ -83,6 +94,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     gender: Gender
     face: Face
     house: House
+    town_fruit: TownFruit
     no_cockroaches: NoCockroaches
     shops_always_open: ShopsAlwaysOpen
     no_weeds: NoWeeds

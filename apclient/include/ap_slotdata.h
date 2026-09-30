@@ -14,6 +14,7 @@ typedef struct {
   int house;
   int gender;
   int face;
+  int town_fruit;
   // QOL
   int skip_intro;
   int no_cockroaches;

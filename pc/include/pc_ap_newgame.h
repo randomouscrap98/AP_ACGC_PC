@@ -6,7 +6,13 @@
 extern "C" {
 #endif
 
+#include "m_actor_type.h"
+
 struct game_play_s;
+
+// Replaces the randomly decided town fruit with the one from slot_data.
+// Called at the end of decide_fruit (new town setup), skip or not.
+void pc_ap_newgame_town_fruit(mActor_name_t* fruit);
 
 // Called right after the new town is built (mCD_InitGameStart_bg). Does what
 // the train and the job would have set up, then changes scene to the town,

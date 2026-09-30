@@ -10,6 +10,9 @@
 #include "m_scene_table.h"
 #include "libultra/libultra.h"
 #include "m_cockroach.h"
+#ifdef TARGET_PC
+#include "pc_ap_newgame.h"
+#endif
 #include "m_melody.h"
 #include "m_play.h"
 #include "m_npc.h"
@@ -31,6 +34,9 @@ static void famicom_emu_initial_common_data() {
 
 static void decide_fruit(mActor_name_t* fruit_p) {
     *fruit_p = RANDOM(mAGrw_FRUIT_NUM) | ITM_FOOD_START;
+#ifdef TARGET_PC
+    pc_ap_newgame_town_fruit(fruit_p);
+#endif
 }
 
 static void decide_fish_location(u8* location) {

@@ -26,6 +26,15 @@
 #include "sys_math.h"
 #include "libultra/libultra.h" // bcopy
 
+void pc_ap_newgame_town_fruit(mActor_name_t* fruit) {
+  ap_slotdata* sd = ap_getslotdata();
+
+  // town_fruit is an mAGrw_FRUIT_* index (apworld options.py TownFruit)
+  if (sd->valid) {
+    *fruit = ITM_FOOD_START + sd->town_fruit;
+  }
+}
+
 // What the train asks: name, town, gender, face
 static void pc_ap_newgame_identity(ap_slotdata* sd) {
   pc_ap_name_to_game(Now_Private->player_ID.player_name, PLAYER_NAME_LEN, sd->player_name);
