@@ -7,7 +7,7 @@ static int aNPS_setup_game_start(GAME_PLAY* play) {
 
     if (mCD_InitGameStart_bg(0, -1, 0, &chan) == 0) {
 #ifdef TARGET_PC
-        if (pc_ap_skip_full_intro()) {
+        if (pc_ap_qol_skip_intro()) {
             pc_ap_newgame(play);
             return TRUE;
         }

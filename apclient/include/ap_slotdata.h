@@ -15,7 +15,6 @@ typedef struct {
   int gender;
   int face;
   // QOL
-  int flowers_never_wilt;
   int skip_intro;
   int no_cockroaches;
   int shops_always_open;

@@ -26,14 +26,6 @@
 #include "sys_math.h"
 #include "libultra/libultra.h" // bcopy
 
-// slot_data skip_intro values (apworld options.py SkipIntro)
-#define PC_AP_SKIP_INTRO_TRAIN_AND_JOB 2
-
-int pc_ap_skip_full_intro(void) {
-  ap_slotdata* sd = ap_getslotdata();
-  return sd->valid && sd->skip_intro == PC_AP_SKIP_INTRO_TRAIN_AND_JOB;
-}
-
 // What the train asks: name, town, gender, face
 static void pc_ap_newgame_identity(ap_slotdata* sd) {
   pc_ap_name_to_game(Now_Private->player_ID.player_name, PLAYER_NAME_LEN, sd->player_name);

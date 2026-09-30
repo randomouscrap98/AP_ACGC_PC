@@ -11,6 +11,9 @@
 #include "m_snowman.h"
 #include "m_shop.h"
 #include "m_scene_table.h"
+#ifdef TARGET_PC
+#include "pc_ap_qol.h"
+#endif
 
 static u8 l_candidate_num[FG_BLOCK_TOTAL_NUM];
 
@@ -3075,6 +3078,11 @@ extern void mAGrw_RenewalFgItem_ovl(lbRTC_time_c* now_time, int* deposit_haniwa)
     if (Save_Get(scene_no) == SCENE_FG) {
         flower_time = mAGrw_CheckFlowerTime(now_time);
 
+#ifdef TARGET_PC
+        if (pc_ap_qol_no_weeds()) {
+            Save_Set(clear_grass, TRUE);
+        }
+#endif
         if (Save_Get(clear_grass)) {
             mAGrw_ClearGrass();
         }

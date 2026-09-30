@@ -6,6 +6,9 @@
 #include "m_field_info.h"
 #include "m_scene_table.h"
 #include "m_common_data.h"
+#ifdef TARGET_PC
+#include "pc_ap_qol.h"
+#endif
 
 /**
  * @brief Clamps the input cockroach count between [0, mCkRh_MAX_NUM].
@@ -215,6 +218,9 @@ extern void mCkRh_DecideNowGokiFamilyCount(int player_no) {
         count = (int)*goki_num > 0 ? day_gap : day_gap - mCkRh_INTERVAL_DAYS;
         *goki_num = mCkRh_GokiFamilyCount2Good(count + (int)*goki_num);
     }
+#endif
+#ifdef TARGET_PC
+    pc_ap_qol_cockroaches();
 #endif
 }
 

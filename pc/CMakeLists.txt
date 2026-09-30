@@ -304,6 +304,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_overlay.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_newgame.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_qol.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_text_draw.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_keybindings.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_nes_fixnes.c
