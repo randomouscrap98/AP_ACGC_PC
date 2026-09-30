@@ -641,6 +641,26 @@ static void aNPS2_setup_voice_ok(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
     }
 }
 
+#ifdef TARGET_PC
+// Skip "who are you?" and continue as the first player (so no "I'm new").
+// Message 30 is the reply to "still want to play?" when travelling: a short
+// "all right, I'll get things ready" into loading, which also fits as the
+// reply to "Shall we get started?". Otherwise as in aNPS2_select_player.
+static void aNPS2_pc_continue_first_player(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
+    p_sel2->player_no = aNPS2_get_pl_no(0);
+    aNPS2_set_str_ct_player_name(p_sel2->player_no);
+
+    if (Save_Get(private_data[p_sel2->player_no]).exists == TRUE) {
+        aNPS2_change_talk_proc(p_sel2, play, aNPS2_TALK_START_TYPE0);
+        mMsg_SET_CONTINUE_MSG_NUM(aNPS2_make_msg(p_sel2, 30));
+    } else {
+        // Player is away travelling
+        aNPS2_change_talk_proc(p_sel2, play, aNPS2_TALK_CHK_FUZAI_PLAYER);
+        mMsg_SET_CONTINUE_MSG_NUM(aNPS2_make_msg(p_sel2, 29));
+    }
+}
+#endif
+
 static void aNPS2_whats_happen(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
     // clang-format off
     static int next_talk_idx[] = {
@@ -709,6 +729,14 @@ static void aNPS2_whats_happen(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
                     idx = 0;
                     break;
             }
+
+#ifdef TARGET_PC
+            if (idx == 1) {
+                aNPS2_pc_continue_first_player(p_sel2, play);
+                mDemo_Set_OrderValue(mDemo_ORDER_NPC0, 9, 0);
+                return;
+            }
+#endif
 
             if (idx != -1) {
                 mMsg_SET_CONTINUE_MSG_NUM(aNPS2_make_msg(p_sel2, msg_no[idx]));
