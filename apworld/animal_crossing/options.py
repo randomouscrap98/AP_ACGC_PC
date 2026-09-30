@@ -7,12 +7,11 @@ class SkipIntro(Choice):
     """
     How much of the new game intro to skip.
     off: play the train ride and Tom Nook's part-time job normally.
-    train: skip the train ride (name, town, and gender from options file), keep the job.
     train_and_job: skip the train ride and the job; you start next to your house.
     """
     display_name = "Skip Intro"
     option_off = 0
-    option_train = 1
+    # 1 is reserved for a future "train" (skip the train, keep the job) option
     option_train_and_job = 2
     default = option_train_and_job
 

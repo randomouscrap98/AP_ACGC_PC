@@ -6,6 +6,11 @@ static int aNPS_setup_game_start(GAME_PLAY* play) {
     int res = FALSE;
 
     if (mCD_InitGameStart_bg(0, -1, 0, &chan) == 0) {
+#ifdef TARGET_PC
+        if (pc_ap_skip_full_intro()) {
+            pc_ap_newgame(play);
+        } else
+#endif
         goto_other_scene(play, &door_data, TRUE);
         Common_Set(transition.wipe_type, WIPE_TYPE_FADE_BLACK);
         Common_Set(map_flag, FALSE);

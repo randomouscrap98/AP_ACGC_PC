@@ -12,6 +12,9 @@
 #include "m_vibctl.h"
 #include "libultra/libultra.h"
 #include "dolphin/os/OSRtc.h"
+#ifdef TARGET_PC
+#include "pc_ap_newgame.h"
+#endif
 
 enum {
     aNPS_TALK_CHK_SETUP_SOUND,
