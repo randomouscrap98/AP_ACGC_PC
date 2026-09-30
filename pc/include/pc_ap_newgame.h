@@ -14,6 +14,11 @@ struct game_play_s;
 // Called at the end of decide_fruit (new town setup), skip or not.
 void pc_ap_newgame_town_fruit(mActor_name_t* fruit);
 
+// Replaces the grass shape, train station and town day with the ones from
+// slot_data. Called at the end of mSDI_StartInitNew, and again wherever the
+// town day gets rerolled (the train's finaliser, our copy of it).
+void pc_ap_newgame_town(void);
+
 // Called right after the new town is built (mCD_InitGameStart_bg). Does what
 // the train and the job would have set up, then changes scene to the town,
 // in front of the player's house, with the town map. Replaces the rest of

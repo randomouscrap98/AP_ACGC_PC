@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import Choice, DefaultOnToggle, FreeText, PerGameCommonOptions, Toggle
+from Options import Choice, DefaultOnToggle, FreeText, PerGameCommonOptions, Range, Toggle
 
 
 class SkipIntro(Choice):
@@ -71,6 +71,47 @@ class TownFruit(Choice):
     default = "random"
 
 
+class GrassShape(Choice):
+    """The shape of the pattern in your town's grass texture."""
+    display_name = "Grass Shape"
+    option_triangle = 0
+    option_square = 1
+    option_circle = 2
+    default = "random"
+
+
+class TrainStation(Choice):
+    """Your town's train station: wood, stone or brick, each in five colors."""
+    display_name = "Train Station"
+    option_wood_green = 0
+    option_wood_light_red_roof = 1
+    option_wood_blue = 2
+    option_wood_purple = 3
+    option_wood_dark_red_roof = 4
+    option_stone_red = 5
+    option_stone_orange = 6
+    option_stone_green = 7
+    option_stone_blue = 8
+    option_stone_purple = 9
+    option_brick_red_green_roof = 10
+    option_brick_blue = 11
+    option_brick_tan_green_roof = 12
+    option_brick_purple = 13
+    option_brick_brown = 14
+    default = "random"
+
+
+class TownDay(Range):
+    """
+    The day in July of your town's Town Day. 4 is the Fireworks Festival, so it's
+    replaced with a random day.
+    """
+    display_name = "Town Day"
+    range_start = 1
+    range_end = 31
+    default = "random"
+
+
 class NoCockroaches(DefaultOnToggle):
     """Cockroaches never appear in your house, even if you're away for a while."""
     display_name = "No Cockroaches"
@@ -95,6 +136,9 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     face: Face
     house: House
     town_fruit: TownFruit
+    grass_shape: GrassShape
+    train_station: TrainStation
+    town_day: TownDay
     no_cockroaches: NoCockroaches
     shops_always_open: ShopsAlwaysOpen
     no_weeds: NoWeeds

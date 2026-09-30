@@ -815,6 +815,9 @@ static void aNGD_scene_change_wait_init(NPC_GUIDE_ACTOR* guide, GAME_PLAY* play)
         town_day++; // add one to prevent conflict with Fireworks Festival (4th of July)
     }
     Save_Set(town_day, town_day);
+#ifdef TARGET_PC
+    pc_ap_newgame_town();
+#endif
 
     mSP_ShopGameStartCt(NULL);
     mNtc_SetInitData();

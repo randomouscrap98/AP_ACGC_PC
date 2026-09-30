@@ -11,6 +11,9 @@
 #include "libultra/libultra.h"
 #include "m_bgm.h"
 #include "m_soncho.h"
+#ifdef TARGET_PC
+#include "pc_ap_newgame.h"
+#endif
 
 enum {
     aNGD_ACTION_ENTER,

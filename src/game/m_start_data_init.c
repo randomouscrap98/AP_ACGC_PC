@@ -395,6 +395,10 @@ static int mSDI_StartInitNew(GAME* game, int player_no, int malloc_flag) {
 
     Common_Set(_2dbe1, 0);
 
+#ifdef TARGET_PC
+    pc_ap_newgame_town();
+#endif
+
     return TRUE;
 }
 #endif

@@ -35,6 +35,26 @@ void pc_ap_newgame_town_fruit(mActor_name_t* fruit) {
   }
 }
 
+void pc_ap_newgame_town(void) {
+  ap_slotdata* sd = ap_getslotdata();
+
+  if (!sd->valid) {
+    return;
+  }
+
+  // The island copies the town's grass in mISL_init, which runs before us
+  Save_Set(bg_tex_idx, sd->grass_shape);
+  Save_Set(island.grass_tex_type, sd->grass_shape);
+
+  // Out of range is an older seed without these options: keep the game's pick
+  if (sd->train_station >= 0 && sd->train_station <= 14) {
+    Save_Set(station_type, sd->train_station);
+  }
+  if (sd->town_day >= 1 && sd->town_day <= 31 && sd->town_day != 4) {
+    Save_Set(town_day, sd->town_day);
+  }
+}
+
 // What the train asks: name, town, gender, face
 static void pc_ap_newgame_identity(ap_slotdata* sd) {
   pc_ap_name_to_game(Now_Private->player_ID.player_name, PLAYER_NAME_LEN, sd->player_name);
@@ -81,6 +101,7 @@ static void pc_ap_newgame_finalise(void) {
     town_day++;
   }
   Save_Set(town_day, town_day);
+  pc_ap_newgame_town(); // town_day from slot_data
 
   mSP_ShopGameStartCt(NULL);
   mNtc_SetInitData();
