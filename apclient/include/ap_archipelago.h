@@ -1,11 +1,7 @@
 #ifndef AP_ARCHIPELAGO_H
 #define AP_ARCHIPELAGO_H
 
-#if defined(_WIN32) && defined(AP_CLIENT_EXPORTS)
-#define AP_API __declspec(dllexport)
-#else
-#define AP_API
-#endif
+#include "ap_common.h"
 
 #ifdef __cplusplus
 extern "C" {

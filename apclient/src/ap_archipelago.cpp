@@ -1,4 +1,5 @@
 #include "ap_archipelago.h"
+#include "ap_slotdata.h"
 
 #include <apclient.hpp>
 #include <apuuid.hpp>
@@ -81,6 +82,9 @@ int ap_start(void) {
   ap_config_init(&g_ap_config);
   ap_connectstate_init(&g_ap_connectstate);
 
+  ap_slotdata * sd = ap_getslotdata();
+  ap_slotdata_init(sd);
+
   int result = load_config(AP_CONFIGNAME, &g_ap_config);
   if (result) { return result; }
 
@@ -93,6 +97,9 @@ int ap_start(void) {
   g_ap->set_slot_connected_handler([](const nlohmann::json& slot_data) { 
     g_ap_connectstate.connect_once = 1;
     g_ap_connectstate.state = AP_CSTATE_CONNECTED;
+    // Set every time
+    ap_slotdata * sd = ap_getslotdata();
+    ap_slotdata_fill(sd, slot_data);
     if(!ap_roomplayer_valid(&g_ap_connectstate.roomplayer)) {
       g_ap_connectstate.roomplayer.player = g_ap->get_player_number();
       g_ap_connectstate.roomplayer.team = g_ap->get_team_number();
