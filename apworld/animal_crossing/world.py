@@ -2,9 +2,11 @@ from collections.abc import Mapping
 from typing import Any
 
 from BaseClasses import Item, ItemClassification, Location, Region
-from worlds.AutoWorld import World
+from Options import OptionGroup
+from worlds.AutoWorld import WebWorld, World
 
 from .items import ITEM_NAME_TO_ID
+from . import options
 from .options import AnimalCrossingOptions
 
 GAME_NAME = "Animal Crossing"
@@ -31,6 +33,31 @@ def clamp_name(text: str) -> str:
     return text.strip()[:NAME_MAX]
 
 
+class AnimalCrossingWeb(WebWorld):
+    # Options not listed here stay under "Game Options"
+    option_groups = [
+        OptionGroup("Intro", [
+            options.SkipIntro,
+            options.PlayerName,
+            options.TownName,
+            options.Gender,
+            options.Face,
+            options.House,
+        ]),
+        OptionGroup("Town Generation", [
+            options.TownFruit,
+            options.GrassShape,
+            options.TrainStation,
+            options.TownDay,
+        ]),
+        OptionGroup("Quality of Life", [
+            options.NoCockroaches,
+            options.ShopsAlwaysOpen,
+            options.NoWeeds,
+        ]),
+    ]
+
+
 class AnimalCrossingWorld(World):
     """
     Animal Crossing (GameCube), via the PC port.
@@ -39,6 +66,7 @@ class AnimalCrossingWorld(World):
     game = GAME_NAME
     options_dataclass = AnimalCrossingOptions
     options: AnimalCrossingOptions
+    web = AnimalCrossingWeb()
 
     item_name_to_id = ITEM_NAME_TO_ID
     location_name_to_id = LOCATION_NAME_TO_ID

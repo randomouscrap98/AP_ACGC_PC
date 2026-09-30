@@ -7,13 +7,13 @@ class SkipIntro(Choice):
     """
     How much of the new game intro to skip.
     off: play the train ride and Tom Nook's part-time job normally.
-    train_and_job: skip the train ride and the job; you start next to your house.
+    full: skip the train ride and the job; you start next to your house.
     """
     display_name = "Skip Intro"
     option_off = 0
     # 1 is reserved for a future "train" (skip the train, keep the job) option
-    option_train_and_job = 2
-    default = option_train_and_job
+    option_full = 2
+    default = option_full
 
 
 class PlayerName(FreeText):
@@ -81,24 +81,47 @@ class GrassShape(Choice):
 
 
 class TrainStation(Choice):
-    """Your town's train station: wood, stone or brick, each in five colors."""
+    """Your town's train station: wood, stone or brick, with five roof colors each."""
     display_name = "Train Station"
-    option_wood_green = 0
+    option_wood_green_roof = 0
     option_wood_light_red_roof = 1
-    option_wood_blue = 2
-    option_wood_purple = 3
+    option_wood_blue_roof = 2
+    option_wood_purple_roof = 3
     option_wood_dark_red_roof = 4
-    option_stone_red = 5
-    option_stone_orange = 6
-    option_stone_green = 7
-    option_stone_blue = 8
-    option_stone_purple = 9
+    option_stone_red_roof = 5
+    option_stone_orange_roof = 6
+    option_stone_green_roof = 7
+    option_stone_blue_roof = 8
+    option_stone_purple_roof = 9
     option_brick_red_green_roof = 10
-    option_brick_blue = 11
+    option_brick_blue_roof = 11
     option_brick_tan_green_roof = 12
-    option_brick_purple = 13
-    option_brick_brown = 14
+    option_brick_purple_roof = 13
+    option_brick_brown_roof = 14
     default = "random"
+
+    # Shown in the options GUI/WebHost instead of the YAML names
+    names = {
+        0: "Wood, Green Roof",
+        1: "Wood (Light), Red Roof",
+        2: "Wood, Blue Roof",
+        3: "Wood, Purple Roof",
+        4: "Wood (Dark), Red Roof",
+        5: "Stone, Red Roof",
+        6: "Stone, Orange Roof",
+        7: "Stone, Green Roof",
+        8: "Stone, Blue Roof",
+        9: "Stone, Purple Roof",
+        10: "Brick (Red), Green Roof",
+        11: "Brick, Blue Roof",
+        12: "Brick (Tan), Green Roof",
+        13: "Brick, Purple Roof",
+        14: "Brick, Brown Roof",
+    }
+
+    @classmethod
+    def get_option_name(cls, value: int) -> str:
+        return cls.names[value]
 
 
 class TownDay(Range):
