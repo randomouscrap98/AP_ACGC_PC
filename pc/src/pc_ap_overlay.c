@@ -5,6 +5,7 @@
 #include "pc_text_draw.h"
 #include "pc_pause_menu.h" // to get some of those juicy externs
 #include "m_font.h"
+#include "m_common_data.h" // clip.animal_logo_clip
 #include "game.h"
 #include "graph.h"
 #include "sys_matrix.h"
@@ -80,6 +81,10 @@ static void apo_set_font_matrix(GRAPH* graph) {
 
 void pc_ap_overlay_draw(struct game_s* game) {
   if(g_pc_nes_active || !g_pc_ap_overlay_visible || game == NULL || game->graph == NULL) {
+    return;
+  }
+  // Only on the title screen (logo actor alive, from its fade-in on) and the pause menu
+  if(!g_pc_paused && Common_Get(clip.animal_logo_clip) == NULL) {
     return;
   }
   apo_set_font_matrix(game->graph);
