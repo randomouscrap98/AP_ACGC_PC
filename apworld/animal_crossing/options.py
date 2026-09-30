@@ -50,6 +50,38 @@ class Face(Choice):
     default = "random"
 
 
+class StartingShirt(Choice):
+    """
+    The shirt you start with. The game picks from 8 shirts per gender: flame to speedway for boys,
+    folk to gelato for girls. Random (Gender) keeps that; any shirt can be chosen for either gender.
+    """
+    display_name = "Starting Shirt"
+    option_flame_shirt = 0
+    option_paw_shirt = 1
+    option_wavy_pink_shirt = 2
+    option_future_shirt = 3
+    option_bold_check_shirt = 4
+    option_mint_gingham = 5
+    option_bad_plaid_shirt = 6
+    option_speedway_shirt = 7
+    option_folk_shirt = 8
+    option_daisy_shirt = 9
+    option_wavy_tan_shirt = 10
+    option_optical_shirt = 11
+    option_rugby_shirt = 12
+    option_sherbet_gingham = 13
+    option_yellow_tartan = 14
+    option_gelato_shirt = 15
+    option_random_gender = 16
+    default = option_random_gender
+
+    @classmethod
+    def get_option_name(cls, value: int) -> str:
+        if value == cls.option_random_gender:
+            return "Random (Gender)"
+        return super().get_option_name(value)
+
+
 class House(Choice):
     """Which house you get when the job is skipped."""
     display_name = "House"
@@ -157,6 +189,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     town_name: TownName
     gender: Gender
     face: Face
+    starting_shirt: StartingShirt
     house: House
     town_fruit: TownFruit
     grass_shape: GrassShape

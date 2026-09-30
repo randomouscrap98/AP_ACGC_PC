@@ -9,6 +9,7 @@
 #include "m_name_table.h"
 #include "m_private.h"
 #include "m_player.h"
+#include "m_player_lib.h"
 #include "m_land.h"
 #include "m_house.h"
 #include "m_home.h"
@@ -52,6 +53,15 @@ void pc_ap_newgame_town(void) {
   }
   if (sd->town_day >= 1 && sd->town_day <= 31 && sd->town_day != 4) {
     Save_Set(town_day, sd->town_day);
+  }
+}
+
+void pc_ap_newgame_shirt(void) {
+  ap_slotdata* sd = ap_getslotdata();
+
+  // 16 is Random (Gender): keep what the game picked from the gender's list
+  if (sd->valid && Now_Private != NULL && sd->starting_shirt >= 0 && sd->starting_shirt < 16) {
+    mPlib_change_player_cloth_info_lv2(Now_Private, ITM_CLOTH000 + sd->starting_shirt);
   }
 }
 

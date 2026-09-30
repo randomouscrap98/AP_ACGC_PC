@@ -14,6 +14,7 @@ typedef struct {
   int house;
   int gender;
   int face;
+  int starting_shirt; // ITM_CLOTH000 + n; 16 (or missing) keeps the game's pick
   int town_fruit;
   int grass_shape;    // mFM_BG_TEX_* index
   int train_station;  // station_type (0-14), -1 if unset

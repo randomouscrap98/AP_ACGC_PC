@@ -42,6 +42,7 @@ class AnimalCrossingWeb(WebWorld):
             options.TownName,
             options.Gender,
             options.Face,
+            options.StartingShirt,
             options.House,
         ]),
         OptionGroup("Town Generation", [
@@ -103,6 +104,7 @@ class AnimalCrossingWorld(World):
             "town_name": self.ac_town_name,
             "gender": self.options.gender.value,
             "face": self.options.face.value,
+            "starting_shirt": self.options.starting_shirt.value,
             "house": self.options.house.value,
             "town_fruit": self.options.town_fruit.value,
             "grass_shape": self.options.grass_shape.value,

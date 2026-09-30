@@ -17,6 +17,9 @@
 #include "m_submenu.h"
 #include "m_room_type.h"
 #include "m_common_data.h"
+#ifdef TARGET_PC
+#include "pc_ap_newgame.h"
+#endif
 
 static Mail_c l_mpr_mail;
 Private_c g_foreigner_private;
@@ -221,6 +224,9 @@ extern void mPr_SetNowPrivateCloth() {
 
     if (priv != NULL) {
         mPlib_change_player_cloth_info_lv2(priv, mPr_GetRandomCloth(priv->gender));
+#ifdef TARGET_PC
+        pc_ap_newgame_shirt();
+#endif
     }
 }
 

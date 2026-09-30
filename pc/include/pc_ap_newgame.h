@@ -19,6 +19,10 @@ void pc_ap_newgame_town_fruit(mActor_name_t* fruit);
 // town day gets rerolled (the train's finaliser, our copy of it).
 void pc_ap_newgame_town(void);
 
+// Replaces the new player's random starting shirt with the one from slot_data.
+// Called at the end of mPr_SetNowPrivateCloth (train, new player, our finaliser).
+void pc_ap_newgame_shirt(void);
+
 // Called right after the new town is built (mCD_InitGameStart_bg). Does what
 // the train and the job would have set up, then changes scene to the town,
 // in front of the player's house, with the town map. Replaces the rest of
