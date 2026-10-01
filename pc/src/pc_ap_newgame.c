@@ -138,7 +138,7 @@ static void pc_ap_newgame_house(int house) {
   mPr_SetItemCollectBit(ITM_WALL_START + Save_Get(homes[house]).floors[0].wall_floor.wallpaper_idx);
 
   mHm_SetNowHome();
-  Now_Private->inventory.loan = mPlayer_DEBT0;
+  Now_Private->inventory.loan = pc_ap_loan_amount(0);
 
   // State right after the job (mEv_UnSetFirstJob): Nook talks the next day.
   // Clearing the daily flag stops that from happening today.

@@ -1,3 +1,7 @@
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
+
 static void aID_change_player_demo_standing_train(GAME* game) {
     if (mPlib_get_player_actor_main_index(game) != mPlayer_INDEX_DEMO_STANDING_TRAIN) {
         mPlib_request_main_demo_standing_train_type1(game);
@@ -180,7 +184,11 @@ static void aID_retire_rcn_guide_wait(INTRO_DEMO_ACTOR* intro_demo, GAME_PLAY* p
         mPlib_Set_unable_wade(FALSE);
         mCoBG_ChangeBlockBgCheckMode(0);
         mEv_UnSetFirstIntro();
+        #ifdef TARGET_PC
+        Now_Private->inventory.loan = pc_ap_loan_amount(0);
+        #else
         Now_Private->inventory.loan = mPlayer_DEBT0;
+        #endif
         errand = mQst_GetFirstJobData();
         mQst_SetFirstJobStart(errand);
         aID_setupAction(intro_demo, play, aID_ACT_FIRST_JOB);

@@ -13,6 +13,9 @@ extern "C" {
 // Nonzero once we know which room/slot we're in, so the save root can be set
 int pc_ap_start_allowed(void);
 
+// Loan amount for given size. Return 0 for anything invalid
+int pc_ap_loan_amount(int size);
+
 // ASCII name (from slot_data) -> game name: charset converted, space padded,
 // no terminator (player names and town names are both 8 bytes)
 void pc_ap_name_to_game(u8* dst, int dst_len, const char* src);

@@ -11,6 +11,14 @@ int pc_ap_start_allowed(void) {
   return ap_roomplayer_valid(&ap_getconnectstate()->roomplayer);
 }
 
+int pc_ap_loan_amount(int size) {
+  if(size < 0 || size >= AP_LOAN_NUM) {
+    return 0;
+  }
+  ap_slotdata * sd = ap_getslotdata();
+  return sd->loans[size];
+}
+
 void pc_ap_name_to_game(u8* dst, int dst_len, const char* src) {
   char tmp[16];
   int len;
@@ -33,15 +41,6 @@ static int pc_find_bytes(const u8* buf, int len, const char* needle) {
   return -1;
 }
 
-// static int pc_shift_bytes(u8* buf, int len, int shift) {
-//   if(shift > 0) {
-//     for(int i = 0; i < len; i++) { buf[i + shift] = buf[i]; }
-//   } else if(shift < 0) {
-//     for(int i = 0; i < len; i++) { buf[i] = buf[i + shift]; }
-//   }
-//   return len + shift;
-// }
-
 // Replace the FIRST instance of needle with replace, shifting all text over and
 // returning the new length (not null terminated)
 static int pc_replace_msg_text(u8* buf, int len, const char * needle, const char * replace) {
@@ -54,6 +53,7 @@ static int pc_replace_msg_text(u8* buf, int len, const char * needle, const char
     if (len + shift > mMsg_MSG_BUF_MAX) return len; // If it won't fit, do nothing
     memmove(buf + afterneedle + shift, buf + afterneedle, len - afterneedle);
     memcpy(buf + idx, replace, rlen);
+    len += shift;
   }
   return len;
 }
@@ -75,6 +75,8 @@ static void pc_comma_number(char * out, size_t maxsize, int number) {
   }
 }
 
+// Generic pc message patch, which will patch ANY message which matches
+// one of the patches.
 u32 pc_ap_msg_patch(int index, mMsg_Data_c* msg_data, u32 size) {
   ap_slotdata * sd = ap_getslotdata();
   char needle[64];
