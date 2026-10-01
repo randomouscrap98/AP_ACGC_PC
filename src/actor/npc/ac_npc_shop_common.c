@@ -1,3 +1,7 @@
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
+
 enum aNSC_action {
     aNSC_ACTION_EMPTY,
     aNSC_ACTION_SAY_HELLO_APPROACH,
@@ -1631,13 +1635,24 @@ static void aNSC_set_talk_info_start_wait(ACTOR* actorx) {
         size->pad_1 = 0;
         if (size->basement_ordered == TRUE) {
             size->basement_ordered = FALSE;
+#ifdef TARGET_PC
+            next_loan = pc_ap_loan_amount(2);
+#else
             next_loan = aNSC_LOAN_BASEMENT;
+#endif
             size->pad_1 = 1;
             msg_no = aNSC_MSG_BASEMENT_BUILT;
         } else {
             int i = size->size - 1;
+#ifdef TARGET_PC
+            static const int ap_loan_idx[4] = { 1, 3, 4, -1 }; // medium, large, upper, statue (-1 -> 0)
+#endif
             msg_no = rehouse_msg[i];
+#ifdef TARGET_PC
+            next_loan = pc_ap_loan_amount(ap_loan_idx[i]);
+#else
             next_loan = rehouse_loan[i];
+#endif
         }
 
         Now_Private->inventory.loan = next_loan;
