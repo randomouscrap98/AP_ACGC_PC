@@ -7,6 +7,11 @@
 extern "C" {
 #endif
 
+#define AP_LOAN_NUM     5 // starting, medium, basement, large, upper (upgrade order)
+#define AP_BELLBAG_NUM  3 // small, modest, large
+
+#define AP_GOAL_STATUE  (1 << 0)
+
 typedef struct {
   // Base data (not necessarily set)
   char player_name[9];
@@ -24,6 +29,12 @@ typedef struct {
   int no_cockroaches;
   int shops_always_open;
   int no_weeds;
+  // Goal / checks
+  int goal;                          // AP_GOAL_* bits; all set goals are required
+  int loans[AP_LOAN_NUM];            // loan amounts in bells
+  int loan_checks[AP_LOAN_NUM];      // checks sent when each loan is paid off
+  int favorsanity;                   // number of favor checks
+  int bell_bags[AP_BELLBAG_NUM];     // bells per small/modest/large bell bag
   // Whether the struct has valid data
   int valid;
 } ap_slotdata;

@@ -12,6 +12,27 @@ void ap_slotdata_init(ap_slotdata * sd) {
   memset(sd, 0, sizeof(ap_slotdata));
 }
 
+// Fills out[0..n) from a json int array; missing key or bad entries keep the defaults
+static void read_int_array(const nlohmann::json& slot_data, const char * key,
+    int * out, const int * defaults, int n) {
+  for (int i = 0; i < n; i++) { out[i] = defaults[i]; }
+  auto it = slot_data.find(key);
+  if (it == slot_data.end() || !it->is_array()) { return; }
+  for (int i = 0; i < n && i < (int)it->size(); i++) {
+    if ((*it)[i].is_number_integer()) { out[i] = (*it)[i].get<int>(); }
+  }
+}
+
+static int read_goal(const nlohmann::json& slot_data) {
+  auto it = slot_data.find("goal");
+  if (it == slot_data.end() || !it->is_array()) { return AP_GOAL_STATUE; }
+  int goal = 0;
+  for (auto& g : *it) {
+    if (g.is_string() && g.get<std::string>() == "Statue") { goal |= AP_GOAL_STATUE; }
+  }
+  return goal;
+}
+
 void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) { 
   snprintf(sd->town_name, sizeof(sd->town_name), "%s",
       slot_data.value("town_name", "pelago").c_str());
@@ -29,5 +50,24 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   sd->no_cockroaches = slot_data.value("no_cockroaches", 0) % 2;
   sd->shops_always_open = slot_data.value("shops_always_open", 0) % 2;
   sd->no_weeds = slot_data.value("no_weeds", 0) % 2;
+
+  // Defaults match the apworld's option defaults
+  static const int default_loans[AP_LOAN_NUM] = { 17400, 98000, 49800, 198000, 298000 };
+  static const int default_loan_checks[AP_LOAN_NUM] = { 1, 2, 2, 4, 6 };
+  sd->goal = read_goal(slot_data);
+  read_int_array(slot_data, "loans", sd->loans, default_loans, AP_LOAN_NUM);
+  read_int_array(slot_data, "loan_checks", sd->loan_checks, default_loan_checks, AP_LOAN_NUM);
+  sd->favorsanity = slot_data.value("favorsanity", 0);
+
+  // Keyed by item name in the apworld (Small/Modest/Large Bell Bag)
+  static const char * bag_names[AP_BELLBAG_NUM] = { "Small Bell Bag", "Modest Bell Bag", "Large Bell Bag" };
+  auto bags = slot_data.find("bell_bags");
+  for (int i = 0; i < AP_BELLBAG_NUM; i++) {
+    sd->bell_bags[i] = 0;
+    if (bags != slot_data.end() && bags->is_object()) {
+      auto b = bags->find(bag_names[i]);
+      if (b != bags->end() && b->is_number_integer()) { sd->bell_bags[i] = b->get<int>(); }
+    }
+  }
   sd->valid = 1;
 }
