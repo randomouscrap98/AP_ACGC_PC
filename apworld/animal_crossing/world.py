@@ -2,7 +2,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from BaseClasses import Item, ItemClassification, Location, Region
-from Options import OptionGroup
+from Options import OptionError, OptionGroup
 from worlds.AutoWorld import WebWorld, World
 
 from .items import ITEM_NAME_TO_ID
@@ -51,6 +51,15 @@ class AnimalCrossingWeb(WebWorld):
             options.TrainStation,
             options.TownDay,
         ]),
+        OptionGroup("Loan Goal", [
+            options.StartingLoan,
+            options.MediumLoan,
+            options.LargeLoan,
+            options.BasementLoan,
+            options.UpperLoan,
+            options.TotalLoanChecks,
+            options.FillerBellsPercent,
+        ]),
         OptionGroup("Quality of Life", [
             options.NoCockroaches,
             options.ShopsAlwaysOpen,
@@ -73,6 +82,8 @@ class AnimalCrossingWorld(World):
     location_name_to_id = LOCATION_NAME_TO_ID
 
     def generate_early(self) -> None:
+        if not self.options.goal.value:
+            raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Goal needs at least one goal.")
         self.ac_player_name = clamp_name(self.options.player_name.value) or clamp_name(self.player_name)
         self.ac_town_name = clamp_name(self.options.town_name.value) or DEFAULT_TOWN
         # The 4th of July is the Fireworks Festival; the game never picks it either

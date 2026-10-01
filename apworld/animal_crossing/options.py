@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import Choice, DefaultOnToggle, FreeText, PerGameCommonOptions, Range, Toggle
+from Options import Choice, DefaultOnToggle, FreeText, OptionSet, PerGameCommonOptions, Range, Toggle
 
 
 class SkipIntro(Choice):
@@ -167,6 +167,81 @@ class TownDay(Range):
     default = "random"
 
 
+class Goal(OptionSet):
+    """
+    What you need to do to finish. With several goals, all of them are required.
+    Statue: pay off every house loan so Tom Nook builds your statue.
+    """
+    display_name = "Goal"
+    valid_keys = {"Statue"}
+    default = frozenset({"Statue"})
+
+
+class LoanAmount(Range):
+    range_start = 1000
+    range_end = 9999999
+
+
+class StartingLoan(LoanAmount):
+    """The loan for your starting house. Vanilla: 17,400."""
+    display_name = "Starting Loan"
+    default = 17400
+
+
+class MediumLoan(LoanAmount):
+    """The loan for the first house upgrade (bigger main floor). Vanilla: 148,000."""
+    display_name = "Medium House Loan"
+    default = 98000
+
+
+class LargeLoan(LoanAmount):
+    """The loan for the second house upgrade (biggest main floor). Vanilla: 398,000."""
+    display_name = "Large House Loan"
+    default = 198000
+
+
+class BasementLoan(LoanAmount):
+    """The loan for the basement. Vanilla: 49,800."""
+    display_name = "Basement Loan"
+    default = 49800
+
+
+class UpperLoan(LoanAmount):
+    """The loan for the upper floor (the last upgrade). Vanilla: 798,000."""
+    display_name = "Upper Floor Loan"
+    default = 298000
+
+
+class TotalLoanChecks(Range):
+    """
+    Number of checks spread over the five loans, split by each loan's share of the total debt
+    (every loan gets at least one; its last check is paying it off).
+    """
+    display_name = "Total Loan Checks"
+    range_start = 5
+    range_end = 200
+    default = 15
+
+
+class FillerBellsPercent(Range):
+    """
+    Total Bells sent as filler items, as a percentage of the total debt of all loans.
+    AP Bells pay your current loan; 100 or more can pay off everything by itself.
+    """
+    display_name = "Filler Bells Percent"
+    range_start = 0
+    range_end = 200
+    default = 50
+
+
+class Favorsanity(Range):
+    """Number of villager favors (errands and contests) that send a check, in the order you complete them."""
+    display_name = "Favorsanity"
+    range_start = 0
+    range_end = 100
+    default = 20
+
+
 class NoCockroaches(DefaultOnToggle):
     """Cockroaches never appear in your house, even if you're away for a while."""
     display_name = "No Cockroaches"
@@ -184,6 +259,15 @@ class NoWeeds(DefaultOnToggle):
 
 @dataclass
 class AnimalCrossingOptions(PerGameCommonOptions):
+    goal: Goal
+    starting_loan: StartingLoan
+    medium_loan: MediumLoan
+    large_loan: LargeLoan
+    basement_loan: BasementLoan
+    upper_loan: UpperLoan
+    total_loan_checks: TotalLoanChecks
+    filler_bells_percent: FillerBellsPercent
+    favorsanity: Favorsanity
     skip_intro: SkipIntro
     player_name: PlayerName
     town_name: TownName
