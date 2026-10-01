@@ -2343,7 +2343,25 @@ ITEM_NAME_TO_ID = {
     "noisemaker": 0x33bc,
     "chowder": 0x33c0,
     "DUMMY": 0x33c4,
+}
 
-    # Not a game item number; bells are handed out by the client.
-    "Bells (1000)": 0x4000,
+# AP-only items (not game item numbers; 0x10000+ is above every mActor_name_t).
+PROGRESSIVE_HOUSE = "Progressive House"
+SMALL_BELL_BAG = "Small Bell Bag"
+MODEST_BELL_BAG = "Modest Bell Bag"
+LARGE_BELL_BAG = "Large Bell Bag"
+
+AP_ITEM_NAME_TO_ID = {
+    PROGRESSIVE_HOUSE: 0x10000,
+    SMALL_BELL_BAG: 0x10001,
+    MODEST_BELL_BAG: 0x10002,
+    LARGE_BELL_BAG: 0x10003,
+}
+ITEM_NAME_TO_ID.update(AP_ITEM_NAME_TO_ID)
+
+# Bell bags: (value ratio, pool weight). The Bells per ratio unit are computed per seed.
+BELL_BAGS = {
+    SMALL_BELL_BAG: (1, 30),
+    MODEST_BELL_BAG: (3, 60),
+    LARGE_BELL_BAG: (10, 10),
 }
