@@ -4,6 +4,7 @@
 #define PC_AP_LOGIC_H
 
 #include "types.h"
+#include "m_msg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,6 +16,9 @@ int pc_ap_start_allowed(void);
 // ASCII name (from slot_data) -> game name: charset converted, space padded,
 // no terminator (player names and town names are both 8 bytes)
 void pc_ap_name_to_game(u8* dst, int dst_len, const char* src);
+
+// Patch given message
+u32 pc_ap_msg_patch(int index, mMsg_Data_c* mdata, u32 size);
 
 #ifdef __cplusplus
 }

@@ -1,3 +1,7 @@
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
+
 static int mMsg_Set_SizeCode(mMsg_Window_c* msg_p, int idx) {
     return mFont_CodeSize_idx_get(msg_p->msg_data->text_buf.data, idx);
 }
@@ -363,6 +367,8 @@ static int mMsg_LoadMsgData(mMsg_Data_c* msg_data, int index, int cut) {
                     }
                 }
             }
+
+            size = pc_ap_msg_patch(index, msg_data, size);
 #endif
 
             msg_data->msg_no = index;
