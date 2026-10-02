@@ -20,6 +20,11 @@ int pc_ap_qol_no_weeds(void);
 // runs when a game is started or continued.
 void pc_ap_qol_cockroaches(void);
 
+// Nonzero when Nook's shop and Able Sisters ignore their opening hours.
+// Hooked in mSP_ShopOpen (out-of-hours PRE/END become OPEN; first job,
+// renewal and sale-day event statuses stay vanilla) and aNW_check_opend.
+int pc_ap_qol_shops_always_open(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -17,6 +17,11 @@ int pc_ap_qol_no_weeds(void) {
   return sd->valid && sd->no_weeds;
 }
 
+int pc_ap_qol_shops_always_open(void) {
+  ap_slotdata* sd = ap_getslotdata();
+  return sd->valid && sd->shops_always_open;
+}
+
 void pc_ap_qol_cockroaches(void) {
   ap_slotdata* sd = ap_getslotdata();
   int i;

@@ -207,6 +207,11 @@ static void aNW_talk_door_demo_ct(ACTOR* actorx) {
 
 static int aNW_check_opend() {
     int now_sec = Common_Get(time.now_sec);
+#ifdef TARGET_PC
+    if (pc_ap_qol_shops_always_open()) {
+        return TRUE;
+    }
+#endif
     return !(now_sec < (25200) && now_sec >= (7200));
 }
 

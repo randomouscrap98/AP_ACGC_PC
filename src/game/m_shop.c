@@ -14,6 +14,7 @@
 
 #ifdef TARGET_PC
 #include "pc_settings.h"
+#include "pc_ap_qol.h"
 #endif
 
 extern mActor_name_t* mSP_ftr_list[];
@@ -1776,12 +1777,17 @@ extern int mSP_ShopOpen() {
             lbRTC_Sub_hh(&start_time_pre, 1);
             lbRTC_Add_hh(&end_time_post, 1);
 
-            if (now_hour >= mTM_FIELD_RENEW_HOUR && now_hour < mSP_GetShopOpenTime()) {
-                return mSP_SHOP_STATUS_PRE;
-            }
+#ifdef TARGET_PC
+            if (!pc_ap_qol_shops_always_open())
+#endif
+            {
+                if (now_hour >= mTM_FIELD_RENEW_HOUR && now_hour < mSP_GetShopOpenTime()) {
+                    return mSP_SHOP_STATUS_PRE;
+                }
 
-            if (now_hour < mTM_FIELD_RENEW_HOUR || now_hour >= mSP_GetShopCloseTime()) {
-                return mSP_SHOP_STATUS_END;
+                if (now_hour < mTM_FIELD_RENEW_HOUR || now_hour >= mSP_GetShopCloseTime()) {
+                    return mSP_SHOP_STATUS_END;
+                }
             }
 
             if (lbRTC_IsOverTime(&start_time_pre, &rtc_time) == lbRTC_LESS) {
@@ -1809,6 +1815,12 @@ extern int mSP_ShopOpen() {
     if (mSP_InRenewal() != FALSE) {
         return mSP_SHOP_STATUS_RENEW;
     }
+
+#ifdef TARGET_PC
+    if (pc_ap_qol_shops_always_open()) {
+        return mSP_SHOP_STATUS_OPEN;
+    }
+#endif
 
     if (now_hour >= mSP_GetShopOpenTime() && now_hour < mSP_GetShopCloseTime()) {
         return mSP_SHOP_STATUS_OPEN;

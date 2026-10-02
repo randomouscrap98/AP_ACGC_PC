@@ -9,6 +9,10 @@
 #include "ac_intro_demo.h"
 #include "m_bgm.h"
 #include "sys_matrix.h"
+
+#ifdef TARGET_PC
+#include "pc_ap_qol.h"
+#endif
 #include "m_rcp.h"
 #include "libforest/gbi_extensions.h"
 
