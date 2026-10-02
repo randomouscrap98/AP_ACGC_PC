@@ -140,6 +140,12 @@ static void pc_ap_newgame_house(int house) {
   mHm_SetNowHome();
   Now_Private->inventory.loan = pc_ap_loan_amount(0);
 
+  // Nook takes the 1000 Bell quest bag as the down payment (aNRG_menu_open_wait_talk_proc)
+  int bag = mPr_GetPossessionItemIdxWithCond(Now_Private, ITM_MONEY_1000, mPr_ITEM_COND_QUEST);
+  if (bag >= 0) {
+    mPr_SetPossessionItem(Now_Private, bag, EMPTY_NO, mPr_ITEM_COND_NORMAL);
+  }
+
   // State right after the job (mEv_UnSetFirstJob): Nook talks the next day.
   // Clearing the daily flag stops that from happening today.
   mEv_EventON(mEv_SAVED_HRAWAIT_PLR0 + player_no);
