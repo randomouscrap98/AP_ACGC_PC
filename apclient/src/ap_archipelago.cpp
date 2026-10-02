@@ -20,6 +20,7 @@ static ap_connectstate g_ap_connectstate;
 static std::vector<int64_t> g_ap_items;
 static std::set<int64_t> g_ap_checks;
 static int g_ap_goal = 0;
+static std::deque<std::string> g_ap_toast;
 
 size_t ap_getitemcount(void) {
   return g_ap_items.size();
@@ -30,6 +31,13 @@ int64_t ap_getitem(size_t idx) {
     return -1;
   }
   return g_ap_items.at(idx);
+}
+
+int ap_pop_toast(char * buf, size_t len) {
+  if(g_ap_toast.size() == 0) return 0;
+  snprintf(buf, len, "%s", g_ap_toast.front().c_str());
+  g_ap_toast.pop_front();
+  return 1;
 }
 
 void ap_send_location(int64_t id) {
@@ -194,6 +202,19 @@ int ap_start(void) {
     }
     for (auto& i : items) { 
       g_ap_items.push_back(i.item);
+    }
+  });
+
+  g_ap->set_print_json_handler([](const APClient::PrintJSONArgs & args) {
+    int me = g_ap->get_player_number(); // just look it up again, whatever
+    // Quickly filter messages we don't care about (for toast)
+    // For this version, we only show item/hint messages for us (to reduce spam, it's a toast)
+    if (args.type == "ItemSend" || args.type == "Hint") {
+      if (*args.receiving != me && (!args.item || args.item->player != me)) {
+        return;
+      }
+    } else if(args.type != "Goal") { // show ALL people's goals
+      return;
     }
   });
 
