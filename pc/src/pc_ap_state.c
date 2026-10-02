@@ -9,6 +9,7 @@
 #define PCAP_MAXFILE 8192
 #define PCKEY_BELLSAPPLIED "bells_applied"
 #define PCKEY_FAVORSDONE "favors_done"
+#define PCKEY_LOANSTARTED "loan_started"
 
 
 static pc_ap_state g_pc_ap_state = {0};
@@ -43,6 +44,7 @@ int pc_ap_state_save(const char * filename) {
   ini_t* ini = ini_create(NULL);
   ini_set_int(ini, PCKEY_BELLSAPPLIED, g_pc_ap_state.bells_applied);
   ini_set_int(ini, PCKEY_FAVORSDONE, g_pc_ap_state.favors_done);
+  ini_set_int(ini, PCKEY_LOANSTARTED, g_pc_ap_state.loan_started);
   int size = ini_save(ini, buf, sizeof(buf));
   ini_destroy(ini); // is this necessary? probably...
 
@@ -83,6 +85,7 @@ int pc_ap_state_load(const char * filename) {
   ini_t* ini = ini_load(buf, NULL);
   g_pc_ap_state.bells_applied = ini_get_int(ini, PCKEY_BELLSAPPLIED, 0);
   g_pc_ap_state.favors_done = ini_get_int(ini, PCKEY_FAVORSDONE, 0);
+  g_pc_ap_state.loan_started = ini_get_int(ini, PCKEY_LOANSTARTED, 0);
 
   ini_destroy(ini);
   fclose(f);

@@ -1,4 +1,5 @@
 #include "pc_ap_logic.h"
+#include "pc_ap_state.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 #include "pc_menu_util.h"
@@ -22,6 +23,15 @@ int pc_ap_loan_amount(int size) {
   }
   ap_slotdata * sd = ap_getslotdata();
   return sd->loans[size];
+}
+
+void pc_ap_start_loan(void) {
+  Now_Private->inventory.loan = pc_ap_loan_amount(0);
+  pc_ap_state_get()->loan_started = 1;
+}
+
+int pc_ap_pay_allowed(void) {
+  return pc_ap_state_get()->loan_started;
 }
 
 int pc_ap_houses_received() {

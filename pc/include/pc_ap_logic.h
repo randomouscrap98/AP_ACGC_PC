@@ -15,6 +15,12 @@ int pc_ap_start_allowed(void);
 
 // Loan amount for given size. Return 0 for anything invalid
 int pc_ap_loan_amount(int size);
+// Set the starting loan (intro and skip both call this) and mark it started
+void pc_ap_start_loan(void);
+// Nonzero once the starting loan exists; before that loan == 0 means
+// "no loan yet", not "paid", so no Bells or loan checks
+int pc_ap_pay_allowed(void);
+
 // Houses from the ap
 int pc_ap_houses_received();
 

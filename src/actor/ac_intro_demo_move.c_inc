@@ -185,7 +185,7 @@ static void aID_retire_rcn_guide_wait(INTRO_DEMO_ACTOR* intro_demo, GAME_PLAY* p
         mCoBG_ChangeBlockBgCheckMode(0);
         mEv_UnSetFirstIntro();
         #ifdef TARGET_PC
-        Now_Private->inventory.loan = pc_ap_loan_amount(0);
+        pc_ap_start_loan();
         #else
         Now_Private->inventory.loan = mPlayer_DEBT0;
         #endif
