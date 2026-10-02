@@ -14,9 +14,6 @@ extern "C" {
 #define PC_AP_MAIL_SENDER  "AP"
 #define PC_AP_MAIL_FOOTER  "Archipelago"
 
-// ASCII -> game charset, space padded, no terminator. '\n' becomes a line break.
-void pc_ap_text_to_game(u8* dst, int dst_len, const char* src);
-
 // Put a letter in the current player's mailbox right away (no delivery
 // schedule), on the slot's letter_paper stationery. Header is "Dear <player>,". Body is ASCII, max 192 chars, '\n'
 // for line breaks. present = attached item, EMPTY_NO for none.

@@ -1,26 +1,13 @@
 #include "pc_ap_mail.h"
 #include "pc_ap_logic.h"
+#include "pc_ap_strings.h"
 #include "ap_slotdata.h"
-#include "pc_menu_util.h"
 #include "m_common_data.h"
 #include "m_mail.h"
 #include "m_font.h"
 #include "m_private.h"
 
 #include <string.h>
-
-void pc_ap_text_to_game(u8* dst, int dst_len, const char* src) {
-  mem_clear(dst, dst_len, CHAR_SPACE);
-  for(int i = 0; i < dst_len && src[i] != 0; i++) {
-    if(src[i] == '\n') {
-      dst[i] = CHAR_NEW_LINE;
-    } else {
-      char c[2] = { src[i], 0 };
-      pc_menu_fixtext(c);
-      dst[i] = (u8)c[0];
-    }
-  }
-}
 
 // Same fields as the game's own letters (mMl_get_mail_to_player_com, m_mail.c),
 // with our text instead of a ROM handbill

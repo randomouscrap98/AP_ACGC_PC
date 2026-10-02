@@ -226,9 +226,16 @@ static void pc_save_rotate_backups(const char* base_path) {
 
 static int pc_save_write_gci_to(const char* gci_path, const char* tmp_path);
 
-// AP state sidecar, next to the home town GCI (card_a)
-static void pc_ap_state_path(char* out, size_t size) {
-    pc_card_file_out(0, out, size, PC_AP_STATE_FILENAME);
+// AP state sidecar, next to the home town GCI (card_a). It's rotated with the
+// GCI, so backup n is the one that goes with GCI .bak<n> (0 = the main file).
+static void pc_ap_state_path(char* out, size_t size, int backup) {
+    char name[64];
+    if (backup > 0) {
+        snprintf(name, sizeof(name), "%s.bak%d", PC_AP_STATE_FILENAME, backup);
+    } else {
+        snprintf(name, sizeof(name), "%s", PC_AP_STATE_FILENAME);
+    }
+    pc_card_file_out(0, out, size, name);
 }
 
 /* mCD_get_land_copyProtect */
@@ -434,7 +441,8 @@ static int pc_save_write_gci_to(const char* gci_path, const char* tmp_path) {
     // Home town only: Card B saves belong to another town
     if (strcmp(gci_path, l_card_b_gci_path) != 0) {
         char ap_path[PC_PATHSIZE];
-        pc_ap_state_path(ap_path, sizeof(ap_path));
+        pc_ap_state_path(ap_path, sizeof(ap_path), 0);
+        pc_save_rotate_backups(ap_path); // same rotation as the GCI above
         if (!pc_ap_state_save(ap_path)) {
             OSReport("[PC] AP state save failed: %s\n", ap_path);
         }
@@ -673,11 +681,13 @@ static int pc_save_scan_gci_dir(void) {
 }
 
 /* Read the home town save into common_data (main file, then any GCI in card_a,
- * then .tmp/.bak recovery). Only called from mCD_LoadLand. */
-static int pc_save_check_and_load(void) {
+ * then .tmp/.bak recovery). Only called from mCD_LoadLand. Sets *backup_no to
+ * the .bak number that was loaded, 0 for any other file. */
+static int pc_save_check_and_load(int* backup_no) {
   struct stat st;
   char gci_path[PC_PATHSIZE];
   char tmp_path[PC_PATHSIZE];
+  *backup_no = 0;
   {
     char cwd[512];
     if (getcwd(cwd, sizeof(cwd))) {
@@ -723,6 +733,7 @@ static int pc_save_check_and_load(void) {
         OSReport("[PC] Found backup save '%s', recovering...\n", bak_path);
         if (pc_save_read_gci(bak_path)) {
           OSReport("[PC] Recovered save from backup %d\n", b);
+          *backup_no = b;
           return TRUE;
         }
       }
@@ -877,14 +888,17 @@ void mCD_LoadLand(void) {
     pc_card_dir_set_root_ap(cs->roomplayer.seed, cs->roomplayer.team,
         cs->roomplayer.player);
   }
-  if (pc_save_check_and_load()) {
+  int backup_no;
+  if (pc_save_check_and_load(&backup_no)) {
     Common_Set(copy_protect, Save_Get(copy_protect));
   }
 
-  // Missing file (new town) leaves the AP state zeroed
+  // The sidecar that matches the loaded GCI. Missing file (new town, or a
+  // backup from before sidecars were rotated) leaves the AP state zeroed,
+  // which only errs toward giving Bells again.
   {
     char ap_path[PC_PATHSIZE];
-    pc_ap_state_path(ap_path, sizeof(ap_path));
+    pc_ap_state_path(ap_path, sizeof(ap_path), backup_no);
     pc_ap_state_load(ap_path);
   }
 

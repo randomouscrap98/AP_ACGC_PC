@@ -21,6 +21,10 @@ static ap_connectstate g_ap_connectstate;
 static std::vector<int64_t> g_ap_items;
 static std::set<int64_t> g_ap_checks;
 static int g_ap_goal = 0;
+// Connected to a different room than the first one (server restarted with a
+// new seed): the game's save belongs to the old room, so ap_poll stops the client
+static bool g_ap_room_changed = false;
+#define AP_ROOM_CHANGED_REASON "Seed changed, restart"
 static std::deque<std::string> g_ap_toast;
 static const size_t AP_TOAST_MAX = 16;
 
@@ -148,7 +152,18 @@ int ap_start(void) {
   g_ap = std::make_unique<APClient>(uuid, AP_GAMENAME, g_ap_config.host, AP_CERTPATH);
   g_ap_connectstate.state = AP_CSTATE_CONNECTING;
 
-  g_ap->set_slot_connected_handler([](const nlohmann::json& slot_data) { 
+  g_ap->set_slot_connected_handler([](const nlohmann::json& slot_data) {
+    ap_roomplayer * rp = &g_ap_connectstate.roomplayer;
+    if(ap_roomplayer_valid(rp) && (g_ap->get_seed() != rp->seed ||
+        g_ap->get_team_number() != rp->team || g_ap->get_player_number() != rp->player)) {
+      g_ap_room_changed = true;
+      g_ap_connectstate.state = AP_CSTATE_SLOTREFUSED;
+      snprintf(g_ap_connectstate.last_refuse_reason,
+          sizeof(g_ap_connectstate.last_refuse_reason), AP_ROOM_CHANGED_REASON);
+      APLOG_ERROR("ROOM CHANGED: was %s/%d/%d, now %s/%d/%d", rp->seed, rp->team, rp->player,
+          g_ap->get_seed().c_str(), g_ap->get_team_number(), g_ap->get_player_number());
+      return;
+    }
     g_ap_connectstate.connect_once = 1;
     g_ap_connectstate.state = AP_CSTATE_CONNECTED;
     // Set every time
@@ -205,6 +220,7 @@ int ap_start(void) {
   });
 
   g_ap->set_items_received_handler([](const std::list<APClient::NetworkItem>& items) {
+    if(g_ap_room_changed) return; // same poll as the refused slot_connected
     if(items.empty()) return; // This is weird, maybe should log?
     int start = items.front().index;
     // Sending a NEW list
@@ -221,6 +237,7 @@ int ap_start(void) {
   });
 
   g_ap->set_print_json_handler([](const APClient::PrintJSONArgs & args) {
+    if(g_ap_room_changed) return;
     int me = g_ap->get_player_number(); // just look it up again, whatever
     // Quickly filter messages we don't care about (for toast)
     // For this version, we only show item/hint messages for us (to reduce spam, it's a toast)
@@ -270,8 +287,16 @@ ap_connectstate * ap_getconnectstate(void) {
   return &g_ap_connectstate;
 }
 
-void ap_poll(void) { 
-  if (g_ap) g_ap->poll(); 
+void ap_poll(void) {
+  if (g_ap) g_ap->poll();
+  // Stop for good outside the handlers (destroying the client inside one isn't safe).
+  // Set the state again after: closing the socket may run the disconnect handler.
+  if (g_ap && g_ap_room_changed) {
+    g_ap.reset();
+    g_ap_connectstate.state = AP_CSTATE_SLOTREFUSED;
+    snprintf(g_ap_connectstate.last_refuse_reason,
+        sizeof(g_ap_connectstate.last_refuse_reason), AP_ROOM_CHANGED_REASON);
+  }
 }         // call once per frame
 void ap_stop(void) { 
   g_ap.reset(); 

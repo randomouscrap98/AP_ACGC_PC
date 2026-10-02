@@ -1,5 +1,5 @@
 #ifdef TARGET_PC
-#include "pc_ap_logic.h"
+#include "pc_ap_strings.h"
 #endif
 
 static int mMsg_Set_SizeCode(mMsg_Window_c* msg_p, int idx) {

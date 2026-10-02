@@ -1,5 +1,6 @@
 #include "pc_ap_newgame.h"
 #include "pc_ap_logic.h"
+#include "pc_ap_strings.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 
