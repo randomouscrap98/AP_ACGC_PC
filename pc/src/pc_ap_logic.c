@@ -9,12 +9,19 @@
 #include "m_house.h"
 #include "m_event.h"
 #include "m_private.h"
+#include "m_play.h"
+#include "m_demo.h"
+#include "m_submenu.h"
 
 #include <stdio.h>
 #include <string.h>
 
 // WARN: keep in sync with apworld items.py!
 #define PC_AP_ITEM_PROGRESSIVE_HOUSE  0x10000
+// WARN: keep in sync with apworld items.py! Small/Modest/Large Bell Credit
+#define PC_AP_ITEM_BELL_CREDIT  0x10001
+// WARN: keep in sync with apworld locations.py! Loan k (0-4), check j (1-based) = base + k * 0x1000 + j
+#define PC_AP_LOC_LOAN_BASE   0x10000
 // WARN: keep in sync with apworld locations.py! Favor n (1-based) = base + n
 #define PC_AP_LOC_FAVOR_BASE  0x20000
 #define PC_AP_FAVORS_MAX      100
@@ -243,4 +250,92 @@ void pc_ap_send_favor_checks(void) {
   for(int i = 1; i <= n && i <= max; i++) {
     ap_send_location(PC_AP_LOC_FAVOR_BASE + i);
   }
+}
+
+int pc_ap_bells_received(void) {
+  ap_slotdata* sd = ap_getslotdata();
+  long long total = 0;
+  size_t count = ap_getitemcount();
+  for(size_t i = 0; i < count; i++) {
+    int64_t tier = ap_getitem(i) - PC_AP_ITEM_BELL_CREDIT;
+    if(tier >= 0 && tier < AP_BELLCREDIT_NUM) {
+      total += sd->bell_credits[tier];
+    }
+  }
+  return total > 0x7FFFFFFF ? 0x7FFFFFFF : (int)total;
+}
+
+int pc_ap_goals_done(void) {
+  int goal = ap_getslotdata()->goal;
+  mHm_hs_c* home = pc_ap_my_home();
+  if(home == NULL) {
+    return 0;
+  }
+  if(goal & AP_GOAL_STATUE) {
+    mHm_rmsz_c* size = &home->size_info;
+    if(!size->statue_ordered && size->next_size != mHm_HOMESIZE_STATUE && size->size != mHm_HOMESIZE_STATUE) {
+      return 0;
+    }
+  }
+  return goal != 0;
+}
+
+int pc_ap_in_game(GAME_PLAY* play) {
+  return pc_ap_accepting() &&
+         play->submenu.process_status == mSM_PROCESS_WAIT && // no menu/screen open
+         !mDemo_CheckDemo() &&                                // no talk, door, event, save talk
+         play->fb_wipe_mode == WIPE_MODE_NONE;                // no scene transition
+}
+
+static u32 pc_ap_min(u32 a, u32 b) {
+  return a < b ? a : b;
+}
+
+// Apply the Bell Credits balance to one place: the loan (down to 100) or,
+// once no loans are left, savings. Anything else waits.
+static void pc_ap_apply_bells(void) {
+  pc_ap_state* s = pc_ap_state_get();
+  mHm_hs_c* home = pc_ap_my_home();
+  Private_c* priv = Now_Private;
+  int balance = pc_ap_bells_received() - s->bells_applied;
+  if(balance <= 0 || home->size_info.renew) {
+    return; // nothing to apply, or Nook hasn't named the new loan yet
+  }
+
+  if(priv->inventory.loan > 100) {
+    // Pay the loan down to 100; the player pays the last 100 at the post office
+    u32 pay = pc_ap_min((u32)balance, priv->inventory.loan - 100);
+    priv->inventory.loan -= pay;
+    s->bells_applied += (int)pay;
+    if(priv->inventory.loan == 100) {
+      pc_ap_loan_letter_due();
+    }
+  } else if(priv->inventory.loan == 0 && pc_ap_house_stage() == 4) {
+    // No loans left: savings
+    u32 deposit = pc_ap_min((u32)balance, mPr_DEPOSIT_MAX - priv->bank_account);
+    priv->bank_account += deposit;
+    s->bells_applied += (int)deposit;
+  }
+  // Otherwise wait: last 100 owed, or the next loan isn't set yet
+}
+
+void pc_ap_tick(GAME_PLAY* play) {
+  if(!pc_ap_in_game(play)) {
+    return;
+  }
+  // Checks: every check of every paid-off loan (the DLL drops repeats)
+  ap_slotdata* sd = ap_getslotdata();
+  int paid = pc_ap_loans_paid();
+  for(int k = 0; k < paid && k < AP_LOAN_NUM; k++) {
+    for(int j = 1; j <= sd->loan_checks[k]; j++) {
+      ap_send_location(PC_AP_LOC_LOAN_BASE + k * 0x1000 + j);
+    }
+  }
+  pc_ap_send_favor_checks();
+  if(pc_ap_goals_done()) {
+    ap_send_goal();
+  }
+
+  pc_ap_apply_bells();
+  pc_ap_loan_letter_update();
 }

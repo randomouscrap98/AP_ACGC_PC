@@ -6,6 +6,8 @@
 #include "types.h"
 #include "m_msg.h"
 
+struct game_play_s;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,6 +53,17 @@ void pc_ap_favor_done(void);
 // Tick: (re)send Favor 1..done (cheap, the DLL drops repeats); covers favors
 // saved while offline whose checks never reached the server.
 void pc_ap_send_favor_checks(void);
+
+// Per-frame AP work, called at the end of Game_play_move. Only while
+// pc_ap_in_game: sends loan/favor checks and the goal, applies Bell Credits
+// (loan down to 100, or savings after the last loan), sends the loan letter.
+void pc_ap_tick(struct game_play_s* play);
+// pc_ap_accepting + no submenu, no demo (talk, door, event, save), no scene wipe
+int pc_ap_in_game(struct game_play_s* play);
+// All goals set in slot_data are done (statue ordered)
+int pc_ap_goals_done(void);
+// Total Bells from received Bell Credits (slot_data tier amounts)
+int pc_ap_bells_received(void);
 
 // Pure versions of the above (unit tested): size = mHm_HOMESIZE_*
 int pc_ap_stage_from(int size, int has_basement);

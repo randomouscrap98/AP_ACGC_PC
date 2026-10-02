@@ -1,4 +1,7 @@
 #include "m_play.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
 #include "evw_anime.h"
 #include "m_common_data.h"
@@ -611,6 +614,9 @@ static void Game_play_move(GAME* game) {
     banti_move(play);
     game->doing_point = 5;
     title_demo_move(play);
+#ifdef TARGET_PC
+    pc_ap_tick(play);
+#endif
     game->doing_point = 0;
     game->doing_point_specific = 0x95;
 }
