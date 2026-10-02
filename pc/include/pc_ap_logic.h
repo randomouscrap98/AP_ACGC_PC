@@ -15,6 +15,8 @@ int pc_ap_start_allowed(void);
 
 // Loan amount for given size. Return 0 for anything invalid
 int pc_ap_loan_amount(int size);
+// Houses from the ap
+int pc_ap_houses_received();
 
 // ASCII name (from slot_data) -> game name: charset converted, space padded,
 // no terminator (player names and town names are both 8 bytes)

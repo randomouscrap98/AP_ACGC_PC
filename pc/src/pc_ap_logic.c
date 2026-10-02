@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <string.h>
 
+// WARN: keep in sync with apworld items.py!
+#define PC_AP_ITEM_PROGRESSIVE_HOUSE  0x10000
+
 int pc_ap_start_allowed(void) {
   return ap_roomplayer_valid(&ap_getconnectstate()->roomplayer);
 }
@@ -17,6 +20,18 @@ int pc_ap_loan_amount(int size) {
   }
   ap_slotdata * sd = ap_getslotdata();
   return sd->loans[size];
+}
+
+int pc_ap_houses_received() {
+  int count = ap_getitemcount();
+  int houses = 0;
+  for(int i = 0; i < count; i++) {
+    int64_t item = ap_getitem(i);
+    if(item == PC_AP_ITEM_PROGRESSIVE_HOUSE) {
+      houses++;
+    }
+  }
+  return houses;
 }
 
 void pc_ap_name_to_game(u8* dst, int dst_len, const char* src) {
