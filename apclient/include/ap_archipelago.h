@@ -2,6 +2,8 @@
 #define AP_ARCHIPELAGO_H
 
 #include "ap_common.h"
+#include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,6 +59,11 @@ typedef struct {
 // WARN: sends the ACTUAL connect state being tracked! Careful with modifications!
 // Shouldn't ever send null
 AP_API ap_connectstate * ap_getconnectstate(void);
+
+// Get the ap item at ap index idx
+AP_API int64_t ap_getitem(size_t idx);
+// Get total amount of items in list right now
+AP_API size_t ap_getitemcount(void);
 
 #ifdef __cplusplus
 }

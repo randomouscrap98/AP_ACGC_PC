@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 #include "ap_log.h"
 
 #define INI_IMPLEMENTATION
@@ -16,6 +17,18 @@
 static std::unique_ptr<APClient> g_ap;
 static ap_config g_ap_config;
 static ap_connectstate g_ap_connectstate;
+static std::vector<int64_t> g_ap_items;
+
+size_t ap_getitemcount(void) {
+  return g_ap_items.size();
+}
+
+int64_t ap_getitem(size_t idx) {
+  if(idx >= g_ap_items.size()) {
+    return -1;
+  }
+  return g_ap_items.at(idx);
+}
 
 // Attempt to load config at given path. If it does not exist or
 // some other error occurs, returns non-zero
@@ -144,8 +157,18 @@ int ap_start(void) {
   });
 
   g_ap->set_items_received_handler([](const std::list<APClient::NetworkItem>& items) {
+    if(items.empty()) return; // This is weird, maybe should log?
+    int start = items.front().index;
+    // Sending a NEW list
+    if (start == 0) {
+      g_ap_items.clear();
+    } else if(start != (int)g_ap_items.size()) {
+      APLOG_WARN("ITEM INDEX OUT OF SYNC! %d, expected %d (resyncing)", start, (int)g_ap_items.size());
+      g_ap->Sync();
+      return;
+    }
     for (auto& i : items) { 
-      /* queue i.item, apply at a safe point */ 
+      g_ap_items.push_back(i.item);
     }
   });
 
