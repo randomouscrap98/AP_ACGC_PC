@@ -34,9 +34,13 @@ int pc_ap_overlay_toggle(void) {
 #define _APO_GRAY       0x777777FF
 #define _APO_RED        0xFF5050FF
 #define _APO_GREEN      0x50FF50FF
-#define _APO_ALPHA      127
+#define _APO_WHITE      0xFFFFFFFF
+#define _APO_ALPHA      167
 
 #define _APO_BOTTOM (_APO_HEIGHT - _APO_SCREENPAD - _APO_FONTHEIGHT * _APO_SCALE)
+#define _APO_LINE   (_APO_FONTHEIGHT * _APO_SCALE + _APO_PAD * 2)
+
+#define _APO_TOAST_SLOTS 16
 
 // I just like css colors ok??
 // 0xRRGGBBAA -> r, g, b, a
@@ -116,19 +120,112 @@ static void pc_ap_draw_status(struct game_s* game) {
   }
 }
 
+typedef struct {
+  char text[_APO_MAXSTRING];
+  Uint32 expires; // SDL_GetTicks() time
+} apo_toast;
+
+// Toasts on screen, oldest first
+static apo_toast s_toasts[_APO_TOAST_SLOTS];
+static int s_toast_count = 0;
+
+// Drop expired toasts and pull new ones from the DLL while there's room.
+// Runs every frame, even when the overlay is hidden, so timers keep going.
+static void pc_ap_update_toasts(void) {
+  Uint32 now = SDL_GetTicks();
+  int keep = 0;
+  for(int i = 0; i < s_toast_count; i++) {
+    if((Sint32)(s_toasts[i].expires - now) > 0) {
+      s_toasts[keep++] = s_toasts[i];
+    }
+  }
+  s_toast_count = keep;
+
+  // Toasts off: keep emptying the DLL queue so nothing old shows up when turned back on
+  if(g_pc_settings.ap_toast_seconds <= 0) {
+    char discard[_APO_MAXSTRING];
+    while(ap_pop_toast(discard, sizeof(discard))) {}
+    s_toast_count = 0;
+    return;
+  }
+
+  int max = g_pc_settings.ap_toast_max;
+  if(max > _APO_TOAST_SLOTS) max = _APO_TOAST_SLOTS;
+  while(s_toast_count < max && ap_pop_toast(s_toasts[s_toast_count].text, _APO_MAXSTRING)) {
+    s_toasts[s_toast_count].expires = now + (Uint32)g_pc_settings.ap_toast_seconds * 1000;
+    s_toast_count++;
+  }
+}
+
+// Draws text containing AP_TOAST_* color markers at x, y, or only measures it when draw == 0.
+// Returns the width. Clips at the right edge of the screen.
+static f32 pc_ap_draw_spans(struct game_s* game, const char* text, f32 x, f32 y, int draw) {
+  char piece[_APO_MAXSTRING];
+  uint32_t color = _APO_WHITE;
+  f32 start = x;
+  f32 maxx = _APO_WIDTH - _APO_SCREENPAD;
+
+  while(*text) {
+    if(*text == AP_TOAST_RESET[0])  { color = _APO_WHITE; text++; continue; }
+    if(*text == AP_TOAST_PLAYER[0]) { color = _APO_GREEN; text++; continue; }
+    if(*text == AP_TOAST_ITEM[0])   { color = _APO_RED;   text++; continue; }
+
+    // Copy up to the next marker
+    int n = 0;
+    while(text[n] && text[n] != AP_TOAST_RESET[0] && text[n] != AP_TOAST_PLAYER[0] &&
+          text[n] != AP_TOAST_ITEM[0] && n < (int)sizeof(piece) - 1) {
+      piece[n] = text[n];
+      n++;
+    }
+    piece[n] = 0;
+    text += n;
+    pc_menu_fixtext(piece);
+
+    // Drop characters until it fits
+    int clipped = 0;
+    while(n > 0 && x + pc_text_width(piece) * _APO_SCALE > maxx) {
+      piece[--n] = 0;
+      clipped = 1;
+    }
+    if(draw && n > 0) {
+      pc_text_draw(game, piece, x, y, PC_RGBA(color), _APO_SCALE);
+    }
+    x += pc_text_width(piece) * _APO_SCALE;
+    if(clipped) break;
+  }
+  return x - start;
+}
+
+// Toasts, top left, one line each, oldest on top
+static void pc_ap_draw_toasts(struct game_s* game) {
+  f32 x = _APO_SCREENPAD;
+  f32 y = _APO_SCREENPAD;
+  for(int i = 0; i < s_toast_count; i++) {
+    f32 w = pc_ap_draw_spans(game, s_toasts[i].text, x, y, 0);
+    pc_menu_dim_box(game->graph, x - _APO_PAD, y - _APO_PAD, w + _APO_PAD * 2, _APO_LINE, _APO_ALPHA);
+    pc_ap_draw_spans(game, s_toasts[i].text, x, y, 1);
+    y += _APO_LINE;
+  }
+}
+
 void pc_ap_overlay_draw(struct game_s* game) {
+  pc_ap_update_toasts();
   if(g_pc_nes_active || !g_pc_ap_overlay_visible || game == NULL || game->graph == NULL) {
     return;
   }
   // Title screen (logo actor alive, from its fade-in on) or the pause menu
   int menu_screen = g_pc_paused || Common_Get(clip.animal_logo_clip) != NULL;
   int show_status = menu_screen || g_pc_settings.ap_status_always;
-  if(!show_status) {
+  int show_toasts = s_toast_count > 0;
+  if(!show_status && !show_toasts) {
     return;
   }
   apo_set_font_matrix(game->graph);
 
   if(show_status) {
     pc_ap_draw_status(game);
+  }
+  if(show_toasts) {
+    pc_ap_draw_toasts(game);
   }
 }

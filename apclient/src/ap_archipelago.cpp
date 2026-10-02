@@ -221,24 +221,22 @@ int ap_start(void) {
       return;
     }
 
+    // Build our own short lines (no locations, the screen is small) instead of the server's text
+    auto player = [](int slot) { return AP_TOAST_PLAYER + g_ap->get_player_alias(slot) + AP_TOAST_RESET; };
     std::string out;
     if (args.type == "Goal") {
-      // The server sends this as one plain text node, so build our own to color the name
       if (!args.slot) return;
-      out = AP_TOAST_PLAYER + g_ap->get_player_alias(*args.slot) + AP_TOAST_RESET " completed their goal!";
+      out = player(*args.slot) + " completed their goal!";
     } else {
-      for (auto& node : args.data) {
-        if (node.type == "player_id") {
-          out += AP_TOAST_PLAYER + g_ap->get_player_alias(std::stoi(node.text)) + AP_TOAST_RESET;
-        } else if (node.type == "player_name") {
-          out += AP_TOAST_PLAYER + node.text + AP_TOAST_RESET;
-        } else if (node.type == "item_id") {
-          out += AP_TOAST_ITEM + g_ap->get_item_name(std::stoll(node.text), g_ap->get_player_game(node.player)) + AP_TOAST_RESET;
-        } else if (node.type == "location_id") {
-          out += g_ap->get_location_name(std::stoll(node.text), g_ap->get_player_game(node.player));
-        } else {
-          out += node.text;
-        }
+      if (!args.item || !args.receiving) return;
+      int finder = args.item->player, receiver = *args.receiving;
+      std::string item = AP_TOAST_ITEM + g_ap->get_item_name(args.item->item, g_ap->get_player_game(receiver)) + AP_TOAST_RESET;
+      if (args.type == "Hint") {
+        out = "Hint: " + player(receiver) + "'s " + item + " is in " + player(finder) + "'s world";
+      } else if (finder == receiver) {
+        out = player(finder) + " found their " + item;
+      } else {
+        out = player(finder) + " sent " + item + " to " + player(receiver);
       }
     }
 
