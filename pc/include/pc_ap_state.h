@@ -18,7 +18,7 @@ int pc_ap_state_save(const char * filename);
 int pc_ap_state_load(const char * filename);
 
 // Get a pointer to the ap state (through which you can mutate values)
-pc_ap_state * pc_ap_state_get();
+pc_ap_state * pc_ap_state_get(void);
 
 #ifdef __cplusplus
 }
