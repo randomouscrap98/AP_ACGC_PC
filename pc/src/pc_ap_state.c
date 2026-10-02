@@ -1,4 +1,5 @@
 #include "pc_ap_state.h"
+#include "pc_dirs.h"
 
 #include <ini.h>
 #include <stdio.h>
@@ -48,10 +49,21 @@ int pc_ap_state_save(const char * filename) {
   // Oops, too big!
   if(size > sizeof(buf)) { return 0; }
 
-  FILE * f = fopen(filename, "wb");
+  // Write a temp file first so a crash mid-write can't leave a truncated file
+  char tmp[PC_PATHSIZE + 8];
+  snprintf(tmp, sizeof(tmp), "%s.tmp", filename);
+
+  FILE * f = fopen(tmp, "wb");
   if(!f) { return 0; }
-  fwrite(buf, 1, size - 1, f);
-  fclose(f);
+  size_t written = fwrite(buf, 1, size - 1, f);
+  if(fclose(f) != 0 || written != (size_t)(size - 1)) {
+    remove(tmp);
+    return 0;
+  }
+
+  // Windows rename() fails if dest exists, so remove first
+  remove(filename);
+  if(rename(tmp, filename) != 0) { return 0; }
 
   return 1;
 }
