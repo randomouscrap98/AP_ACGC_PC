@@ -3,6 +3,8 @@
 #include "ap_slotdata.h"
 #include "pc_menu_util.h"
 #include "m_font.h" // CHAR_SPACE, mem_clear
+#include "m_common_data.h"
+#include "m_house.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -32,6 +34,54 @@ int pc_ap_houses_received() {
     }
   }
   return houses;
+}
+
+int pc_ap_stage_from(int size, int has_basement) {
+  switch(size) {
+    case mHm_HOMESIZE_SMALL:  return 0;
+    case mHm_HOMESIZE_MEDIUM: return has_basement ? 2 : 1;
+    case mHm_HOMESIZE_LARGE:  return 3;
+    default:                  return 4; // UPPER, STATUE
+  }
+}
+
+int pc_ap_loans_paid_from(int stage, u32 loan, int renew) {
+  // Upgrade k is only offered once loan k-1 is paid, so the first `stage`
+  // loans are always paid. renew = just built, Nook hasn't set the new loan
+  // yet (it's 0 then), so the current one doesn't count as paid.
+  if(loan == 0 && !renew) {
+    return stage + 1;
+  }
+  return stage;
+}
+
+// The current player's house, or NULL (title screen, visiting another town)
+static mHm_hs_c* pc_ap_my_home(void) {
+  if(Now_Private == NULL || Common_Get(player_no) >= mPr_FOREIGNER) {
+    return NULL;
+  }
+  return Save_GetPointer(homes[mHS_get_arrange_idx(Common_Get(player_no))]);
+}
+
+int pc_ap_house_stage(void) {
+  mHm_hs_c* home = pc_ap_my_home();
+  if(home == NULL) {
+    return 0;
+  }
+  return pc_ap_stage_from(home->size_info.size, home->flags.has_basement);
+}
+
+int pc_ap_loans_paid(void) {
+  mHm_hs_c* home = pc_ap_my_home();
+  if(home == NULL) {
+    return 0;
+  }
+  return pc_ap_loans_paid_from(pc_ap_house_stage(), Now_Private->inventory.loan,
+      home->size_info.renew);
+}
+
+int pc_ap_house_offer_allowed(void) {
+  return pc_ap_houses_received() > pc_ap_house_stage();
 }
 
 void pc_ap_name_to_game(u8* dst, int dst_len, const char* src) {

@@ -18,6 +18,18 @@ int pc_ap_loan_amount(int size);
 // Houses from the ap
 int pc_ap_houses_received();
 
+// House upgrades built so far, in AP order (Medium, Basement, Large, Upper): 0-4.
+// Loan k exists once stage k is built.
+int pc_ap_house_stage(void);
+// Number of loans paid off (0-5); loan k paid = all its checks are reached
+int pc_ap_loans_paid(void);
+// Nonzero if Nook may offer the next upgrade (more houses received than built)
+int pc_ap_house_offer_allowed(void);
+
+// Pure versions of the above (unit tested): size = mHm_HOMESIZE_*
+int pc_ap_stage_from(int size, int has_basement);
+int pc_ap_loans_paid_from(int stage, u32 loan, int renew);
+
 // ASCII name (from slot_data) -> game name: charset converted, space padded,
 // no terminator (player names and town names are both 8 bytes)
 void pc_ap_name_to_game(u8* dst, int dst_len, const char* src);
