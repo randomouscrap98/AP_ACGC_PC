@@ -159,6 +159,20 @@ static void pc_ap_update_toasts(void) {
   }
 }
 
+void pc_ap_overlay_toast(const char* text) {
+  if(g_pc_settings.ap_toast_seconds <= 0) {
+    return;
+  }
+  if(s_toast_count == _APO_TOAST_SLOTS) {
+    // Full: drop the oldest
+    memmove(&s_toasts[0], &s_toasts[1], sizeof(s_toasts[0]) * (s_toast_count - 1));
+    s_toast_count--;
+  }
+  snprintf(s_toasts[s_toast_count].text, _APO_MAXSTRING, "%s", text);
+  s_toasts[s_toast_count].expires = SDL_GetTicks() + (Uint32)g_pc_settings.ap_toast_seconds * 1000;
+  s_toast_count++;
+}
+
 // Draws text containing AP_TOAST_* color markers at x, y, or only measures it when draw == 0.
 // Returns the width. Clips at the right edge of the screen.
 static f32 pc_ap_draw_spans(struct game_s* game, const char* text, f32 x, f32 y, int draw) {

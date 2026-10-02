@@ -1,6 +1,8 @@
 #include "pc_ap_logic.h"
 #include "pc_ap_state.h"
 #include "pc_ap_mail.h"
+#include "pc_ap_overlay.h"
+#include "pc_ap_strings.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 #include "m_common_data.h"
@@ -10,6 +12,8 @@
 #include "m_play.h"
 #include "m_demo.h"
 #include "m_submenu.h"
+
+#include <stdio.h>
 
 // WARN: keep in sync with apworld items.py!
 #define PC_AP_ITEM_PROGRESSIVE_HOUSE  0x10000
@@ -198,6 +202,14 @@ static u32 pc_ap_min(u32 a, u32 b) {
 
 // Apply the Bell Credits balance to one place: the loan (down to 100) or,
 // once no loans are left, savings. Anything else waits.
+static void pc_ap_bells_toast(const char* fmt, u32 amount) {
+  char num[32];
+  char text[96];
+  pc_comma_number(num, sizeof(num), (int)amount);
+  snprintf(text, sizeof(text), fmt, num);
+  pc_ap_overlay_toast(text);
+}
+
 static void pc_ap_apply_bells(void) {
   pc_ap_state* s = pc_ap_state_get();
   mHm_hs_c* home = pc_ap_my_home();
@@ -212,6 +224,7 @@ static void pc_ap_apply_bells(void) {
     u32 pay = pc_ap_min((u32)balance, priv->inventory.loan - 100);
     priv->inventory.loan -= pay;
     s->bells_applied += (int)pay;
+    pc_ap_bells_toast("%s Bells paid toward your loan", pay);
     if(priv->inventory.loan == 100) {
       pc_ap_loan_letter_due();
     }
@@ -220,6 +233,9 @@ static void pc_ap_apply_bells(void) {
     u32 deposit = pc_ap_min((u32)balance, mPr_DEPOSIT_MAX - priv->bank_account);
     priv->bank_account += deposit;
     s->bells_applied += (int)deposit;
+    if(deposit > 0) {
+      pc_ap_bells_toast("%s Bells deposited to savings", deposit);
+    }
   }
   // Otherwise wait: last 100 owed, or the next loan isn't set yet
 }

@@ -59,7 +59,7 @@ static int pc_replace_msg_text(u8* buf, int len, const char * needle, const char
   return len;
 }
 
-static void pc_comma_number(char * out, size_t maxsize, int number) {
+void pc_comma_number(char * out, size_t maxsize, int number) {
   // This is silly but I am a human and lol
   int baseline = number % 1000;
   int thousands = (number / 1000) % 1000;

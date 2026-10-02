@@ -22,6 +22,10 @@ int pc_ap_overlay_toggle(void);
 
 void pc_ap_overlay_draw(struct game_s* game);
 
+// Show a local toast (not from the server) right away. Goes straight into the
+// on-screen list; when that's full the oldest toast is dropped.
+void pc_ap_overlay_toast(const char* text);
+
 #ifdef __cplusplus
 }
 #endif

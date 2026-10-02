@@ -4,6 +4,7 @@
 #define PC_AP_STRINGS_H
 
 #include "types.h"
+#include <stddef.h>
 #include "m_msg.h"
 
 #ifdef __cplusplus
@@ -16,6 +17,9 @@ void pc_ap_name_to_game(u8* dst, int dst_len, const char* src);
 
 // ASCII -> game charset, space padded, no terminator. '\n' becomes a line break.
 void pc_ap_text_to_game(u8* dst, int dst_len, const char* src);
+
+// Number with thousands commas, e.g. 12,345
+void pc_comma_number(char* out, size_t maxsize, int number);
 
 // Patch given message
 u32 pc_ap_msg_patch(int index, mMsg_Data_c* mdata, u32 size);
