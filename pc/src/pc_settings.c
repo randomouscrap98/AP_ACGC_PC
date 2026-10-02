@@ -20,6 +20,9 @@ PCSettings g_pc_settings = {
     .master_volume = 100,
     .stick_deadzone = 12,
     .cstick_deadzone = 12,
+    .ap_status_always = 0,
+    .ap_toast_seconds = 10,
+    .ap_toast_max = 8,
 };
 
 static const char* SETTINGS_FILE = "settings.ini";
@@ -69,7 +72,17 @@ static const char* DEFAULT_SETTINGS =
     "[Input]\n"
     "# Gamepad stick deadzones as a percentage (0-40)\n"
     "stick_deadzone = 12\n"
-    "cstick_deadzone = 12\n";
+    "cstick_deadzone = 12\n"
+    "\n"
+    "[Archipelago]\n"
+    "# AP connection status: 0 = title screen and pause menu only, 1 = always\n"
+    "ap_status_always = 0\n"
+    "\n"
+    "# Seconds each AP message (toast) stays on screen, 0 = no toasts\n"
+    "ap_toast_seconds = 10\n"
+    "\n"
+    "# Max AP messages on screen at once (1-16)\n"
+    "ap_toast_max = 8\n";
 
 static const char* skip_ws(const char* s) {
     while (*s == ' ' || *s == '\t') s++;
@@ -120,6 +133,12 @@ static void apply_setting(const char* key, const char* value) {
         if (val >= 0 && val <= 40) g_pc_settings.stick_deadzone = val;
     } else if (strcmp(key, "cstick_deadzone") == 0) {
         if (val >= 0 && val <= 40) g_pc_settings.cstick_deadzone = val;
+    } else if (strcmp(key, "ap_status_always") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.ap_status_always = val;
+    } else if (strcmp(key, "ap_toast_seconds") == 0) {
+        if (val >= 0 && val <= 600) g_pc_settings.ap_toast_seconds = val;
+    } else if (strcmp(key, "ap_toast_max") == 0) {
+        if (val >= 1 && val <= 16) g_pc_settings.ap_toast_max = val;
     }
 }
 
@@ -208,6 +227,16 @@ void pc_settings_save(void) {
     fprintf(f, "# Gamepad stick deadzones as a percentage (0-40)\n");
     fprintf(f, "stick_deadzone = %d\n", g_pc_settings.stick_deadzone);
     fprintf(f, "cstick_deadzone = %d\n", g_pc_settings.cstick_deadzone);
+    fprintf(f, "\n");
+    fprintf(f, "[Archipelago]\n");
+    fprintf(f, "# AP connection status: 0 = title screen and pause menu only, 1 = always\n");
+    fprintf(f, "ap_status_always = %d\n", g_pc_settings.ap_status_always);
+    fprintf(f, "\n");
+    fprintf(f, "# Seconds each AP message (toast) stays on screen, 0 = no toasts\n");
+    fprintf(f, "ap_toast_seconds = %d\n", g_pc_settings.ap_toast_seconds);
+    fprintf(f, "\n");
+    fprintf(f, "# Max AP messages on screen at once (1-16)\n");
+    fprintf(f, "ap_toast_max = %d\n", g_pc_settings.ap_toast_max);
     fclose(f);
     printf("[Settings] Saved %s\n", SETTINGS_FILE);
 }

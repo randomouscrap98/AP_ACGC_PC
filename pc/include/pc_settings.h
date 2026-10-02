@@ -21,6 +21,9 @@ typedef struct {
     int master_volume;    /* Applied at the PC audio output, 0-100 (default 100) */
     int stick_deadzone;   /* Gamepad main stick deadzone, percent 0-40 (default 12) */
     int cstick_deadzone;  /* Gamepad C-stick deadzone, percent 0-40 (default 12) */
+    int ap_status_always; // AP connection status: 0 = title screen + pause menu only (default), 1 = always
+    int ap_toast_seconds; // How long an AP toast stays on screen, 0 = no toasts (default 10)
+    int ap_toast_max;     // Max AP toasts on screen at once, 1-16 (default 8)
 } PCSettings;
 
 extern PCSettings g_pc_settings;
