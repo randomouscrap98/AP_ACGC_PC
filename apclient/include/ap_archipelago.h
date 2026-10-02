@@ -71,6 +71,11 @@ AP_API void ap_send_goal(void);
 // I GUESS 0 on failure, blegh
 AP_API int ap_pop_toast(char * buf, size_t len);
 
+// Color markers inside toast text: a marker starts a span, AP_TOAST_RESET ends it
+#define AP_TOAST_RESET  "\x01"
+#define AP_TOAST_PLAYER "\x02"
+#define AP_TOAST_ITEM   "\x03"
+
 #ifdef __cplusplus
 }
 #endif

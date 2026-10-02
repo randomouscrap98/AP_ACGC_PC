@@ -3,6 +3,7 @@
 
 #include <apclient.hpp>
 #include <apuuid.hpp>
+#include <deque>
 #include <memory>
 #include <fstream>
 #include <sstream>
@@ -21,6 +22,7 @@ static std::vector<int64_t> g_ap_items;
 static std::set<int64_t> g_ap_checks;
 static int g_ap_goal = 0;
 static std::deque<std::string> g_ap_toast;
+static const size_t AP_TOAST_MAX = 16;
 
 size_t ap_getitemcount(void) {
   return g_ap_items.size();
@@ -210,11 +212,39 @@ int ap_start(void) {
     // Quickly filter messages we don't care about (for toast)
     // For this version, we only show item/hint messages for us (to reduce spam, it's a toast)
     if (args.type == "ItemSend" || args.type == "Hint") {
-      if (*args.receiving != me && (!args.item || args.item->player != me)) {
+      bool to_me = args.receiving && *args.receiving == me;
+      bool from_me = args.item && args.item->player == me;
+      if (!to_me && !from_me) {
         return;
       }
     } else if(args.type != "Goal") { // show ALL people's goals
       return;
+    }
+
+    std::string out;
+    if (args.type == "Goal") {
+      // The server sends this as one plain text node, so build our own to color the name
+      if (!args.slot) return;
+      out = AP_TOAST_PLAYER + g_ap->get_player_alias(*args.slot) + AP_TOAST_RESET " completed their goal!";
+    } else {
+      for (auto& node : args.data) {
+        if (node.type == "player_id") {
+          out += AP_TOAST_PLAYER + g_ap->get_player_alias(std::stoi(node.text)) + AP_TOAST_RESET;
+        } else if (node.type == "player_name") {
+          out += AP_TOAST_PLAYER + node.text + AP_TOAST_RESET;
+        } else if (node.type == "item_id") {
+          out += AP_TOAST_ITEM + g_ap->get_item_name(std::stoll(node.text), g_ap->get_player_game(node.player)) + AP_TOAST_RESET;
+        } else if (node.type == "location_id") {
+          out += g_ap->get_location_name(std::stoll(node.text), g_ap->get_player_game(node.player));
+        } else {
+          out += node.text;
+        }
+      }
+    }
+
+    g_ap_toast.push_back(out);
+    if (g_ap_toast.size() > AP_TOAST_MAX) {
+      g_ap_toast.pop_front(); // drop the oldest
     }
   });
 
