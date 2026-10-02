@@ -15,6 +15,9 @@
 
 // WARN: keep in sync with apworld items.py!
 #define PC_AP_ITEM_PROGRESSIVE_HOUSE  0x10000
+// WARN: keep in sync with apworld locations.py! Favor n (1-based) = base + n
+#define PC_AP_LOC_FAVOR_BASE  0x20000
+#define PC_AP_FAVORS_MAX      100
 
 int pc_ap_start_allowed(void) {
   return ap_roomplayer_valid(&ap_getconnectstate()->roomplayer);
@@ -211,5 +214,33 @@ void pc_ap_loan_letter_update(void) {
   // Mailbox full: stays pending, try again next time
   if(pc_ap_send_letter("Your loan is ready for\npayoff at the post office!", EMPTY_NO)) {
     s->loan_letter_pending = 0;
+  }
+}
+
+int pc_ap_favors_done(void) {
+  // The sidecar rolls back with an unsaved quit, the server never does (and
+  // knows favors done offline only once they're sent): take the higher one
+  int local = pc_ap_state_get()->favors_done;
+  int server = (int)(ap_highest_checked(PC_AP_LOC_FAVOR_BASE + 1,
+      PC_AP_LOC_FAVOR_BASE + PC_AP_FAVORS_MAX) - PC_AP_LOC_FAVOR_BASE);
+  return local > server ? local : server;
+}
+
+void pc_ap_favor_done(void) {
+  if(!pc_ap_accepting()) {
+    return;
+  }
+  int n = pc_ap_favors_done() + 1;
+  pc_ap_state_get()->favors_done = n;
+  if(n <= ap_getslotdata()->favorsanity) {
+    ap_send_location(PC_AP_LOC_FAVOR_BASE + n);
+  }
+}
+
+void pc_ap_send_favor_checks(void) {
+  int n = pc_ap_favors_done();
+  int max = ap_getslotdata()->favorsanity;
+  for(int i = 1; i <= n && i <= max; i++) {
+    ap_send_location(PC_AP_LOC_FAVOR_BASE + i);
   }
 }

@@ -42,6 +42,16 @@ struct home_s* pc_ap_my_home(void);
 void pc_ap_loan_letter_due(void);
 void pc_ap_loan_letter_update(void);
 
+// Favors done = max(sidecar favors_done, highest "Favor n" the server has or we
+// sent this session), so an unsaved quit never makes you redo favors.
+int pc_ap_favors_done(void);
+// Call when a favor is completed (reward hook): counts it, sends "Favor n"
+// while n <= favorsanity. Does nothing until pc_ap_accepting().
+void pc_ap_favor_done(void);
+// Tick: (re)send Favor 1..done (cheap, the DLL drops repeats); covers favors
+// saved while offline whose checks never reached the server.
+void pc_ap_send_favor_checks(void);
+
 // Pure versions of the above (unit tested): size = mHm_HOMESIZE_*
 int pc_ap_stage_from(int size, int has_basement);
 int pc_ap_loans_paid_from(int stage, u32 loan, int renew);

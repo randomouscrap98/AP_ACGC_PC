@@ -49,6 +49,19 @@ void ap_send_location(int64_t id) {
   }
 }
 
+int64_t ap_highest_checked(int64_t first, int64_t last) {
+  int64_t best = first - 1;
+  for(int64_t id : g_ap_checks) {
+    if(id >= first && id <= last && id > best) best = id;
+  }
+  if(g_ap) {
+    for(int64_t id : g_ap->get_checked_locations()) {
+      if(id >= first && id <= last && id > best) best = id;
+    }
+  }
+  return best;
+}
+
 // apclientpp drops a StatusUpdate made while not connected, so remember it and
 // resend on every connect
 void ap_send_goal(void) {
