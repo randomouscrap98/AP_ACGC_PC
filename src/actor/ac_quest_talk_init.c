@@ -7,6 +7,10 @@
 #include "m_string.h"
 #include "libultra/libultra.h"
 
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
+
 enum {
     aQMgr_CHECK_TO,
     aQMgr_CHECK_FROM,
@@ -2018,6 +2022,11 @@ static void aQMgr_talk_quest_npc_get_item_wait(QUEST_MANAGER_ACTOR* manager) {
 static void aQMgr_actor_talk_fin_quest_reward(QUEST_MANAGER_ACTOR* manager) {
     aQMgr_target_c* target = &manager->target;
     aQMgr_regist_c* regist = &manager->regist[manager->regist_idx];
+
+#ifdef TARGET_PC
+    // Once per completed favor, also when the reward waits for full pockets
+    pc_ap_favor_done();
+#endif
 
     aQMgr_actor_set_reward(manager);
 

@@ -12,6 +12,10 @@
 #include "m_event.h"
 #include "m_common_data.h"
 
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
+
 typedef struct grab_s {
     mActor_name_t item;
     int pocket_idx;
@@ -637,6 +641,10 @@ extern int mQst_SendRemail(mQst_contest_c* contest, AnmPersonalID_c* sender_id) 
                     mMl_copy_mail(&house->mailbox[free_mail_idx], &letter);
 
                     res = TRUE;
+#ifdef TARGET_PC
+                    // Letter favor done (reward comes by mail, not via aQMgr_actor_talk_fin_quest_reward)
+                    pc_ap_favor_done();
+#endif
                 }
             }
         }

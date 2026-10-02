@@ -1704,7 +1704,12 @@ static void aNSC_set_talk_info_start_wait1(ACTOR* actor) {
             break;
         case mHm_HOMESIZE_MEDIUM:
             if (home->flags.has_basement == FALSE) {
+#ifdef TARGET_PC
+                // AP: fixed order, the basement always comes after medium
+                msg_no = aNSC_MSG_REHOUSE_BASEMENT;
+#else
                 msg_no = aNSC_MSG_REHOUSE_2_OFFER;
+#endif
             } else {
                 msg_no = aNSC_MSG_BASEMENT_PAID;
             }
@@ -1761,7 +1766,12 @@ static void aNSC_start_wait(NPC_SHOP_COMMON_ACTOR* shop_common, GAME_PLAY* play)
             int idx = mHS_get_arrange_idx(Common_Get(player_no));
             mHm_rmsz_c* size = &Save_Get(homes)[idx].size_info;
             if (Now_Private->inventory.loan == 0 && size->renew == FALSE && size->size < 3 &&
-                size->size == size->next_size && size->basement_ordered == FALSE) {
+                size->size == size->next_size && size->basement_ordered == FALSE
+#ifdef TARGET_PC
+                // AP: the next upgrade needs another Progressive House
+                && pc_ap_house_offer_allowed()
+#endif
+            ) {
                 wait_type = aNSC_WAIT_TYPE_DONE_REHOUSE;
             }
         }
@@ -1788,7 +1798,13 @@ static void aNSC_start_wait(NPC_SHOP_COMMON_ACTOR* shop_common, GAME_PLAY* play)
                 switch (home->size_info.size) {
                     case mHm_HOMESIZE_MEDIUM:
                         if (home->flags.has_basement == FALSE) {
+#ifdef TARGET_PC
+                            // AP: forced basement, same as the large house case
+                            aNSC_set_make_basement_info();
+                            action = aNSC_ACTION_SAY_HELLO_APPROACH;
+#else
                             action = aNSC_ACTION_CHECK_COL_CHG_OR_MAKE_BASEMENT;
+#endif
                         } else {
                             action = aNSC_ACTION_CHECK_ROOF_COL_ORDER;
                         }
