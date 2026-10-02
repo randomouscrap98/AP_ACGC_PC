@@ -13,6 +13,10 @@
 #include "m_kankyo.h"
 #include "ap_archipelago.h"
 
+// Single implementation of the vendored ini.h (pc/lib/ini) for the exe
+#define INI_IMPLEMENTATION
+#include "ini.h"
+
 /* prefer discrete GPU on laptops */
 #ifdef _WIN32
 __declspec(dllexport) unsigned long NvOptimusEnablement = 1;

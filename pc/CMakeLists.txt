@@ -77,6 +77,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/lib/glad/include
     ${CMAKE_CURRENT_SOURCE_DIR}/lib/fixnes
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/ini
     # .inc assets are loaded at runtime from disc image (no build/GAFE01_00 needed)
 )
 
