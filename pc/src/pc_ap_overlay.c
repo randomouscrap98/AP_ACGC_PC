@@ -3,6 +3,7 @@
 
 #include "pc_menu_util.h"
 #include "pc_text_draw.h"
+#include "pc_settings.h"
 #include "pc_pause_menu.h" // to get some of those juicy externs
 #include "m_font.h"
 #include "m_common_data.h" // clip.animal_logo_clip
@@ -79,16 +80,8 @@ static void apo_set_font_matrix(GRAPH* graph) {
   CLOSE_DISP(graph);
 }
 
-void pc_ap_overlay_draw(struct game_s* game) {
-  if(g_pc_nes_active || !g_pc_ap_overlay_visible || game == NULL || game->graph == NULL) {
-    return;
-  }
-  // Only on the title screen (logo actor alive, from its fade-in on) and the pause menu
-  if(!g_pc_paused && Common_Get(clip.animal_logo_clip) == NULL) {
-    return;
-  }
-  apo_set_font_matrix(game->graph);
-
+// Connection status line, bottom left
+static void pc_ap_draw_status(struct game_s* game) {
   ap_config * config = ap_getconfig();
   ap_connectstate * cstate = ap_getconnectstate();
   char output[_APO_MAXSTRING];
@@ -120,5 +113,22 @@ void pc_ap_overlay_draw(struct game_s* game) {
       snprintf(output, sizeof(output), "UNKNOWN AP STATE");
       pc_ap_draw_connect_state(game, output, _APO_GRAY);
       break;
+  }
+}
+
+void pc_ap_overlay_draw(struct game_s* game) {
+  if(g_pc_nes_active || !g_pc_ap_overlay_visible || game == NULL || game->graph == NULL) {
+    return;
+  }
+  // Title screen (logo actor alive, from its fade-in on) or the pause menu
+  int menu_screen = g_pc_paused || Common_Get(clip.animal_logo_clip) != NULL;
+  int show_status = menu_screen || g_pc_settings.ap_status_always;
+  if(!show_status) {
+    return;
+  }
+  apo_set_font_matrix(game->graph);
+
+  if(show_status) {
+    pc_ap_draw_status(game);
   }
 }
