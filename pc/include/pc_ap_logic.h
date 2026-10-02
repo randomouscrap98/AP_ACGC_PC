@@ -32,6 +32,16 @@ int pc_ap_loans_paid(void);
 // Nonzero if Nook may offer the next upgrade (more houses received than built)
 int pc_ap_house_offer_allowed(void);
 
+// The current player's house, or NULL (title screen, visiting another town)
+struct home_s* pc_ap_my_home(void);
+
+// Loan letter: call _due when Bell Credits bring the current loan down to 100
+// (never for the player's own payments; marks the letter pending), and _update
+// every tick: it sends the pending letter, retrying while the mailbox is full,
+// and drops it if that loan got paid off first.
+void pc_ap_loan_letter_due(void);
+void pc_ap_loan_letter_update(void);
+
 // Pure versions of the above (unit tested): size = mHm_HOMESIZE_*
 int pc_ap_stage_from(int size, int has_basement);
 int pc_ap_loans_paid_from(int stage, u32 loan, int renew);

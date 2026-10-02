@@ -1,5 +1,6 @@
 #include "pc_ap_logic.h"
 #include "pc_ap_state.h"
+#include "pc_ap_mail.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 #include "pc_menu_util.h"
@@ -65,8 +66,7 @@ int pc_ap_loans_paid_from(int stage, u32 loan, int renew) {
   return stage;
 }
 
-// The current player's house, or NULL (title screen, visiting another town)
-static mHm_hs_c* pc_ap_my_home(void) {
+mHm_hs_c* pc_ap_my_home(void) {
   if(Now_Private == NULL || Common_Get(player_no) >= mPr_FOREIGNER) {
     return NULL;
   }
@@ -182,4 +182,25 @@ u32 pc_ap_msg_patch(int index, mMsg_Data_c* msg_data, u32 size) {
   }
 
   return size;
+}
+
+void pc_ap_loan_letter_due(void) {
+  pc_ap_state_get()->loan_letter_pending = pc_ap_house_stage() + 1;
+}
+
+void pc_ap_loan_letter_update(void) {
+  pc_ap_state* s = pc_ap_state_get();
+  if(s->loan_letter_pending == 0 || pc_ap_my_home() == NULL) {
+    return;
+  }
+  // Paid off (or a newer loan) before the letter went out: drop it
+  int loan = s->loan_letter_pending - 1;
+  if(pc_ap_house_stage() != loan || pc_ap_loans_paid() != loan) {
+    s->loan_letter_pending = 0;
+    return;
+  }
+  // Mailbox full: stays pending, try again next time
+  if(pc_ap_send_letter("Your loan is ready for\npayoff at the post office!", EMPTY_NO)) {
+    s->loan_letter_pending = 0;
+  }
 }
