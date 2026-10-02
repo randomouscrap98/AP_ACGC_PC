@@ -3,6 +3,9 @@
 #ifndef PC_AP_STATE_H
 #define PC_AP_STATE_H
 
+// Sidecar file name, stored next to the home town GCI
+#define PC_AP_STATE_FILENAME "ap_state.ini"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

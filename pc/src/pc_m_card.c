@@ -28,6 +28,7 @@
 #include "pc_save_bswap.h"
 #include "pc_settings.h"
 #include "pc_dirs.h"
+#include "pc_ap_state.h"
 #include "m_cockroach.h"
 #include "m_all_grow_ovl.h"
 #include "m_home.h"
@@ -224,6 +225,11 @@ static void pc_save_rotate_backups(const char* base_path) {
 }
 
 static int pc_save_write_gci_to(const char* gci_path, const char* tmp_path);
+
+// AP state sidecar, next to the home town GCI (card_a)
+static void pc_ap_state_path(char* out, size_t size) {
+    pc_card_file_out(0, out, size, PC_AP_STATE_FILENAME);
+}
 
 /* mCD_get_land_copyProtect */
 static u16 pc_get_land_copy_protect(void) {
@@ -424,6 +430,15 @@ static int pc_save_write_gci_to(const char* gci_path, const char* tmp_path) {
     }
 
     OSReport("[PC] GCI save: written successfully to %s (backups rotated)\n", gci_path);
+
+    // Home town only: Card B saves belong to another town
+    if (strcmp(gci_path, l_card_b_gci_path) != 0) {
+        char ap_path[PC_PATHSIZE];
+        pc_ap_state_path(ap_path, sizeof(ap_path));
+        if (!pc_ap_state_save(ap_path)) {
+            OSReport("[PC] AP state save failed: %s\n", ap_path);
+        }
+    }
     return TRUE;
 }
 
@@ -864,6 +879,13 @@ void mCD_LoadLand(void) {
   }
   if (pc_save_check_and_load()) {
     Common_Set(copy_protect, Save_Get(copy_protect));
+  }
+
+  // Missing file (new town) leaves the AP state zeroed
+  {
+    char ap_path[PC_PATHSIZE];
+    pc_ap_state_path(ap_path, sizeof(ap_path));
+    pc_ap_state_load(ap_path);
   }
 
   Common_Set(save_error_type, 0);
