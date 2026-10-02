@@ -19,6 +19,7 @@ static ap_config g_ap_config;
 static ap_connectstate g_ap_connectstate;
 static std::vector<int64_t> g_ap_items;
 static std::set<int64_t> g_ap_checks;
+static int g_ap_goal = 0;
 
 size_t ap_getitemcount(void) {
   return g_ap_items.size();
@@ -36,6 +37,15 @@ void ap_send_location(int64_t id) {
   if(result.second && g_ap) {
     g_ap->LocationChecks({ id });
   }
+}
+
+// apclientpp drops a StatusUpdate made while not connected, so remember it and
+// resend on every connect
+void ap_send_goal(void) {
+  if(!g_ap_goal && g_ap) {
+    g_ap->StatusUpdate(APClient::ClientStatus::GOAL);
+  }
+  g_ap_goal = 1;
 }
 
 // Attempt to load config at given path. If it does not exist or
@@ -133,6 +143,9 @@ int ap_start(void) {
     // Resend any location checks?
     if(!g_ap_checks.empty()) {
       g_ap->LocationChecks(std::list<int64_t>(g_ap_checks.begin(), g_ap_checks.end()));
+    }
+    if(g_ap_goal) {
+      g_ap->StatusUpdate(APClient::ClientStatus::GOAL);
     }
     APLOG_INFO("SLOT CONNECTED: %s", g_ap_config.slotname);
   });

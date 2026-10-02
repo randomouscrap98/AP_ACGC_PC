@@ -65,6 +65,8 @@ AP_API int64_t ap_getitem(size_t idx);
 // Get total amount of items in list right now
 AP_API size_t ap_getitemcount(void);
 AP_API void ap_send_location(int64_t id);
+// Tell the server the goal is done (once per session; resent on every reconnect)
+AP_API void ap_send_goal(void);
 
 #ifdef __cplusplus
 }
