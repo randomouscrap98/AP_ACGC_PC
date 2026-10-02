@@ -1,5 +1,6 @@
 #include "pc_ap_mail.h"
 #include "pc_ap_logic.h"
+#include "ap_slotdata.h"
 #include "pc_menu_util.h"
 #include "m_common_data.h"
 #include "m_mail.h"
@@ -44,7 +45,7 @@ int pc_ap_send_letter(const char* body, mActor_name_t present) {
   pc_ap_text_to_game(mail.content.footer, MAIL_FOOTER_LEN, PC_AP_MAIL_FOOTER);
   mail.content.font = mMl_FONT_RECV;
   mail.content.mail_type = mMl_TYPE_MAIL;
-  mail.content.paper_type = PC_AP_MAIL_PAPER;
+  mail.content.paper_type = ap_getslotdata()->letter_paper;
 
   mPr_CopyPersonalID(&mail.header.recipient.personalID, &Now_Private->player_ID);
   mail.header.recipient.type = mMl_NAME_TYPE_PLAYER;

@@ -48,6 +48,7 @@ class AnimalCrossingWeb(WebWorld):
             options.GrassShape,
             options.TrainStation,
             options.TownDay,
+            options.LetterPaper,
         ]),
         OptionGroup("Loan Goal", [
             options.StartingLoan,
@@ -168,6 +169,7 @@ class AnimalCrossingWorld(World):
             "grass_shape": self.options.grass_shape.value,
             "train_station": self.options.train_station.value,
             "town_day": self.options.town_day.value,
+            "letter_paper": self.options.letter_paper.value,
             "no_cockroaches": self.options.no_cockroaches.value,
             "shops_always_open": self.options.shops_always_open.value,
             "no_weeds": self.options.no_weeds.value,

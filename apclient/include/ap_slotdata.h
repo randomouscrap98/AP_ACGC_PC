@@ -24,6 +24,7 @@ typedef struct {
   int grass_shape;    // mFM_BG_TEX_* index
   int train_station;  // station_type (0-14), -1 if unset
   int town_day;       // day in July, never 4
+  int letter_paper;   // stationery for AP letters (paper_type 0-63)
   // QOL
   int skip_intro;
   int no_cockroaches;

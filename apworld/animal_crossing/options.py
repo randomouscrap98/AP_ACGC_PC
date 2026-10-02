@@ -156,6 +156,76 @@ class TrainStation(Choice):
         return cls.names[value]
 
 
+class LetterPaper(Choice):
+    """Stationery for letters from Archipelago (e.g. "your loan is ready for payoff")."""
+    display_name = "Letter Paper"
+    option_airmail_paper = 0
+    option_sparkly_paper = 1
+    option_bamboo_paper = 2
+    option_orange_paper = 3
+    option_essay_paper = 4
+    option_panda_paper = 5
+    option_ranch_paper = 6
+    option_steel_paper = 7
+    option_blossom_paper = 8
+    option_vine_paper = 9
+    option_cloudy_paper = 10
+    option_petal_paper = 11
+    option_snowy_paper = 12
+    option_rainy_day_paper = 13
+    option_watermelon_paper = 14
+    option_deep_sea_paper = 15
+    option_starry_sky_paper = 16
+    option_daisy_paper = 17
+    option_bluebell_paper = 18
+    option_maple_leaf_paper = 19
+    option_woodcut_paper = 20
+    option_octopus_paper = 21
+    option_festive_paper = 22
+    option_skyline_paper = 23
+    option_museum_paper = 24
+    option_fortune_paper = 25
+    option_stageshow_paper = 26
+    option_thick_paper = 27
+    option_spooky_paper = 28
+    option_noodle_paper = 29
+    option_neat_paper = 30
+    option_horsetail_paper = 31
+    option_felt_paper = 32
+    option_parchment = 33
+    option_cool_paper = 34
+    option_elegant_paper = 35
+    option_lacy_paper = 36
+    option_polka_dot_paper = 37
+    option_dizzy_paper = 38
+    option_rainbow_paper = 39
+    option_hot_neon_paper = 40
+    option_cool_neon_paper = 41
+    option_aloha_paper = 42
+    option_ribbon_paper = 43
+    option_fantasy_paper = 44
+    option_woodland_paper = 45
+    option_gingko_paper = 46
+    option_fireworks_paper = 47
+    option_winter_paper = 48
+    option_gyroid_paper = 49
+    option_ivy_paper = 50
+    option_wing_paper = 51
+    option_dragon_paper = 52
+    option_tile_paper = 53
+    option_misty_paper = 54
+    option_simple_paper = 55
+    option_honeybee_paper = 56
+    option_mystic_paper = 57
+    option_sunset_paper = 58
+    option_lattice_paper = 59
+    option_dainty_paper = 60
+    option_butterfly_paper = 61
+    option_new_years_card = 62
+    option_inky_paper = 63
+    default = 0
+
+
 class TownDay(Range):
     """
     The day in July of your town's Town Day. 4 is the Fireworks Festival, so it's
@@ -279,6 +349,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     grass_shape: GrassShape
     train_station: TrainStation
     town_day: TownDay
+    letter_paper: LetterPaper
     no_cockroaches: NoCockroaches
     shops_always_open: ShopsAlwaysOpen
     no_weeds: NoWeeds
