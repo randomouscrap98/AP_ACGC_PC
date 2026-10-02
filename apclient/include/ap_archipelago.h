@@ -64,6 +64,7 @@ AP_API ap_connectstate * ap_getconnectstate(void);
 AP_API int64_t ap_getitem(size_t idx);
 // Get total amount of items in list right now
 AP_API size_t ap_getitemcount(void);
+AP_API void ap_send_location(int64_t id);
 
 #ifdef __cplusplus
 }

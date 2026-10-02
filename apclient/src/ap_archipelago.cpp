@@ -18,6 +18,7 @@ static std::unique_ptr<APClient> g_ap;
 static ap_config g_ap_config;
 static ap_connectstate g_ap_connectstate;
 static std::vector<int64_t> g_ap_items;
+static std::set<int64_t> g_ap_checks;
 
 size_t ap_getitemcount(void) {
   return g_ap_items.size();
@@ -28,6 +29,13 @@ int64_t ap_getitem(size_t idx) {
     return -1;
   }
   return g_ap_items.at(idx);
+}
+
+void ap_send_location(int64_t id) {
+  auto result = g_ap_checks.insert(id);
+  if(result.second && g_ap) {
+    g_ap->LocationChecks({ id });
+  }
 }
 
 // Attempt to load config at given path. If it does not exist or
@@ -121,6 +129,10 @@ int ap_start(void) {
           g_ap->get_seed().c_str());
       APLOG_DEBUG("SET ROOMINFO: %s/%d/%d", g_ap_connectstate.roomplayer.seed,
           g_ap_connectstate.roomplayer.team, g_ap_connectstate.roomplayer.player);
+    }
+    // Resend any location checks?
+    if(!g_ap_checks.empty()) {
+      g_ap->LocationChecks(std::list<int64_t>(g_ap_checks.begin(), g_ap_checks.end()));
     }
     APLOG_INFO("SLOT CONNECTED: %s", g_ap_config.slotname);
   });
