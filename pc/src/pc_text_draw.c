@@ -109,6 +109,16 @@ static inline void pc_trin_cont_5b(Gfx** pp,
 
 /* Replica of m_font's static mFont_SetVertex_dol — sets screen-space
  * position, s/t texcoords, flag=1 (NONSHARED matrix), zero vertex color. */
+// The font projection (mFont_CulcOrthoMatrix) goes through 16.16 fixed point, which truncates
+// its x scale from 25.6 to 25 (2.3% squeeze toward the screen center; y loses 0.4%). Boxes drawn
+// as texture rectangles don't go through it, so text drifted off them. Scale vertices up by the
+// lost amount so text lands where the caller asked. Assumes the mFont ortho projection is loaded.
+static f32 pc_text_fix_scale(f32 half_screen) {
+    f32 want = 1.0f / (half_screen * mFont_SCALE_F);
+    f32 got = (f32)(long)(want * 65536.0f) / 65536.0f; // same truncation as FTOFIX32
+    return want / got;
+}
+
 static inline void pc_text_set_vtx(Vtx* v, int x, int y, int s, int t) {
     v->v.ob[0] = (s16)x;
     v->v.ob[1] = (s16)y;
@@ -174,6 +184,8 @@ void pc_text_draw(struct game_s* game, const char* s, f32 x, f32 y,
     const f32 half_sw = (f32)SCREEN_WIDTH  * 0.5f;
     const f32 half_sh = (f32)SCREEN_HEIGHT * 0.5f;
     const f32 inv_half_t = 0.5f / (f32)mFont_TEX_CHAR_HEIGHT; /* mFont uses t=16 */
+    const f32 fix_x = pc_text_fix_scale(half_sw) * mFont_SCALE_F;
+    const f32 fix_y = pc_text_fix_scale(half_sh) * mFont_SCALE_F;
 
     f32 cur_x = x;
     int pos = 0;
@@ -215,10 +227,10 @@ void pc_text_draw(struct game_s* game, const char* s, f32 x, f32 y,
             vx_tl = vx_tl + t0 * inv_half_s;
             vy_tl = vy_tl + t1 * inv_half_t;
 
-            int ulx = (int)(vx_tl * mFont_SCALE_F);
-            int uly = (int)(vy_tl * mFont_SCALE_F);
-            int lrx = (int)(vx_br * mFont_SCALE_F);
-            int lry = (int)(vy_br * mFont_SCALE_F);
+            int ulx = (int)(vx_tl * fix_x);
+            int uly = (int)(vy_tl * fix_y);
+            int lrx = (int)(vx_br * fix_x);
+            int lry = (int)(vy_br * fix_y);
 
             /* Vertex order matches mFont_gppDrawCharPoly's: TL, BL, BR, TR.
              * Triangles (0,1,2) + (0,2,3) cover the quad. */
