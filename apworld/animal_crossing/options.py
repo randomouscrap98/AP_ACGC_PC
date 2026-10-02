@@ -156,6 +156,21 @@ class TrainStation(Choice):
         return cls.names[value]
 
 
+class LetterSender(FreeText):
+    """Signature at the bottom of letters from Archipelago (max 32 characters). Empty uses "Archipelago".
+    The mailbox list still shows "AP" (sender names there are max 8 characters)."""
+    display_name = "Letter Sender"
+    default = "Archipelago"
+
+
+class LoanLetterText(FreeText):
+    """Text of the letter Archipelago sends when your loan is ready for payoff at the post office
+    (max 192 characters, printable ASCII). Use | for a line break: the game doesn't wrap lines by itself.
+    Empty uses the default."""
+    display_name = "Loan Letter Text"
+    default = "Your loan is ready for|payoff at the post office!"
+
+
 class LetterPaper(Choice):
     """Stationery for letters from Archipelago (e.g. "your loan is ready for payoff")."""
     display_name = "Letter Paper"
@@ -350,6 +365,8 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     train_station: TrainStation
     town_day: TownDay
     letter_paper: LetterPaper
+    letter_sender: LetterSender
+    loan_letter_text: LoanLetterText
     no_cockroaches: NoCockroaches
     shops_always_open: ShopsAlwaysOpen
     no_weeds: NoWeeds

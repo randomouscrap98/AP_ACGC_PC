@@ -48,6 +48,10 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   sd->train_station = slot_data.value("train_station", -1);
   sd->town_day = slot_data.value("town_day", 0) % 32;
   sd->letter_paper = slot_data.value("letter_paper", 0) % 64;
+  snprintf(sd->letter_sender, sizeof(sd->letter_sender), "%s",
+      slot_data.value("letter_sender", "Archipelago").c_str());
+  snprintf(sd->loan_letter_text, sizeof(sd->loan_letter_text), "%s",
+      slot_data.value("loan_letter_text", "Your loan is ready for\npayoff at the post office!").c_str());
   sd->no_cockroaches = slot_data.value("no_cockroaches", 0) % 2;
   sd->shops_always_open = slot_data.value("shops_always_open", 0) % 2;
   sd->no_weeds = slot_data.value("no_weeds", 0) % 2;

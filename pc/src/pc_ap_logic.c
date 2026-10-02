@@ -128,7 +128,7 @@ void pc_ap_loan_letter_update(void) {
     return;
   }
   // Mailbox full: stays pending, try again next time
-  if(pc_ap_send_letter("Your loan is ready for\npayoff at the post office!", EMPTY_NO)) {
+  if(pc_ap_send_letter(ap_getslotdata()->loan_letter_text, EMPTY_NO)) {
     s->loan_letter_pending = 0;
   }
 }

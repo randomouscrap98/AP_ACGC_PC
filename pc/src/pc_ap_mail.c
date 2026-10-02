@@ -29,7 +29,7 @@ int pc_ap_send_letter(const char* body, mActor_name_t present) {
   pc_ap_text_to_game(mail.content.header, MAIL_HEADER_LEN, "Dear ,");
   mail.content.header_back_start = 5;
   pc_ap_text_to_game(mail.content.body, MAIL_BODY_LEN, body);
-  pc_ap_text_to_game(mail.content.footer, MAIL_FOOTER_LEN, PC_AP_MAIL_FOOTER);
+  pc_ap_text_to_game(mail.content.footer, MAIL_FOOTER_LEN, ap_getslotdata()->letter_sender);
   mail.content.font = mMl_FONT_RECV;
   mail.content.mail_type = mMl_TYPE_MAIL;
   mail.content.paper_type = ap_getslotdata()->letter_paper;

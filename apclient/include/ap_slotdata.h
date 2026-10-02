@@ -25,6 +25,8 @@ typedef struct {
   int train_station;  // station_type (0-14), -1 if unset
   int town_day;       // day in July, never 4
   int letter_paper;   // stationery for AP letters (paper_type 0-63)
+  char letter_sender[33]; // signature (footer) of AP letters, max MAIL_FOOTER_LEN
+  char loan_letter_text[193]; // body of the "loan ready for payoff" letter, max MAIL_BODY_LEN, '\n' = line break
   // QOL
   int skip_intro;
   int no_cockroaches;

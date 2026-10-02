@@ -10,9 +10,8 @@ extern "C" {
 #endif
 
 // Shown as "from AP" in the mailbox (sender names are max 8 chars);
-// the footer carries the full name
+// the footer carries the full name (slot_data letter_sender)
 #define PC_AP_MAIL_SENDER  "AP"
-#define PC_AP_MAIL_FOOTER  "Archipelago"
 
 // Put a letter in the current player's mailbox right away (no delivery
 // schedule), on the slot's letter_paper stationery. Header is "Dear <player>,". Body is ASCII, max 192 chars, '\n'
