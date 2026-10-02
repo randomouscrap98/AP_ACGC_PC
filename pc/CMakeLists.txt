@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.19)
 project(ac_pc C CXX)
 
 set(CMAKE_C_STANDARD 11)
@@ -447,6 +447,13 @@ endif()
 
 # Archipelago client DLL (see ../apclient/CMakeLists.txt)
 target_link_libraries(ac_pc ap_client)
+
+# Apworld version (one place to bump: the apworld manifest), shown on the AP overlay
+set(AP_MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/../apworld/animal_crossing/archipelago.json)
+file(READ ${AP_MANIFEST} AP_MANIFEST_JSON)
+string(JSON PC_AP_VERSION GET "${AP_MANIFEST_JSON}" world_version)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${AP_MANIFEST})
+target_compile_definitions(ac_pc PRIVATE PC_AP_VERSION="${PC_AP_VERSION}")
 
 set_target_properties(ac_pc PROPERTIES
     OUTPUT_NAME "AnimalCrossing"

@@ -176,4 +176,6 @@ class AnimalCrossingWorld(World):
             "loan_checks": self.loan_checks,
             "favorsanity": self.options.favorsanity.value,
             "bell_bags": self.bell_bag_amounts(),
+            # From archipelago.json; the client compares it with its own build
+            "world_version": ".".join(str(n) for n in self.world_version),
         }

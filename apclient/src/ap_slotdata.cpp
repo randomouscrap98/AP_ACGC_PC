@@ -69,5 +69,7 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
       if (b != bags->end() && b->is_number_integer()) { sd->bell_bags[i] = b->get<int>(); }
     }
   }
+  snprintf(sd->world_version, sizeof(sd->world_version), "%s",
+      slot_data.value("world_version", "").c_str());
   sd->valid = 1;
 }

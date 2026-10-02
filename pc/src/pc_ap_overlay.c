@@ -1,5 +1,6 @@
 #include "pc_ap_overlay.h"
 #include "ap_archipelago.h"
+#include "ap_slotdata.h"
 
 #include "pc_menu_util.h"
 #include "pc_text_draw.h"
@@ -12,6 +13,7 @@
 #include "sys_matrix.h"
 
 #include <stdio.h>
+#include <string.h>
 
 // Default to yes visible
 int g_pc_ap_overlay_visible = 1;
@@ -208,6 +210,29 @@ static void pc_ap_draw_toasts(struct game_s* game) {
   }
 }
 
+// Apworld version, bottom right. Green if the seed's apworld version matches this build,
+// red with (!) if not, white until slot_data arrives.
+static void pc_ap_draw_version(struct game_s* game) {
+  ap_slotdata * sd = ap_getslotdata();
+  char output[_APO_MAXSTRING];
+  uint32_t color = _APO_WHITE;
+
+  if(sd->valid && strcmp(sd->world_version, PC_AP_VERSION) == 0) {
+    snprintf(output, sizeof(output), "v%s", PC_AP_VERSION);
+    color = _APO_GREEN;
+  } else if(sd->valid) {
+    snprintf(output, sizeof(output), "v%s (!)", PC_AP_VERSION);
+    color = _APO_RED;
+  } else {
+    snprintf(output, sizeof(output), "v%s", PC_AP_VERSION);
+  }
+  pc_menu_fixtext(output);
+  f32 x = _APO_WIDTH - _APO_SCREENPAD - pc_text_width(output) * _APO_SCALE;
+  pc_menu_dim_box(game->graph, x - _APO_PAD, _APO_BOTTOM - _APO_PAD,
+      pc_text_width(output) * _APO_SCALE + _APO_PAD * 2, _APO_LINE, _APO_ALPHA);
+  pc_text_draw(game, output, x, _APO_BOTTOM, PC_RGBA(color), _APO_SCALE);
+}
+
 void pc_ap_overlay_draw(struct game_s* game) {
   pc_ap_update_toasts();
   if(g_pc_nes_active || !g_pc_ap_overlay_visible || game == NULL || game->graph == NULL) {
@@ -217,13 +242,16 @@ void pc_ap_overlay_draw(struct game_s* game) {
   int menu_screen = g_pc_paused || Common_Get(clip.animal_logo_clip) != NULL;
   int show_status = menu_screen || g_pc_settings.ap_status_always;
   int show_toasts = s_toast_count > 0;
-  if(!show_status && !show_toasts) {
+  if(!menu_screen && !show_status && !show_toasts) {
     return;
   }
   apo_set_font_matrix(game->graph);
 
   if(show_status) {
     pc_ap_draw_status(game);
+  }
+  if(menu_screen) {
+    pc_ap_draw_version(game);
   }
   if(show_toasts) {
     pc_ap_draw_toasts(game);

@@ -35,6 +35,7 @@ typedef struct {
   int loan_checks[AP_LOAN_NUM];      // checks sent when each loan is paid off
   int favorsanity;                   // number of favor checks
   int bell_bags[AP_BELLBAG_NUM];     // bells per small/modest/large bell bag
+  char world_version[16];            // apworld version the seed was generated with ("" if missing)
   // Whether the struct has valid data
   int valid;
 } ap_slotdata;
