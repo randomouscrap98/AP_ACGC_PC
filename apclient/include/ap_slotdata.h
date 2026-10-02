@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 #define AP_LOAN_NUM     5 // starting, medium, basement, large, upper (upgrade order)
-#define AP_BELLBAG_NUM  3 // small, modest, large
+#define AP_BELLCREDIT_NUM 3 // small, modest, large
 
 #define AP_GOAL_STATUE  (1 << 0)
 
@@ -34,7 +34,7 @@ typedef struct {
   int loans[AP_LOAN_NUM];            // loan amounts in bells
   int loan_checks[AP_LOAN_NUM];      // checks sent when each loan is paid off
   int favorsanity;                   // number of favor checks
-  int bell_bags[AP_BELLBAG_NUM];     // bells per small/modest/large bell bag
+  int bell_credits[AP_BELLCREDIT_NUM]; // bells per small/modest/large bell credit
   char world_version[16];            // apworld version the seed was generated with ("" if missing)
   // Whether the struct has valid data
   int valid;

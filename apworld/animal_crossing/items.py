@@ -2347,21 +2347,21 @@ ITEM_NAME_TO_ID = {
 
 # AP-only items (not game item numbers; 0x10000+ is above every mActor_name_t).
 PROGRESSIVE_HOUSE = "Progressive House"
-SMALL_BELL_BAG = "Small Bell Bag"
-MODEST_BELL_BAG = "Modest Bell Bag"
-LARGE_BELL_BAG = "Large Bell Bag"
+SMALL_BELL_CREDIT = "Small Bell Credit"
+MODEST_BELL_CREDIT = "Modest Bell Credit"
+LARGE_BELL_CREDIT = "Large Bell Credit"
 
 AP_ITEM_NAME_TO_ID = {
     PROGRESSIVE_HOUSE: 0x10000,
-    SMALL_BELL_BAG: 0x10001,
-    MODEST_BELL_BAG: 0x10002,
-    LARGE_BELL_BAG: 0x10003,
+    SMALL_BELL_CREDIT: 0x10001,
+    MODEST_BELL_CREDIT: 0x10002,
+    LARGE_BELL_CREDIT: 0x10003,
 }
 ITEM_NAME_TO_ID.update(AP_ITEM_NAME_TO_ID)
 
-# Bell bags: (value ratio, pool weight). The Bells per ratio unit are computed per seed.
-BELL_BAGS = {
-    SMALL_BELL_BAG: (1, 30),
-    MODEST_BELL_BAG: (3, 60),
-    LARGE_BELL_BAG: (10, 10),
+# Bell credits: (value ratio, pool weight). The Bells per ratio unit are computed per seed.
+BELL_CREDITS = {
+    SMALL_BELL_CREDIT: (1, 30),
+    MODEST_BELL_CREDIT: (3, 60),
+    LARGE_BELL_CREDIT: (10, 10),
 }

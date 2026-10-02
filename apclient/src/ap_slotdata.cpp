@@ -59,14 +59,14 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   read_int_array(slot_data, "loan_checks", sd->loan_checks, default_loan_checks, AP_LOAN_NUM);
   sd->favorsanity = slot_data.value("favorsanity", 0);
 
-  // Keyed by item name in the apworld (Small/Modest/Large Bell Bag)
-  static const char * bag_names[AP_BELLBAG_NUM] = { "Small Bell Bag", "Modest Bell Bag", "Large Bell Bag" };
-  auto bags = slot_data.find("bell_bags");
-  for (int i = 0; i < AP_BELLBAG_NUM; i++) {
-    sd->bell_bags[i] = 0;
-    if (bags != slot_data.end() && bags->is_object()) {
-      auto b = bags->find(bag_names[i]);
-      if (b != bags->end() && b->is_number_integer()) { sd->bell_bags[i] = b->get<int>(); }
+  // Keyed by item name in the apworld (Small/Modest/Large Bell Credit)
+  static const char * credit_names[AP_BELLCREDIT_NUM] = { "Small Bell Credit", "Modest Bell Credit", "Large Bell Credit" };
+  auto credits = slot_data.find("bell_credits");
+  for (int i = 0; i < AP_BELLCREDIT_NUM; i++) {
+    sd->bell_credits[i] = 0;
+    if (credits != slot_data.end() && credits->is_object()) {
+      auto b = credits->find(credit_names[i]);
+      if (b != credits->end() && b->is_number_integer()) { sd->bell_credits[i] = b->get<int>(); }
     }
   }
   snprintf(sd->world_version, sizeof(sd->world_version), "%s",

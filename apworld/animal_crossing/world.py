@@ -6,7 +6,7 @@ from Options import OptionError, OptionGroup
 from worlds.AutoWorld import WebWorld, World
 from worlds.generic.Rules import set_rule
 
-from .items import BELL_BAGS, ITEM_NAME_TO_ID, PROGRESSIVE_HOUSE
+from .items import BELL_CREDITS, ITEM_NAME_TO_ID, PROGRESSIVE_HOUSE
 from .locations import LOANS, LOCATION_NAME_TO_ID, favor_location_name, loan_location_name, split_loan_checks
 from . import options
 from .options import AnimalCrossingOptions
@@ -14,7 +14,7 @@ from .options import AnimalCrossingOptions
 GAME_NAME = "Animal Crossing"
 NAME_MAX = 8  # PLAYER_NAME_LEN / LAND_NAME_SIZE in the game
 DEFAULT_TOWN = "Archi"
-BELLS_ROUND = 100  # bell bag amounts are rounded to this
+BELLS_ROUND = 100  # Bell credit amounts are rounded to this
 
 
 class AnimalCrossingItem(Item):
@@ -107,7 +107,7 @@ class AnimalCrossingWorld(World):
 
     def create_items(self) -> None:
         pool = [self.create_item(PROGRESSIVE_HOUSE) for _ in range(len(LOANS) - 1)]
-        # Everything else is filler. Bell bag amounts are set in fill_slot_data from what was actually placed,
+        # Everything else is filler. Bell credit amounts are set in fill_slot_data from what was actually placed,
         # so adding other items to the pool later doesn't break the total.
         free = len(self.multiworld.get_unfilled_locations(self.player)) - len(pool)
         pool += [self.create_filler() for _ in range(free)]
@@ -121,8 +121,8 @@ class AnimalCrossingWorld(World):
         return AnimalCrossingItem(name, classification, ITEM_NAME_TO_ID[name], self.player)
 
     def get_filler_item_name(self) -> str:
-        names = list(BELL_BAGS)
-        return self.random.choices(names, weights=[BELL_BAGS[n][1] for n in names])[0]
+        names = list(BELL_CREDITS)
+        return self.random.choices(names, weights=[BELL_CREDITS[n][1] for n in names])[0]
 
     def set_rules(self) -> None:
         # Loan k only exists after k house upgrades (Progressive House x k)
@@ -139,10 +139,10 @@ class AnimalCrossingWorld(World):
         chosen = [goals[g] for g in sorted(self.options.goal.value)]
         self.multiworld.completion_condition[self.player] = lambda state: all(goal(state) for goal in chosen)
 
-    def bell_bag_amounts(self) -> dict[str, int]:
-        # Count the bell bags this player will actually receive (placed anywhere, plus start inventory),
+    def bell_credit_amounts(self) -> dict[str, int]:
+        # Count the bell credits this player will actually receive (placed anywhere, plus start inventory),
         # then size them so they add up to filler_bells_percent of the total debt.
-        counts = {name: 0 for name in BELL_BAGS}
+        counts = {name: 0 for name in BELL_CREDITS}
         items = [loc.item for loc in self.multiworld.get_locations() if loc.item]
         items += self.multiworld.precollected_items[self.player]
         for item in items:
@@ -150,9 +150,9 @@ class AnimalCrossingWorld(World):
                 counts[item.name] += 1
 
         total_bells = sum(self.loans) * self.options.filler_bells_percent.value / 100
-        units = sum(counts[name] * BELL_BAGS[name][0] for name in BELL_BAGS)
+        units = sum(counts[name] * BELL_CREDITS[name][0] for name in BELL_CREDITS)
         unit = total_bells / units if units else 0
-        return {name: round(unit * BELL_BAGS[name][0] / BELLS_ROUND) * BELLS_ROUND for name in BELL_BAGS}
+        return {name: round(unit * BELL_CREDITS[name][0] / BELLS_ROUND) * BELLS_ROUND for name in BELL_CREDITS}
 
     def fill_slot_data(self) -> Mapping[str, Any]:
         # Random choices are already resolved here, so the client gets plain numbers.
@@ -175,7 +175,7 @@ class AnimalCrossingWorld(World):
             "loans": self.loans,
             "loan_checks": self.loan_checks,
             "favorsanity": self.options.favorsanity.value,
-            "bell_bags": self.bell_bag_amounts(),
+            "bell_credits": self.bell_credit_amounts(),
             # From archipelago.json; the client compares it with its own build
             "world_version": ".".join(str(n) for n in self.world_version),
         }
