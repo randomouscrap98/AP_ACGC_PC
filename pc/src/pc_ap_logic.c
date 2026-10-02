@@ -7,6 +7,8 @@
 #include "m_font.h" // CHAR_SPACE, mem_clear
 #include "m_common_data.h"
 #include "m_house.h"
+#include "m_event.h"
+#include "m_private.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -26,13 +28,16 @@ int pc_ap_loan_amount(int size) {
   return sd->loans[size];
 }
 
-void pc_ap_start_loan(void) {
-  Now_Private->inventory.loan = pc_ap_loan_amount(0);
-  pc_ap_state_get()->loan_started = 1;
-}
-
-int pc_ap_pay_allowed(void) {
-  return pc_ap_state_get()->loan_started;
+int pc_ap_accepting(void) {
+  // Title screen: the demo runs on an empty town, or on the last loaded save as
+  // player 0 after quitting to title (m_trademark.c trademark_goto_demo_scene)
+  if(mEv_IsTitleDemo()) {
+    return 0;
+  }
+  // Intro and skip both give the house with mHS_set_use, which sets ownerID,
+  // right before the starting loan
+  mHm_hs_c* home = pc_ap_my_home();
+  return home != NULL && mPr_CheckCmpPersonalID(&home->ownerID, &Now_Private->player_ID);
 }
 
 int pc_ap_houses_received() {
@@ -197,6 +202,10 @@ void pc_ap_loan_letter_update(void) {
   int loan = s->loan_letter_pending - 1;
   if(pc_ap_house_stage() != loan || pc_ap_loans_paid() != loan) {
     s->loan_letter_pending = 0;
+    return;
+  }
+  // Pelly only takes payments after Nook's job (aPG_set_post_status): wait
+  if(mEv_CheckFirstJob()) {
     return;
   }
   // Mailbox full: stays pending, try again next time

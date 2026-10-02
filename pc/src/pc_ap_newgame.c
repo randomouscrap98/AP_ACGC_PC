@@ -138,7 +138,7 @@ static void pc_ap_newgame_house(int house) {
   mPr_SetItemCollectBit(ITM_WALL_START + Save_Get(homes[house]).floors[0].wall_floor.wallpaper_idx);
 
   mHm_SetNowHome();
-  pc_ap_start_loan();
+  Now_Private->inventory.loan = pc_ap_loan_amount(0);
 
   // Nook takes the 1000 Bell quest bag as the down payment (aNRG_menu_open_wait_talk_proc)
   int bag = mPr_GetPossessionItemIdxWithCond(Now_Private, ITM_MONEY_1000, mPr_ITEM_COND_QUEST);

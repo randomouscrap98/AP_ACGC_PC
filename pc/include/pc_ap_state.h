@@ -13,7 +13,6 @@ extern "C" {
 typedef struct {
   int bells_applied;
   int favors_done;
-  int loan_started; // starting loan set (intro or skip); before that loan 0 means "no loan yet"
   int loan_letter_pending; // "loan ready" letter owed: 0 = none, else loan index + 1
 } pc_ap_state;
 

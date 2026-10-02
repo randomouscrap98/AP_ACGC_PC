@@ -15,11 +15,11 @@ int pc_ap_start_allowed(void);
 
 // Loan amount for given size. Return 0 for anything invalid
 int pc_ap_loan_amount(int size);
-// Set the starting loan (intro and skip both call this) and mark it started
-void pc_ap_start_loan(void);
-// Nonzero once the starting loan exists; before that loan == 0 means
-// "no loan yet", not "paid", so no Bells or loan checks
-int pc_ap_pay_allowed(void);
+// Nonzero once the current player owns their house (from the save) and we're
+// not on the title screen. Until then nothing AP happens: no items applied
+// (Bells, mail, ...), no locations or goal sent. Also stops loan 0 before the
+// starting loan from reading as "paid".
+int pc_ap_accepting(void);
 
 // Houses from the ap
 int pc_ap_houses_received();
@@ -37,8 +37,8 @@ struct home_s* pc_ap_my_home(void);
 
 // Loan letter: call _due when Bell Credits bring the current loan down to 100
 // (never for the player's own payments; marks the letter pending), and _update
-// every tick: it sends the pending letter, retrying while the mailbox is full,
-// and drops it if that loan got paid off first.
+// every tick: it sends the pending letter (after Nook's job), retrying while
+// the mailbox is full, and drops it if that loan got paid off first.
 void pc_ap_loan_letter_due(void);
 void pc_ap_loan_letter_update(void);
 
