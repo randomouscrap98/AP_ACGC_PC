@@ -224,7 +224,7 @@ static void pc_ap_apply_bells(void) {
     u32 pay = pc_ap_min((u32)balance, priv->inventory.loan - 100);
     priv->inventory.loan -= pay;
     s->bells_applied += (int)pay;
-    pc_ap_bells_toast("%s Bells paid toward your loan", pay);
+    pc_ap_bells_toast(AP_CTRL_YELLOW "%s" AP_CTRL_WHITE " Bells paid toward your loan", pay);
     if(priv->inventory.loan == 100) {
       pc_ap_loan_letter_due();
     }
@@ -234,7 +234,7 @@ static void pc_ap_apply_bells(void) {
     priv->bank_account += deposit;
     s->bells_applied += (int)deposit;
     if(deposit > 0) {
-      pc_ap_bells_toast("%s Bells deposited to savings", deposit);
+      pc_ap_bells_toast(AP_CTRL_YELLOW "%s" AP_CTRL_WHITE " Bells deposited to savings", deposit);
     }
   }
   // Otherwise wait: last 100 owed, or the next loan isn't set yet

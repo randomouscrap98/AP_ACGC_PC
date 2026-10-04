@@ -303,6 +303,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_settings_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_menu_util.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_overlay.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_spantext.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_newgame.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_qol.c

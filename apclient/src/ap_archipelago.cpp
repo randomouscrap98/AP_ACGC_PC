@@ -28,6 +28,18 @@ static bool g_ap_room_changed = false;
 static std::deque<std::string> g_ap_toast;
 static const size_t AP_TOAST_MAX = 16;
 
+// Text from outside (server, asio errors) shown in the overlay: control bytes
+// would act as AP_CTRL_* codes there, so they become spaces. Trailing spaces
+// dropped (Windows error text may end in "\r\n").
+static std::string ap_plain(const std::string& in) {
+  std::string out = in;
+  for (char& c : out) {
+    if ((unsigned char)c < 0x20) c = ' ';
+  }
+  while (!out.empty() && out.back() == ' ') out.pop_back();
+  return out;
+}
+
 size_t ap_getitemcount(void) {
   return g_ap_items.size();
 }
@@ -194,7 +206,7 @@ int ap_start(void) {
     for (auto& e : why) {
       size_t n = strlen(g_ap_connectstate.last_refuse_reason);
       snprintf(g_ap_connectstate.last_refuse_reason + n, 
-          sizeof(g_ap_connectstate.last_refuse_reason) - n, "%s%s", n ? ", " : "", e.c_str());
+          sizeof(g_ap_connectstate.last_refuse_reason) - n, "%s%s", n ? ", " : "", ap_plain(e).c_str());
     }
     APLOG_ERROR("SLOT REFUSED: %s", g_ap_connectstate.last_refuse_reason);
   });
@@ -202,7 +214,7 @@ int ap_start(void) {
   g_ap->set_socket_error_handler([](const std::string& e) { 
     g_ap_connectstate.state = g_ap_connectstate.connect_once ? AP_CSTATE_RECONNECTING : AP_CSTATE_CONNECTING;
     snprintf(g_ap_connectstate.last_connect_error, 
-        sizeof(g_ap_connectstate.last_connect_error), "%s", e.c_str());
+        sizeof(g_ap_connectstate.last_connect_error), "%s", ap_plain(e).c_str());
     APLOG_ERROR("CONNECTION ERROR (RECONNECTING): %s", g_ap_connectstate.last_connect_error);
   });
 
@@ -252,7 +264,7 @@ int ap_start(void) {
     }
 
     // Build our own short lines (no locations, the screen is small) instead of the server's text
-    auto player = [](int slot) { return AP_TOAST_PLAYER + g_ap->get_player_alias(slot) + AP_TOAST_RESET; };
+    auto player = [](int slot) { return AP_CTRL_GREEN + ap_plain(g_ap->get_player_alias(slot)) + AP_CTRL_WHITE; };
     std::string out;
     if (args.type == "Goal") {
       if (!args.slot) return;
@@ -260,7 +272,7 @@ int ap_start(void) {
     } else {
       if (!args.item || !args.receiving) return;
       int finder = args.item->player, receiver = *args.receiving;
-      std::string item = AP_TOAST_ITEM + g_ap->get_item_name(args.item->item, g_ap->get_player_game(receiver)) + AP_TOAST_RESET;
+      std::string item = AP_CTRL_RED + ap_plain(g_ap->get_item_name(args.item->item, g_ap->get_player_game(receiver))) + AP_CTRL_WHITE;
       if (args.type == "Hint") {
         out = "Hint: " + player(receiver) + "'s " + item + " is in " + player(finder) + "'s world";
       } else if (finder == receiver) {

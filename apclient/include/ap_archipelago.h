@@ -75,10 +75,17 @@ AP_API void ap_send_goal(void);
 // I GUESS 0 on failure, blegh
 AP_API int ap_pop_toast(char * buf, size_t len);
 
-// Color markers inside toast text: a marker starts a span, AP_TOAST_RESET ends it
-#define AP_TOAST_RESET  "\x01"
-#define AP_TOAST_PLAYER "\x02"
-#define AP_TOAST_ITEM   "\x03"
+// Control codes inside toast text. A color code sets the color until the next one;
+// text starts white. AP_CTRL_NEWLINE starts a new line (the box grows to fit). Always write the macro next to a separate literal
+// (AP_CTRL_GREEN "Alice"), never "\x02Alice": C would read the A as hex.
+// The exe maps these to real colors (pc_spantext.c).
+#define AP_CTRL_WHITE  "\x01"
+#define AP_CTRL_GREEN  "\x02"
+#define AP_CTRL_RED    "\x03"
+#define AP_CTRL_BLUE   "\x04"
+#define AP_CTRL_YELLOW "\x05"
+#define AP_CTRL_GRAY   "\x06"
+#define AP_CTRL_NEWLINE "\n"
 
 #ifdef __cplusplus
 }
