@@ -21,6 +21,7 @@ PCSettings g_pc_settings = {
     .stick_deadzone = 12,
     .cstick_deadzone = 12,
     .ap_status_always = 0,
+    .ap_tracker_always = 0,
     .ap_toast_seconds = 10,
     .ap_toast_max = 8,
 };
@@ -77,6 +78,9 @@ static const char* DEFAULT_SETTINGS =
     "[Archipelago]\n"
     "# AP connection status: 0 = title screen and pause menu only, 1 = always\n"
     "ap_status_always = 0\n"
+    "\n"
+    "# Simple number tracker: 0 = title screen and pause menu only, 1 = always\n"
+    "ap_tracker_always = 0\n"
     "\n"
     "# Seconds each AP message (toast) stays on screen, 0 = no toasts\n"
     "ap_toast_seconds = 10\n"
@@ -135,6 +139,8 @@ static void apply_setting(const char* key, const char* value) {
         if (val >= 0 && val <= 40) g_pc_settings.cstick_deadzone = val;
     } else if (strcmp(key, "ap_status_always") == 0) {
         if (val == 0 || val == 1) g_pc_settings.ap_status_always = val;
+    } else if (strcmp(key, "ap_tracker_always") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.ap_tracker_always = val;
     } else if (strcmp(key, "ap_toast_seconds") == 0) {
         if (val >= 0 && val <= 600) g_pc_settings.ap_toast_seconds = val;
     } else if (strcmp(key, "ap_toast_max") == 0) {
@@ -231,6 +237,9 @@ void pc_settings_save(void) {
     fprintf(f, "[Archipelago]\n");
     fprintf(f, "# AP connection status: 0 = title screen and pause menu only, 1 = always\n");
     fprintf(f, "ap_status_always = %d\n", g_pc_settings.ap_status_always);
+    fprintf(f, "\n");
+    fprintf(f, "# Simple number tracker: 0 = title screen and pause menu only, 1 = always\n");
+    fprintf(f, "ap_tracker_always = %d\n", g_pc_settings.ap_tracker_always);
     fprintf(f, "\n");
     fprintf(f, "# Seconds each AP message (toast) stays on screen, 0 = no toasts\n");
     fprintf(f, "ap_toast_seconds = %d\n", g_pc_settings.ap_toast_seconds);

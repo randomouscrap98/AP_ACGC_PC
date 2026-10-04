@@ -247,6 +247,14 @@ static void pc_ap_draw_version(struct game_s* game) {
   pc_text_draw(game, output, x, _APO_BOTTOM, PC_RGBA(color), _APO_SCALE);
 }
 
+static void pc_ap_draw_tracker(struct game_s* game) {
+  ap_slotdata * sd = ap_getslotdata();
+  char output[_APO_MAXSTRING];
+  if(sd->valid) {
+  } else {
+  }
+}
+
 void pc_ap_overlay_draw(struct game_s* game) {
   pc_ap_update_toasts();
   if(g_pc_nes_active || !g_pc_ap_overlay_visible || game == NULL || game->graph == NULL) {
@@ -255,6 +263,7 @@ void pc_ap_overlay_draw(struct game_s* game) {
   // Title screen (logo actor alive, from its fade-in on) or the pause menu
   int menu_screen = g_pc_paused || Common_Get(clip.animal_logo_clip) != NULL;
   int show_status = menu_screen || g_pc_settings.ap_status_always;
+  int show_tracker = menu_screen || g_pc_settings.ap_tracker_always;
   int show_toasts = s_toast_count > 0;
   if(!menu_screen && !show_status && !show_toasts) {
     return;
@@ -266,6 +275,9 @@ void pc_ap_overlay_draw(struct game_s* game) {
   }
   if(menu_screen) {
     pc_ap_draw_version(game);
+  }
+  if(show_tracker) {
+    pc_ap_draw_tracker(game);
   }
   if(show_toasts) {
     pc_ap_draw_toasts(game);
