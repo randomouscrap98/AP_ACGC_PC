@@ -23,6 +23,8 @@ int pc_ap_loan_amount(int loan);
 // starting loan from reading as "paid".
 int pc_ap_accepting(void);
 
+// How many times item id is in the received list (full list, resent on every connect)
+int pc_ap_item_count(int64_t id);
 // Houses from the ap
 int pc_ap_houses_received(void);
 

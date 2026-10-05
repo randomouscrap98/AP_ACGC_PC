@@ -40,6 +40,10 @@ typedef struct {
   int loans[AP_LOAN_NUM];            // loan amounts in bells
   int loan_checks[AP_LOAN_NUM];      // checks sent when each loan is paid off
   int favorsanity;                   // number of favor checks
+  // Timesanity
+  int timesanity;                    // nonzero: frozen clock, months and time slots are items
+  int starting_month;                // 0-11
+  int starting_time;                 // 0-3: Morning 4-8, Day 9-15, Evening 16-20, Night 21-3
   int bell_credits[AP_BELLCREDIT_NUM]; // bells per small/modest/large bell credit
   char world_version[16];            // apworld version the seed was generated with ("" if missing)
   // Whether the struct has valid data

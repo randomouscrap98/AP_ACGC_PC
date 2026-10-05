@@ -6,7 +6,7 @@ from Options import OptionError, OptionGroup
 from worlds.AutoWorld import WebWorld, World
 from worlds.generic.Rules import set_rule
 
-from .items import BELL_CREDITS, ITEM_NAME_TO_ID, PROGRESSIVE_HOUSE
+from .items import BELL_CREDITS, ITEM_NAME_TO_ID, MONTHS, PROGRESSIVE_HOUSE, TIME_SLOTS
 from .locations import LOANS, LOCATION_NAME_TO_ID, favor_location_name, loan_location_name, split_loan_checks
 from . import options
 from .options import AnimalCrossingOptions, personality_key, villager_key
@@ -82,6 +82,11 @@ class AnimalCrossingWeb(WebWorld):
             options.TotalLoanChecks,
             options.FillerBellsPercent,
         ]),
+        OptionGroup("Timesanity", [
+            options.Timesanity,
+            options.StartingMonth,
+            options.StartingTime,
+        ]),
         OptionGroup("Quality of Life", [
             options.NoCockroaches,
             options.ShopsAlwaysOpen,
@@ -134,6 +139,14 @@ class AnimalCrossingWorld(World):
         ]
         self.loan_checks = split_loan_checks(self.loans, self.options.total_loan_checks.value)
 
+        # Every progression item needs a location (the starting month and slot are given at the start)
+        locations = self.options.total_loan_checks.value + self.options.favorsanity.value
+        items = len(LOANS) - 1
+        if self.options.timesanity:
+            items += len(MONTHS) + len(TIME_SLOTS) - 2
+        if locations < items:
+            raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Total Loan Checks + Favorsanity must be at "
+                              f"least {items} with these options (it is {locations}).")
     def create_regions(self) -> None:
         menu = Region("Menu", self.player, self.multiworld)
         names = [loan_location_name(k, j) for k in range(len(LOANS)) for j in range(1, self.loan_checks[k] + 1)]
@@ -143,6 +156,15 @@ class AnimalCrossingWorld(World):
 
     def create_items(self) -> None:
         pool = [self.create_item(PROGRESSIVE_HOUSE) for _ in range(len(LOANS) - 1)]
+        if self.options.timesanity:
+            # The starting month and slot are given at the start, the rest go in the pool
+            start_month = MONTHS[self.options.starting_month.value]
+            start_slot = TIME_SLOTS[self.options.starting_time.value]
+            for name in MONTHS + TIME_SLOTS:
+                if name in (start_month, start_slot):
+                    self.multiworld.push_precollected(self.create_item(name))
+                else:
+                    pool.append(self.create_item(name))
         # Everything else is filler. Bell credit amounts are set in fill_slot_data from what was actually placed,
         # so adding other items to the pool later doesn't break the total.
         free = len(self.multiworld.get_unfilled_locations(self.player)) - len(pool)
@@ -150,7 +172,7 @@ class AnimalCrossingWorld(World):
         self.multiworld.itempool += pool
 
     def create_item(self, name: str) -> AnimalCrossingItem:
-        if name == PROGRESSIVE_HOUSE:
+        if name == PROGRESSIVE_HOUSE or name in MONTHS or name in TIME_SLOTS:
             classification = ItemClassification.progression
         else:
             classification = ItemClassification.filler
@@ -216,6 +238,9 @@ class AnimalCrossingWorld(World):
             "loans": self.loans,
             "loan_checks": self.loan_checks,
             "favorsanity": self.options.favorsanity.value,
+            "timesanity": self.options.timesanity.value,
+            "starting_month": self.options.starting_month.value,
+            "starting_time": self.options.starting_time.value,
             "bell_credits": self.bell_credit_amounts(),
             # From archipelago.json; the client compares it with its own build
             "world_version": ".".join(str(n) for n in self.world_version),

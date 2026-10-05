@@ -80,6 +80,9 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   read_int_array(slot_data, "loans", sd->loans, default_loans, AP_LOAN_NUM);
   read_int_array(slot_data, "loan_checks", sd->loan_checks, default_loan_checks, AP_LOAN_NUM);
   sd->favorsanity = slot_data.value("favorsanity", 0);
+  sd->timesanity = slot_data.value("timesanity", 0) % 2;
+  sd->starting_month = slot_data.value("starting_month", 0) % 12;
+  sd->starting_time = slot_data.value("starting_time", 0) % 4;
 
   // Keyed by item name in the apworld (Small/Modest/Large Bell Credit)
   static const char * credit_names[AP_BELLCREDIT_NUM] = { "Small Bell Credit", "Modest Bell Credit", "Large Bell Credit" };

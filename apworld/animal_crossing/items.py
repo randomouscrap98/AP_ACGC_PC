@@ -2357,6 +2357,14 @@ AP_ITEM_NAME_TO_ID = {
     MODEST_BELL_CREDIT: 0x10002,
     LARGE_BELL_CREDIT: 0x10003,
 }
+# Timesanity: one item per month and per time slot (Morning 4-8, Day 9-15, Evening 16-20, Night 21-3)
+MONTHS = ["January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December"]
+TIME_SLOTS = ["Morning Hours", "Day Hours", "Evening Hours", "Night Hours"]
+MONTH_ID_BASE = 0x10010  # month m (0-11) = base + m
+TIME_SLOT_ID_BASE = 0x10020  # slot s (0-3) = base + s
+AP_ITEM_NAME_TO_ID.update({name: MONTH_ID_BASE + m for m, name in enumerate(MONTHS)})
+AP_ITEM_NAME_TO_ID.update({name: TIME_SLOT_ID_BASE + s for s, name in enumerate(TIME_SLOTS)})
 ITEM_NAME_TO_ID.update(AP_ITEM_NAME_TO_ID)
 
 # Bell credits: (value ratio, pool weight). The Bells per ratio unit are computed per seed.

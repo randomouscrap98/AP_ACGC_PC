@@ -326,7 +326,7 @@ class Favorsanity(Range):
     display_name = "Favorsanity"
     range_start = 0
     range_end = 100
-    default = 20
+    default = 10
 
 
 def villager_key(name: str) -> str:
@@ -381,6 +381,42 @@ class NoWeeds(DefaultOnToggle):
     display_name = "No Weeds"
 
 
+class Timesanity(DefaultOnToggle):
+    """
+    The clock stops. Each month and each time slot (Morning 4-8, Day 9-15, Evening 16-20, Night 21-3)
+    is an item. You set the date and hour from the pause menu, to any month and slot you own.
+    """
+    display_name = "Timesanity"
+
+
+class StartingMonth(Choice):
+    """With timesanity, the month you start with. The game starts on its 1st."""
+    display_name = "Starting Month"
+    option_january = 0
+    option_february = 1
+    option_march = 2
+    option_april = 3
+    option_may = 4
+    option_june = 5
+    option_july = 6
+    option_august = 7
+    option_september = 8
+    option_october = 9
+    option_november = 10
+    option_december = 11
+    default = "random"
+
+
+class StartingTime(Choice):
+    """With timesanity, the time slot you start with. The game starts at its first hour."""
+    display_name = "Starting Time"
+    option_morning = 0
+    option_day = 1
+    option_evening = 2
+    option_night = 3
+    default = "random"
+
+
 @dataclass
 class AnimalCrossingOptions(PerGameCommonOptions):
     goal: Goal
@@ -392,6 +428,9 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     total_loan_checks: TotalLoanChecks
     filler_bells_percent: FillerBellsPercent
     favorsanity: Favorsanity
+    timesanity: Timesanity
+    starting_month: StartingMonth
+    starting_time: StartingTime
     skip_intro: SkipIntro
     player_name: PlayerName
     town_name: TownName

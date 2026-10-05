@@ -49,16 +49,19 @@ int pc_ap_accepting(void) {
   return home != NULL && mPr_CheckCmpPersonalID(&home->ownerID, &Now_Private->player_ID);
 }
 
-int pc_ap_houses_received(void) {
+int pc_ap_item_count(int64_t id) {
   int count = ap_getitemcount();
-  int houses = 0;
+  int found = 0;
   for(int i = 0; i < count; i++) {
-    int64_t item = ap_getitem(i);
-    if(item == PC_AP_ITEM_PROGRESSIVE_HOUSE) {
-      houses++;
+    if(ap_getitem(i) == id) {
+      found++;
     }
   }
-  return houses;
+  return found;
+}
+
+int pc_ap_houses_received(void) {
+  return pc_ap_item_count(PC_AP_ITEM_PROGRESSIVE_HOUSE);
 }
 
 int pc_ap_stage_from(int size, int has_basement) {
