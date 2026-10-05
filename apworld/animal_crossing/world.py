@@ -9,7 +9,7 @@ from worlds.generic.Rules import set_rule
 from .items import BELL_CREDITS, ITEM_NAME_TO_ID, PROGRESSIVE_HOUSE
 from .locations import LOANS, LOCATION_NAME_TO_ID, favor_location_name, loan_location_name, split_loan_checks
 from . import options
-from .options import AnimalCrossingOptions, villager_key
+from .options import AnimalCrossingOptions, personality_key, villager_key
 from .villagers import PERSONALITIES, VILLAGERS
 
 GAME_NAME = "Animal Crossing"
@@ -42,6 +42,14 @@ def letter_text(text: str) -> str:
     return text.strip().replace("|", "\n")[:LETTER_TEXT_MAX]
 
 
+def villager_indices(chosen: set[str]) -> list[int]:
+    # Expand personality shorthands into their villagers; the client gets npc indices
+    return sorted(
+        index for name, (index, looks) in VILLAGERS.items()
+        if villager_key(name) in chosen or personality_key(PERSONALITIES[looks]) in chosen
+    )
+
+
 class AnimalCrossingWeb(WebWorld):
     # Options not listed here stay under "Game Options"
     option_groups = [
@@ -63,6 +71,7 @@ class AnimalCrossingWeb(WebWorld):
             options.LetterSender,
             options.LoanLetterText,
             options.VillagerBlacklist,
+            options.StartingVillagers,
         ]),
         OptionGroup("Loan Goal", [
             options.StartingLoan,
@@ -107,12 +116,10 @@ class AnimalCrossingWorld(World):
         if self.options.town_day.value == 4:
             self.options.town_day.value = self.random.choice([d for d in range(1, 32) if d != 4])
 
-        # Expand personality names into their villagers; the client gets npc indices
-        chosen = self.options.villager_blacklist.value
-        self.villager_blacklist = sorted(
-            index for name, (index, looks) in VILLAGERS.items()
-            if villager_key(name) in chosen or PERSONALITIES[looks] in chosen
-        )
+        self.villager_blacklist = villager_indices(self.options.villager_blacklist.value)
+        # The client skips blacklisted ones too; this keeps slot_data readable
+        self.starting_villagers = [index for index in villager_indices(self.options.starting_villagers.value)
+                                   if index not in self.villager_blacklist]
         if len(VILLAGERS) - len(self.villager_blacklist) < MIN_VILLAGERS:
             raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Villager Blacklist must leave at least "
                               f"{MIN_VILLAGERS} villagers allowed.")
@@ -198,6 +205,7 @@ class AnimalCrossingWorld(World):
             "train_station": self.options.train_station.value,
             "town_day": self.options.town_day.value,
             "villager_blacklist": self.villager_blacklist,
+            "starting_villagers": self.starting_villagers,
             "letter_paper": self.options.letter_paper.value,
             "letter_sender": self.ac_letter_sender,
             "loan_letter_text": self.ac_loan_letter_text,

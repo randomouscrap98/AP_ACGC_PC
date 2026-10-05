@@ -19,7 +19,8 @@ typedef char pc_ap_npc_num_check[(AP_NPC_NUM == NPC_NUM) ? 1 : -1];
 
 static s8 l_orig_grow[NPC_NUM]; // npc_grow_list as shipped
 static int l_orig_saved = FALSE;
-static int l_active = FALSE;    // any villager blacklisted
+static u8 l_pool[NPC_NUM];      // starting villager pool, minus the blacklist
+static int l_active = FALSE;    // any villager blacklisted or in the pool
 
 static int pc_ap_villagers_can_live(int idx) {
   return l_orig_grow[idx] == mNpc_GROW_STARTER || l_orig_grow[idx] == mNpc_GROW_MOVE_IN;
@@ -34,6 +35,7 @@ void pc_ap_villagers_apply(void) {
     l_orig_saved = TRUE;
   }
   memcpy(npc_grow_list, l_orig_grow, NPC_NUM);
+  memset(l_pool, 0, sizeof(l_pool));
   l_active = FALSE;
 
   if (!sd->valid) {
@@ -41,27 +43,34 @@ void pc_ap_villagers_apply(void) {
   }
 
   for (i = 0; i < NPC_NUM; i++) {
-    if (!sd->villager_blacklist[i]) {
+    if (!sd->villager_blacklist[i] && !sd->starting_villagers[i]) {
       continue;
     }
-    if (pc_ap_villagers_can_live(i)) {
-      npc_grow_list[i] = PC_AP_GROW_NEVER;
-      l_active = TRUE;
-    } else {
+    if (!pc_ap_villagers_can_live(i)) {
       // apworld/client mismatch: islanders and specials aren't in the apworld list
-      OSReport("[AP] villager_blacklist: npc %d can't live in town, ignored\n", i);
+      OSReport("[AP] villager options: npc %d can't live in town, ignored\n", i);
+      continue;
     }
+    // The blacklist wins over the pool
+    if (sd->villager_blacklist[i]) {
+      npc_grow_list[i] = PC_AP_GROW_NEVER;
+    } else {
+      l_pool[i] = TRUE;
+    }
+    l_active = TRUE;
   }
 }
 
-// Random allowed villager with this personality (-1 = any) that isn't a starter yet; -1 if none
-static int pc_ap_villagers_random(int looks) {
+// Random allowed villager that isn't a starter yet; -1 if none.
+// looks: personality or -1 for any; pool_only: only from the starting pool.
+static int pc_ap_villagers_random(int looks, int pool_only) {
   int candidates = 0;
   int selected;
   int i;
 
   for (i = 0; i < NPC_NUM; i++) {
-    if (npc_grow_list[i] == mNpc_GROW_MOVE_IN && (looks == -1 || npc_looks_table[i] == looks)) {
+    if (npc_grow_list[i] == mNpc_GROW_MOVE_IN && (looks == -1 || npc_looks_table[i] == looks) &&
+        (!pool_only || l_pool[i])) {
       candidates++;
     }
   }
@@ -71,7 +80,8 @@ static int pc_ap_villagers_random(int looks) {
 
   selected = RANDOM(candidates);
   for (i = 0; i < NPC_NUM; i++) {
-    if (npc_grow_list[i] == mNpc_GROW_MOVE_IN && (looks == -1 || npc_looks_table[i] == looks)) {
+    if (npc_grow_list[i] == mNpc_GROW_MOVE_IN && (looks == -1 || npc_looks_table[i] == looks) &&
+        (!pool_only || l_pool[i])) {
       if (selected == 0) {
         return i;
       }
@@ -81,9 +91,39 @@ static int pc_ap_villagers_random(int looks) {
   return -1;
 }
 
-int pc_ap_villagers_pick_starters(int count) {
+// Starter pick state: personalities picked so far, starters still to pick
+static int l_picked_looks;
+static int l_left;
+
+static int pc_ap_villagers_pick_one(int looks, int pool_only) {
+  int idx = pc_ap_villagers_random(looks, pool_only);
+
+  if (idx == -1) {
+    return FALSE;
+  }
+  npc_grow_list[idx] = mNpc_GROW_STARTER;
+  l_picked_looks |= 1 << npc_looks_table[idx];
+  l_left--;
+  return TRUE;
+}
+
+// One villager for each personality not picked yet
+static void pc_ap_villagers_pick_per_personality(int pool_only) {
   int looks;
-  int idx;
+
+  for (looks = 0; looks < mNpc_LOOKS_NUM && l_left > 0; looks++) {
+    if (((l_picked_looks >> looks) & 1) == 0) {
+      pc_ap_villagers_pick_one(looks, pool_only);
+    }
+  }
+}
+
+static void pc_ap_villagers_pick_rest(int pool_only) {
+  while (l_left > 0 && pc_ap_villagers_pick_one(-1, pool_only)) {
+  }
+}
+
+int pc_ap_villagers_pick_starters(int count) {
   int i;
 
   if (!l_active) {
@@ -97,25 +137,18 @@ int pc_ap_villagers_pick_starters(int count) {
       npc_grow_list[i] = mNpc_GROW_MOVE_IN;
     }
   }
+  l_picked_looks = 0;
+  l_left = count;
 
-  // One per personality that still has villagers, like vanilla
-  for (looks = 0; looks < mNpc_LOOKS_NUM && count > 0; looks++) {
-    idx = pc_ap_villagers_random(looks);
-    if (idx != -1) {
-      npc_grow_list[idx] = mNpc_GROW_STARTER;
-      count--;
-    }
-  }
+  // Pool first: a pool smaller than count is always taken whole, a bigger one fills every slot
+  pc_ap_villagers_pick_per_personality(TRUE);
+  pc_ap_villagers_pick_rest(TRUE);
+  // Then like vanilla
+  pc_ap_villagers_pick_per_personality(FALSE);
+  pc_ap_villagers_pick_rest(FALSE);
 
-  // Missing personalities: fill with anyone
-  while (count > 0) {
-    idx = pc_ap_villagers_random(-1);
-    if (idx == -1) {
-      OSReport("[AP] villager_blacklist: not enough villagers for the starting town\n");
-      break;
-    }
-    npc_grow_list[idx] = mNpc_GROW_STARTER;
-    count--;
+  if (l_left > 0) {
+    OSReport("[AP] villager options: not enough villagers for the starting town\n");
   }
 
   return TRUE;

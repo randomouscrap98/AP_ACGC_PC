@@ -29,6 +29,7 @@ typedef struct {
   char letter_sender[33]; // signature (footer) of AP letters, max MAIL_FOOTER_LEN
   char loan_letter_text[193]; // body of the "loan ready for payoff" letter, max MAIL_BODY_LEN, '\n' = line break
   unsigned char villager_blacklist[AP_NPC_NUM]; // 1 = this npc index never moves in
+  unsigned char starting_villagers[AP_NPC_NUM]; // 1 = starts in a new town (pool; blacklist wins)
   // QOL
   int skip_intro;
   int no_cockroaches;

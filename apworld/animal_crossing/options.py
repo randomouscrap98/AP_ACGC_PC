@@ -334,14 +334,35 @@ def villager_key(name: str) -> str:
     return f"{name} ({PERSONALITIES[VILLAGERS[name][1]]})"
 
 
+def personality_key(personality: str) -> str:
+    # Shorthand for every villager with this personality: "Personality: Cranky"
+    return f"Personality: {personality}"
+
+
+# Option keys for villager lists: every villager plus the personality shorthands
+VILLAGER_KEYS = {personality_key(p) for p in PERSONALITIES} | {villager_key(name) for name in VILLAGERS}
+
+
 class VillagerBlacklist(OptionSet):
     """
     Villagers that never move into your town (as a starting villager, a move-in or a summer camper).
-    A personality name (Normal, Peppy, Lazy, Jock, Cranky, Snooty) blacklists every villager with it.
+    "Personality: Cranky" (or Normal, Peppy, Lazy, Jock, Snooty) blacklists every villager with it.
     At least 6 villagers must stay allowed. Villagers already living in an existing save stay.
     """
     display_name = "Villager Blacklist"
-    valid_keys = set(PERSONALITIES) | {villager_key(name) for name in VILLAGERS}
+    valid_keys = VILLAGER_KEYS
+    default = frozenset()
+
+
+class StartingVillagers(OptionSet):
+    """
+    Villagers that start in a new town. With 6 or fewer, all of them start and the rest is random;
+    with more, the 6 starters are picked from this list. "Personality: Cranky" (or Normal, Peppy,
+    Lazy, Jock, Snooty) adds every villager with it. Blacklisted villagers are skipped.
+    Only applies when the town is made, not to an existing save.
+    """
+    display_name = "Starting Villagers"
+    valid_keys = VILLAGER_KEYS
     default = frozenset()
 
 
@@ -383,6 +404,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     train_station: TrainStation
     town_day: TownDay
     villager_blacklist: VillagerBlacklist
+    starting_villagers: StartingVillagers
     letter_paper: LetterPaper
     letter_sender: LetterSender
     loan_letter_text: LoanLetterText

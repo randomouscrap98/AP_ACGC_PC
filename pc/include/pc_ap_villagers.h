@@ -1,4 +1,5 @@
-// Villager blacklist (slot_data villager_blacklist), applied by rewriting npc_grow_list.
+// Villager blacklist and starting pool (slot_data villager_blacklist, starting_villagers),
+// applied by rewriting npc_grow_list.
 #ifndef PC_AP_VILLAGERS_H
 #define PC_AP_VILLAGERS_H
 
@@ -10,10 +11,10 @@ extern "C" {
 // Call before any town loads or is made (title "Start Game"); safe to call again.
 void pc_ap_villagers_apply(void);
 
-// Top of mNpc_DecideLivingNpcMax. With a blacklist active, marks exactly count
-// allowed villagers as starters (one per remaining personality first) and returns
+// Top of mNpc_DecideLivingNpcMax. With a blacklist or pool set, marks exactly count
+// allowed villagers as starters (pool first, one per personality first) and returns
 // nonzero: the caller must then accept duplicate personalities. Returns 0 without
-// a blacklist (vanilla pick).
+// either (vanilla pick).
 int pc_ap_villagers_pick_starters(int count);
 
 #ifdef __cplusplus
