@@ -35,6 +35,7 @@ typedef struct {
   int no_cockroaches;
   int shops_always_open;
   int no_weeds;
+  int normalized_time_travel; // date changes count as one day passing
   // Goal / checks
   int goal;                          // AP_GOAL_* bits; all set goals are required
   int loans[AP_LOAN_NUM];            // loan amounts in bells

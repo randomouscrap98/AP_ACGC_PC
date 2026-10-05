@@ -72,6 +72,7 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   sd->no_cockroaches = slot_data.value("no_cockroaches", 0) % 2;
   sd->shops_always_open = slot_data.value("shops_always_open", 0) % 2;
   sd->no_weeds = slot_data.value("no_weeds", 0) % 2;
+  sd->normalized_time_travel = slot_data.value("normalized_time_travel", 1) % 2;
 
   // Defaults match the apworld's option defaults
   static const int default_loans[AP_LOAN_NUM] = { 17400, 98000, 49800, 198000, 298000 };

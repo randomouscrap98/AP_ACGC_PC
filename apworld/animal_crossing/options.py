@@ -381,6 +381,15 @@ class NoWeeds(DefaultOnToggle):
     display_name = "No Weeds"
 
 
+class NormalizedTimeTravel(DefaultOnToggle):
+    """
+    Changing the date from the pause menu always counts as one day passing, however far you jump,
+    forward or back. Off: the game sees the real jump, so a big jump forward is like being away
+    that long (weeds, villagers moving out) and going back in time has the usual penalties.
+    """
+    display_name = "Normalized Time Travel"
+
+
 class Timesanity(DefaultOnToggle):
     """
     The clock stops. Each month and each time slot (Morning 4-8, Day 9-15, Evening 16-20, Night 21-3)
@@ -450,3 +459,4 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     no_cockroaches: NoCockroaches
     shops_always_open: ShopsAlwaysOpen
     no_weeds: NoWeeds
+    normalized_time_travel: NormalizedTimeTravel
