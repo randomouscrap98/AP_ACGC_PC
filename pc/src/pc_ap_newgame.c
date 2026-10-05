@@ -122,6 +122,10 @@ static void pc_ap_newgame_finalise(void) {
   mCD_calendar_wellcome_on();
   mNpc_SetParentNameAllAnimal();
   mRmTp_SetDefaultLightSwitchData(1);
+
+  // The train guide's destructor (aNGD_actor_dt) does this after the
+  // finaliser; without it villagers think they're from a blank town
+  mNpc_SetAnimalThisLand(Save_Get(animals), ANIMAL_NUM_MAX);
 }
 
 // Picking a house (aID_retire_rcn_guide_wait, ac_intro_demo_move.c_inc) and

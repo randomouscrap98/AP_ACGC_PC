@@ -52,8 +52,8 @@ static void apo_set_font_matrix(GRAPH* graph) {
   CLOSE_DISP(graph);
 }
 
-// Connection status line, bottom left
-static void pc_ap_draw_status(struct game_s* game) {
+// Connection status line, bottom left. Returns the y of its text, for stacking above it
+static f32 pc_ap_draw_status(struct game_s* game) {
   ap_config * config = ap_getconfig();
   ap_connectstate * cstate = ap_getconnectstate();
   char output[_APO_MAXSTRING];
@@ -80,7 +80,20 @@ static void pc_ap_draw_status(struct game_s* game) {
       snprintf(output, sizeof(output), AP_CTRL_GRAY "UNKNOWN AP STATE");
       break;
   }
-  pc_span_boxtext(game, output, _APO_SCREENPAD, _APO_BOTTOM(output), _APO_SCALE);
+  f32 y = _APO_BOTTOM(output);
+  pc_span_boxtext(game, output, _APO_SCREENPAD, y, _APO_SCALE);
+  return y;
+}
+
+// Seed, in its own box just above the status line (status_y = its text's y)
+static void pc_ap_draw_seed(struct game_s* game, f32 status_y) {
+  ap_roomplayer* rp = &ap_getconnectstate()->roomplayer;
+  char output[_APO_MAXSTRING];
+  if(!ap_roomplayer_valid(rp)) {
+    return;
+  }
+  snprintf(output, sizeof(output), "Seed: %.32s", rp->seed);
+  pc_span_boxtext(game, output, _APO_SCREENPAD, status_y - PC_SPAN_LINE(_APO_SCALE) - PC_SPAN_PAD, _APO_SCALE);
 }
 
 typedef struct {
@@ -192,13 +205,16 @@ void pc_ap_overlay_draw(struct game_s* game) {
   int show_status = menu_screen || g_pc_settings.ap_status_always;
   int show_tracker = (menu_screen || g_pc_settings.ap_tracker_always) && !pc_settings_menu_active();
   int show_toasts = s_toast_count > 0;
-  if(!menu_screen && !show_status && !show_toasts) {
+  if(!menu_screen && !show_status && !show_tracker && !show_toasts) {
     return;
   }
   apo_set_font_matrix(game->graph);
 
   if(show_status) {
-    pc_ap_draw_status(game);
+    f32 status_y = pc_ap_draw_status(game);
+    if(menu_screen) {
+      pc_ap_draw_seed(game, status_y);
+    }
   }
   if(menu_screen) {
     pc_ap_draw_version(game);
