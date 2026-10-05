@@ -37,10 +37,6 @@ int pc_ap_overlay_toggle(void) {
 
 #define _APO_TOAST_SLOTS 16
 
-// static void pc_ap_draw_error_state(struct game_s * game, const char * output, uint32_t color) {
-//   pc_text_draw(game, output, _APO_PAD, _APO_BOTTOM, PC_RGBA(color), _APO_SCALE);
-// }
-
 // Like mFont_SetMatrix(graph, mFont_MODE_FONT), minus the CPU matrix stack (Matrix_push),
 // which doesn't exist in every scene (NULL during boot -> crash). pc_text_draw doesn't need it.
 static void apo_set_font_matrix(GRAPH* graph) {
@@ -166,13 +162,19 @@ static void pc_ap_draw_version(struct game_s* game) {
 
 static void pc_ap_draw_tracker(struct game_s* game) {
   ap_slotdata * sd = ap_getslotdata();
-  char output[_APO_MAXSTRING];
+  char output[256];
   if(sd->valid && pc_ap_accepting()) {
     int loan_amount = pc_ap_loan_amount(pc_ap_house_stage());
-    snprintf(output, sizeof(output), "Loans Paid: %d / %d\nHouse Unlocks: %d / %d\nLoan: %d / %d",
+    int len = snprintf(output, sizeof(output),
+      "Loans Paid: %d / %d\nHouse Unlocks: %d / %d\nLoan: %d / %d\nPending credit: %d",
       pc_ap_loans_paid(), AP_LOAN_NUM,
       pc_ap_houses_received(), AP_LOAN_NUM - 1,
-      loan_amount - (int)Now_Private->inventory.loan, loan_amount);
+      loan_amount - (int)Now_Private->inventory.loan, loan_amount,
+      pc_ap_bells_pending());
+    if(sd->favorsanity > 0 && len > 0 && len < (int)sizeof(output)) {
+      snprintf(output + len, sizeof(output) - len, "\nFavors: %d / %d",
+        pc_ap_favors_done(), sd->favorsanity);
+    }
   } else {
     snprintf(output, sizeof(output), "Waiting on save...");
   }

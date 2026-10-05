@@ -14,8 +14,9 @@ extern "C" {
 // Nonzero once we know which room/slot we're in, so the save root can be set
 int pc_ap_start_allowed(void);
 
-// Loan amount for given size. Return 0 for anything invalid
-int pc_ap_loan_amount(int size);
+// Amount of loan k in AP order (Starting, Medium, Basement, Large, Upper),
+// not an mHm_HOMESIZE_*. Returns 0 for anything invalid
+int pc_ap_loan_amount(int loan);
 // Nonzero once the current player owns their house (from the save) and we're
 // not on the title screen. Until then nothing AP happens: no items applied
 // (Bells, mail, ...), no locations or goal sent. Also stops loan 0 before the
@@ -23,7 +24,7 @@ int pc_ap_loan_amount(int size);
 int pc_ap_accepting(void);
 
 // Houses from the ap
-int pc_ap_houses_received();
+int pc_ap_houses_received(void);
 
 // House upgrades built so far, in AP order (Medium, Basement, Large, Upper): 0-4.
 // Loan k exists once stage k is built.
@@ -63,6 +64,8 @@ int pc_ap_in_game(struct game_play_s* play);
 int pc_ap_goals_done(void);
 // Total Bells from received Bell Credits (slot_data tier amounts)
 int pc_ap_bells_received(void);
+// Bell Credits received but not yet applied (waiting on the last 100 or the next loan)
+int pc_ap_bells_pending(void);
 
 // Pure versions of the above (unit tested): size = mHm_HOMESIZE_*
 int pc_ap_stage_from(int size, int has_basement);

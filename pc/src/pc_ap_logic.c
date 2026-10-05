@@ -29,12 +29,12 @@ int pc_ap_start_allowed(void) {
   return ap_roomplayer_valid(&ap_getconnectstate()->roomplayer);
 }
 
-int pc_ap_loan_amount(int size) {
-  if(size < 0 || size >= AP_LOAN_NUM) {
+int pc_ap_loan_amount(int loan) {
+  if(loan < 0 || loan >= AP_LOAN_NUM) {
     return 0;
   }
   ap_slotdata * sd = ap_getslotdata();
-  return sd->loans[size];
+  return sd->loans[loan];
 }
 
 int pc_ap_accepting(void) {
@@ -49,7 +49,7 @@ int pc_ap_accepting(void) {
   return home != NULL && mPr_CheckCmpPersonalID(&home->ownerID, &Now_Private->player_ID);
 }
 
-int pc_ap_houses_received() {
+int pc_ap_houses_received(void) {
   int count = ap_getitemcount();
   int houses = 0;
   for(int i = 0; i < count; i++) {
@@ -174,6 +174,10 @@ int pc_ap_bells_received(void) {
   return total > 0x7FFFFFFF ? 0x7FFFFFFF : (int)total;
 }
 
+int pc_ap_bells_pending(void) {
+  return pc_ap_bells_received() - pc_ap_state_get()->bells_applied;
+}
+
 int pc_ap_goals_done(void) {
   int goal = ap_getslotdata()->goal;
   mHm_hs_c* home = pc_ap_my_home();
@@ -214,7 +218,7 @@ static void pc_ap_apply_bells(void) {
   pc_ap_state* s = pc_ap_state_get();
   mHm_hs_c* home = pc_ap_my_home();
   Private_c* priv = Now_Private;
-  int balance = pc_ap_bells_received() - s->bells_applied;
+  int balance = pc_ap_bells_pending();
   if(balance <= 0 || home->size_info.renew) {
     return; // nothing to apply, or Nook hasn't named the new loan yet
   }
