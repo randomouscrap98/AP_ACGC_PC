@@ -34,6 +34,16 @@ int pc_ap_owned_months(void);
 // Received time slots, bit s = slot s (0 = Morning)
 int pc_ap_owned_slots(void);
 
+// Date & Time change request (item 3). The pause menu only requests; pc_ap_time_tick applies it on
+// the next play frame. A newer request replaces an unapplied one.
+void pc_ap_time_request(const lbRTC_time_c* time);
+// Takes the pending request into time and clears it. Returns 0 when there is none.
+int pc_ap_time_take_request(lbRTC_time_c* time);
+// Called first thing in pc_ap_tick. Re-checks the gate (pause runs between frames): if it fails, the
+// request is dropped with a toast. Same date: sets the time live. New date: fade + reload (TODO item 4).
+struct game_play_s;
+void pc_ap_time_tick(struct game_play_s* play);
+
 #ifdef __cplusplus
 }
 #endif

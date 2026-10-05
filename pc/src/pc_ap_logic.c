@@ -3,6 +3,7 @@
 #include "pc_ap_mail.h"
 #include "pc_ap_overlay.h"
 #include "pc_ap_strings.h"
+#include "pc_ap_time.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 #include "m_common_data.h"
@@ -248,6 +249,7 @@ static void pc_ap_apply_bells(void) {
 }
 
 void pc_ap_tick(GAME_PLAY* play) {
+  pc_ap_time_tick(play); // before the gate: a blocked request is dropped with a toast
   if(!pc_ap_in_game(play)) {
     return;
   }

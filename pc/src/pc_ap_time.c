@@ -1,6 +1,8 @@
 #include "pc_ap_time.h"
 #include "pc_ap_logic.h"
+#include "pc_ap_overlay.h"
 #include "ap_slotdata.h"
+#include "m_play.h"
 
 int pc_ap_time_frozen(void) {
   ap_slotdata* sd = ap_getslotdata();
@@ -61,4 +63,41 @@ int pc_ap_owned_slots(void) {
     }
   }
   return slots;
+}
+
+static lbRTC_time_c l_request;
+static int l_request_pending;
+
+void pc_ap_time_request(const lbRTC_time_c* time) {
+  l_request = *time;
+  l_request_pending = 1;
+}
+
+int pc_ap_time_take_request(lbRTC_time_c* time) {
+  if(!l_request_pending) {
+    return 0;
+  }
+  *time = l_request;
+  l_request_pending = 0;
+  return 1;
+}
+
+void pc_ap_time_tick(GAME_PLAY* play) {
+  lbRTC_time_c want;
+  lbRTC_time_c now;
+
+  if(!pc_ap_time_take_request(&want)) {
+    return;
+  }
+  // TODO(item 6): real gate (outdoors in own town, no Nook job); pc_ap_in_game for now
+  if(!pc_ap_in_game(play)) {
+    pc_ap_overlay_toast("Can't change the date right now");
+    return;
+  }
+  lbRTC_GetTime(&now);
+  if(lbRTC_IsEqualDate(now.year, now.month, now.day, want.year, want.month, want.day)) {
+    lbRTC_SetTime(&want); // hour-only change: live, no reload
+  } else {
+    // TODO(item 4): fade out + reload; the date is set there, right before the save. Dropped for now.
+  }
 }
