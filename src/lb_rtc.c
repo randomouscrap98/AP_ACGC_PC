@@ -46,6 +46,9 @@
 #include "m_lib.h"
 #include "types.h"
 #include "dolphin/os.h"
+#ifdef TARGET_PC
+#include "pc_ap_time.h"
+#endif
 
 static BOOL l_lbRTC_isInitial = TRUE;
 static lbRTC_time_c l_lbRTC_Time;
@@ -59,7 +62,19 @@ static BOOL l_lbRTC_IsSampled;
  *
  * @return OSTime representing the current hardware time in ticks.
  */
+#ifdef TARGET_PC
+static OSTime lbRTC_RTCTimeToTicks(const lbRTC_time_c* time);
+#endif
+
 static OSTime lbRTC_GetHardTime() {
+#ifdef TARGET_PC
+  // Timesanity: the "hardware clock" stands still at the seed's start date, so game time
+  // (hard time + time_delta) never moves and a new town (time_delta 0) starts on that date.
+  lbRTC_time_c start;
+  if (pc_ap_time_start(&start)) {
+    return lbRTC_RTCTimeToTicks(&start);
+  }
+#endif
   return OSGetTime();
 }
 
