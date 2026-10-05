@@ -12,6 +12,9 @@
 #include "m_bgm.h"
 #include "m_timeIn_ovl.h"
 #include "dolphin/os/OSRtc.h"
+#ifdef TARGET_PC
+#include "pc_ap_time.h"
+#endif
 
 enum {
     aNPS2_TALK_SETUP_YURE,

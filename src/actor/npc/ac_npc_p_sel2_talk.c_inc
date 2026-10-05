@@ -813,6 +813,13 @@ static void aNPS2_chk_option2(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
                 mMsg_SET_CONTINUE_MSG_NUM(msg_no);
                 break;
             case mChoice_CHOICE2:
+#ifdef TARGET_PC
+                // Timesanity drops "Set clock" from the message (pc_ap_msg_patch), so choice 2 is "never mind"
+                if (pc_ap_time_frozen()) {
+                    next_talk_idx = aNPS2_TALK_WHATS_HAPPEN;
+                    break;
+                }
+#endif
                 next_talk_idx = aNPS2_TALK_TI_MENU_OPEN_MSG_WAIT;
                 break;
             case mChoice_CHOICE3:
