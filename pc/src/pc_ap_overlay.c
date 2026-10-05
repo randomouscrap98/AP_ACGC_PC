@@ -7,6 +7,7 @@
 #include "pc_spantext.h"
 #include "pc_text_draw.h"
 #include "pc_settings.h"
+#include "pc_settings_menu.h"
 #include "pc_pause_menu.h" // to get some of those juicy externs
 #include "m_font.h"
 #include "m_common_data.h" // clip.animal_logo_clip
@@ -187,7 +188,7 @@ void pc_ap_overlay_draw(struct game_s* game) {
   // Title screen (logo actor alive, from its fade-in on) or the pause menu
   int menu_screen = g_pc_paused || Common_Get(clip.animal_logo_clip) != NULL;
   int show_status = menu_screen || g_pc_settings.ap_status_always;
-  int show_tracker = menu_screen || g_pc_settings.ap_tracker_always;
+  int show_tracker = (menu_screen || g_pc_settings.ap_tracker_always) && !pc_settings_menu_active();
   int show_toasts = s_toast_count > 0;
   if(!menu_screen && !show_status && !show_toasts) {
     return;
