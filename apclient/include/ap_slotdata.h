@@ -45,6 +45,7 @@ typedef struct {
   int timesanity;                    // nonzero: frozen clock, months and time slots are items
   int starting_month;                // 0-11
   int starting_time;                 // 0-3: Morning 4-8, Day 9-15, Evening 16-20, Night 21-3
+  int start_year;                    // year of the frozen clock (seed generation year, 2001-2100)
   int bell_credits[AP_BELLCREDIT_NUM]; // bells per small/modest/large bell credit
   char world_version[16];            // apworld version the seed was generated with ("" if missing)
   // Whether the struct has valid data

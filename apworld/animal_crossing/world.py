@@ -1,3 +1,4 @@
+import datetime
 from collections.abc import Mapping
 from typing import Any
 
@@ -20,6 +21,7 @@ DEFAULT_LETTER_SENDER = "Archipelago"
 LETTER_TEXT_MAX = 192  # MAIL_BODY_LEN in the game
 BELLS_ROUND = 100  # Bell credit amounts are rounded to this
 MIN_VILLAGERS = 6  # the game starts with 6 villagers
+MIN_YEAR, MAX_YEAR = 2001, 2100  # mTM_MIN_YEAR / mTM_MAX_YEAR (PC)
 
 
 class AnimalCrossingItem(Item):
@@ -243,6 +245,8 @@ class AnimalCrossingWorld(World):
             "timesanity": self.options.timesanity.value,
             "starting_month": self.options.starting_month.value,
             "starting_time": self.options.starting_time.value,
+            # Timesanity clock year: the year the seed was made, fixed for the whole save
+            "start_year": min(max(datetime.date.today().year, MIN_YEAR), MAX_YEAR),
             "bell_credits": self.bell_credit_amounts(),
             # From archipelago.json; the client compares it with its own build
             "world_version": ".".join(str(n) for n in self.world_version),

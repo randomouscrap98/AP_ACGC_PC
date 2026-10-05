@@ -84,6 +84,9 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   sd->timesanity = slot_data.value("timesanity", 0) % 2;
   sd->starting_month = slot_data.value("starting_month", 0) % 12;
   sd->starting_time = slot_data.value("starting_time", 0) % 4;
+  // Same range as the game (mTM_MIN_YEAR / mTM_MAX_YEAR on PC)
+  sd->start_year = slot_data.value("start_year", 2001);
+  if (sd->start_year < 2001 || sd->start_year > 2100) { sd->start_year = 2001; }
 
   // Keyed by item name in the apworld (Small/Modest/Large Bell Credit)
   static const char * credit_names[AP_BELLCREDIT_NUM] = { "Small Bell Credit", "Modest Bell Credit", "Large Bell Credit" };
