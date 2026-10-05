@@ -15,6 +15,9 @@
 #include "libultra/libultra.h"
 #include "jsyswrap.h"
 #include "ac_npc.h"
+#ifdef TARGET_PC
+#include "pc_ap_villagers.h"
+#endif
 
 static int mNpc_CheckIslandAnimalID(AnmPersonalID_c* anm_id);
 
@@ -2427,16 +2430,27 @@ static void mNpc_DecideLivingNpcMax(Animal_c* animal, u8 count, int malloc_flag)
     u8 looks_bitfield = 0;
     int i = 0;
     int animal_idx = 0;
+#ifdef TARGET_PC
+    int pc_any_looks; /* AP villager blacklist: duplicate personalities allowed */
+#endif
 
     bzero(fakeTable, sizeof(fakeTable));
     mNpc_MakeRandTable(fakeTable, NPC_NUM, NPC_NUM);
     def_list = npc_def_list;
     grow_list = npc_grow_list;
+#ifdef TARGET_PC
+    pc_any_looks = pc_ap_villagers_pick_starters(count);
+#endif
 
     while (count != 0) {
         if (animal == NULL) {
             break;
         }
+#ifdef TARGET_PC
+        if (i >= NPC_NUM) {
+            break; /* not enough starters: never read past fakeTable */
+        }
+#endif
 
         if (animal->id.npc_id == EMPTY_NO) {
             int idx = fakeTable[i];
@@ -2446,7 +2460,11 @@ static void mNpc_DecideLivingNpcMax(Animal_c* animal, u8 count, int malloc_flag)
             if (grow_perm == mNpc_GROW_STARTER) {
                 int looks = npc_looks_table[idx];
 
+#ifdef TARGET_PC
+                if (pc_any_looks || ((looks_bitfield >> looks) & 1) == 0) {
+#else
                 if (((looks_bitfield >> looks) & 1) == 0) {
+#endif
                     mNpc_SetDefAnimal(animal, npc_id, def_list);
                     looks_bitfield |= (1 << looks);
                     mNpc_SetHaveAppeared(npc_id);

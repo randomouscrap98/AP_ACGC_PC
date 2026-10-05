@@ -1,4 +1,5 @@
 #include "ap_slotdata.h"
+#include "ap_log.h"
 
 #include <apclient.hpp>
 
@@ -20,6 +21,20 @@ static void read_int_array(const nlohmann::json& slot_data, const char * key,
   if (it == slot_data.end() || !it->is_array()) { return; }
   for (int i = 0; i < n && i < (int)it->size(); i++) {
     if ((*it)[i].is_number_integer()) { out[i] = (*it)[i].get<int>(); }
+  }
+}
+
+// npc indices from the apworld; bad entries are skipped (apworld/client mismatch)
+static void read_villager_blacklist(const nlohmann::json& slot_data, unsigned char * out) {
+  memset(out, 0, AP_NPC_NUM);
+  auto it = slot_data.find("villager_blacklist");
+  if (it == slot_data.end() || !it->is_array()) { return; }
+  for (auto& v : *it) {
+    if (v.is_number_integer() && v.get<int>() >= 0 && v.get<int>() < AP_NPC_NUM) {
+      out[v.get<int>()] = 1;
+    } else {
+      APLOG_WARN("villager_blacklist: ignoring bad entry %s", v.dump().c_str());
+    }
   }
 }
 
@@ -52,6 +67,7 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
       slot_data.value("letter_sender", "Archipelago").c_str());
   snprintf(sd->loan_letter_text, sizeof(sd->loan_letter_text), "%s",
       slot_data.value("loan_letter_text", "Your loan is ready for\npayoff at the post office!").c_str());
+  read_villager_blacklist(slot_data, sd->villager_blacklist);
   sd->no_cockroaches = slot_data.value("no_cockroaches", 0) % 2;
   sd->shops_always_open = slot_data.value("shops_always_open", 0) % 2;
   sd->no_weeds = slot_data.value("no_weeds", 0) % 2;

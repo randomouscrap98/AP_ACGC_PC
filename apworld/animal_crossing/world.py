@@ -9,7 +9,8 @@ from worlds.generic.Rules import set_rule
 from .items import BELL_CREDITS, ITEM_NAME_TO_ID, PROGRESSIVE_HOUSE
 from .locations import LOANS, LOCATION_NAME_TO_ID, favor_location_name, loan_location_name, split_loan_checks
 from . import options
-from .options import AnimalCrossingOptions
+from .options import AnimalCrossingOptions, villager_key
+from .villagers import PERSONALITIES, VILLAGERS
 
 GAME_NAME = "Animal Crossing"
 NAME_MAX = 8  # PLAYER_NAME_LEN / LAND_NAME_SIZE in the game
@@ -18,6 +19,7 @@ LETTER_SENDER_MAX = 32  # MAIL_FOOTER_LEN in the game
 DEFAULT_LETTER_SENDER = "Archipelago"
 LETTER_TEXT_MAX = 192  # MAIL_BODY_LEN in the game
 BELLS_ROUND = 100  # Bell credit amounts are rounded to this
+MIN_VILLAGERS = 6  # the game starts with 6 villagers
 
 
 class AnimalCrossingItem(Item):
@@ -60,6 +62,7 @@ class AnimalCrossingWeb(WebWorld):
             options.LetterPaper,
             options.LetterSender,
             options.LoanLetterText,
+            options.VillagerBlacklist,
         ]),
         OptionGroup("Loan Goal", [
             options.StartingLoan,
@@ -103,6 +106,16 @@ class AnimalCrossingWorld(World):
         # The 4th of July is the Fireworks Festival; the game never picks it either
         if self.options.town_day.value == 4:
             self.options.town_day.value = self.random.choice([d for d in range(1, 32) if d != 4])
+
+        # Expand personality names into their villagers; the client gets npc indices
+        chosen = self.options.villager_blacklist.value
+        self.villager_blacklist = sorted(
+            index for name, (index, looks) in VILLAGERS.items()
+            if villager_key(name) in chosen or PERSONALITIES[looks] in chosen
+        )
+        if len(VILLAGERS) - len(self.villager_blacklist) < MIN_VILLAGERS:
+            raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Villager Blacklist must leave at least "
+                              f"{MIN_VILLAGERS} villagers allowed.")
 
         # Same order as LOANS
         self.loans = [
@@ -184,6 +197,7 @@ class AnimalCrossingWorld(World):
             "grass_shape": self.options.grass_shape.value,
             "train_station": self.options.train_station.value,
             "town_day": self.options.town_day.value,
+            "villager_blacklist": self.villager_blacklist,
             "letter_paper": self.options.letter_paper.value,
             "letter_sender": self.ac_letter_sender,
             "loan_letter_text": self.ac_loan_letter_text,

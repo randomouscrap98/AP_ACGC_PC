@@ -9,6 +9,7 @@ extern "C" {
 
 #define AP_LOAN_NUM     5 // starting, medium, basement, large, upper (upgrade order)
 #define AP_BELLCREDIT_NUM 3 // small, modest, large
+#define AP_NPC_NUM      236 // NPC_NUM in the game (villager npc indices)
 
 #define AP_GOAL_STATUE  (1 << 0)
 
@@ -27,6 +28,7 @@ typedef struct {
   int letter_paper;   // stationery for AP letters (paper_type 0-63)
   char letter_sender[33]; // signature (footer) of AP letters, max MAIL_FOOTER_LEN
   char loan_letter_text[193]; // body of the "loan ready for payoff" letter, max MAIL_BODY_LEN, '\n' = line break
+  unsigned char villager_blacklist[AP_NPC_NUM]; // 1 = this npc index never moves in
   // QOL
   int skip_intro;
   int no_cockroaches;

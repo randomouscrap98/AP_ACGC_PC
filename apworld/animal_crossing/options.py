@@ -2,6 +2,8 @@ from dataclasses import dataclass
 
 from Options import Choice, DefaultOnToggle, FreeText, OptionSet, PerGameCommonOptions, Range, Toggle
 
+from .villagers import PERSONALITIES, VILLAGERS
+
 
 class SkipIntro(Choice):
     """
@@ -327,6 +329,22 @@ class Favorsanity(Range):
     default = 20
 
 
+def villager_key(name: str) -> str:
+    # What the player sees and writes in the yaml: "Bob (Lazy)"
+    return f"{name} ({PERSONALITIES[VILLAGERS[name][1]]})"
+
+
+class VillagerBlacklist(OptionSet):
+    """
+    Villagers that never move into your town (as a starting villager, a move-in or a summer camper).
+    A personality name (Normal, Peppy, Lazy, Jock, Cranky, Snooty) blacklists every villager with it.
+    At least 6 villagers must stay allowed. Villagers already living in an existing save stay.
+    """
+    display_name = "Villager Blacklist"
+    valid_keys = set(PERSONALITIES) | {villager_key(name) for name in VILLAGERS}
+    default = frozenset()
+
+
 class NoCockroaches(DefaultOnToggle):
     """Cockroaches never appear in your house, even if you're away for a while."""
     display_name = "No Cockroaches"
@@ -364,6 +382,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     grass_shape: GrassShape
     train_station: TrainStation
     town_day: TownDay
+    villager_blacklist: VillagerBlacklist
     letter_paper: LetterPaper
     letter_sender: LetterSender
     loan_letter_text: LoanLetterText
