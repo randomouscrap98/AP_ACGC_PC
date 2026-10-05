@@ -2,6 +2,7 @@
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 
+#include "pc_ap_logic.h"
 #include "pc_menu_util.h"
 #include "pc_spantext.h"
 #include "pc_text_draw.h"
@@ -165,9 +166,17 @@ static void pc_ap_draw_version(struct game_s* game) {
 static void pc_ap_draw_tracker(struct game_s* game) {
   ap_slotdata * sd = ap_getslotdata();
   char output[_APO_MAXSTRING];
-  if(sd->valid) {
+  if(sd->valid && pc_ap_accepting()) {
+    int loan_amount = pc_ap_loan_amount(pc_ap_house_stage());
+    snprintf(output, sizeof(output), "Loans Paid: %d / %d\nHouse Unlocks: %d / %d\nLoan: %d / %d",
+      pc_ap_loans_paid(), AP_LOAN_NUM,
+      pc_ap_houses_received(), AP_LOAN_NUM - 1,
+      loan_amount - (int)Now_Private->inventory.loan, loan_amount);
   } else {
+    snprintf(output, sizeof(output), "Waiting on save...");
   }
+  f32 x = _APO_WIDTH - _APO_SCREENPAD - pc_span_width(output, _APO_SCALE);
+  pc_span_boxtext(game, output, x, _APO_SCREENPAD, _APO_SCALE);
 }
 
 void pc_ap_overlay_draw(struct game_s* game) {
