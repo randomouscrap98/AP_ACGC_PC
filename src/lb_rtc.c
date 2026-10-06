@@ -47,7 +47,7 @@
 #include "types.h"
 #include "dolphin/os.h"
 #ifdef TARGET_PC
-#include "pc_ap_time.h"
+#include "pc_ap_logic.h"
 #endif
 
 static BOOL l_lbRTC_isInitial = TRUE;

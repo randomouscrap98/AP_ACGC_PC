@@ -12,6 +12,7 @@
 #include "pc_profiler.h"
 #include "m_kankyo.h"
 #include "ap_archipelago.h"
+#include "pc_ap_logic.h"
 
 // Single implementation of the vendored ini.h (pc/lib/ini) for the exe
 #define INI_IMPLEMENTATION
@@ -175,6 +176,7 @@ int pc_platform_poll_events(void) {
     pc_typing_update();
     // NEW: Archipelago polling
     ap_poll();
+    pc_ap_update();
 
     while (SDL_PollEvent(&event)) {
         switch (event.type) {

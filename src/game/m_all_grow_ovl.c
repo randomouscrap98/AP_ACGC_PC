@@ -13,7 +13,7 @@
 #include "m_scene_table.h"
 #ifdef TARGET_PC
 #include "pc_ap_qol.h"
-#include "pc_ap_time.h"
+#include "pc_ap_logic.h"
 #endif
 
 static u8 l_candidate_num[FG_BLOCK_TOTAL_NUM];

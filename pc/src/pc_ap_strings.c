@@ -1,6 +1,5 @@
 #include "pc_ap_strings.h"
 #include "pc_ap_logic.h"
-#include "pc_ap_time.h"
 #include "pc_menu_util.h"
 #include "m_font.h" // CHAR_SPACE, CHAR_NEW_LINE, mem_clear
 

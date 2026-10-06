@@ -10,6 +10,9 @@
 
 
 int pc_ap_ini_get_int(ini_t * ini, const char * section, const char * key, int def) {
+  if (ini == NULL) {
+    return def;
+  }
   int s = ini_find_section(ini, section, 0);
   if (s == INI_NOT_FOUND) {
     return def;

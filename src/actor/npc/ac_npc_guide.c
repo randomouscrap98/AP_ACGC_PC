@@ -13,7 +13,7 @@
 #include "m_soncho.h"
 #ifdef TARGET_PC
 #include "pc_ap_newgame.h"
-#include "pc_ap_time.h"
+#include "pc_ap_logic.h"
 #endif
 
 enum {

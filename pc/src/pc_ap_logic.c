@@ -3,10 +3,10 @@
 #include "pc_ap_loansanity.h"
 #include "pc_ap_credit.h"
 #include "pc_ap_favorsanity.h"
+#include "pc_ap_timesanity.h"
 #include "pc_ap_mail.h"
 #include "pc_ap_overlay.h"
 #include "pc_ap_strings.h"
-#include "pc_ap_time.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 #include "m_common_data.h"
@@ -26,24 +26,35 @@ typedef struct {
   pc_ap_loansanity loans;
   pc_ap_credit credit;
   pc_ap_favorsanity favors;
+  pc_ap_timesanity time;
+  int initialized; // module config set from slot_data
 } pc_ap;
 
 static pc_ap g_ap;
 
-void pc_ap_load(const char* filename) {
+void pc_ap_init(void) {
   ap_slotdata* sd = ap_getslotdata();
   pc_ap_loansanity_init(&g_ap.loans, sd);
   pc_ap_credit_init(&g_ap.credit, sd);
   pc_ap_favorsanity_init(&g_ap.favors, sd);
+  pc_ap_timesanity_init(&g_ap.time, sd);
+  g_ap.initialized = 1;
+}
 
-  ini_t* ini = pc_ap_state_read(filename);
-  if(ini == NULL) {
-    return;
+void pc_ap_update(void) {
+  if(!g_ap.initialized && pc_ap_start_allowed()) {
+    pc_ap_init();
   }
+}
+
+void pc_ap_load(const char* filename) {
+  ini_t* ini = pc_ap_state_read(filename); // NULL (missing) loads the defaults
   pc_ap_loansanity_load(&g_ap.loans, ini);
   pc_ap_credit_load(&g_ap.credit, ini);
   pc_ap_favorsanity_load(&g_ap.favors, ini);
-  ini_destroy(ini);
+  if(ini != NULL) {
+    ini_destroy(ini);
+  }
 }
 
 int pc_ap_save(const char* filename) {
@@ -214,6 +225,78 @@ static void pc_ap_loan_letter(int paid) {
   // Mailbox full: stays pending, try again next time
   if(pc_ap_send_letter(g_ap.loans.letter_text, EMPTY_NO)) {
     pc_ap_loansanity_letter_sent(&g_ap.loans);
+  }
+}
+
+int pc_ap_time_frozen(void) {
+  return g_ap.time.frozen;
+}
+
+int pc_ap_time_start(lbRTC_time_c* start) {
+  return pc_ap_timesanity_start(&g_ap.time, start);
+}
+
+void pc_ap_time_request(const lbRTC_time_c* time) {
+  pc_ap_timesanity_request(&g_ap.time, time);
+}
+
+void pc_ap_time_set_date(const lbRTC_time_c* time) {
+  lbRTC_time_c old_time;
+  lbRTC_time_c new_time = *time;
+
+  lbRTC_GetTime(&old_time);
+  new_time.weekday = lbRTC_Week(new_time.year, new_time.month, new_time.day);
+  lbRTC_SetTime(&new_time);
+  // The save stamps save_check.time from rtc_time (mFRm_SetSaveCheckData), and no frame runs
+  // between here and the save to refresh it. A stale old date there sets cheated_flag on load.
+  lbRTC_TimeCopy(Common_GetPointer(time.rtc_time), &new_time);
+
+  pc_ap_timesanity_normalize(&g_ap.time, Common_GetPointer(save.save), &old_time, &new_time);
+}
+
+void pc_ap_time_normalize_start(void) {
+  pc_ap_timesanity_normalize_start(&g_ap.time, Common_GetPointer(save.save), Common_GetPointer(time.rtc_time));
+}
+
+int pc_ap_time_take_turnip_spoil(int* spoil) {
+  return pc_ap_timesanity_take_turnip_spoil(&g_ap.time, spoil);
+}
+
+void pc_ap_time_step_year(lbRTC_time_c* t, int dir) {
+  pc_ap_timesanity_step_year(&g_ap.time, t, dir);
+}
+
+void pc_ap_time_step_month(lbRTC_time_c* t, int dir) {
+  pc_ap_timesanity_step_month(&g_ap.time, t, dir);
+}
+
+void pc_ap_time_step_day(lbRTC_time_c* t, int dir) {
+  pc_ap_timesanity_step_day(&g_ap.time, t, dir);
+}
+
+void pc_ap_time_step_hour(lbRTC_time_c* t, int dir) {
+  pc_ap_timesanity_step_hour(&g_ap.time, t, dir);
+}
+
+// Applies a pending Date & Time request. Runs before pc_ap_tick's gate and re-checks
+// it itself (pause runs between frames): if it fails, the request is dropped with a toast.
+static void pc_ap_time_tick(GAME_PLAY* play) {
+  lbRTC_time_c want;
+  lbRTC_time_c now;
+
+  if(!pc_ap_timesanity_take_request(&g_ap.time, &want)) {
+    return;
+  }
+  // TODO(item 6): real gate (outdoors in own town, no Nook job); pc_ap_in_game for now
+  if(!pc_ap_in_game(play)) {
+    pc_ap_overlay_toast("Can't change the date right now");
+    return;
+  }
+  lbRTC_GetTime(&now);
+  if(lbRTC_IsEqualDate(now.year, now.month, now.day, want.year, want.month, want.day) == lbRTC_EQUAL) {
+    lbRTC_SetTime(&want); // hour-only change: live, no reload
+  } else {
+    // TODO(item 4): fade out + reload; the date is set there, right before the save. Dropped for now.
   }
 }
 

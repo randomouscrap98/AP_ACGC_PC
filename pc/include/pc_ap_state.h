@@ -18,7 +18,7 @@ struct ini_t* pc_ap_state_read(const char * filename);
 // Write ini to the sidecar (through a temp file). Returns 0 on failure
 int pc_ap_state_write(const char * filename, struct ini_t* ini);
 
-// Integer property in a section; def if the section or key is missing
+// Integer property in a section; def if ini is NULL or the section or key is missing
 int pc_ap_ini_get_int(struct ini_t* ini, const char * section, const char * key, int def);
 // Add an integer property to a section (made if missing)
 void pc_ap_ini_set_int(struct ini_t* ini, const char * section, const char * key, int value);
