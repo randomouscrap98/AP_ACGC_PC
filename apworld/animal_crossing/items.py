@@ -2373,3 +2373,10 @@ BELL_CREDITS = {
     MODEST_BELL_CREDIT: (3, 60),
     LARGE_BELL_CREDIT: (10, 10),
 }
+
+
+# Museumsanity: donation items per category (item names come with the items)
+MUSEUM_BUGS = 40
+MUSEUM_FISH = 40
+MUSEUM_FOSSILS = 25
+MUSEUM_PAINTINGS = 15

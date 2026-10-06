@@ -1,4 +1,5 @@
 import datetime
+import math
 from collections.abc import Mapping
 from typing import Any
 
@@ -7,7 +8,8 @@ from Options import OptionError, OptionGroup
 from worlds.AutoWorld import WebWorld, World
 from worlds.generic.Rules import set_rule
 
-from .items import BELL_CREDITS, ITEM_NAME_TO_ID, MONTHS, PROGRESSIVE_HOUSE, TIME_SLOTS
+from .items import (BELL_CREDITS, ITEM_NAME_TO_ID, MONTHS, MUSEUM_BUGS, MUSEUM_FISH, MUSEUM_FOSSILS,
+                    MUSEUM_PAINTINGS, PROGRESSIVE_HOUSE, TIME_SLOTS)
 from .locations import LOANS, LOCATION_NAME_TO_ID, favor_location_name, loan_location_name, split_loan_checks
 from . import options
 from .options import AnimalCrossingOptions, personality_key, villager_key
@@ -90,6 +92,14 @@ class AnimalCrossingWeb(WebWorld):
             options.StartingMonth,
             options.StartingTime,
         ]),
+        OptionGroup("Museumsanity", [
+            options.Museumsanity,
+            options.BugChecks,
+            options.FishChecks,
+            options.FossilChecks,
+            options.PaintingChecks,
+            options.MuseumGoalPercent,
+        ]),
         OptionGroup("Quality of Life", [
             options.NoCockroaches,
             options.ShopsAlwaysOpen,
@@ -117,6 +127,22 @@ class AnimalCrossingWorld(World):
             raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Goal needs at least one goal.")
         if "Statue" in self.options.goal.value and not self.options.loansanity:
             raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] The Statue goal needs Loansanity on.")
+        if "Museum" in self.options.goal.value and not self.options.museumsanity:
+            raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] The Museum goal needs Museumsanity on.")
+        # Donation items: one per thing in each category that has checks
+        self.museum_items = 0
+        if self.options.museumsanity:
+            categories = [
+                (self.options.bug_checks.value, MUSEUM_BUGS),
+                (self.options.fish_checks.value, MUSEUM_FISH),
+                (self.options.fossil_checks.value, MUSEUM_FOSSILS),
+                (self.options.painting_checks.value, MUSEUM_PAINTINGS),
+            ]
+            self.museum_items = sum(count for mode, count in categories if mode)
+            if self.museum_items == 0:
+                raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Museumsanity needs at least one of Bug, "
+                                  f"Fish or Fossil Checks on.")
+        self.museum_goal_count = math.ceil(self.museum_items * self.options.museum_goal_percent.value / 100)
         self.ac_player_name = clamp_name(self.options.player_name.value) or clamp_name(self.player_name)
         self.ac_town_name = clamp_name(self.options.town_name.value) or DEFAULT_TOWN
         self.ac_letter_sender = (clamp_name(self.options.letter_sender.value, LETTER_SENDER_MAX)
@@ -209,6 +235,8 @@ class AnimalCrossingWorld(World):
         goals = {
             # The statue comes after the last loan, which needs every house upgrade
             "Statue": lambda state: state.has(PROGRESSIVE_HOUSE, self.player, len(LOANS) - 1),
+            # TODO: museum_goal_count donation items, once they exist
+            "Museum": lambda state: True,
         }
         chosen = [goals[g] for g in sorted(self.options.goal.value)]
         # Goals are only sent when K.K. Slider plays (Saturday 20:00-23:59, any month): needs a slot with those hours
@@ -262,6 +290,12 @@ class AnimalCrossingWorld(World):
             "timesanity": self.options.timesanity.value,
             "starting_month": self.options.starting_month.value,
             "starting_time": self.options.starting_time.value,
+            "museumsanity": self.options.museumsanity.value,
+            "bug_checks": self.options.bug_checks.value,
+            "fish_checks": self.options.fish_checks.value,
+            "fossil_checks": self.options.fossil_checks.value,
+            "painting_checks": self.options.painting_checks.value,
+            "museum_goal_count": self.museum_goal_count,
             # Timesanity clock year: the year the seed was made, fixed for the whole save
             "start_year": min(max(datetime.date.today().year, MIN_YEAR), MAX_YEAR),
             "bell_credits": self.bell_credit_amounts(),

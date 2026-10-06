@@ -258,11 +258,12 @@ class Goal(OptionSet):
     """
     What you need to do to finish. With several goals, all of them are required.
     Statue: pay off every house loan so Tom Nook builds your statue.
+    Museum: receive Museum Goal Percent of the museum donation items (needs Museumsanity).
     Once all goals are done, listen to K.K. Slider on a Saturday night (20:00-23:59) to finish.
     """
     display_name = "Goal"
-    valid_keys = {"Statue"}
-    default = frozenset({"Statue"})
+    valid_keys = {"Statue", "Museum"}
+    default = frozenset({"Statue", "Museum"})
 
 
 class LoanAmount(Range):
@@ -328,7 +329,7 @@ class FillerBellsPercent(Range):
     display_name = "Filler Bells Percent"
     range_start = 0
     range_end = 200
-    default = 50
+    default = 80
 
 
 class Favorsanity(Range):
@@ -437,6 +438,77 @@ class StartingTime(Choice):
     default = "random"
 
 
+class Museumsanity(DefaultOnToggle):
+    """
+    Museum donations are items: your own donations never fill the museum, it shows the donation items
+    you received. Catching, digging up or donating things sends checks (see the options below).
+    Must be on for the Museum goal.
+    """
+    display_name = "Museumsanity"
+
+
+# Values are the client's bits: 1 = when found (caught or dug up), 2 = when donated
+class CritterChecks(Choice):
+    option_off = 0
+    option_journal = 1
+    option_museum = 2
+    option_both = 3
+    default = 1
+
+
+class BugChecks(CritterChecks):
+    """
+    With Museumsanity, what sends a check for each bug.
+    Off: no bug checks.
+    Journal: catching it for the first time. Blathers never takes bugs.
+    Museum: donating it. Blathers takes it while its check isn't sent.
+    Both: catching and donating are separate checks.
+    """
+    display_name = "Bug Checks"
+
+
+class FishChecks(CritterChecks):
+    """
+    With Museumsanity, what sends a check for each fish.
+    Off: no fish checks.
+    Journal: catching it for the first time. Blathers never takes fish.
+    Museum: donating it. Blathers takes it while its check isn't sent.
+    Both: catching and donating are separate checks.
+    """
+    display_name = "Fish Checks"
+
+
+class FossilChecks(Choice):
+    """
+    With Museumsanity, what sends a check for each fossil.
+    Off: no fossil checks.
+    Instant: fossils come out of the ground already appraised; digging one up sends its check.
+    Vanilla: mail the fossil to the museum for appraisal, then donating it sends the check.
+    Instant Donate: as Instant, plus a second check for donating it.
+    """
+    display_name = "Fossil Checks"
+    option_off = 0
+    option_instant = 1
+    option_vanilla = 2
+    option_instant_donate = 3
+    default = 1
+
+
+class PaintingChecks(Choice):
+    """With Museumsanity, what sends a check for each painting. Not available yet."""
+    display_name = "Painting Checks"
+    option_disabled = 0
+    default = 0
+
+
+class MuseumGoalPercent(Range):
+    """For the Museum goal: percentage of the museum donation items you need to receive."""
+    display_name = "Museum Goal Percent"
+    range_start = 1
+    range_end = 100
+    default = 85
+
+
 @dataclass
 class AnimalCrossingOptions(PerGameCommonOptions):
     goal: Goal
@@ -452,6 +524,12 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     timesanity: Timesanity
     starting_month: StartingMonth
     starting_time: StartingTime
+    museumsanity: Museumsanity
+    bug_checks: BugChecks
+    fish_checks: FishChecks
+    fossil_checks: FossilChecks
+    painting_checks: PaintingChecks
+    museum_goal_percent: MuseumGoalPercent
     skip_intro: SkipIntro
     player_name: PlayerName
     town_name: TownName
