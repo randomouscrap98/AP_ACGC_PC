@@ -104,17 +104,6 @@ void pc_ap_time_tick(GAME_PLAY* play) {
   }
 }
 
-// -1 / 0 / 1 for a's date before / same as / after b's (time of day ignored). Not
-// lbRTC_IsEqualDate: on little-endian its packed compare puts the day above the month.
-static int pc_ap_time_date_cmp(const lbRTC_time_c* a, const lbRTC_time_c* b) {
-  int da = a->year * 10000 + a->month * 100 + a->day;
-  int db = b->year * 10000 + b->month * 100 + b->day;
-  if(da < db) {
-    return -1;
-  }
-  return da > db;
-}
-
 void pc_ap_time_day_before(lbRTC_time_c* out, const lbRTC_time_c* date) {
   *out = *date;
   out->hour = 0;
@@ -129,7 +118,8 @@ int pc_ap_time_turnips_spoil(const lbRTC_time_c* old_time, const lbRTC_time_c* n
   int weekday;
 
   // Vanilla spoils on any move to an earlier date (mAGrw_ZuruSpoilKabu)
-  if(pc_ap_time_date_cmp(new_time, old_time) < 0) {
+  if(lbRTC_IsEqualDate(new_time->year, new_time->month, new_time->day, old_time->year, old_time->month,
+                       old_time->day) == lbRTC_LESS) {
     return 1;
   }
   // Forward: same as mAGrw_CheckSpoilKabuTime on the real old time. Next 6am after it,
@@ -215,8 +205,7 @@ void pc_ap_time_set_date(const lbRTC_time_c* time) {
   }
   for(i = 0; i < PLAYER_NUM; i++) {
     lbRTC_ymd_c* radio = &Save_Get(private_data[i]).radiocard.last_date; // future: card taken
-    if(radio->year * 10000 + radio->month * 100 + radio->day >
-       before.year * 10000 + before.month * 100 + before.day) {
+    if(lbRTC_IsEqualDate(radio->year, radio->month, radio->day, before.year, before.month, before.day) == lbRTC_OVER) {
       radio->year = before.year;
       radio->month = before.month;
       radio->day = before.day;

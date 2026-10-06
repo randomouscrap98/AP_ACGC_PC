@@ -338,18 +338,32 @@ extern int lbRTC_IsEqualDate(
   lbRTC_year_t y0, lbRTC_month_t m0, lbRTC_day_t d0,
   lbRTC_year_t y1, lbRTC_month_t m1, lbRTC_day_t d1
 ) {
+#ifndef TARGET_PC
   ymd_u ymd0, ymd1;
+#endif
   int res;
 
+#ifdef TARGET_PC
+  // The packed compare needs big-endian (year in the top bytes). On little-endian the day
+  // ends up on top, so e.g. Mar 5 came out before Feb 20. Compare field by field instead.
+  if (y0 != y1) {
+    res = y0 - y1;
+  } else if (m0 != m1) {
+    res = m0 - m1;
+  } else {
+    res = d0 - d1;
+  }
+#else
   ymd0.ymd.year = y0;
   ymd0.ymd.month = m0;
   ymd0.ymd.day = d0;
-    
+
   ymd1.ymd.year = y1;
   ymd1.ymd.month = m1;
   ymd1.ymd.day = d1;
 
   res = ymd0.raw - ymd1.raw;
+#endif
   if (res == 0) {
     return lbRTC_EQUAL;
   }
