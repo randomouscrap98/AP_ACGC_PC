@@ -108,8 +108,8 @@ int pc_ap_loans_enabled(void) {
 }
 
 int pc_ap_accepting(void) {
-  // Title screen: the demo runs on an empty town, or on the last loaded save as
-  // player 0 after quitting to title (m_trademark.c trademark_goto_demo_scene)
+  // Title screen: the demo always runs on an empty town (trademark_init's
+  // common_data_reinit clears the save, even after quitting to title)
   if(mEv_IsTitleDemo()) {
     return 0;
   }
@@ -209,6 +209,12 @@ int pc_ap_goals_done(void) {
     }
   }
   return goal != 0;
+}
+
+void pc_ap_kk_song_started(void) {
+  if(pc_ap_accepting() && pc_ap_goals_done()) {
+    ap_send_goal();
+  }
 }
 
 int pc_ap_in_game(GAME_PLAY* play) {
@@ -465,9 +471,6 @@ void pc_ap_tick(GAME_PLAY* play) {
   it = 0;
   while((id = pc_ap_favorsanity_next_check(&g_ap.favors, &it)) >= 0) {
     ap_send_location(id);
-  }
-  if(pc_ap_goals_done()) {
-    ap_send_goal();
   }
 
   pc_ap_apply_credit(paid);

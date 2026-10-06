@@ -258,6 +258,7 @@ class Goal(OptionSet):
     """
     What you need to do to finish. With several goals, all of them are required.
     Statue: pay off every house loan so Tom Nook builds your statue.
+    Once all goals are done, listen to K.K. Slider on a Saturday night (20:00-23:59) to finish.
     """
     display_name = "Goal"
     valid_keys = {"Statue"}

@@ -8,6 +8,9 @@
 #include "m_player_lib.h"
 #include "sys_matrix.h"
 #include "m_rcp.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
 #define aMIK_STRING_NUM 10
 #define aMIK_STRING_LEN 25

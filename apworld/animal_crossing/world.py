@@ -211,6 +211,9 @@ class AnimalCrossingWorld(World):
             "Statue": lambda state: state.has(PROGRESSIVE_HOUSE, self.player, len(LOANS) - 1),
         }
         chosen = [goals[g] for g in sorted(self.options.goal.value)]
+        # Goals are only sent when K.K. Slider plays (Saturday 20:00-23:59, any month): needs a slot with those hours
+        if self.options.timesanity:
+            chosen.append(lambda state: state.has_any(("Evening Hours", "Night Hours"), self.player))
         self.multiworld.completion_condition[self.player] = lambda state: all(goal(state) for goal in chosen)
 
     def bell_credit_amounts(self) -> dict[str, int]:

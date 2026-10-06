@@ -67,7 +67,7 @@ void pc_ap_favor_done(void);
 
 // Per-frame AP work, called at the end of Game_play_move. Only while
 // pc_ap_in_game: sends loan checks, resends favor checks saved while offline,
-// sends the goal, applies Bell Credits (loan down to 100, or savings after the
+// applies Bell Credits (loan down to 100, or savings after the
 // last loan), sends the "loan ready" letter once credits bring the loan to 100
 // (after Nook's job, retried while the mailbox is full, dropped if that loan
 // got paid off first).
@@ -76,6 +76,9 @@ void pc_ap_tick(struct game_play_s* play);
 int pc_ap_in_game(struct game_play_s* play);
 // All goals set in slot_data are done (statue ordered)
 int pc_ap_goals_done(void);
+// K.K.'s song starts (aNTT_roll1_init, every performance is the staff roll): the only place the
+// goal is sent, once all goals are done. Own town only (pc_ap_goals_done needs pc_ap_my_home).
+void pc_ap_kk_song_started(void);
 // Bell Credits received but not yet applied (waiting on the last 100 or the next loan)
 int pc_ap_bells_pending(void);
 

@@ -150,6 +150,9 @@ static void aNTT_roll1_init(NPC_TOTAKEKE_ACTOR* kk, GAME_PLAY* play) {
 
     mBGMPsComp_make_ps_demo(bgm_no, 0x168);
     mBGMPsComp_delete_ps_quiet();
+#ifdef TARGET_PC
+    pc_ap_kk_song_started();
+#endif
     kk->npc_class.condition_info.demo_flg = aNPC_COND_DEMO_SKIP_KUTIPAKU | aNPC_COND_DEMO_SKIP_HEAD_LOOKAT;
     Camera2_request_main_staff_roll(play, GET_PLAYER_ACTOR_ACTOR(play), (ACTOR*)kk, 5);
     play->draw_chk_proc = &aNTT_draw_chk_proc;
