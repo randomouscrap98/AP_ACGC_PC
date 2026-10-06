@@ -119,6 +119,10 @@ int pc_ap_accepting(void) {
   return home != NULL && mPr_CheckCmpPersonalID(&home->ownerID, &Now_Private->player_ID);
 }
 
+int pc_ap_offline(void) {
+  return ap_getconnectstate()->state == AP_CSTATE_OFFLINE;
+}
+
 int pc_ap_houses_received(void) {
   return pc_ap_loansanity_houses_received(&g_ap.loans);
 }

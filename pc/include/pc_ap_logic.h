@@ -40,6 +40,8 @@ int pc_ap_loans_enabled(void);
 // (Bells, mail, ...), no locations or goal sent. Also stops loan 0 before the
 // starting loan from reading as "paid".
 int pc_ap_accepting(void);
+// Nonzero when playing from the offline json (no server)
+int pc_ap_offline(void);
 
 // Progressive House items received
 int pc_ap_houses_received(void);
