@@ -42,6 +42,9 @@ static void Player_actor_setup_main_Notice_rod(ACTOR* actor, GAME* game) {
         if (type < aGYO_TYPE_NUM + 1) {
             main_notice->already_collected = mSM_CHECK_LAST_FISH_GET(type);
             mSM_COLLECT_FISH_SET(type);
+#ifdef TARGET_PC
+            pc_ap_caught(uki->get_fish_type_proc(&uki->actor_class));
+#endif
         }
     } else {
         main_notice->not_full_pocket = FALSE;

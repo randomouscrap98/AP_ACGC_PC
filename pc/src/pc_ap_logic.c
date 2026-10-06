@@ -532,6 +532,17 @@ int pc_ap_museum_donator(mActor_name_t item) {
   return Common_Get(player_no) + 1;
 }
 
+void pc_ap_caught(mActor_name_t item) {
+  int cat, idx;
+  if(!pc_ap_museumsanity_slot_of(item, &cat, &idx)) {
+    return;
+  }
+  int64_t id = pc_ap_museumsanity_find_check(&g_ap.museum, cat, idx);
+  if(id >= 0 && pc_ap_accepting()) {
+    ap_send_location(id);
+  }
+}
+
 void pc_ap_museum_plaque_name(mActor_name_t item) {
   int cat, idx;
   char name[32];

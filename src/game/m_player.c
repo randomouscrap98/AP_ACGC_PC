@@ -27,6 +27,9 @@
 #include "ac_set_ovl_gyoei.h"
 #include "m_vibctl.h"
 #include "m_debug.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
 static int l_skip_other_func_set_wade = FALSE;
 static xyz_t l_wade_end_pos = { 0.0f, 0.0f, 0.0f };

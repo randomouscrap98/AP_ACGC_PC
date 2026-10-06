@@ -125,6 +125,14 @@ int64_t pc_ap_museumsanity_donate_check(const pc_ap_museumsanity* m, int cat, in
   return ap_location_checked(id) ? -1 : id;
 }
 
+int64_t pc_ap_museumsanity_find_check(const pc_ap_museumsanity* m, int cat, int idx) {
+  if(!pc_ap_museumsanity_active(m, cat) || !(m->checks[cat] & AP_MUSEUM_FIND)) {
+    return -1;
+  }
+  int64_t id = PC_AP_LOC_FIND_BASE + PC_AP_MUSEUM_SLOT(cat, idx);
+  return ap_location_checked(id) ? -1 : id;
+}
+
 int pc_ap_museumsanity_sender(const pc_ap_museumsanity* m, int cat, int idx) {
   if(!pc_ap_museumsanity_active(m, cat)) {
     return -1;

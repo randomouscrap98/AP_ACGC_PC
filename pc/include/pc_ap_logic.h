@@ -99,6 +99,9 @@ int pc_ap_museum_request_display(mActor_name_t item, int* taken);
 // Blathers' donator lookups (aCR_Get*Donator): who donated it as far as donating goes.
 // mMmd_DONATOR_NONE = he takes it, the current player = "you already gave me this".
 int pc_ap_museum_donator(mActor_name_t item);
+// A bug or fish was caught (net/rod, right where the game marks the journal):
+// sends its catch check if unsent, on every catch (not only the first)
+void pc_ap_caught(mActor_name_t item);
 // Exhibit plaques, after the game copied the donator's name into free string 0: replaces
 // it with the AP player who sent the item (8 chars). Nothing for vanilla exhibits.
 void pc_ap_museum_plaque_name(mActor_name_t item);

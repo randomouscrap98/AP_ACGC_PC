@@ -48,6 +48,9 @@ int pc_ap_museumsanity_sync(const pc_ap_museumsanity* m, mMmd_info_c* info);
 // Donate location id if the museum should take it now (category has donate
 // checks, not checked yet), else -1 (refuse)
 int64_t pc_ap_museumsanity_donate_check(const pc_ap_museumsanity* m, int cat, int idx);
+// Catch / dig up location id if the category has find checks and it isn't
+// checked yet, else -1
+int64_t pc_ap_museumsanity_find_check(const pc_ap_museumsanity* m, int cat, int idx);
 // Slot (player) that sent the donation item, -1 if not received or inactive
 int pc_ap_museumsanity_sender(const pc_ap_museumsanity* m, int cat, int idx);
 
