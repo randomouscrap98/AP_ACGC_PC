@@ -208,6 +208,13 @@ typedef struct {
     mActor_name_t* parts;
 } aCR_fossil_part_c;
 
+#ifdef TARGET_PC
+// AP museumsanity: who donated it as far as donating goes (vanilla for non-AP categories)
+#define aCR_GetFossilPartDonator(item_no) pc_ap_museum_donator(item_no)
+#define aCR_GetArtDonator(item_no) pc_ap_museum_donator(item_no)
+#define aCR_GetInsectDonator(item_no) pc_ap_museum_donator(item_no)
+#define aCR_GetFishDonator(item_no) pc_ap_museum_donator(item_no)
+#else
 #define aCR_GetFossilPartDonator(item_no) \
     mMmd_FossilInfo(                      \
         ((item_no) >= FTR_DINO_START && (item_no) <= FTR_DINO_END) ? FTR_IDX_2_NO((item_no - FTR_DINO_START)) : 0)
@@ -219,6 +226,7 @@ typedef struct {
     mMmd_InsectInfo(((item_no) >= ITM_INSECT_START && (item_no) < ITM_INSECT_END) ? (item_no - ITM_INSECT_START) : 0)
 #define aCR_GetFishDonator(item_no) \
     mMmd_FishInfo(((item_no) >= ITM_FISH_START && (item_no) <= ITM_FISH_END) ? (item_no - ITM_FISH_START) : 0)
+#endif
 
 static int aCR_chk_fossil_parts_complete_sub(int type) {
     static mActor_name_t trikera_parts[] = { FTR_START(FTR_DIN_TRIKERA_HEAD), FTR_START(FTR_DIN_TRIKERA_TAIL), FTR_START(FTR_DIN_TRIKERA_BODY) };

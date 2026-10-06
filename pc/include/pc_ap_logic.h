@@ -5,6 +5,7 @@
 
 #include "types.h"
 #include "lb_rtc.h"
+#include "m_actor_type.h"
 
 struct game_play_s;
 struct game_s;
@@ -70,11 +71,11 @@ void pc_ap_favor_done(void);
 // applies Bell Credits (loan down to 100, or savings after the
 // last loan), sends the "loan ready" letter once credits bring the loan to 100
 // (after Nook's job, retried while the mailbox is full, dropped if that loan
-// got paid off first).
+// got paid off first), syncs the museum display with the received donation items.
 void pc_ap_tick(struct game_play_s* play);
 // pc_ap_accepting + no submenu, no demo (talk, door, event, save), no scene wipe
 int pc_ap_in_game(struct game_play_s* play);
-// All goals set in slot_data are done (statue ordered)
+// All goals set in slot_data are done (statue ordered, museum_goal_count donation items received)
 int pc_ap_goals_done(void);
 // K.K.'s song starts (aNTT_roll1_init, every performance is the staff roll): the only place the
 // goal is sent, once all goals are done. Own town only (pc_ap_goals_done needs pc_ap_my_home).
@@ -85,6 +86,22 @@ int pc_ap_bells_pending(void);
 // Pure versions of the above (unit tested): size = mHm_HOMESIZE_*
 int pc_ap_stage_from(int size, int has_basement);
 int pc_ap_loans_paid_from(int stage, u32 loan, int renew);
+
+// Museumsanity hooks (pc_ap_museumsanity.h). Each one leaves anything that isn't a
+// museum thing of an AP category to vanilla. The tick syncs the museum display bits.
+
+// mMmd_GetDisplayInfo (Blathers' pocket filter, mail to the museum): 1 = handled, *info =
+// can donate while its donate check is unsent, else already donated
+int pc_ap_museum_display_info(mActor_name_t item, int* info);
+// mMmd_RequestMuseumDisplay (Blathers, mail): 1 = handled, sends the donate check and sets
+// *taken (the item is kept by the museum) if the museum takes it. Never writes the display bits.
+int pc_ap_museum_request_display(mActor_name_t item, int* taken);
+// Blathers' donator lookups (aCR_Get*Donator): who donated it as far as donating goes.
+// mMmd_DONATOR_NONE = he takes it, the current player = "you already gave me this".
+int pc_ap_museum_donator(mActor_name_t item);
+// Exhibit plaques, after the game copied the donator's name into free string 0: replaces
+// it with the AP player who sent the item (8 chars). Nothing for vanilla exhibits.
+void pc_ap_museum_plaque_name(mActor_name_t item);
 
 // Time hooks (on top of pc_ap_timesanity.h): frozen clock, date changes,
 // normalized time travel.

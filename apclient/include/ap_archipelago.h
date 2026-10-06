@@ -64,6 +64,11 @@ AP_API ap_connectstate * ap_getconnectstate(void);
 
 // Get the ap item at ap index idx
 AP_API int64_t ap_getitem(size_t idx);
+// Slot (player number) that sent the item at ap index idx, -1 if out of range
+AP_API int ap_getitem_sender(size_t idx);
+// Name (alias) of a slot, ASCII control bytes as spaces, truncated to len - 1.
+// 0 when not connected yet (buf untouched)
+AP_API int ap_player_name(int slot, char * buf, size_t len);
 // Get total amount of items in list right now
 AP_API size_t ap_getitemcount(void);
 // How many times item id is in the received list

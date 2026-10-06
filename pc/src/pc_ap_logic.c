@@ -4,6 +4,7 @@
 #include "pc_ap_credit.h"
 #include "pc_ap_favorsanity.h"
 #include "pc_ap_timesanity.h"
+#include "pc_ap_museumsanity.h"
 #include "pc_ap_mail.h"
 #include "pc_ap_overlay.h"
 #include "pc_ap_strings.h"
@@ -30,6 +31,8 @@
 #include "m_field_info.h"
 #include "m_land.h"
 #include "m_bgm.h"
+#include "m_msg.h"
+#include "m_museum_display.h"
 
 #include <ini.h>
 #include <stdio.h>
@@ -50,6 +53,7 @@ typedef struct {
   pc_ap_credit credit;
   pc_ap_favorsanity favors;
   pc_ap_timesanity time;
+  pc_ap_museumsanity museum;
   pc_ap_mail mail;
   int initialized; // module config set from slot_data
 } pc_ap;
@@ -62,6 +66,7 @@ void pc_ap_init(void) {
   pc_ap_credit_init(&g_ap.credit, sd);
   pc_ap_favorsanity_init(&g_ap.favors, sd);
   pc_ap_timesanity_init(&g_ap.time, sd);
+  pc_ap_museumsanity_init(&g_ap.museum, sd);
   pc_ap_mail_init(&g_ap.mail, sd);
   g_ap.initialized = 1;
 }
@@ -205,6 +210,11 @@ int pc_ap_goals_done(void) {
   if(goal & AP_GOAL_STATUE) {
     mHm_rmsz_c* size = &home->size_info;
     if(!size->statue_ordered && size->next_size != mHm_HOMESIZE_STATUE && size->size != mHm_HOMESIZE_STATUE) {
+      return 0;
+    }
+  }
+  if(goal & AP_GOAL_MUSEUM) {
+    if(pc_ap_museumsanity_received(&g_ap.museum) < g_ap.museum.goal_count) {
       return 0;
     }
   }
@@ -475,4 +485,64 @@ void pc_ap_tick(GAME_PLAY* play) {
 
   pc_ap_apply_credit(paid);
   pc_ap_loan_letter(paid); // credit stops at 100 owed, so paid is unchanged
+  pc_ap_museumsanity_sync(&g_ap.museum, &Save_Get(museum_display));
+}
+
+int pc_ap_museum_display_info(mActor_name_t item, int* info) {
+  int cat, idx;
+  if(!pc_ap_museumsanity_slot_of(item, &cat, &idx) || !pc_ap_museumsanity_active(&g_ap.museum, cat)) {
+    return 0;
+  }
+  *info = pc_ap_museumsanity_donate_check(&g_ap.museum, cat, idx) >= 0 ? mMmd_DISPLAY_CAN_DONATE
+                                                                        : mMmd_DISPLAY_ALREADY_DONATED;
+  return 1;
+}
+
+int pc_ap_museum_request_display(mActor_name_t item, int* taken) {
+  int cat, idx;
+  if(!pc_ap_museumsanity_slot_of(item, &cat, &idx) || !pc_ap_museumsanity_active(&g_ap.museum, cat)) {
+    return 0;
+  }
+  int64_t id = pc_ap_museumsanity_donate_check(&g_ap.museum, cat, idx);
+  *taken = 0;
+  if(id >= 0 && pc_ap_accepting()) {
+    ap_send_location(id);
+    *taken = 1;
+  }
+  return 1;
+}
+
+int pc_ap_museum_donator(mActor_name_t item) {
+  int cat, idx;
+  if(!pc_ap_museumsanity_slot_of(item, &cat, &idx)) {
+    return mMmd_DONATOR_NONE;
+  }
+  if(!pc_ap_museumsanity_active(&g_ap.museum, cat)) {
+    switch(cat) {
+      case mMmd_CATEGORY_FOSSIL: return mMmd_FossilInfo(idx);
+      case mMmd_CATEGORY_ART: return mMmd_ArtInfo(idx);
+      case mMmd_CATEGORY_INSECT: return mMmd_InsectInfo(idx);
+      default: return mMmd_FishInfo(idx);
+    }
+  }
+  // Refused = "you already gave me this" (the current player donated it)
+  if(pc_ap_museumsanity_donate_check(&g_ap.museum, cat, idx) >= 0) {
+    return mMmd_DONATOR_NONE;
+  }
+  return Common_Get(player_no) + 1;
+}
+
+void pc_ap_museum_plaque_name(mActor_name_t item) {
+  int cat, idx;
+  char name[32];
+  u8 game_name[PLAYER_NAME_LEN];
+  if(!pc_ap_museumsanity_slot_of(item, &cat, &idx)) {
+    return;
+  }
+  int sender = pc_ap_museumsanity_sender(&g_ap.museum, cat, idx);
+  if(sender < 0 || !ap_player_name(sender, name, sizeof(name))) {
+    return;
+  }
+  pc_ap_name_to_game(game_name, PLAYER_NAME_LEN, name); // cut to 8, like a player name
+  mMsg_Set_free_str(mMsg_Get_base_window_p(), mMsg_FREE_STR0, game_name, PLAYER_NAME_LEN);
 }

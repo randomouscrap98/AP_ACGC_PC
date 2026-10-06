@@ -10,6 +10,9 @@
 #include "m_room_type.h"
 #include "m_msg.h"
 #include "m_common_data.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
 typedef struct {
     s16 x;
@@ -123,6 +126,9 @@ static void Museum_Fossil_Actor_move(ACTOR* actorx, GAME* game) {
                                 mMsg_Get_base_window_p(), mMsg_FREE_STR0,
                                 Save_Get(private_data[mMmd_DONATOR_PLR_IDX(donator)]).player_ID.player_name,
                                 PLAYER_NAME_LEN);
+                            #ifdef TARGET_PC
+                            pc_ap_museum_plaque_name(item); // AP: the player who sent it
+                            #endif
                         }
                     }
 

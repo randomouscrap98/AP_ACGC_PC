@@ -1,4 +1,7 @@
 #include "ac_museum_insect_priv.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 // clang-format off
 extern Gfx
     act_m_mu_monshiro1T_model,
@@ -706,6 +709,9 @@ int Museum_Insect_GetMsgNo(ACTOR* actorx) {
     if (insect_caught_by >= 1 && insect_caught_by <= 4) {
         mMsg_Set_free_str(mMsg_Get_base_window_p(), mMsg_FREE_STR0,
                           common_data.save.save.private_data[insect_caught_by - 1].player_ID.player_name, 8);
+        #ifdef TARGET_PC
+        pc_ap_museum_plaque_name(insect_no); // AP: the player who sent it
+        #endif
     }
 
     if (actor->_2F7C < actor->_2F78 - 1) {

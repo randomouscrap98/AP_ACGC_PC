@@ -4,6 +4,9 @@
 #include "m_room_type.h"
 #include "m_scene_table.h"
 #include "m_common_data.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
 extern int mMmd_FossilInfo(int fossil_no) {
   int valid = FALSE;
@@ -90,6 +93,13 @@ extern void mMmd_SetFish(int fish_no) {
 }
 
 extern int mMmd_GetDisplayInfo(mActor_name_t item) {
+#ifdef TARGET_PC
+  // AP museumsanity: can donate while its donate check is unsent
+  int pc_info;
+  if (pc_ap_museum_display_info(item, &pc_info)) {
+    return pc_info;
+  }
+#endif
   if (item >= FTR_START(FTR_DIN_TRIKERA_HEAD) && item <= FTR_END(FTR_DIN_TRILOBITE)) {
     int fossil_idx;
     int valid = FALSE;
@@ -163,6 +173,13 @@ extern int mMmd_GetDisplayInfo(mActor_name_t item) {
 }
 
 extern int mMmd_RequestMuseumDisplay(mActor_name_t item) {
+#ifdef TARGET_PC
+  // AP museumsanity: sends the donate check instead; the display shows received items
+  int pc_taken;
+  if (pc_ap_museum_request_display(item, &pc_taken)) {
+    return pc_taken;
+  }
+#endif
   if (mLd_PlayerManKindCheck() == FALSE) {
     if (item >= FTR_START(FTR_DIN_TRIKERA_HEAD) && item <= FTR_END(FTR_DIN_TRILOBITE)) {
       int fossil_idx;

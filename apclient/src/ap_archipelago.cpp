@@ -19,6 +19,7 @@ static std::unique_ptr<APClient> g_ap;
 static ap_config g_ap_config;
 static ap_connectstate g_ap_connectstate;
 static std::vector<int64_t> g_ap_items;
+static std::vector<int> g_ap_item_senders; // slot that sent g_ap_items[i]
 static std::set<int64_t> g_ap_checks;
 static int g_ap_goal = 0;
 // Connected to a different room than the first one (server restarted with a
@@ -49,6 +50,21 @@ int64_t ap_getitem(size_t idx) {
     return -1;
   }
   return g_ap_items.at(idx);
+}
+
+int ap_getitem_sender(size_t idx) {
+  if(idx >= g_ap_item_senders.size()) {
+    return -1;
+  }
+  return g_ap_item_senders.at(idx);
+}
+
+int ap_player_name(int slot, char * buf, size_t len) {
+  if(!g_ap || len == 0) {
+    return 0;
+  }
+  snprintf(buf, len, "%s", ap_plain(g_ap->get_player_alias(slot)).c_str());
+  return 1;
 }
 
 int ap_item_count(int64_t id) {
@@ -306,6 +322,7 @@ int ap_start(void) {
     // Sending a NEW list
     if (start == 0) {
       g_ap_items.clear();
+      g_ap_item_senders.clear();
     } else if(start != (int)g_ap_items.size()) {
       APLOG_WARN("ITEM INDEX OUT OF SYNC! %d, expected %d (resyncing)", start, (int)g_ap_items.size());
       g_ap->Sync();
@@ -313,6 +330,7 @@ int ap_start(void) {
     }
     for (auto& i : items) { 
       g_ap_items.push_back(i.item);
+      g_ap_item_senders.push_back(i.player);
     }
   });
 
