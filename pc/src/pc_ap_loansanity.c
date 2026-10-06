@@ -43,14 +43,17 @@ int pc_ap_loansanity_offer_allowed(const pc_ap_loansanity* l, int houses_receive
   return houses_received > stage;
 }
 
-int pc_ap_loansanity_checks(const pc_ap_loansanity* l, int paid, int64_t* out, int max) {
-  int n = 0;
+int64_t pc_ap_loansanity_next_check(const pc_ap_loansanity* l, int paid, int* it) {
+  // *it counts checks across all paid loans: find the loan it falls in
+  int n = *it;
   for(int k = 0; k < paid && k < AP_LOAN_NUM; k++) {
-    for(int j = 1; j <= l->checks[k] && n < max; j++) {
-      out[n++] = PC_AP_LOC_LOAN_BASE + k * 0x1000 + j;
+    if(n < l->checks[k]) {
+      (*it)++;
+      return PC_AP_LOC_LOAN_BASE + k * 0x1000 + n + 1;
     }
+    n -= l->checks[k];
   }
-  return n;
+  return -1;
 }
 
 void pc_ap_loansanity_letter_due(pc_ap_loansanity* l, int stage) {

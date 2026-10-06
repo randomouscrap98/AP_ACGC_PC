@@ -13,9 +13,6 @@ extern "C" {
 
 struct ini_t;
 
-// Most location ids pc_ap_loansanity_checks can write (apworld total_loan_checks max)
-#define PC_AP_LOANSANITY_CHECKS_MAX 200
-
 typedef struct {
   // Config (slot_data)
   int enabled;               // loan checks + Progressive House gates upgrades
@@ -37,9 +34,9 @@ int pc_ap_loansanity_amount(const pc_ap_loansanity* l, int loan);
 // Nonzero if Nook may offer the next upgrade: always without loansanity,
 // else only with more houses received than built (stage)
 int pc_ap_loansanity_offer_allowed(const pc_ap_loansanity* l, int houses_received, int stage);
-// Location ids of every check of the first `paid` loans into out (up to max).
-// Returns the count written
-int pc_ap_loansanity_checks(const pc_ap_loansanity* l, int paid, int64_t* out, int max);
+// Next location id among the checks of the first `paid` loans, -1 when done.
+// Start *it at 0.
+int64_t pc_ap_loansanity_next_check(const pc_ap_loansanity* l, int paid, int* it);
 
 // Letter: _due when Bell Credits bring the loan of `stage` down to 100 (never
 // for the player's own payments). _update drops it once its loan is no longer

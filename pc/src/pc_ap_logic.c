@@ -262,10 +262,10 @@ void pc_ap_tick(GAME_PLAY* play) {
   }
   // Checks: every check of every paid-off loan (the DLL drops repeats)
   int paid = pc_ap_loans_paid();
-  int64_t ids[PC_AP_LOANSANITY_CHECKS_MAX];
-  int n = pc_ap_loansanity_checks(&g_ap.loans, paid, ids, PC_AP_LOANSANITY_CHECKS_MAX);
-  for(int i = 0; i < n; i++) {
-    ap_send_location(ids[i]);
+  int it = 0;
+  int64_t id;
+  while((id = pc_ap_loansanity_next_check(&g_ap.loans, paid, &it)) >= 0) {
+    ap_send_location(id);
   }
   pc_ap_send_favor_checks();
   if(pc_ap_goals_done()) {
