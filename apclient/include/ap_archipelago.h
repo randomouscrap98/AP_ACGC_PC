@@ -27,6 +27,7 @@ typedef struct {
   char host[AP_MAXSTRING];
   char slotname[AP_MAXSTRING];
   char password[AP_MAXSTRING];
+  char offline[AP_MAXSTRING]; // offline mode: path of the offline json, "" = connect to host
 } ap_config;
 
 // WARN: sends the ACTUAL config being used! Careful with modifications!!
@@ -38,6 +39,7 @@ AP_API ap_config * ap_getconfig(void);
 #define AP_CSTATE_JOINING       2
 #define AP_CSTATE_CONNECTED     3
 #define AP_CSTATE_RECONNECTING  4
+#define AP_CSTATE_OFFLINE       5 // no server: slot_data and the session id come from the offline json
 #define AP_CSTATE_SLOTREFUSED   -1
 
 typedef struct {

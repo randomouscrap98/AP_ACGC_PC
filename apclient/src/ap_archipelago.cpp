@@ -105,8 +105,15 @@ static int load_config(const char * path, ap_config * out) {
   int hostp = ini_find_property(ini, INI_GLOBAL_SECTION, "host", 0);
   int slotp = ini_find_property(ini, INI_GLOBAL_SECTION, "slotname", 0);
   int passwordp = ini_find_property(ini, INI_GLOBAL_SECTION, "password", 0);
+  int offlinep = ini_find_property(ini, INI_GLOBAL_SECTION, "offline", 0);
+  // offline mode doesn't need a server
+  if (offlinep != INI_NOT_FOUND) {
+    snprintf(out->offline, sizeof(out->offline), "%s", ini_property_value(ini, INI_GLOBAL_SECTION, offlinep));
+    ini_destroy(ini);
+    return 0;
+  }
   if (hostp == INI_NOT_FOUND || slotp == INI_NOT_FOUND) {
-    APLOG_WARN("Malformed AP config file at %s (needs host and slotname)", path);
+    APLOG_WARN("Malformed AP config file at %s (needs host and slotname, or offline)", path);
     ini_destroy(ini);
     return 1;
   }
@@ -139,10 +146,52 @@ static void ap_config_init(ap_config * config) {
   config->host[0] = 0;
   config->slotname[0] = 0;
   config->password[0] = 0;
+  config->offline[0] = 0;
 }
 
 int ap_roomplayer_valid(const ap_roomplayer * rp) {
   return strlen(rp->seed) > 0;
+}
+
+// Offline mode: slot_data and the session id (which save folder) from a local json, no
+// server. Everything that needs AP items is forced off. Non-zero on error.
+static int ap_start_offline(const char * path) {
+  std::ifstream f(path, std::ios::binary);
+  if (!f) {
+    APLOG_WARN("Can't find offline file at %s", path);
+    return -1;
+  }
+  nlohmann::json data = nlohmann::json::parse(f, nullptr, false);
+  if (!data.is_object() || !data.contains("seed") || !data["seed"].is_string() ||
+      data["seed"].get<std::string>().empty()) {
+    APLOG_WARN("Malformed offline file at %s (needs a json object with a seed)", path);
+    return 1;
+  }
+
+  ap_roomplayer * rp = &g_ap_connectstate.roomplayer;
+  ap_slotdata * sd = ap_getslotdata();
+  // Hand-written file: a wrong value type (value() throws) is an error, not a crash
+  try {
+    rp->team = data.value("team", 0);
+    rp->player = data.value("player", 1);
+    ap_slotdata_fill(sd, data);
+  } catch (const nlohmann::json::exception& e) {
+    APLOG_WARN("Malformed offline file at %s: %s", path, e.what());
+    ap_slotdata_init(sd);
+    ap_roomplayer_init(rp);
+    return 1;
+  }
+  snprintf(rp->seed, sizeof(rp->seed), "%s", data["seed"].get<std::string>().c_str());
+  // No items or checks offline
+  sd->loansanity = 0;
+  sd->timesanity = 0;
+  sd->favorsanity = 0;
+  sd->goal = 0;
+  for (int i = 0; i < AP_LOAN_NUM; i++) { sd->loan_checks[i] = 0; }
+
+  g_ap_connectstate.state = AP_CSTATE_OFFLINE;
+  APLOG_INFO("OFFLINE: %s/%d/%d", rp->seed, rp->team, rp->player);
+  return 0;
 }
 
 int ap_start(void) {
@@ -157,6 +206,7 @@ int ap_start(void) {
 
   int result = load_config(AP_CONFIGNAME, &g_ap_config);
   if (result) { return result; }
+  if (g_ap_config.offline[0]) { return ap_start_offline(g_ap_config.offline); }
 
   std::string uuid = ap_get_uuid("uuid");          // persists a uuid in a file
   std::string pw = g_ap_config.password, name = g_ap_config.slotname;

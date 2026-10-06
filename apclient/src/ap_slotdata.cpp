@@ -48,6 +48,8 @@ static int read_goal(const nlohmann::json& slot_data) {
   return goal;
 }
 
+// WARN: keep offline_example.json (next to this dir's CMakeLists.txt) in sync with the
+// keys that matter offline (new town, intro, QoL, loan amounts)
 void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) { 
   snprintf(sd->town_name, sizeof(sd->town_name), "%s",
       slot_data.value("town_name", "pelago").c_str());

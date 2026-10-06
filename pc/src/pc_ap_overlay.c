@@ -72,6 +72,9 @@ static f32 pc_ap_draw_status(struct game_s* game) {
     case AP_CSTATE_CONNECTED:
       snprintf(output, sizeof(output), AP_CTRL_GREEN "CONNECTED: %s@%s", config->slotname, config->host);
       break;
+    case AP_CSTATE_OFFLINE:
+      snprintf(output, sizeof(output), "OFFLINE");
+      break;
     case AP_CSTATE_SLOTREFUSED:
       snprintf(output, sizeof(output), AP_CTRL_RED "ERROR: %s@%s (%s)", config->slotname, config->host,
           cstate->last_refuse_reason);
@@ -92,7 +95,8 @@ static void pc_ap_draw_seed(struct game_s* game, f32 status_y) {
   if(!ap_roomplayer_valid(rp)) {
     return;
   }
-  snprintf(output, sizeof(output), "Seed: %.32s", rp->seed);
+  // Same as the save folder name (pc_card_dir_set_root_ap)
+  snprintf(output, sizeof(output), "SessionID: %.32s_%d_%d", rp->seed, rp->team, rp->player);
   pc_span_boxtext(game, output, _APO_SCREENPAD, status_y - PC_SPAN_LINE(_APO_SCALE) - PC_SPAN_PAD, _APO_SCALE);
 }
 
@@ -162,7 +166,10 @@ static void pc_ap_draw_version(struct game_s* game) {
   ap_slotdata * sd = ap_getslotdata();
   char output[_APO_MAXSTRING];
 
-  if(sd->valid && strcmp(sd->world_version, PC_AP_VERSION) == 0) {
+  // Offline: no apworld to compare with
+  if(ap_getconnectstate()->state == AP_CSTATE_OFFLINE) {
+    snprintf(output, sizeof(output), "v%s", PC_AP_VERSION);
+  } else if(sd->valid && strcmp(sd->world_version, PC_AP_VERSION) == 0) {
     snprintf(output, sizeof(output), AP_CTRL_GREEN "v%s", PC_AP_VERSION);
   } else if(sd->valid) {
     snprintf(output, sizeof(output), AP_CTRL_RED "v%s (!)", PC_AP_VERSION);
@@ -208,7 +215,9 @@ void pc_ap_overlay_draw(struct game_s* game) {
   // Title screen (logo actor alive, from its fade-in on) or the pause menu
   int menu_screen = g_pc_paused || Common_Get(clip.animal_logo_clip) != NULL;
   int show_status = menu_screen || g_pc_settings.ap_status_always;
-  int show_tracker = (menu_screen || g_pc_settings.ap_tracker_always) && !pc_settings_menu_active();
+  // Offline has nothing to track
+  int show_tracker = (menu_screen || g_pc_settings.ap_tracker_always) && !pc_settings_menu_active() &&
+                     ap_getconnectstate()->state != AP_CSTATE_OFFLINE;
   int show_toasts = s_toast_count > 0;
   if(!menu_screen && !show_status && !show_tracker && !show_toasts) {
     return;

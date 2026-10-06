@@ -141,4 +141,10 @@ foreach(entry IN LISTS THIRD_PARTY_LICENSES)
     )
 endforeach()
 
+# Offline mode template (see the file's _readme), next to the executable
+add_custom_command(TARGET ap_client POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/offline_example.json" "${CMAKE_BINARY_DIR}/bin/offline_example.json"
+)
+
 install(TARGETS ap_client RUNTIME DESTINATION bin LIBRARY DESTINATION bin)

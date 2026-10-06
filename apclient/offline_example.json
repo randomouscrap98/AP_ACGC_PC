@@ -1,0 +1,32 @@
+{
+  "_readme": [
+    "Offline play: put the line offline=offline.json (no spaces) in ap_config.ini instead of host/slotname and copy this file",
+    "to offline.json. seed/team/player pick the save folder: saves/ap_<seed>_<team>_<player>. Use an AP",
+    "save's folder to play it offline, or anything new for a fresh town. Names max 8 characters.",
+    "Numbers match the apworld options: skip_intro 0 off, 2 train and job. gender 0 boy, 1 girl.",
+    "face 0-7. starting_shirt 0-15, 16 = game's pick. house 0-3 (top left, top right, bottom left, bottom right).",
+    "town_fruit 0 apple, 1 cherry, 2 pear, 3 peach, 4 orange. grass_shape 0 triangle, 1 square, 2 circle.",
+    "train_station 0-14, -1 = game's pick. town_day 1-31 (not 4), 0 = game's pick. Toggles: 0 off, 1 on.",
+    "loans (Bells): starting, medium, basement, large, upper. The values below are vanilla.",
+    "New town settings only apply when the town is made."
+  ],
+  "seed": "offline",
+  "team": 0,
+  "player": 1,
+  "skip_intro": 2,
+  "player_name": "Player",
+  "town_name": "Town",
+  "gender": 0,
+  "face": 0,
+  "starting_shirt": 16,
+  "house": 0,
+  "town_fruit": 0,
+  "grass_shape": 0,
+  "train_station": -1,
+  "town_day": 0,
+  "no_cockroaches": 1,
+  "shops_always_open": 0,
+  "no_weeds": 1,
+  "normalized_time_travel": 1,
+  "loans": [17400, 148000, 49800, 398000, 798000]
+}

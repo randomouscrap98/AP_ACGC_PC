@@ -392,9 +392,10 @@ class NoWeeds(DefaultOnToggle):
 
 class NormalizedTimeTravel(DefaultOnToggle):
     """
-    Changing the date from the pause menu always counts as one day passing, however far you jump,
-    forward or back. Off: the game sees the real jump, so a big jump forward is like being away
-    that long (weeds, villagers moving out) and going back in time has the usual penalties.
+    A new date always counts as one day passing, however far it jumps, forward or back: changing
+    the date (pause menu or the game's own clock setting) or coming back after days away.
+    Off: the game sees the real jump, so a big jump forward is like being away that long
+    (weeds, villagers moving out) and going back in time has the usual penalties.
     """
     display_name = "Normalized Time Travel"
 
