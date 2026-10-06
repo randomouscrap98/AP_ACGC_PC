@@ -191,8 +191,16 @@ int pc_ap_timesanity_normalize(pc_ap_timesanity* t, Save_t* save,
 void pc_ap_timesanity_normalize_start(pc_ap_timesanity* t, Save_t* save, const lbRTC_time_c* now) {
   lbRTC_time_c* saved = &save->save_check.time;
 
-  if(pc_ap_timesanity_cleared(saved) ||
-     lbRTC_IsEqualDate(saved->year, saved->month, saved->day, now->year, now->month, now->day) == lbRTC_EQUAL) {
+  if(pc_ap_timesanity_cleared(saved)) {
+    return;
+  }
+  if(lbRTC_IsEqualDate(saved->year, saved->month, saved->day, now->year, now->month, now->day) == lbRTC_EQUAL) {
+    // Same date, nothing to rewrite. An earlier hour (Set clock) still gets the penalty
+    // cleared below.
+    if(t->normalized) {
+      save->cheated_flag = FALSE;
+      save->npc_force_go_home = FALSE;
+    }
     return;
   }
   if(pc_ap_timesanity_normalize(t, save, saved, now)) {

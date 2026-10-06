@@ -90,7 +90,8 @@ int pc_ap_timesanity_turnips_spoil(const lbRTC_time_c* old_time, const lbRTC_tim
 int pc_ap_timesanity_normalize(pc_ap_timesanity* t, struct Save_s* save,
                                const lbRTC_time_c* old_time, const lbRTC_time_c* new_time);
 // Player select's "start game": with a new date since the last save (save_check.time -> now),
-// normalize, and clear cheated_flag / npc_force_go_home. Nothing when off, never saved, or same date.
+// normalize, and clear cheated_flag / npc_force_go_home. Same date: only clears the flags (an
+// earlier hour from Set clock). Nothing when off or never saved.
 void pc_ap_timesanity_normalize_start(pc_ap_timesanity* t, struct Save_s* save, const lbRTC_time_c* now);
 // Once after a normalize, returns 1 with the stashed decision in spoil; otherwise 0.
 int pc_ap_timesanity_take_turnip_spoil(pc_ap_timesanity* t, int* spoil);
