@@ -27,6 +27,7 @@ typedef struct {
   pc_ap_credit credit;
   pc_ap_favorsanity favors;
   pc_ap_timesanity time;
+  pc_ap_mail mail;
   int initialized; // module config set from slot_data
 } pc_ap;
 
@@ -38,6 +39,7 @@ void pc_ap_init(void) {
   pc_ap_credit_init(&g_ap.credit, sd);
   pc_ap_favorsanity_init(&g_ap.favors, sd);
   pc_ap_timesanity_init(&g_ap.time, sd);
+  pc_ap_mail_init(&g_ap.mail, sd);
   g_ap.initialized = 1;
 }
 
@@ -222,8 +224,8 @@ static void pc_ap_loan_letter(int paid) {
   if(mEv_CheckFirstJob()) {
     return;
   }
-  // Mailbox full: stays pending, try again next time
-  if(pc_ap_send_letter(g_ap.loans.letter_text, EMPTY_NO)) {
+  // No home or mailbox full: stays pending, try again next time
+  if(pc_ap_mail_send(&g_ap.mail, pc_ap_my_home(), Now_Private, g_ap.loans.letter_text, EMPTY_NO)) {
     pc_ap_loansanity_letter_sent(&g_ap.loans);
   }
 }

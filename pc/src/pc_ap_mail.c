@@ -1,19 +1,21 @@
 #include "pc_ap_mail.h"
-#include "pc_ap_logic.h"
 #include "pc_ap_strings.h"
-#include "ap_slotdata.h"
-#include "m_common_data.h"
+#include "m_home_h.h"
 #include "m_mail.h"
 #include "m_font.h"
-#include "m_private.h"
 
-#include <string.h>
+#include <stdio.h>
+
+void pc_ap_mail_init(pc_ap_mail* m, const ap_slotdata* sd) {
+  snprintf(m->sender, sizeof(m->sender), "%s", sd->letter_sender);
+  m->paper = sd->letter_paper;
+}
 
 // Same fields as the game's own letters (mMl_get_mail_to_player_com, m_mail.c),
 // with our text instead of a ROM handbill
-int pc_ap_send_letter(const char* body, mActor_name_t present) {
-  mHm_hs_c* home = pc_ap_my_home();
-  if(home == NULL) {
+int pc_ap_mail_send(const pc_ap_mail* m, struct home_s* home, Private_c* priv,
+                    const char* body, mActor_name_t present) {
+  if(home == NULL || priv == NULL) {
     return 0;
   }
   int slot = mMl_chk_mail_free_space(home->mailbox, HOME_MAILBOX_SIZE);
@@ -29,12 +31,12 @@ int pc_ap_send_letter(const char* body, mActor_name_t present) {
   pc_ap_text_to_game(mail.content.header, MAIL_HEADER_LEN, "Dear ,");
   mail.content.header_back_start = 5;
   pc_ap_text_to_game(mail.content.body, MAIL_BODY_LEN, body);
-  pc_ap_text_to_game(mail.content.footer, MAIL_FOOTER_LEN, ap_getslotdata()->letter_sender);
+  pc_ap_text_to_game(mail.content.footer, MAIL_FOOTER_LEN, m->sender);
   mail.content.font = mMl_FONT_RECV;
   mail.content.mail_type = mMl_TYPE_MAIL;
-  mail.content.paper_type = ap_getslotdata()->letter_paper;
+  mail.content.paper_type = m->paper;
 
-  mPr_CopyPersonalID(&mail.header.recipient.personalID, &Now_Private->player_ID);
+  mPr_CopyPersonalID(&mail.header.recipient.personalID, &priv->player_ID);
   mail.header.recipient.type = mMl_NAME_TYPE_PLAYER;
   pc_ap_text_to_game(sender, PLAYER_NAME_LEN, PC_AP_MAIL_SENDER);
   mPr_ClearPersonalID(&mail.header.sender.personalID);
