@@ -38,6 +38,7 @@ typedef struct {
   int normalized_time_travel; // date changes count as one day passing
   // Goal / checks
   int goal;                          // AP_GOAL_* bits; all set goals are required
+  int loansanity;                    // nonzero: loan checks + Progressive House gates upgrades
   int loans[AP_LOAN_NUM];            // loan amounts in bells
   int loan_checks[AP_LOAN_NUM];      // checks sent when each loan is paid off
   int favorsanity;                   // number of favor checks

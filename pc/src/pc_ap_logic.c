@@ -109,6 +109,10 @@ int pc_ap_loans_paid(void) {
 }
 
 int pc_ap_house_offer_allowed(void) {
+  // No loansanity: vanilla upgrades
+  if(!ap_getslotdata()->loansanity) {
+    return 1;
+  }
   return pc_ap_houses_received() > pc_ap_house_stage();
 }
 

@@ -177,13 +177,18 @@ static void pc_ap_draw_tracker(struct game_s* game) {
   ap_slotdata * sd = ap_getslotdata();
   char output[256];
   if(sd->valid && pc_ap_accepting()) {
-    int loan_amount = pc_ap_loan_amount(pc_ap_house_stage());
-    int len = snprintf(output, sizeof(output),
-      "Loans Paid: %d / %d\nHouse Unlocks: %d / %d\nLoan: %d / %d\nPending credit: %d",
-      pc_ap_loans_paid(), AP_LOAN_NUM,
-      pc_ap_houses_received(), AP_LOAN_NUM - 1,
-      loan_amount - (int)Now_Private->inventory.loan, loan_amount,
-      pc_ap_bells_pending());
+    int len;
+    if(sd->loansanity) {
+      int loan_amount = pc_ap_loan_amount(pc_ap_house_stage());
+      len = snprintf(output, sizeof(output),
+        "Loans Paid: %d / %d\nHouse Unlocks: %d / %d\nLoan: %d / %d\nPending credit: %d",
+        pc_ap_loans_paid(), AP_LOAN_NUM,
+        pc_ap_houses_received(), AP_LOAN_NUM - 1,
+        loan_amount - (int)Now_Private->inventory.loan, loan_amount,
+        pc_ap_bells_pending());
+    } else {
+      len = snprintf(output, sizeof(output), "Pending credit: %d", pc_ap_bells_pending());
+    }
     if(sd->favorsanity > 0 && len > 0 && len < (int)sizeof(output)) {
       snprintf(output + len, sizeof(output) - len, "\nFavors: %d / %d",
         pc_ap_favors_done(), sd->favorsanity);

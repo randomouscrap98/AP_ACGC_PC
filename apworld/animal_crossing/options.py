@@ -299,6 +299,15 @@ class UpperLoan(LoanAmount):
     default = 298000
 
 
+class Loansanity(DefaultOnToggle):
+    """
+    Paying off loans sends checks, and each house upgrade needs a Progressive House item.
+    Off: no loan checks, and Tom Nook offers upgrades as usual (the loan amounts still apply).
+    Must be on for the Statue goal.
+    """
+    display_name = "Loansanity"
+
+
 class TotalLoanChecks(Range):
     """
     Number of checks spread over the five loans, split by each loan's share of the total debt
@@ -434,6 +443,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     large_loan: LargeLoan
     basement_loan: BasementLoan
     upper_loan: UpperLoan
+    loansanity: Loansanity
     total_loan_checks: TotalLoanChecks
     filler_bells_percent: FillerBellsPercent
     favorsanity: Favorsanity

@@ -81,6 +81,7 @@ class AnimalCrossingWeb(WebWorld):
             options.LargeLoan,
             options.BasementLoan,
             options.UpperLoan,
+            options.Loansanity,
             options.TotalLoanChecks,
             options.FillerBellsPercent,
         ]),
@@ -114,6 +115,8 @@ class AnimalCrossingWorld(World):
     def generate_early(self) -> None:
         if not self.options.goal.value:
             raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Goal needs at least one goal.")
+        if "Statue" in self.options.goal.value and not self.options.loansanity:
+            raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] The Statue goal needs Loansanity on.")
         self.ac_player_name = clamp_name(self.options.player_name.value) or clamp_name(self.player_name)
         self.ac_town_name = clamp_name(self.options.town_name.value) or DEFAULT_TOWN
         self.ac_letter_sender = (clamp_name(self.options.letter_sender.value, LETTER_SENDER_MAX)
@@ -140,16 +143,23 @@ class AnimalCrossingWorld(World):
             self.options.large_loan.value,
             self.options.upper_loan.value,
         ]
-        self.loan_checks = split_loan_checks(self.loans, self.options.total_loan_checks.value)
+        if self.options.loansanity:
+            self.loan_checks = split_loan_checks(self.loans, self.options.total_loan_checks.value)
+        else:
+            self.loan_checks = [0] * len(LOANS)
 
+        locations = sum(self.loan_checks) + self.options.favorsanity.value
+        if locations == 0:
+            raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Without Loansanity, Favorsanity must be "
+                              f"at least 1.")
         # Every progression item needs a location (the starting month and slot are given at the start)
-        locations = self.options.total_loan_checks.value + self.options.favorsanity.value
-        items = len(LOANS) - 1
+        items = len(LOANS) - 1 if self.options.loansanity else 0
         if self.options.timesanity:
             items += len(MONTHS) + len(TIME_SLOTS) - 2
         if locations < items:
-            raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Total Loan Checks + Favorsanity must be at "
-                              f"least {items} with these options (it is {locations}).")
+            raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Total checks at {locations}, it must be at "
+                              f"least {items} with these options. Raise optional checks such as Favorsanity.")
+
     def create_regions(self) -> None:
         menu = Region("Menu", self.player, self.multiworld)
         names = [loan_location_name(k, j) for k in range(len(LOANS)) for j in range(1, self.loan_checks[k] + 1)]
@@ -158,7 +168,9 @@ class AnimalCrossingWorld(World):
         self.multiworld.regions.append(menu)
 
     def create_items(self) -> None:
-        pool = [self.create_item(PROGRESSIVE_HOUSE) for _ in range(len(LOANS) - 1)]
+        pool = []
+        if self.options.loansanity:
+            pool += [self.create_item(PROGRESSIVE_HOUSE) for _ in range(len(LOANS) - 1)]
         if self.options.timesanity:
             # The starting month and slot are given at the start, the rest go in the pool
             start_month = MONTHS[self.options.starting_month.value]
@@ -186,7 +198,8 @@ class AnimalCrossingWorld(World):
         return self.random.choices(names, weights=[BELL_CREDITS[n][1] for n in names])[0]
 
     def set_rules(self) -> None:
-        # Loan k only exists after k house upgrades (Progressive House x k)
+        # Loan k only exists after k house upgrades (Progressive House x k). Without loansanity
+        # there are no loan checks (loan_checks is all 0) and no Statue goal.
         for k in range(1, len(LOANS)):
             for j in range(1, self.loan_checks[k] + 1):
                 location = self.multiworld.get_location(loan_location_name(k, j), self.player)
@@ -240,6 +253,7 @@ class AnimalCrossingWorld(World):
             "normalized_time_travel": self.options.normalized_time_travel.value,
             "goal": sorted(self.options.goal.value),
             "loans": self.loans,
+            "loansanity": self.options.loansanity.value,
             "loan_checks": self.loan_checks,
             "favorsanity": self.options.favorsanity.value,
             "timesanity": self.options.timesanity.value,

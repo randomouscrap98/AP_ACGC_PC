@@ -78,6 +78,7 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   static const int default_loans[AP_LOAN_NUM] = { 17400, 98000, 49800, 198000, 298000 };
   static const int default_loan_checks[AP_LOAN_NUM] = { 1, 2, 2, 4, 6 };
   sd->goal = read_goal(slot_data);
+  sd->loansanity = slot_data.value("loansanity", 1) % 2;
   read_int_array(slot_data, "loans", sd->loans, default_loans, AP_LOAN_NUM);
   read_int_array(slot_data, "loan_checks", sd->loan_checks, default_loan_checks, AP_LOAN_NUM);
   sd->favorsanity = slot_data.value("favorsanity", 0);
