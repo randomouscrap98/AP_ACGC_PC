@@ -307,6 +307,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_loansanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_credit.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_favorsanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_newgame.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_qol.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_state.c

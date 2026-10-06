@@ -34,7 +34,7 @@ int pc_ap_accepting(void);
 
 // How many times item id is in the received list (full list, resent on every connect)
 int pc_ap_item_count(int64_t id);
-// Houses from the ap
+// Progressive House items received
 int pc_ap_houses_received(void);
 
 // House upgrades built so far, in AP order (Medium, Basement, Large, Upper): 0-4.
@@ -48,28 +48,25 @@ int pc_ap_house_offer_allowed(void);
 // The current player's house, or NULL (title screen, visiting another town)
 struct home_s* pc_ap_my_home(void);
 
-// Favors done = max(sidecar favors_done, highest "Favor n" the server has or we
-// sent this session), so an unsaved quit never makes you redo favors.
+// Favors done (local or server, whichever is higher; see pc_ap_favorsanity.h)
 int pc_ap_favors_done(void);
+// Number of Favor checks (favorsanity)
+int pc_ap_favors_total(void);
 // Call when a favor is completed (reward hook): counts it, sends "Favor n"
 // while n <= favorsanity. Does nothing until pc_ap_accepting().
 void pc_ap_favor_done(void);
-// Tick: (re)send Favor 1..done (cheap, the DLL drops repeats); covers favors
-// saved while offline whose checks never reached the server.
-void pc_ap_send_favor_checks(void);
 
 // Per-frame AP work, called at the end of Game_play_move. Only while
-// pc_ap_in_game: sends loan/favor checks and the goal, applies Bell Credits
-// (loan down to 100, or savings after the last loan), sends the "loan ready"
-// letter once credits bring the loan to 100 (after Nook's job, retried while
-// the mailbox is full, dropped if that loan got paid off first).
+// pc_ap_in_game: sends loan checks, resends favor checks saved while offline,
+// sends the goal, applies Bell Credits (loan down to 100, or savings after the
+// last loan), sends the "loan ready" letter once credits bring the loan to 100
+// (after Nook's job, retried while the mailbox is full, dropped if that loan
+// got paid off first).
 void pc_ap_tick(struct game_play_s* play);
 // pc_ap_accepting + no submenu, no demo (talk, door, event, save), no scene wipe
 int pc_ap_in_game(struct game_play_s* play);
 // All goals set in slot_data are done (statue ordered)
 int pc_ap_goals_done(void);
-// Total Bells from received Bell Credits (slot_data tier amounts)
-int pc_ap_bells_received(void);
 // Bell Credits received but not yet applied (waiting on the last 100 or the next loan)
 int pc_ap_bells_pending(void);
 

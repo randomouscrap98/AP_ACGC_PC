@@ -1,11 +1,9 @@
 #include "pc_ap_loansanity.h"
 #include "pc_ap_state.h"
+#include "ap_archipelago.h"
 
 #include <stdio.h>
 #include <string.h>
-
-// WARN: keep in sync with apworld locations.py! Loan k (0-4), check j (1-based) = base + k * 0x1000 + j
-#define PC_AP_LOC_LOAN_BASE   0x10000
 
 #define PC_AP_LOANSANITY_SECTION "loans"
 #define PC_AP_LOANSANITY_KEY_LETTER "letter_pending"
@@ -35,12 +33,23 @@ int pc_ap_loansanity_amount(const pc_ap_loansanity* l, int loan) {
   return l->amounts[loan];
 }
 
-int pc_ap_loansanity_offer_allowed(const pc_ap_loansanity* l, int houses_received, int stage) {
+int pc_ap_loansanity_houses_received(const pc_ap_loansanity* l) {
+  size_t count = ap_getitemcount();
+  int found = 0;
+  for(size_t i = 0; i < count; i++) {
+    if(ap_getitem(i) == PC_AP_ITEM_PROGRESSIVE_HOUSE) {
+      found++;
+    }
+  }
+  return found;
+}
+
+int pc_ap_loansanity_offer_allowed(const pc_ap_loansanity* l, int stage) {
   // No loansanity: vanilla upgrades
   if(!l->enabled) {
     return 1;
   }
-  return houses_received > stage;
+  return pc_ap_loansanity_houses_received(l) > stage;
 }
 
 int64_t pc_ap_loansanity_next_check(const pc_ap_loansanity* l, int paid, int* it) {

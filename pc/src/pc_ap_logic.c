@@ -2,6 +2,7 @@
 #include "pc_ap_state.h"
 #include "pc_ap_loansanity.h"
 #include "pc_ap_credit.h"
+#include "pc_ap_favorsanity.h"
 #include "pc_ap_mail.h"
 #include "pc_ap_overlay.h"
 #include "pc_ap_strings.h"
@@ -19,21 +20,12 @@
 #include <ini.h>
 #include <stdio.h>
 
-// WARN: keep in sync with apworld items.py!
-#define PC_AP_ITEM_PROGRESSIVE_HOUSE  0x10000
-// WARN: keep in sync with apworld locations.py! Favor n (1-based) = base + n
-#define PC_AP_LOC_FAVOR_BASE  0x20000
-#define PC_AP_FAVORS_MAX      100
-
-#define PC_AP_FAVORS_SECTION  "favors"
-#define PC_AP_FAVORS_KEY_DONE "done"
-
 // All AP game state: the only global. Everything below is the facade that
 // hands it (and the game/DLL state) to the modules.
 typedef struct {
   pc_ap_loansanity loans;
   pc_ap_credit credit;
-  int favors_done; // persisted; until favors gets its own module
+  pc_ap_favorsanity favors;
 } pc_ap;
 
 static pc_ap g_ap;
@@ -42,7 +34,7 @@ void pc_ap_load(const char* filename) {
   ap_slotdata* sd = ap_getslotdata();
   pc_ap_loansanity_init(&g_ap.loans, sd);
   pc_ap_credit_init(&g_ap.credit, sd);
-  g_ap.favors_done = 0;
+  pc_ap_favorsanity_init(&g_ap.favors, sd);
 
   ini_t* ini = pc_ap_state_read(filename);
   if(ini == NULL) {
@@ -50,7 +42,7 @@ void pc_ap_load(const char* filename) {
   }
   pc_ap_loansanity_load(&g_ap.loans, ini);
   pc_ap_credit_load(&g_ap.credit, ini);
-  g_ap.favors_done = pc_ap_ini_get_int(ini, PC_AP_FAVORS_SECTION, PC_AP_FAVORS_KEY_DONE, 0);
+  pc_ap_favorsanity_load(&g_ap.favors, ini);
   ini_destroy(ini);
 }
 
@@ -58,7 +50,7 @@ int pc_ap_save(const char* filename) {
   ini_t* ini = ini_create(NULL);
   pc_ap_loansanity_save(&g_ap.loans, ini);
   pc_ap_credit_save(&g_ap.credit, ini);
-  pc_ap_ini_set_int(ini, PC_AP_FAVORS_SECTION, PC_AP_FAVORS_KEY_DONE, g_ap.favors_done);
+  pc_ap_favorsanity_save(&g_ap.favors, ini);
   int ok = pc_ap_state_write(filename, ini);
   ini_destroy(ini);
   return ok;
@@ -100,7 +92,7 @@ int pc_ap_item_count(int64_t id) {
 }
 
 int pc_ap_houses_received(void) {
-  return pc_ap_item_count(PC_AP_ITEM_PROGRESSIVE_HOUSE);
+  return pc_ap_loansanity_houses_received(&g_ap.loans);
 }
 
 int pc_ap_stage_from(int size, int has_basement) {
@@ -147,48 +139,29 @@ int pc_ap_loans_paid(void) {
 }
 
 int pc_ap_house_offer_allowed(void) {
-  return pc_ap_loansanity_offer_allowed(&g_ap.loans, pc_ap_houses_received(), pc_ap_house_stage());
+  return pc_ap_loansanity_offer_allowed(&g_ap.loans, pc_ap_house_stage());
 }
 
 int pc_ap_favors_done(void) {
-  // The sidecar rolls back with an unsaved quit, the server never does (and
-  // knows favors done offline only once they're sent): take the higher one
-  int local = g_ap.favors_done;
-  int server = (int)(ap_highest_checked(PC_AP_LOC_FAVOR_BASE + 1,
-      PC_AP_LOC_FAVOR_BASE + PC_AP_FAVORS_MAX) - PC_AP_LOC_FAVOR_BASE);
-  return local > server ? local : server;
+  return pc_ap_favorsanity_done(&g_ap.favors);
+}
+
+int pc_ap_favors_total(void) {
+  return g_ap.favors.count;
 }
 
 void pc_ap_favor_done(void) {
   if(!pc_ap_accepting()) {
     return;
   }
-  int n = pc_ap_favors_done() + 1;
-  g_ap.favors_done = n;
-  if(n <= ap_getslotdata()->favorsanity) {
-    ap_send_location(PC_AP_LOC_FAVOR_BASE + n);
+  int64_t id = pc_ap_favorsanity_complete(&g_ap.favors);
+  if(id >= 0) {
+    ap_send_location(id);
   }
-}
-
-void pc_ap_send_favor_checks(void) {
-  int n = pc_ap_favors_done();
-  int max = ap_getslotdata()->favorsanity;
-  for(int i = 1; i <= n && i <= max; i++) {
-    ap_send_location(PC_AP_LOC_FAVOR_BASE + i);
-  }
-}
-
-int pc_ap_bells_received(void) {
-  long long total = 0;
-  size_t count = ap_getitemcount();
-  for(size_t i = 0; i < count; i++) {
-    total += pc_ap_credit_value(&g_ap.credit, ap_getitem(i));
-  }
-  return total > 0x7FFFFFFF ? 0x7FFFFFFF : (int)total;
 }
 
 int pc_ap_bells_pending(void) {
-  return pc_ap_credit_pending(&g_ap.credit, pc_ap_bells_received());
+  return pc_ap_credit_pending(&g_ap.credit);
 }
 
 int pc_ap_goals_done(void) {
@@ -226,7 +199,7 @@ static void pc_ap_bells_toast(const char* fmt, int amount) {
 static void pc_ap_apply_credit(int paid) {
   Private_c* priv = Now_Private;
   int to_savings;
-  int amount = pc_ap_credit_apply(&g_ap.credit, pc_ap_bells_received(), priv, paid, &to_savings);
+  int amount = pc_ap_credit_apply(&g_ap.credit, priv, paid, &to_savings);
   if(amount <= 0) {
     return;
   }
@@ -267,7 +240,11 @@ void pc_ap_tick(GAME_PLAY* play) {
   while((id = pc_ap_loansanity_next_check(&g_ap.loans, paid, &it)) >= 0) {
     ap_send_location(id);
   }
-  pc_ap_send_favor_checks();
+  // Favor 1..done: covers favors saved while offline that never reached the server
+  it = 0;
+  while((id = pc_ap_favorsanity_next_check(&g_ap.favors, &it)) >= 0) {
+    ap_send_location(id);
+  }
   if(pc_ap_goals_done()) {
     ap_send_goal();
   }

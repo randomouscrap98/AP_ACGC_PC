@@ -1,6 +1,6 @@
 // Loansanity: loan amounts, loan checks, house upgrade gating and the
-// "loan ready" letter. Plain data in, decisions out: no calls into the game
-// or the DLL (the pc_ap_logic.c facade does those).
+// "loan ready" letter. Reads AP state (received items), never writes to the
+// DLL or the game: the pc_ap_logic.c facade sends checks and the letter.
 #ifndef PC_AP_LOANSANITY_H
 #define PC_AP_LOANSANITY_H
 
@@ -12,6 +12,11 @@ extern "C" {
 #endif
 
 struct ini_t;
+
+// WARN: keep in sync with apworld items.py!
+#define PC_AP_ITEM_PROGRESSIVE_HOUSE  0x10000
+// WARN: keep in sync with apworld locations.py! Loan k (0-4), check j (1-based) = base + k * 0x1000 + j
+#define PC_AP_LOC_LOAN_BASE   0x10000
 
 typedef struct {
   // Config (slot_data)
@@ -31,9 +36,11 @@ void pc_ap_loansanity_save(const pc_ap_loansanity* l, struct ini_t* ini);
 // Amount of loan k in AP order (Starting, Medium, Basement, Large, Upper),
 // not an mHm_HOMESIZE_*. Returns 0 for anything invalid
 int pc_ap_loansanity_amount(const pc_ap_loansanity* l, int loan);
+// Progressive House items received
+int pc_ap_loansanity_houses_received(const pc_ap_loansanity* l);
 // Nonzero if Nook may offer the next upgrade: always without loansanity,
 // else only with more houses received than built (stage)
-int pc_ap_loansanity_offer_allowed(const pc_ap_loansanity* l, int houses_received, int stage);
+int pc_ap_loansanity_offer_allowed(const pc_ap_loansanity* l, int stage);
 // Next location id among the checks of the first `paid` loans, -1 when done.
 // Start *it at 0.
 int64_t pc_ap_loansanity_next_check(const pc_ap_loansanity* l, int paid, int* it);

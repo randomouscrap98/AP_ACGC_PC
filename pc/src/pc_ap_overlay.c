@@ -196,9 +196,9 @@ static void pc_ap_draw_tracker(struct game_s* game) {
     } else {
       len = snprintf(output, sizeof(output), "Pending credit: %d", pc_ap_bells_pending());
     }
-    if(sd->favorsanity > 0 && len > 0 && len < (int)sizeof(output)) {
+    if(pc_ap_favors_total() > 0 && len > 0 && len < (int)sizeof(output)) {
       snprintf(output + len, sizeof(output) - len, "\nFavors: %d / %d",
-        pc_ap_favors_done(), sd->favorsanity);
+        pc_ap_favors_done(), pc_ap_favors_total());
     }
   } else {
     snprintf(output, sizeof(output), "Waiting on save...");

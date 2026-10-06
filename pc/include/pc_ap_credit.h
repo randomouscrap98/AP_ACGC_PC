@@ -1,6 +1,7 @@
 // Bell Credits: received credit items paid into the loan or savings.
-// Plain data in, decisions out: no calls into the game or the DLL (the
-// pc_ap_logic.c facade sums the received items and shows the toasts).
+// Reads AP state (received items), never writes to the DLL; the only game
+// state it changes is the Private_c passed to _apply. The pc_ap_logic.c
+// facade shows the toasts.
 #ifndef PC_AP_CREDIT_H
 #define PC_AP_CREDIT_H
 
@@ -14,6 +15,9 @@ extern "C" {
 
 struct ini_t;
 
+// WARN: keep in sync with apworld items.py! Small/Modest/Large Bell Credit
+#define PC_AP_ITEM_BELL_CREDIT  0x10001
+
 typedef struct {
   // Config (slot_data)
   int tiers[AP_BELLCREDIT_NUM]; // bells per small/modest/large credit
@@ -26,15 +30,15 @@ void pc_ap_credit_init(pc_ap_credit* c, const ap_slotdata* sd);
 void pc_ap_credit_load(pc_ap_credit* c, struct ini_t* ini);
 void pc_ap_credit_save(const pc_ap_credit* c, struct ini_t* ini);
 
-// Bells one received item is worth (0 if it's not a Bell Credit)
-int pc_ap_credit_value(const pc_ap_credit* c, int64_t item);
+// Total bells from received Bell Credits
+int pc_ap_credit_received(const pc_ap_credit* c);
 // Received bells not yet applied (waiting on the last 100 or the next loan)
-int pc_ap_credit_pending(const pc_ap_credit* c, int received);
+int pc_ap_credit_pending(const pc_ap_credit* c);
 // Apply the pending credit to one place: the loan (down to 100; the player
 // pays the last 100) or, once all loans are paid, savings. Anything else
-// waits. received = total bells from credits, paid = loans paid off (0-5).
+// waits. paid = loans paid off (0-5).
 // Returns bells applied; *to_savings says where they went.
-int pc_ap_credit_apply(pc_ap_credit* c, int received, Private_c* priv, int paid, int* to_savings);
+int pc_ap_credit_apply(pc_ap_credit* c, Private_c* priv, int paid, int* to_savings);
 
 #ifdef __cplusplus
 }
