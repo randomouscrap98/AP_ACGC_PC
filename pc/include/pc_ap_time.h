@@ -44,6 +44,32 @@ int pc_ap_time_take_request(lbRTC_time_c* time);
 struct game_play_s;
 void pc_ap_time_tick(struct game_play_s* play);
 
+// Stage 3. Called by the reload right before the save. Sets the clock to time (lbRTC_SetTime,
+// plus Common rtc_time so the save stamps the new date). With normalized_time_travel on, also
+// rewrites the "last" timestamps so the change counts as one day passing, and stashes the turnip
+// decision (old clock -> time) for the next grow tick. Off = a plain vanilla clock change.
+void pc_ap_time_set_date(const lbRTC_time_c* time);
+
+// date's day before, 00:00:00, weekday recomputed (lbRTC_Sub_DD leaves it stale).
+void pc_ap_time_day_before(lbRTC_time_c* out, const lbRTC_time_c* date);
+
+// Vanilla turnip rule on a real jump: 1 when old -> new passes a Sunday 6am, or new is an
+// earlier date than old. Hour-only changes never get here.
+int pc_ap_time_turnips_spoil(const lbRTC_time_c* old_time, const lbRTC_time_c* new_time);
+
+// For the hook in mAGrw_CheckSpoilKabuTime: once after a set_date, returns 1 with the stashed
+// decision in spoil; otherwise 0 (vanilla check runs).
+int pc_ap_time_take_turnip_spoil(int* spoil);
+
+// Date & Time page stepping (dir +1/-1). Skip unowned months/slots (timesanity off: all owned);
+// day clamps to the month length; month, day and hour wrap without touching the other fields
+// (Night 21-3 wraps past midnight on the same date); year stops at 2001-2099. Each one leaves
+// a valid date with the hour in an owned slot and the weekday recomputed.
+void pc_ap_time_step_year(lbRTC_time_c* t, int dir);
+void pc_ap_time_step_month(lbRTC_time_c* t, int dir);
+void pc_ap_time_step_day(lbRTC_time_c* t, int dir);
+void pc_ap_time_step_hour(lbRTC_time_c* t, int dir);
+
 #ifdef __cplusplus
 }
 #endif

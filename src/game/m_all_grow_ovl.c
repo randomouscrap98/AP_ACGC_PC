@@ -13,6 +13,7 @@
 #include "m_scene_table.h"
 #ifdef TARGET_PC
 #include "pc_ap_qol.h"
+#include "pc_ap_time.h"
 #endif
 
 static u8 l_candidate_num[FG_BLOCK_TOTAL_NUM];
@@ -320,6 +321,14 @@ static int mAGrw_CheckSpoilKabuTime(lbRTC_time_c* grow_time, lbRTC_time_c* now) 
     lbRTC_time_c temp;
     int days = 0;
     int spoil = FALSE;
+
+#ifdef TARGET_PC
+    // Date & Time change: the decision made on the real old -> new date (grow_time is the
+    // rewritten "day before", which would spoil on every Monday)
+    if (pc_ap_time_take_turnip_spoil(&spoil)) {
+        return spoil;
+    }
+#endif
 
     lbRTC_TimeCopy(&temp, grow_time);
 
