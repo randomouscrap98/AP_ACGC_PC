@@ -3,6 +3,9 @@
 #include "pc_settings_menu.h"
 #include "pc_menu_util.h"
 #include "pc_text_draw.h"
+#include "pc_ap_time_menu.h"
+#include "pc_ap_logic.h"
+#include "pc_ap_overlay.h"
 
 #include "m_font.h"
 #include "m_rcp.h"
@@ -27,13 +30,14 @@ typedef enum {
     PAGE_MAIN = 0,
     PAGE_SETTINGS = 1,
     PAGE_CONFIRM_QUIT = 2,
+    PAGE_TIME = 3,
 } PauseMenuPage;
 
-#define MAIN_ITEM_COUNT     3
+#define MAIN_ITEM_COUNT     4
 #define CONFIRM_ITEM_COUNT  2
 
 static PauseMenuPage cur_page = PAGE_MAIN;
-static int main_sel = 0;    /* 0=Resume, 1=Settings, 2=Quit Game */
+static int main_sel = 0;    /* 0=Resume, 1=Date & Time, 2=Settings, 3=Quit Game */
 static int confirm_sel = 0; /* 0=No (default), 1=Yes */
 
 void pc_pause_menu_toggle(void) {
@@ -55,11 +59,19 @@ static void main_activate(void) {
         case 0: /* Resume */
             pc_pause_menu_toggle();
             break;
-        case 1: /* Settings */
+        case 1: /* Date & Time, only where the gate allows it */
+            if (pc_ap_time_change_allowed_now()) {
+                cur_page = PAGE_TIME;
+                pc_ap_time_menu_enter();
+            } else {
+                pc_ap_overlay_toast("Date & Time: only outdoors in your own town");
+            }
+            break;
+        case 2: /* Settings */
             cur_page = PAGE_SETTINGS;
             pc_settings_menu_enter();
             break;
-        case 2: /* Quit Game -> confirm page (default to No) */
+        case 3: /* Quit Game -> confirm page (default to No) */
             cur_page = PAGE_CONFIRM_QUIT;
             confirm_sel = 0;
             break;
@@ -102,6 +114,26 @@ static void handle_action(MenuAction act) {
                 if (!pc_settings_menu_cancel()) cur_page = PAGE_MAIN;
                 break;
             default: break;
+        }
+        return;
+    }
+
+    /* Date & Time page is driven by pc_ap_time_menu. */
+    if (cur_page == PAGE_TIME) {
+        int result = PC_AP_TIME_MENU_STAY;
+        switch (act) {
+            case ACT_UP:      pc_ap_time_menu_up();    break;
+            case ACT_DOWN:    pc_ap_time_menu_down();  break;
+            case ACT_LEFT:    pc_ap_time_menu_left();  break;
+            case ACT_RIGHT:   pc_ap_time_menu_right(); break;
+            case ACT_CONFIRM: result = pc_ap_time_menu_confirm(); break;
+            case ACT_CANCEL:  result = pc_ap_time_menu_cancel();  break;
+            default: break;
+        }
+        if (result == PC_AP_TIME_MENU_BACK) {
+            cur_page = PAGE_MAIN;
+        } else if (result == PC_AP_TIME_MENU_RESUME) {
+            pc_pause_menu_toggle();
         }
         return;
     }
@@ -208,7 +240,7 @@ int pc_pause_menu_handle_event(const SDL_Event* e) {
 /* Drawing */
 
 static void draw_main_page(struct game_s* game) {
-    static const char* items[MAIN_ITEM_COUNT] = { "Resume", "Settings", "Quit Game" };
+    static const char* items[MAIN_ITEM_COUNT] = { "Resume", "Date & Time", "Settings", "Quit Game" };
 
     pc_menu_draw_centered(game, "- Paused -", 80.0f, 255, 255, 255, 255, 1.0f);
 
@@ -218,6 +250,11 @@ static void draw_main_page(struct game_s* game) {
         int r, g, b, a;
         int selected = (i == main_sel);
         pc_menu_row_colors(selected, &r, &g, &b, &a);
+        if (i == 1 && !pc_ap_time_change_allowed_now()) {
+            /* Date & Time greyed out where the gate fails */
+            r = g = b = 120;
+            a = selected ? 220 : 160;
+        }
         pc_menu_draw_centered(game, items[i], y + i * line_h, r, g, b, a,
                               selected ? PC_MENU_SCALE_SELECTED : 1.0f);
     }
@@ -243,6 +280,8 @@ void pc_pause_menu_draw(struct game_s* game) {
         pc_settings_menu_draw(game, /*with_dim_backdrop=*/1);
         /* The user may have closed it from inside (Back). */
         if (!pc_settings_menu_active()) cur_page = PAGE_MAIN;
+    } else if (cur_page == PAGE_TIME) {
+        pc_ap_time_menu_draw(game);
     } else {
         pc_menu_dim_rect(game->graph, 180);
         if (cur_page == PAGE_MAIN)              draw_main_page(game);

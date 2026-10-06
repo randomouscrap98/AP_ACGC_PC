@@ -315,6 +315,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_strings.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_villagers.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_timesanity.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_time_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_text_draw.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_keybindings.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_nes_fixnes.c

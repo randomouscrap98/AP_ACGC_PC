@@ -27,6 +27,8 @@
 #include "graph.h"
 #include "jsyswrap.h"
 #include "dolphin/os.h"
+#include "m_field_info.h"
+#include "m_land.h"
 
 #include <ini.h>
 #include <stdio.h>
@@ -294,6 +296,21 @@ void pc_ap_time_step_hour(lbRTC_time_c* t, int dir) {
   pc_ap_timesanity_step_hour(&g_ap.time, t, dir);
 }
 
+int pc_ap_time_change_allowed(GAME_PLAY* play) {
+  return pc_ap_in_game(play) &&
+         Save_Get(scene_no) == SCENE_FG &&
+         !mFI_CheckInIsland() &&
+         !mLd_PlayerManKindCheck() && // foreigner
+         !Common_Get(reset_flag) &&
+         !mEv_CheckFirstIntro() &&
+         !mEv_CheckArbeit() &&        // Nook's job
+         mPlib_able_submenu_type1((GAME*)play);
+}
+
+int pc_ap_time_change_allowed_now(void) {
+  return g_ap.time.change_allowed;
+}
+
 // Applies a pending Date & Time request. Runs before pc_ap_tick's gate and re-checks
 // it itself (pause runs between frames): if it fails, the request is dropped with a toast.
 static void pc_ap_time_tick(GAME_PLAY* play) {
@@ -306,8 +323,7 @@ static void pc_ap_time_tick(GAME_PLAY* play) {
   if(g_ap.time.reload != PC_AP_RELOAD_NONE) {
     return; // a reload is already running
   }
-  // TODO(item 6): real gate (outdoors in own town, no Nook job); pc_ap_in_game for now
-  if(!pc_ap_in_game(play)) {
+  if(!pc_ap_time_change_allowed(play)) {
     pc_ap_overlay_toast("Can't change the date right now");
     return;
   }
@@ -409,6 +425,8 @@ static void pc_ap_time_reload_update(void) {
 
 void pc_ap_tick(GAME_PLAY* play) {
   pc_ap_time_tick(play); // before the gate: a blocked request is dropped with a toast
+  // Not while paused (Game_play_move returns first), so the pause menu sees the last frame's
+  g_ap.time.change_allowed = g_ap.time.reload == PC_AP_RELOAD_NONE && pc_ap_time_change_allowed(play);
   if(!pc_ap_in_game(play)) {
     return;
   }

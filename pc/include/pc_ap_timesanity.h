@@ -48,6 +48,7 @@ typedef struct {
   int reload;               // PC_AP_RELOAD_*
   lbRTC_time_c reload_date; // new date, set right before the save
   int reload_player;        // player_no to start again
+  int change_allowed;       // facade's Date & Time gate on the last play frame (pause menu reads it)
 } pc_ap_timesanity;
 
 // Config from slot_data, transient fields zeroed
