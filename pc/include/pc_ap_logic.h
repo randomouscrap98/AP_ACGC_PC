@@ -32,8 +32,6 @@ int pc_ap_loans_enabled(void);
 // starting loan from reading as "paid".
 int pc_ap_accepting(void);
 
-// How many times item id is in the received list (full list, resent on every connect)
-int pc_ap_item_count(int64_t id);
 // Progressive House items received
 int pc_ap_houses_received(void);
 

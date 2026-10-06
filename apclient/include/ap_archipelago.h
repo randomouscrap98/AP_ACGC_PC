@@ -66,6 +66,8 @@ AP_API ap_connectstate * ap_getconnectstate(void);
 AP_API int64_t ap_getitem(size_t idx);
 // Get total amount of items in list right now
 AP_API size_t ap_getitemcount(void);
+// How many times item id is in the received list
+AP_API int ap_item_count(int64_t id);
 AP_API void ap_send_location(int64_t id);
 // Highest location id in [first, last] that is checked: by the server (this
 // slot's checked list, kept across sessions) or sent by us this session.

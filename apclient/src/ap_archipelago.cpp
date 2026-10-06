@@ -51,6 +51,16 @@ int64_t ap_getitem(size_t idx) {
   return g_ap_items.at(idx);
 }
 
+int ap_item_count(int64_t id) {
+  int found = 0;
+  for(int64_t item : g_ap_items) {
+    if(item == id) {
+      found++;
+    }
+  }
+  return found;
+}
+
 int ap_pop_toast(char * buf, size_t len) {
   if(g_ap_toast.size() == 0) return 0;
   snprintf(buf, len, "%s", g_ap_toast.front().c_str());

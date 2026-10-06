@@ -24,12 +24,8 @@ void pc_ap_credit_save(const pc_ap_credit* c, struct ini_t* ini) {
 
 int pc_ap_credit_received(const pc_ap_credit* c) {
   long long total = 0;
-  size_t count = ap_getitemcount();
-  for(size_t i = 0; i < count; i++) {
-    int64_t tier = ap_getitem(i) - PC_AP_ITEM_BELL_CREDIT;
-    if(tier >= 0 && tier < AP_BELLCREDIT_NUM) {
-      total += c->tiers[tier];
-    }
+  for(int i = 0; i < AP_BELLCREDIT_NUM; i++) {
+    total += (long long)c->tiers[i] * ap_item_count(PC_AP_ITEM_BELL_CREDIT + i);
   }
   return total > 0x7FFFFFFF ? 0x7FFFFFFF : (int)total;
 }

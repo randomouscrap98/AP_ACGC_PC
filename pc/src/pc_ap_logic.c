@@ -80,17 +80,6 @@ int pc_ap_accepting(void) {
   return home != NULL && mPr_CheckCmpPersonalID(&home->ownerID, &Now_Private->player_ID);
 }
 
-int pc_ap_item_count(int64_t id) {
-  int count = ap_getitemcount();
-  int found = 0;
-  for(int i = 0; i < count; i++) {
-    if(ap_getitem(i) == id) {
-      found++;
-    }
-  }
-  return found;
-}
-
 int pc_ap_houses_received(void) {
   return pc_ap_loansanity_houses_received(&g_ap.loans);
 }

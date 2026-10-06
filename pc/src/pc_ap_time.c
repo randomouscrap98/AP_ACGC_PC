@@ -2,6 +2,7 @@
 #include "pc_ap_logic.h"
 #include "pc_ap_overlay.h"
 #include "ap_slotdata.h"
+#include "ap_archipelago.h"
 #include "m_play.h"
 #include "m_common_data.h"
 #include "m_time.h"
@@ -50,7 +51,7 @@ int pc_ap_time_start(lbRTC_time_c* start) {
 int pc_ap_owned_months(void) {
   int months = 0;
   for(int m = 0; m < PC_AP_MONTH_NUM; m++) {
-    if(pc_ap_item_count(PC_AP_ITEM_MONTH_BASE + m) > 0) {
+    if(ap_item_count(PC_AP_ITEM_MONTH_BASE + m) > 0) {
       months |= 1 << m;
     }
   }
@@ -60,7 +61,7 @@ int pc_ap_owned_months(void) {
 int pc_ap_owned_slots(void) {
   int slots = 0;
   for(int s = 0; s < PC_AP_SLOT_NUM; s++) {
-    if(pc_ap_item_count(PC_AP_ITEM_SLOT_BASE + s) > 0) {
+    if(ap_item_count(PC_AP_ITEM_SLOT_BASE + s) > 0) {
       slots |= 1 << s;
     }
   }

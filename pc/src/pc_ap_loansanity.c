@@ -34,14 +34,7 @@ int pc_ap_loansanity_amount(const pc_ap_loansanity* l, int loan) {
 }
 
 int pc_ap_loansanity_houses_received(const pc_ap_loansanity* l) {
-  size_t count = ap_getitemcount();
-  int found = 0;
-  for(size_t i = 0; i < count; i++) {
-    if(ap_getitem(i) == PC_AP_ITEM_PROGRESSIVE_HOUSE) {
-      found++;
-    }
-  }
-  return found;
+  return ap_item_count(PC_AP_ITEM_PROGRESSIVE_HOUSE);
 }
 
 int pc_ap_loansanity_offer_allowed(const pc_ap_loansanity* l, int stage) {
