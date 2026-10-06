@@ -73,6 +73,9 @@ AP_API void ap_send_location(int64_t id);
 // slot's checked list, kept across sessions) or sent by us this session.
 // first - 1 if none. For "N-th time" counters sent in order (favors).
 AP_API int64_t ap_highest_checked(int64_t first, int64_t last);
+// Nonzero if location id is checked: by the server (this slot's checked list,
+// kept across sessions) or sent by us this session.
+AP_API int ap_location_checked(int64_t id);
 // Tell the server the goal is done (once per session; resent on every reconnect)
 AP_API void ap_send_goal(void);
 // Pop specifically a toast message (might later depend on user settings?).

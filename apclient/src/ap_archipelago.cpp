@@ -88,6 +88,13 @@ int64_t ap_highest_checked(int64_t first, int64_t last) {
   return best;
 }
 
+int ap_location_checked(int64_t id) {
+  if(g_ap_checks.count(id)) {
+    return 1;
+  }
+  return g_ap && g_ap->get_checked_locations().count(id);
+}
+
 // apclientpp drops a StatusUpdate made while not connected, so remember it and
 // resend on every connect
 void ap_send_goal(void) {
@@ -196,6 +203,7 @@ static int ap_start_offline(const char * path) {
   sd->loansanity = 0;
   sd->timesanity = 0;
   sd->favorsanity = 0;
+  sd->museumsanity = 0;
   sd->goal = 0;
   for (int i = 0; i < AP_LOAN_NUM; i++) { sd->loan_checks[i] = 0; }
 

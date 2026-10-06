@@ -12,6 +12,11 @@ extern "C" {
 #define AP_NPC_NUM      236 // NPC_NUM in the game (villager npc indices)
 
 #define AP_GOAL_STATUE  (1 << 0)
+#define AP_GOAL_MUSEUM  (1 << 1)
+
+// Museumsanity check modes (bits, per category). 0 = no checks for that category.
+#define AP_MUSEUM_FIND   (1 << 0) // bugs/fish: catching it (journal). Fossils: digging it up (pre-appraised)
+#define AP_MUSEUM_DONATE (1 << 1) // donating it to the museum
 
 typedef struct {
   // Base data (not necessarily set)
@@ -42,6 +47,13 @@ typedef struct {
   int loans[AP_LOAN_NUM];            // loan amounts in bells
   int loan_checks[AP_LOAN_NUM];      // checks sent when each loan is paid off
   int favorsanity;                   // number of favor checks
+  // Museumsanity: donations are items, museum shows received ones
+  int museumsanity;                  // nonzero: museum donation items + the check modes below
+  int bug_checks;                    // AP_MUSEUM_* bits
+  int fish_checks;                   // AP_MUSEUM_* bits
+  int fossil_checks;                 // AP_MUSEUM_* bits (FIND = pre-appraised)
+  int painting_checks;               // AP_MUSEUM_* bits; always 0 for now (apworld only has "Disabled")
+  int museum_goal_count;             // Museum goal: donation items to receive (apworld computes it from its % option)
   // Timesanity
   int timesanity;                    // nonzero: frozen clock, months and time slots are items
   int starting_month;                // 0-11

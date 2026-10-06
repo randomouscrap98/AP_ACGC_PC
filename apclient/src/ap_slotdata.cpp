@@ -44,6 +44,7 @@ static int read_goal(const nlohmann::json& slot_data) {
   int goal = 0;
   for (auto& g : *it) {
     if (g.is_string() && g.get<std::string>() == "Statue") { goal |= AP_GOAL_STATUE; }
+    if (g.is_string() && g.get<std::string>() == "Museum") { goal |= AP_GOAL_MUSEUM; }
   }
   return goal;
 }
@@ -84,6 +85,12 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   read_int_array(slot_data, "loans", sd->loans, default_loans, AP_LOAN_NUM);
   read_int_array(slot_data, "loan_checks", sd->loan_checks, default_loan_checks, AP_LOAN_NUM);
   sd->favorsanity = slot_data.value("favorsanity", 0);
+  sd->museumsanity = slot_data.value("museumsanity", 0) % 2;
+  sd->bug_checks = slot_data.value("bug_checks", 0) % 4;
+  sd->fish_checks = slot_data.value("fish_checks", 0) % 4;
+  sd->fossil_checks = slot_data.value("fossil_checks", 0) % 4;
+  sd->painting_checks = slot_data.value("painting_checks", 0) % 4;
+  sd->museum_goal_count = slot_data.value("museum_goal_count", 0);
   sd->timesanity = slot_data.value("timesanity", 0) % 2;
   sd->starting_month = slot_data.value("starting_month", 0) % 12;
   sd->starting_time = slot_data.value("starting_time", 0) % 4;
