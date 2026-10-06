@@ -7,6 +7,9 @@
 #include "m_lib.h"
 #include "m_melody.h"
 #include "m_player_lib.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
 #define mBGMPs_FLAG_REMOVE (1 << 0)
 #define mBGMPs_FLAG_UPDATE_VOLUME (1 << 1)
@@ -379,6 +382,11 @@ static void mBGMClock_ct(mBGMClock* clock) {
 /* mBGMDemo */
 
 static void mBGMDemo_make_scene_bgm(mBGMDemo* demo) {
+#ifdef TARGET_PC
+    if (pc_ap_time_reloading()) {
+        return; /* Date & Time reload: player select stays silent behind the screen cover */
+    }
+#endif
     if (demo->elem.bgm_num == 127 && mFI_CheckFieldData()) {
         mActor_name_t field_id = mFI_GetFieldId();
         u8 bgm_num;
@@ -1347,11 +1355,19 @@ static void mBGMFieldNorm_move(mBGMFieldNorm* norm, GAME* game) {
     norm->delete_flag = FALSE;
 }
 
-static void mBGMFieldNorm_make_req() {
+/* PC: also used by the Date & Time hour change (pc_ap_logic.c) */
+#ifndef TARGET_PC
+static
+#endif
+void mBGMFieldNorm_make_req() {
     M_bgm.field_norm.make_flag = TRUE;
 }
 
-static void mBGMFieldNorm_delete_req() {
+/* PC: also used by the Date & Time hour change (pc_ap_logic.c) */
+#ifndef TARGET_PC
+static
+#endif
+void mBGMFieldNorm_delete_req() {
     M_bgm.field_norm.delete_flag = TRUE;
 }
 

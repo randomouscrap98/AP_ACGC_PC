@@ -29,9 +29,19 @@
 #include "dolphin/os.h"
 #include "m_field_info.h"
 #include "m_land.h"
+#include "m_bgm.h"
 
 #include <ini.h>
 #include <stdio.h>
+
+// From ac_animal_logo.c and m_bgm.c (static there, un-static on PC)
+extern void aAL_title_decide_p_sel_npc(void);
+extern void mBGMFieldNorm_make_req(void);
+extern void mBGMFieldNorm_delete_req(void);
+
+// Hour change music: fade type of the old song, and game frames of silence before the new one
+#define PC_AP_HOUR_FADE_STOP   0x168
+#define PC_AP_HOUR_FADE_FRAMES 60
 
 // All AP game state: the only global. Everything below is the facade that
 // hands it (and the game/DLL state) to the modules.
@@ -303,7 +313,7 @@ int pc_ap_time_change_allowed(GAME_PLAY* play) {
          !mLd_PlayerManKindCheck() && // foreigner
          !Common_Get(reset_flag) &&
          !mEv_CheckFirstIntro() &&
-         !mEv_CheckArbeit() &&        // Nook's job
+         !mEv_CheckFirstJob() &&      // Nook's job (not CheckArbeit: also the HRA wait/talk after it)
          mPlib_able_submenu_type1((GAME*)play);
 }
 
@@ -329,7 +339,16 @@ static void pc_ap_time_tick(GAME_PLAY* play) {
   }
   lbRTC_GetTime(&now);
   if(lbRTC_IsEqualDate(now.year, now.month, now.day, want.year, want.month, want.day) == lbRTC_EQUAL) {
-    lbRTC_SetTime(&want); // hour-only change: live, no reload
+    // Hour-only change: live, no reload. Common rtc_time right away (like set_date), and the
+    // field music switches itself: mBGMFieldNorm_move only notices a clock crossing :00:00,
+    // which a frozen clock never does.
+    lbRTC_SetTime(&want);
+    lbRTC_TimeCopy(Common_GetPointer(time.rtc_time), &want);
+    // Old song fades out under a short silence that removes itself, then the new one starts
+    // (vanilla pairing from ac_groundhog_control.c; tune by ear)
+    mBGMPsComp_make_ps_co_quiet(PC_AP_HOUR_FADE_STOP, PC_AP_HOUR_FADE_FRAMES);
+    mBGMFieldNorm_delete_req();
+    mBGMFieldNorm_make_req();
   } else {
     g_ap.time.reload = PC_AP_RELOAD_FADE;
     g_ap.time.reload_date = want;
@@ -341,9 +360,6 @@ static void pc_ap_time_tick(GAME_PLAY* play) {
     Actor_info_save_actor(play);
   }
 }
-
-// From ac_animal_logo.c (static there, un-static on PC)
-extern void aAL_title_decide_p_sel_npc(void);
 
 void pc_ap_time_reload_save(void) {
   if(g_ap.time.reload != PC_AP_RELOAD_FADE) {
@@ -407,6 +423,10 @@ int pc_ap_time_reload_take_player(void) {
   }
   g_ap.time.reload = PC_AP_RELOAD_LEAVING;
   return g_ap.time.reload_player;
+}
+
+int pc_ap_time_reloading(void) {
+  return g_ap.time.reload != PC_AP_RELOAD_NONE;
 }
 
 void pc_ap_time_reload_failed(void) {

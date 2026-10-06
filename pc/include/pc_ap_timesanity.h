@@ -23,6 +23,11 @@ struct Save_s;
 #define PC_AP_MONTH_NUM  12
 #define PC_AP_SLOT_NUM   4 // Morning 4-8, Day 9-15, Evening 16-20, Night 21-3
 
+// Seconds of every clock time we set (start date, Date & Time): HH:00:16 is just past vanilla's
+// hour-change silence (XX:59:52 to XX:00:16, mBGMTime_silent_check), which a frozen clock would
+// never leave. The game only shows hours and minutes.
+#define PC_AP_TIME_SEC   16
+
 // Date & Time reload steps (pc_ap_logic.c): fade out, save on the way to the title,
 // player select starts the same player, leave player select
 enum {

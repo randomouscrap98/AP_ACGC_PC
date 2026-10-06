@@ -131,6 +131,8 @@ void pc_ap_time_reload_takeover(struct game_s* game);
 int pc_ap_time_reload_take_player(void);
 // Player select couldn't load the save: stop the reload, the villager talks as usual
 void pc_ap_time_reload_failed(void);
+// Nonzero from the fade until player select is left (player select's music stays off)
+int pc_ap_time_reloading(void);
 
 // Date & Time page stepping (dir +1/-1), see pc_ap_timesanity_step_*
 void pc_ap_time_step_year(lbRTC_time_c* t, int dir);

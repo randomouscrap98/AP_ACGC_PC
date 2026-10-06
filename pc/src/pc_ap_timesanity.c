@@ -38,7 +38,7 @@ int pc_ap_timesanity_start(const pc_ap_timesanity* t, lbRTC_time_c* start) {
   if(!t->frozen) {
     return 0;
   }
-  start->sec = 0;
+  start->sec = PC_AP_TIME_SEC;
   start->min = 0;
   start->hour = pc_ap_timesanity_slot_first_hour(t->start_slot);
   start->day = 1;
@@ -239,7 +239,7 @@ static void pc_ap_timesanity_fix(const pc_ap_timesanity* t, lbRTC_time_c* time) 
     }
   }
   time->min = 0;
-  time->sec = 0;
+  time->sec = PC_AP_TIME_SEC;
   time->weekday = lbRTC_Week(time->year, time->month, time->day);
 }
 

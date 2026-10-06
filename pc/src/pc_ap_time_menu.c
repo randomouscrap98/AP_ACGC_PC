@@ -24,7 +24,7 @@ static int pc_ap_time_menu_same_date(const lbRTC_time_c* a, const lbRTC_time_c* 
 void pc_ap_time_menu_enter(void) {
   lbRTC_GetTime(&s_now);
   s_now.min = 0;
-  s_now.sec = 0;
+  s_now.sec = PC_AP_TIME_SEC;
   s_pending = s_now;
   s_sel = ROW_YEAR;
   s_confirm = 0;
