@@ -1,5 +1,5 @@
 #include "pc_ap_strings.h"
-#include "ap_slotdata.h"
+#include "pc_ap_logic.h"
 #include "pc_ap_time.h"
 #include "pc_menu_util.h"
 #include "m_font.h" // CHAR_SPACE, CHAR_NEW_LINE, mem_clear
@@ -130,29 +130,28 @@ static int pc_ap_msg_rover_no_clock(u8* buf, int len) {
 // Generic pc message patch, which will patch ANY message which matches
 // one of the patches.
 u32 pc_ap_msg_patch(int index, mMsg_Data_c* msg_data, u32 size) {
-  ap_slotdata * sd = ap_getslotdata();
   char needle[64];
   char replace[64];
   needle[0] = 0;
   replace[0] = 0;
   if(index == 2078) { // 19,800, so loan 0 + 2400
     strcpy(needle, "19,800");
-    pc_comma_number(replace, sizeof(replace), sd->loans[0] + 2400);
+    pc_comma_number(replace, sizeof(replace), pc_ap_loan_amount(0) + 2400);
   } else if(index == 2107) {
     strcpy(needle, "17,400");
-    pc_comma_number(replace, sizeof(replace), sd->loans[0]);
+    pc_comma_number(replace, sizeof(replace), pc_ap_loan_amount(0));
   } else if(index == 4222) {
     strcpy(needle, "148,000");
-    pc_comma_number(replace, sizeof(replace), sd->loans[1]);
+    pc_comma_number(replace, sizeof(replace), pc_ap_loan_amount(1));
   } else if(index == 4226) {
     strcpy(needle, "398,000");
-    pc_comma_number(replace, sizeof(replace), sd->loans[3]);
+    pc_comma_number(replace, sizeof(replace), pc_ap_loan_amount(3));
   } else if(index == 11954) {
     strcpy(needle, "49,800");
-    pc_comma_number(replace, sizeof(replace), sd->loans[2]);
+    pc_comma_number(replace, sizeof(replace), pc_ap_loan_amount(2));
   } else if(index == 11963) {
     strcpy(needle, "798,000");
-    pc_comma_number(replace, sizeof(replace), sd->loans[4]);
+    pc_comma_number(replace, sizeof(replace), pc_ap_loan_amount(4));
   }
   if(needle[0]) { // there is a replacement
     size = pc_replace_msg_text(msg_data->text_buf.data, size, needle, replace);

@@ -1,5 +1,7 @@
 #include "pc_ap_logic.h"
 #include "pc_ap_state.h"
+#include "pc_ap_loansanity.h"
+#include "pc_ap_credit.h"
 #include "pc_ap_mail.h"
 #include "pc_ap_overlay.h"
 #include "pc_ap_strings.h"
@@ -14,28 +16,64 @@
 #include "m_demo.h"
 #include "m_submenu.h"
 
+#include <ini.h>
 #include <stdio.h>
 
 // WARN: keep in sync with apworld items.py!
 #define PC_AP_ITEM_PROGRESSIVE_HOUSE  0x10000
-// WARN: keep in sync with apworld items.py! Small/Modest/Large Bell Credit
-#define PC_AP_ITEM_BELL_CREDIT  0x10001
-// WARN: keep in sync with apworld locations.py! Loan k (0-4), check j (1-based) = base + k * 0x1000 + j
-#define PC_AP_LOC_LOAN_BASE   0x10000
 // WARN: keep in sync with apworld locations.py! Favor n (1-based) = base + n
 #define PC_AP_LOC_FAVOR_BASE  0x20000
 #define PC_AP_FAVORS_MAX      100
+
+#define PC_AP_FAVORS_SECTION  "favors"
+#define PC_AP_FAVORS_KEY_DONE "done"
+
+// All AP game state: the only global. Everything below is the facade that
+// hands it (and the game/DLL state) to the modules.
+typedef struct {
+  pc_ap_loansanity loans;
+  pc_ap_credit credit;
+  int favors_done; // persisted; until favors gets its own module
+} pc_ap;
+
+static pc_ap g_ap;
+
+void pc_ap_load(const char* filename) {
+  ap_slotdata* sd = ap_getslotdata();
+  pc_ap_loansanity_init(&g_ap.loans, sd);
+  pc_ap_credit_init(&g_ap.credit, sd);
+  g_ap.favors_done = 0;
+
+  ini_t* ini = pc_ap_state_read(filename);
+  if(ini == NULL) {
+    return;
+  }
+  pc_ap_loansanity_load(&g_ap.loans, ini);
+  pc_ap_credit_load(&g_ap.credit, ini);
+  g_ap.favors_done = pc_ap_ini_get_int(ini, PC_AP_FAVORS_SECTION, PC_AP_FAVORS_KEY_DONE, 0);
+  ini_destroy(ini);
+}
+
+int pc_ap_save(const char* filename) {
+  ini_t* ini = ini_create(NULL);
+  pc_ap_loansanity_save(&g_ap.loans, ini);
+  pc_ap_credit_save(&g_ap.credit, ini);
+  pc_ap_ini_set_int(ini, PC_AP_FAVORS_SECTION, PC_AP_FAVORS_KEY_DONE, g_ap.favors_done);
+  int ok = pc_ap_state_write(filename, ini);
+  ini_destroy(ini);
+  return ok;
+}
 
 int pc_ap_start_allowed(void) {
   return ap_roomplayer_valid(&ap_getconnectstate()->roomplayer);
 }
 
 int pc_ap_loan_amount(int loan) {
-  if(loan < 0 || loan >= AP_LOAN_NUM) {
-    return 0;
-  }
-  ap_slotdata * sd = ap_getslotdata();
-  return sd->loans[loan];
+  return pc_ap_loansanity_amount(&g_ap.loans, loan);
+}
+
+int pc_ap_loans_enabled(void) {
+  return g_ap.loans.enabled;
 }
 
 int pc_ap_accepting(void) {
@@ -109,42 +147,13 @@ int pc_ap_loans_paid(void) {
 }
 
 int pc_ap_house_offer_allowed(void) {
-  // No loansanity: vanilla upgrades
-  if(!ap_getslotdata()->loansanity) {
-    return 1;
-  }
-  return pc_ap_houses_received() > pc_ap_house_stage();
-}
-
-void pc_ap_loan_letter_due(void) {
-  pc_ap_state_get()->loan_letter_pending = pc_ap_house_stage() + 1;
-}
-
-void pc_ap_loan_letter_update(void) {
-  pc_ap_state* s = pc_ap_state_get();
-  if(s->loan_letter_pending == 0 || pc_ap_my_home() == NULL) {
-    return;
-  }
-  // Paid off (or a newer loan) before the letter went out: drop it
-  int loan = s->loan_letter_pending - 1;
-  if(pc_ap_house_stage() != loan || pc_ap_loans_paid() != loan) {
-    s->loan_letter_pending = 0;
-    return;
-  }
-  // Pelly only takes payments after Nook's job (aPG_set_post_status): wait
-  if(mEv_CheckFirstJob()) {
-    return;
-  }
-  // Mailbox full: stays pending, try again next time
-  if(pc_ap_send_letter(ap_getslotdata()->loan_letter_text, EMPTY_NO)) {
-    s->loan_letter_pending = 0;
-  }
+  return pc_ap_loansanity_offer_allowed(&g_ap.loans, pc_ap_houses_received(), pc_ap_house_stage());
 }
 
 int pc_ap_favors_done(void) {
   // The sidecar rolls back with an unsaved quit, the server never does (and
   // knows favors done offline only once they're sent): take the higher one
-  int local = pc_ap_state_get()->favors_done;
+  int local = g_ap.favors_done;
   int server = (int)(ap_highest_checked(PC_AP_LOC_FAVOR_BASE + 1,
       PC_AP_LOC_FAVOR_BASE + PC_AP_FAVORS_MAX) - PC_AP_LOC_FAVOR_BASE);
   return local > server ? local : server;
@@ -155,7 +164,7 @@ void pc_ap_favor_done(void) {
     return;
   }
   int n = pc_ap_favors_done() + 1;
-  pc_ap_state_get()->favors_done = n;
+  g_ap.favors_done = n;
   if(n <= ap_getslotdata()->favorsanity) {
     ap_send_location(PC_AP_LOC_FAVOR_BASE + n);
   }
@@ -170,20 +179,16 @@ void pc_ap_send_favor_checks(void) {
 }
 
 int pc_ap_bells_received(void) {
-  ap_slotdata* sd = ap_getslotdata();
   long long total = 0;
   size_t count = ap_getitemcount();
   for(size_t i = 0; i < count; i++) {
-    int64_t tier = ap_getitem(i) - PC_AP_ITEM_BELL_CREDIT;
-    if(tier >= 0 && tier < AP_BELLCREDIT_NUM) {
-      total += sd->bell_credits[tier];
-    }
+    total += pc_ap_credit_value(&g_ap.credit, ap_getitem(i));
   }
   return total > 0x7FFFFFFF ? 0x7FFFFFFF : (int)total;
 }
 
 int pc_ap_bells_pending(void) {
-  return pc_ap_bells_received() - pc_ap_state_get()->bells_applied;
+  return pc_ap_credit_pending(&g_ap.credit, pc_ap_bells_received());
 }
 
 int pc_ap_goals_done(void) {
@@ -208,48 +213,46 @@ int pc_ap_in_game(GAME_PLAY* play) {
          play->fb_wipe_mode == WIPE_MODE_NONE;                // no scene transition
 }
 
-static u32 pc_ap_min(u32 a, u32 b) {
-  return a < b ? a : b;
-}
-
-// Apply the Bell Credits balance to one place: the loan (down to 100) or,
-// once no loans are left, savings. Anything else waits.
-static void pc_ap_bells_toast(const char* fmt, u32 amount) {
+static void pc_ap_bells_toast(const char* fmt, int amount) {
   char num[32];
   char text[96];
-  pc_comma_number(num, sizeof(num), (int)amount);
+  pc_comma_number(num, sizeof(num), amount);
   snprintf(text, sizeof(text), fmt, num);
   pc_ap_overlay_toast(text);
 }
 
-static void pc_ap_apply_bells(void) {
-  pc_ap_state* s = pc_ap_state_get();
-  mHm_hs_c* home = pc_ap_my_home();
+// Bell Credits into the loan or savings; the "loan ready" letter once credits
+// bring the loan down to 100
+static void pc_ap_apply_credit(int paid) {
   Private_c* priv = Now_Private;
-  int balance = pc_ap_bells_pending();
-  if(balance <= 0 || home->size_info.renew) {
-    return; // nothing to apply, or Nook hasn't named the new loan yet
+  int to_savings;
+  int amount = pc_ap_credit_apply(&g_ap.credit, pc_ap_bells_received(), priv, paid, &to_savings);
+  if(amount <= 0) {
+    return;
   }
-
-  if(priv->inventory.loan > 100) {
-    // Pay the loan down to 100; the player pays the last 100 at the post office
-    u32 pay = pc_ap_min((u32)balance, priv->inventory.loan - 100);
-    priv->inventory.loan -= pay;
-    s->bells_applied += (int)pay;
-    pc_ap_bells_toast(AP_CTRL_YELLOW "%s" AP_CTRL_WHITE " Bells paid toward your loan", pay);
+  if(to_savings) {
+    pc_ap_bells_toast(AP_CTRL_YELLOW "%s" AP_CTRL_WHITE " Bells deposited to savings", amount);
+  } else {
+    pc_ap_bells_toast(AP_CTRL_YELLOW "%s" AP_CTRL_WHITE " Bells paid toward your loan", amount);
     if(priv->inventory.loan == 100) {
-      pc_ap_loan_letter_due();
-    }
-  } else if(priv->inventory.loan == 0 && pc_ap_house_stage() == 4) {
-    // No loans left: savings
-    u32 deposit = pc_ap_min((u32)balance, mPr_DEPOSIT_MAX - priv->bank_account);
-    priv->bank_account += deposit;
-    s->bells_applied += (int)deposit;
-    if(deposit > 0) {
-      pc_ap_bells_toast(AP_CTRL_YELLOW "%s" AP_CTRL_WHITE " Bells deposited to savings", deposit);
+      pc_ap_loansanity_letter_due(&g_ap.loans, pc_ap_house_stage());
     }
   }
-  // Otherwise wait: last 100 owed, or the next loan isn't set yet
+}
+
+// Sends the pending "loan ready" letter, or drops it if its loan got paid off
+static void pc_ap_loan_letter(int paid) {
+  if(!pc_ap_loansanity_letter_update(&g_ap.loans, paid)) {
+    return;
+  }
+  // Pelly only takes payments after Nook's job (aPG_set_post_status): wait
+  if(mEv_CheckFirstJob()) {
+    return;
+  }
+  // Mailbox full: stays pending, try again next time
+  if(pc_ap_send_letter(g_ap.loans.letter_text, EMPTY_NO)) {
+    pc_ap_loansanity_letter_sent(&g_ap.loans);
+  }
 }
 
 void pc_ap_tick(GAME_PLAY* play) {
@@ -258,18 +261,17 @@ void pc_ap_tick(GAME_PLAY* play) {
     return;
   }
   // Checks: every check of every paid-off loan (the DLL drops repeats)
-  ap_slotdata* sd = ap_getslotdata();
   int paid = pc_ap_loans_paid();
-  for(int k = 0; k < paid && k < AP_LOAN_NUM; k++) {
-    for(int j = 1; j <= sd->loan_checks[k]; j++) {
-      ap_send_location(PC_AP_LOC_LOAN_BASE + k * 0x1000 + j);
-    }
+  int64_t ids[PC_AP_LOANSANITY_CHECKS_MAX];
+  int n = pc_ap_loansanity_checks(&g_ap.loans, paid, ids, PC_AP_LOANSANITY_CHECKS_MAX);
+  for(int i = 0; i < n; i++) {
+    ap_send_location(ids[i]);
   }
   pc_ap_send_favor_checks();
   if(pc_ap_goals_done()) {
     ap_send_goal();
   }
 
-  pc_ap_apply_bells();
-  pc_ap_loan_letter_update();
+  pc_ap_apply_credit(paid);
+  pc_ap_loan_letter(paid); // credit stops at 100 owed, so paid is unchanged
 }

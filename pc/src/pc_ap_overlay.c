@@ -185,7 +185,7 @@ static void pc_ap_draw_tracker(struct game_s* game) {
   char output[256];
   if(sd->valid && pc_ap_accepting()) {
     int len;
-    if(sd->loansanity) {
+    if(pc_ap_loans_enabled()) {
       int loan_amount = pc_ap_loan_amount(pc_ap_house_stage());
       len = snprintf(output, sizeof(output),
         "Loans Paid: %d / %d\nHouse Unlocks: %d / %d\nLoan: %d / %d\nPending credit: %d",

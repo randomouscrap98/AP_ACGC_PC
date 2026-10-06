@@ -29,6 +29,7 @@
 #include "pc_settings.h"
 #include "pc_dirs.h"
 #include "pc_ap_state.h"
+#include "pc_ap_logic.h"
 #include "m_cockroach.h"
 #include "m_all_grow_ovl.h"
 #include "m_home.h"
@@ -443,7 +444,7 @@ static int pc_save_write_gci_to(const char* gci_path, const char* tmp_path) {
         char ap_path[PC_PATHSIZE];
         pc_ap_state_path(ap_path, sizeof(ap_path), 0);
         pc_save_rotate_backups(ap_path); // same rotation as the GCI above
-        if (!pc_ap_state_save(ap_path)) {
+        if (!pc_ap_save(ap_path)) {
             OSReport("[PC] AP state save failed: %s\n", ap_path);
         }
     }
@@ -899,7 +900,7 @@ void mCD_LoadLand(void) {
   {
     char ap_path[PC_PATHSIZE];
     pc_ap_state_path(ap_path, sizeof(ap_path), backup_no);
-    pc_ap_state_load(ap_path);
+    pc_ap_load(ap_path);
   }
 
   Common_Set(save_error_type, 0);

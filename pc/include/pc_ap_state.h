@@ -1,5 +1,6 @@
 // Preserve ap state alongside the save file (so you never touch
-// the original save file, but we can add ap values)
+// the original save file, but we can add ap values). Only the file and
+// ini plumbing: each pc_ap_* module saves/loads its own section.
 #ifndef PC_AP_STATE_H
 #define PC_AP_STATE_H
 
@@ -10,19 +11,17 @@
 extern "C" {
 #endif
 
-typedef struct {
-  int bells_applied;
-  int favors_done;
-  int loan_letter_pending; // "loan ready" letter owed: 0 = none, else loan index + 1
-} pc_ap_state;
+struct ini_t;
 
-// Save global ap state into given file
-int pc_ap_state_save(const char * filename);
-// Load global ap state from given file
-int pc_ap_state_load(const char * filename);
+// Read the sidecar into a new ini (ini_destroy it). NULL if missing or unreadable
+struct ini_t* pc_ap_state_read(const char * filename);
+// Write ini to the sidecar (through a temp file). Returns 0 on failure
+int pc_ap_state_write(const char * filename, struct ini_t* ini);
 
-// Get a pointer to the ap state (through which you can mutate values)
-pc_ap_state * pc_ap_state_get(void);
+// Integer property in a section; def if the section or key is missing
+int pc_ap_ini_get_int(struct ini_t* ini, const char * section, const char * key, int def);
+// Add an integer property to a section (made if missing)
+void pc_ap_ini_set_int(struct ini_t* ini, const char * section, const char * key, int value);
 
 #ifdef __cplusplus
 }
