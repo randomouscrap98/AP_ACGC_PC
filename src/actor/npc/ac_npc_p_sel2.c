@@ -56,6 +56,9 @@ static void aNPS2_actor_init(ACTOR* actorx, GAME* game);
 static void aNPS2_actor_move(ACTOR* actorx, GAME* game);
 static void aNPS2_actor_draw(ACTOR* actorx, GAME* game);
 static void aNPS2_actor_save(ACTOR* actorx, GAME* game);
+#ifdef TARGET_PC
+static void aNPS2_pc_reload(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play);
+#endif
 
 // clang-format off
 ACTOR_PROFILE Npc_P_Sel2_Profile = {
@@ -177,6 +180,9 @@ static void aNPS2_actor_move(ACTOR* actorx, GAME* game) {
     NPC_P_SEL2_ACTOR* p_sel2 = (NPC_P_SEL2_ACTOR*)actorx;
     GAME_PLAY* play = (GAME_PLAY*)game;
 
+#ifdef TARGET_PC
+    aNPS2_pc_reload(p_sel2, play); /* before the talk request in move_proc */
+#endif
     CLIP(npc_clip)->move_proc(actorx, game);
 
     if (p_sel2->start_flag == TRUE && aNPS2_setup_game_start(p_sel2, play) == TRUE) {

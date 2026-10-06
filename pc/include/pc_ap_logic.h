@@ -7,6 +7,7 @@
 #include "lb_rtc.h"
 
 struct game_play_s;
+struct game_s;
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,7 +18,8 @@ int pc_ap_start_allowed(void);
 
 // Every frame, right after ap_poll: the first time pc_ap_start_allowed is true
 // (slot_data is in), sets every module's config from slot_data (pc_ap_init).
-// Config stays zero (everything off) until then.
+// Config stays zero (everything off) until then. Also ends a Date & Time reload's
+// screen cover once player select is left.
 void pc_ap_update(void);
 // Module config from slot_data now (pc_ap_update does it once; tests call it directly)
 void pc_ap_init(void);
@@ -92,7 +94,8 @@ int pc_ap_time_start(lbRTC_time_c* start);
 
 // Date & Time change request (item 3). The pause menu only requests; pc_ap_tick applies it on
 // the next play frame. A newer request replaces an unapplied one. If the gate fails then, the
-// request is dropped with a toast. Same date: sets the time live. New date: fade + reload (TODO item 4).
+// request is dropped with a toast (also while a reload runs). Same date: sets the time live.
+// New date: the reload below.
 void pc_ap_time_request(const lbRTC_time_c* time);
 
 // Stage 3. Called by the reload right before the save. Sets the clock to time (lbRTC_SetTime,
@@ -109,6 +112,19 @@ void pc_ap_time_normalize_start(void);
 // For the hook in mAGrw_CheckSpoilKabuTime: once after a set_date, returns 1 with the stashed
 // decision in spoil; otherwise 0 (vanilla check runs).
 int pc_ap_time_take_turnip_spoil(int* spoil);
+
+// Reload for a new date (stage 5). pc_ap_tick fades out like the save villager's quit, the
+// trademark scene saves with the new date, loads it and goes straight to player select, whose
+// villager starts the same player without talking. The overlay covers the screen from the save
+// until player select is left.
+// Top of trademark_init (before common_data_reinit): sets the date and saves. Nothing without a reload.
+void pc_ap_time_reload_save(void);
+// End of trademark_init: replaces the logo with the load + player select. Nothing without a reload.
+void pc_ap_time_reload_takeover(struct game_s* game);
+// Player select's villager, every frame: the player to start without talking (once), else -1
+int pc_ap_time_reload_take_player(void);
+// Player select couldn't load the save: stop the reload, the villager talks as usual
+void pc_ap_time_reload_failed(void);
 
 // Date & Time page stepping (dir +1/-1), see pc_ap_timesanity_step_*
 void pc_ap_time_step_year(lbRTC_time_c* t, int dir);

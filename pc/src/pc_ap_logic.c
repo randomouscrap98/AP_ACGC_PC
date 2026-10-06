@@ -16,6 +16,17 @@
 #include "m_play.h"
 #include "m_demo.h"
 #include "m_submenu.h"
+#include "m_actor.h"
+#include "m_player_lib.h"
+#include "m_notice.h"
+#include "m_card.h"
+#include "m_rcp.h"
+#include "m_scene_table.h"
+#include "ac_animal_logo.h"
+#include "game.h"
+#include "graph.h"
+#include "jsyswrap.h"
+#include "dolphin/os.h"
 
 #include <ini.h>
 #include <stdio.h>
@@ -43,10 +54,13 @@ void pc_ap_init(void) {
   g_ap.initialized = 1;
 }
 
+static void pc_ap_time_reload_update(void);
+
 void pc_ap_update(void) {
   if(!g_ap.initialized && pc_ap_start_allowed()) {
     pc_ap_init();
   }
+  pc_ap_time_reload_update();
 }
 
 void pc_ap_load(const char* filename) {
@@ -289,6 +303,9 @@ static void pc_ap_time_tick(GAME_PLAY* play) {
   if(!pc_ap_timesanity_take_request(&g_ap.time, &want)) {
     return;
   }
+  if(g_ap.time.reload != PC_AP_RELOAD_NONE) {
+    return; // a reload is already running
+  }
   // TODO(item 6): real gate (outdoors in own town, no Nook job); pc_ap_in_game for now
   if(!pc_ap_in_game(play)) {
     pc_ap_overlay_toast("Can't change the date right now");
@@ -298,7 +315,95 @@ static void pc_ap_time_tick(GAME_PLAY* play) {
   if(lbRTC_IsEqualDate(now.year, now.month, now.day, want.year, want.month, want.day) == lbRTC_EQUAL) {
     lbRTC_SetTime(&want); // hour-only change: live, no reload
   } else {
-    // TODO(item 4): fade out + reload; the date is set there, right before the save. Dropped for now.
+    g_ap.time.reload = PC_AP_RELOAD_FADE;
+    g_ap.time.reload_date = want;
+    g_ap.time.reload_player = Common_Get(player_no);
+    // The save villager's quit (aNRST_think_title): fade to black, then the trademark scene
+    play->fb_wipe_type = WIPE_TYPE_FADE_BLACK;
+    play->fb_fade_type = FADE_TYPE_OUT_RETURN_TITLE;
+    mPlib_request_main_invade_type1((GAME*)play);
+    Actor_info_save_actor(play);
+  }
+}
+
+// From ac_animal_logo.c (static there, un-static on PC)
+extern void aAL_title_decide_p_sel_npc(void);
+
+void pc_ap_time_reload_save(void) {
+  if(g_ap.time.reload != PC_AP_RELOAD_FADE) {
+    return;
+  }
+  pc_ap_overlay_screen_cover(1);
+  pc_ap_time_set_date(&g_ap.time.reload_date);
+  // Like aNRST_before_save. After set_date: it mails/deletes fish records against the clock.
+  Save_Set(cheated_flag, FALSE);
+  Save_Set(npc_force_go_home, FALSE);
+  mNtc_set_auto_nwrite_data();
+  // Mode 0 = the quit save. Synchronous on PC (pc_m_card.c).
+  if(mCD_SaveHome_bg(0, NULL) != mCD_TRANS_ERR_NONE) {
+    OSReport("[AP] Date & Time reload: save failed, loading the last save\n");
+  }
+  g_ap.time.reload = PC_AP_RELOAD_TITLE;
+}
+
+// What the title's Start press does, then player select
+static void pc_ap_time_reload_title(GAME* game) {
+  mEv_SetTitleDemo(mEv_TITLEDEMO_NONE);
+  title_action_data_init_start_select(NULL); // loads the save just written
+  aAL_title_decide_p_sel_npc();              // after the load: picks one of its villagers
+  Common_Set(transition.wipe_type, WIPE_TYPE_FADE_BLACK);
+  Save_Set(scene_no, SCENE_PLAYERSELECT_2);
+  g_ap.time.reload = PC_AP_RELOAD_PLAYER_SELECT;
+  GAME_GOTO_NEXT(game, play, PLAY);
+}
+
+// Replaces trademark_main: an empty frame (like trademark_draw, minus logo and fade), then the switch
+static void pc_ap_time_reload_main(GAME* game) {
+  GRAPH* g = game->graph;
+
+  OPEN_DISP(g);
+  gSPSegment(NOW_POLY_OPA_DISP++, 0, 0);
+  DisplayList_initialize(g, 0, 0, 0, NULL);
+  CLOSE_DISP(g);
+  game_draw_last(g);
+
+  pc_ap_time_reload_title(game);
+}
+
+// trademark_cleanup without its per-house loop: that resets the house palettes and clears the
+// mailboxes, which would now hit the save just loaded
+static void pc_ap_time_reload_cleanup(GAME* game) {
+  JW_SetLogoMode(0);
+  SoftResetEnable = TRUE;
+}
+
+void pc_ap_time_reload_takeover(GAME* game) {
+  if(g_ap.time.reload != PC_AP_RELOAD_TITLE) {
+    return;
+  }
+  game->exec = &pc_ap_time_reload_main;
+  game->cleanup = &pc_ap_time_reload_cleanup;
+}
+
+int pc_ap_time_reload_take_player(void) {
+  if(g_ap.time.reload != PC_AP_RELOAD_PLAYER_SELECT) {
+    return -1;
+  }
+  g_ap.time.reload = PC_AP_RELOAD_LEAVING;
+  return g_ap.time.reload_player;
+}
+
+void pc_ap_time_reload_failed(void) {
+  g_ap.time.reload = PC_AP_RELOAD_NONE;
+  pc_ap_overlay_screen_cover(0);
+}
+
+// Uncovers the screen once player select is left (Game_play_change_scene_move_end);
+// the town's own fade-in follows
+static void pc_ap_time_reload_update(void) {
+  if(g_ap.time.reload == PC_AP_RELOAD_LEAVING && Save_Get(scene_no) != SCENE_PLAYERSELECT_2) {
+    g_ap.time.reload = PC_AP_RELOAD_NONE;
+    pc_ap_overlay_screen_cover(0);
   }
 }
 

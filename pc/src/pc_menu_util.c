@@ -18,7 +18,7 @@ void pc_menu_dim_rect(GRAPH* graph, int alpha) {
         G_TP_NONE | G_CYC_1CYCLE | G_PM_NPRIMITIVE,
         G_AC_NONE | G_ZS_PRIM | G_RM_XLU_SURF | G_RM_XLU_SURF2);
     gDPSetCombineMode(gfx++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
-    gDPSetPrimColor(gfx++, 0, 0, 0, 16, 8, alpha);
+    gDPSetPrimColor(gfx++, 0, 0, 0, 0, 0, alpha);
     gfx = gfx_gSPTextureRectangle1(gfx,
         0, 0, 320 << 2, 240 << 2, 0, 0, 0, 0, 0);
     gDPPipeSync(gfx++);
@@ -39,7 +39,7 @@ void pc_menu_dim_box(GRAPH* graph, f32 x, f32 y, f32 w, f32 h, int alpha) {
       G_TP_NONE | G_CYC_1CYCLE | G_PM_NPRIMITIVE,
       G_AC_NONE | G_ZS_PRIM | G_RM_XLU_SURF | G_RM_XLU_SURF2);
   gDPSetCombineMode(gfx++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
-  gDPSetPrimColor(gfx++, 0, 0, 0, 16, 8, alpha);
+  gDPSetPrimColor(gfx++, 0, 0, 0, 0, 0, alpha);
   gfx = gfx_gSPTextureRectangle1(gfx,
       (int)(x * 4), (int)(y * 4), (int)((x + w) * 4), (int)((y + h) * 4), 0, 0, 0, 0, 0);
   gDPPipeSync(gfx++);

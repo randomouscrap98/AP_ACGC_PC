@@ -86,7 +86,10 @@ ACTOR_PROFILE Animal_Logo_Profile = {
 #include "../src/actor/ac_animal_logo_misc.c"
 
 static void aAL_setupAction(ANIMAL_LOGO_ACTOR* actor, GAME* game, int action);
-static void aAL_title_decide_p_sel_npc();
+#ifndef TARGET_PC
+static
+#endif
+void aAL_title_decide_p_sel_npc(); /* PC: also used by the Date & Time reload (pc_ap_logic.c) */
 
 static void aAL_actor_ct(ACTOR* actor, GAME* game) {
   ANIMAL_LOGO_ACTOR* logo_actor = (ANIMAL_LOGO_ACTOR*)actor;
@@ -160,7 +163,10 @@ static void aAL_title_game_data_init_start_select(ANIMAL_LOGO_ACTOR* actor, GAME
   mBGMPsComp_make_ps_wipe(0x1168);
 }
 
-static void aAL_title_decide_p_sel_npc() {
+#ifndef TARGET_PC
+static
+#endif
+void aAL_title_decide_p_sel_npc() {
   int selected;
   mActor_name_t npc_name;
   int idx;

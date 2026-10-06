@@ -102,7 +102,16 @@ extern void title_action_data_init_start_select(GAME_PLAY* play) {
     mTD_rtc_reserve();
     mTM_clear_renew_is();
     mNpc_ClearAnimalInfo(mNpc_GetInAnimalP());
+#ifdef TARGET_PC
+    /* NULL from the Date & Time reload (pc_ap_logic.c): it sets the scene itself */
+    if (play == NULL) {
+        decide_next_scene_no();
+    } else {
+        play->next_scene_no = decide_next_scene_no();
+    }
+#else
     play->next_scene_no = decide_next_scene_no();
+#endif
 
     {
         int rtc_enabled = Common_Get(time.rtc_enabled);

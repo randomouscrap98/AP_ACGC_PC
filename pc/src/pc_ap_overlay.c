@@ -21,6 +21,12 @@
 // Default to yes visible
 int g_pc_ap_overlay_visible = 1;
 
+static int s_screen_cover = 0;
+
+void pc_ap_overlay_screen_cover(int on) {
+  s_screen_cover = on;
+}
+
 int pc_ap_overlay_toggle(void) {
   g_pc_ap_overlay_visible = !g_pc_ap_overlay_visible;
   return g_pc_ap_overlay_visible;
@@ -209,7 +215,15 @@ static void pc_ap_draw_tracker(struct game_s* game) {
 
 void pc_ap_overlay_draw(struct game_s* game) {
   pc_ap_update_toasts();
-  if(g_pc_nes_active || !g_pc_ap_overlay_visible || game == NULL || game->graph == NULL) {
+  if(game == NULL || game->graph == NULL) {
+    return;
+  }
+  // Drawn even with the overlay hidden; nothing else on top
+  if(s_screen_cover) {
+    pc_menu_dim_rect(game->graph, 255);
+    return;
+  }
+  if(g_pc_nes_active || !g_pc_ap_overlay_visible) {
     return;
   }
   // Title screen (logo actor alive, from its fade-in on) or the pause menu

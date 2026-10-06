@@ -1268,6 +1268,56 @@ static void aNPS2_game_start_wait(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
     }
 }
 
+#ifdef TARGET_PC
+static int aNPS2_pc_reload_loading = FALSE;
+
+// Date & Time reload (pc_ap_logic.c): no talk, starts the stashed player right away.
+// aNPS2_pc_continue_first_player + aNPS2_game_start_wait without the messages.
+static void aNPS2_pc_reload(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
+    int player_no = pc_ap_time_reload_take_player();
+
+    if (player_no >= 0) {
+        p_sel2->talk_end_flag = TRUE; // no talk request
+        p_sel2->player_no = player_no;
+        p_sel2->card_file_idx = -1;
+        p_sel2->talk_idx = aNPS2_TALK_START_TYPE0;
+        aNPS2_set_str_ct_player_name(player_no);
+
+        if (lbRTC_IsOverTime(&Save_Get(save_check).time, Common_GetPointer(time.rtc_time)) == lbRTC_LESS) {
+            Save_Set(cheated_flag, TRUE);
+            Save_Set(npc_force_go_home, TRUE);
+        }
+        aNPS2_time_check();
+        pc_ap_time_normalize_start();
+        if (aNPS2_chk_setup_birthday_demo() == TRUE) {
+            Now_Private->state_flags |= mPr_FLAG_BIRTHDAY_ACTIVE;
+        } else {
+            Now_Private->state_flags &= ~mPr_FLAG_BIRTHDAY_ACTIVE;
+        }
+        aNPS2_pc_reload_loading = TRUE;
+    }
+
+    if (!aNPS2_pc_reload_loading) {
+        return;
+    }
+    switch (aNPS2_setup_load_data(p_sel2, play)) {
+        case mCD_TRANS_ERR_NONE:
+            aNPS2_pc_reload_loading = FALSE;
+            p_sel2->start_flag = TRUE; // aNPS2_actor_move leaves through the house door
+            break;
+        case mCD_TRANS_ERR_BUSY:
+            break;
+        default:
+            // Couldn't load: the villager talks as usual (vanilla would go back to the title)
+            OSReport("[AP] Date & Time reload: player select couldn't load the player\n");
+            aNPS2_pc_reload_loading = FALSE;
+            p_sel2->talk_end_flag = FALSE;
+            pc_ap_time_reload_failed();
+            break;
+    }
+}
+#endif
+
 static void aNPS2_return_title(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
     if (mDemo_Check(mDemo_TYPE_SPEAK, (ACTOR*)p_sel2) == FALSE) {
         play->fb_fade_type = FADE_TYPE_OUT_RETURN_TITLE;

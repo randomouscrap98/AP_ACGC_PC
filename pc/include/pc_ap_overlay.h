@@ -22,6 +22,10 @@ int pc_ap_overlay_toggle(void);
 
 void pc_ap_overlay_draw(struct game_s* game);
 
+// Opaque black over the whole screen while on (and nothing else of the overlay),
+// to hide scene changes
+void pc_ap_overlay_screen_cover(int on);
+
 // Show a local toast (not from the server) right away. Goes straight into the
 // on-screen list; when that's full the oldest toast is dropped.
 void pc_ap_overlay_toast(const char* text);
