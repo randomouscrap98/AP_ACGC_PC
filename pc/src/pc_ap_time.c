@@ -170,24 +170,18 @@ static void pc_ap_time_clamp(lbRTC_time_c* t, const lbRTC_time_c* before) {
   }
 }
 
-void pc_ap_time_set_date(const lbRTC_time_c* time) {
+// The one-day rule: rewrites the "last" timestamps so old_time -> new_time counts as one day
+// passing, and stashes the turnip decision for the next grow tick. Returns 0 (does nothing)
+// when normalized_time_travel is off.
+static int pc_ap_time_normalize(const lbRTC_time_c* old_time, const lbRTC_time_c* new_time) {
   ap_slotdata* sd = ap_getslotdata();
-  lbRTC_time_c old_time;
-  lbRTC_time_c new_time = *time;
   lbRTC_time_c before;
   int i;
 
-  lbRTC_GetTime(&old_time);
-  new_time.weekday = lbRTC_Week(new_time.year, new_time.month, new_time.day);
-  lbRTC_SetTime(&new_time);
-  // The save stamps save_check.time from rtc_time (mFRm_SetSaveCheckData), and no frame runs
-  // between here and the save to refresh it. A stale old date there sets cheated_flag on load.
-  lbRTC_TimeCopy(Common_GetPointer(time.rtc_time), &new_time);
-
   if(!sd->normalized_time_travel) {
-    return;
+    return 0;
   }
-  pc_ap_time_day_before(&before, &new_time);
+  pc_ap_time_day_before(&before, new_time);
 
   pc_ap_time_set_last(Save_GetPointer(all_grow_renew_time), &before); // growth, turnips, dump
   pc_ap_time_set_last(Save_GetPointer(last_grow_time), &before);      // villager move-in (24h)
@@ -226,8 +220,38 @@ void pc_ap_time_set_date(const lbRTC_time_c* time) {
     }
   }
 
-  l_turnip_spoil = pc_ap_time_turnips_spoil(&old_time, &new_time);
+  l_turnip_spoil = pc_ap_time_turnips_spoil(old_time, new_time);
   l_turnip_spoil_pending = 1;
+  return 1;
+}
+
+void pc_ap_time_set_date(const lbRTC_time_c* time) {
+  lbRTC_time_c old_time;
+  lbRTC_time_c new_time = *time;
+
+  lbRTC_GetTime(&old_time);
+  new_time.weekday = lbRTC_Week(new_time.year, new_time.month, new_time.day);
+  lbRTC_SetTime(&new_time);
+  // The save stamps save_check.time from rtc_time (mFRm_SetSaveCheckData), and no frame runs
+  // between here and the save to refresh it. A stale old date there sets cheated_flag on load.
+  lbRTC_TimeCopy(Common_GetPointer(time.rtc_time), &new_time);
+
+  pc_ap_time_normalize(&old_time, &new_time);
+}
+
+void pc_ap_time_normalize_start(void) {
+  lbRTC_time_c* saved = Save_GetPointer(save_check.time);
+  lbRTC_time_c* now = Common_GetPointer(time.rtc_time);
+
+  if(pc_ap_time_cleared(saved) ||
+     lbRTC_IsEqualDate(saved->year, saved->month, saved->day, now->year, now->month, now->day) == lbRTC_EQUAL) {
+    return;
+  }
+  if(pc_ap_time_normalize(saved, now)) {
+    // No time-travel penalty either (vanilla sets these for an earlier date or a Set clock)
+    Save_Set(cheated_flag, FALSE);
+    Save_Set(npc_force_go_home, FALSE);
+  }
 }
 
 // Date & Time page stepping

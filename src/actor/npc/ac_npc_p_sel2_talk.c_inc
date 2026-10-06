@@ -1227,6 +1227,9 @@ static void aNPS2_game_start_wait(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
             }
 
             aNPS2_time_check();
+#ifdef TARGET_PC
+            pc_ap_time_normalize_start();
+#endif
             if (p_sel2->talk_idx == aNPS2_TALK_START_TYPE0) {
                 if (aNPS2_chk_setup_birthday_demo() == TRUE) {
                     Now_Private->state_flags |= mPr_FLAG_BIRTHDAY_ACTIVE;

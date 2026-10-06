@@ -50,6 +50,11 @@ void pc_ap_time_tick(struct game_play_s* play);
 // decision (old clock -> time) for the next grow tick. Off = a plain vanilla clock change.
 void pc_ap_time_set_date(const lbRTC_time_c* time);
 
+// Player select's "start game" (aNPS2_game_start_wait, after vanilla's cheat check and Set clock):
+// with normalized_time_travel on and a new date since the last save (time passing or Set clock),
+// applies the same one-day rule as set_date and clears cheated_flag / npc_force_go_home.
+void pc_ap_time_normalize_start(void);
+
 // date's day before, 00:00:00, weekday recomputed (lbRTC_Sub_DD leaves it stale).
 void pc_ap_time_day_before(lbRTC_time_c* out, const lbRTC_time_c* date);
 
