@@ -2374,9 +2374,24 @@ BELL_CREDITS = {
     LARGE_BELL_CREDIT: (10, 10),
 }
 
+# Museumsanity. Categories in the game's order (mMmd_CATEGORY_*), things in museum index order.
+# Museum slot = category * 0x40 + index: the same number for the item and both of its locations.
+from .museum import BUGS, FISH, FOSSILS, PAINTINGS  # noqa: E402 (generated data)
 
-# Museumsanity: donation items per category (item names come with the items)
-MUSEUM_BUGS = 40
-MUSEUM_FISH = 40
-MUSEUM_FOSSILS = 25
-MUSEUM_PAINTINGS = 15
+MUSEUM_FOSSIL, MUSEUM_PAINTING, MUSEUM_BUG, MUSEUM_FISH = range(4)
+MUSEUM_NAMES = [FOSSILS, PAINTINGS, [name for name, _ in BUGS], [name for name, _ in FISH]]
+MUSEUM_ITEM_BASE_ID = 0x10100  # + museum slot
+
+
+def museum_slot(category: int, index: int) -> int:
+    return category * 0x40 + index
+
+
+def museum_item_name(name: str) -> str:
+    return f"Museum: {name}"
+
+
+for _c, _names in enumerate(MUSEUM_NAMES):
+    for _i, _name in enumerate(_names):
+        AP_ITEM_NAME_TO_ID[museum_item_name(_name)] = MUSEUM_ITEM_BASE_ID + museum_slot(_c, _i)
+ITEM_NAME_TO_ID.update(AP_ITEM_NAME_TO_ID)

@@ -8,9 +8,11 @@ from Options import OptionError, OptionGroup
 from worlds.AutoWorld import WebWorld, World
 from worlds.generic.Rules import set_rule
 
-from .items import (BELL_CREDITS, ITEM_NAME_TO_ID, MONTHS, MUSEUM_BUGS, MUSEUM_FISH, MUSEUM_FOSSILS,
-                    MUSEUM_PAINTINGS, PROGRESSIVE_HOUSE, TIME_SLOTS)
-from .locations import LOANS, LOCATION_NAME_TO_ID, favor_location_name, loan_location_name, split_loan_checks
+from .items import (BELL_CREDITS, ITEM_NAME_TO_ID, MONTHS, MUSEUM_BUG, MUSEUM_FISH, MUSEUM_NAMES,
+                    PROGRESSIVE_HOUSE, TIME_SLOTS, museum_item_name)
+from .locations import (LOANS, LOCATION_NAME_TO_ID, favor_location_name, loan_location_name, museum_donate_name,
+                        museum_find_name, split_loan_checks)
+from .museum import BUGS, FISH
 from . import options
 from .options import AnimalCrossingOptions, personality_key, villager_key
 from .villagers import PERSONALITIES, VILLAGERS
@@ -129,20 +131,29 @@ class AnimalCrossingWorld(World):
             raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] The Statue goal needs Loansanity on.")
         if "Museum" in self.options.goal.value and not self.options.museumsanity:
             raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] The Museum goal needs Museumsanity on.")
-        # Donation items: one per thing in each category that has checks
-        self.museum_items = 0
+        # Museum check mode per category (MUSEUM_NAMES order), bits: 1 = find, 2 = donate. 0 = vanilla, no items.
+        self.museum_modes = [0, 0, 0, 0]
         if self.options.museumsanity:
-            categories = [
-                (self.options.bug_checks.value, MUSEUM_BUGS),
-                (self.options.fish_checks.value, MUSEUM_FISH),
-                (self.options.fossil_checks.value, MUSEUM_FOSSILS),
-                (self.options.painting_checks.value, MUSEUM_PAINTINGS),
+            self.museum_modes = [
+                self.options.fossil_checks.value,
+                self.options.painting_checks.value,
+                self.options.bug_checks.value,
+                self.options.fish_checks.value,
             ]
-            self.museum_items = sum(count for mode, count in categories if mode)
-            if self.museum_items == 0:
+            if not any(self.museum_modes):
                 raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Museumsanity needs at least one of Bug, "
                                   f"Fish or Fossil Checks on.")
-        self.museum_goal_count = math.ceil(self.museum_items * self.options.museum_goal_percent.value / 100)
+        # One donation item per thing in each category with checks; locations per mode bit
+        self.museum_item_names = []
+        self.museum_locations = []
+        for c, names in enumerate(MUSEUM_NAMES):
+            for name in names if self.museum_modes[c] else []:
+                self.museum_item_names.append(museum_item_name(name))
+                if self.museum_modes[c] & 1:
+                    self.museum_locations.append(museum_find_name(c, name))
+                if self.museum_modes[c] & 2:
+                    self.museum_locations.append(museum_donate_name(name))
+        self.museum_goal_count = math.ceil(len(self.museum_item_names) * self.options.museum_goal_percent.value / 100)
         self.ac_player_name = clamp_name(self.options.player_name.value) or clamp_name(self.player_name)
         self.ac_town_name = clamp_name(self.options.town_name.value) or DEFAULT_TOWN
         self.ac_letter_sender = (clamp_name(self.options.letter_sender.value, LETTER_SENDER_MAX)
@@ -174,7 +185,7 @@ class AnimalCrossingWorld(World):
         else:
             self.loan_checks = [0] * len(LOANS)
 
-        locations = sum(self.loan_checks) + self.options.favorsanity.value
+        locations = sum(self.loan_checks) + self.options.favorsanity.value + len(self.museum_locations)
         if locations == 0:
             raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Without Loansanity, Favorsanity must be "
                               f"at least 1.")
@@ -182,6 +193,7 @@ class AnimalCrossingWorld(World):
         items = len(LOANS) - 1 if self.options.loansanity else 0
         if self.options.timesanity:
             items += len(MONTHS) + len(TIME_SLOTS) - 2
+        items += len(self.museum_item_names)
         if locations < items:
             raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Total checks at {locations}, it must be at "
                               f"least {items} with these options. Raise optional checks such as Favorsanity.")
@@ -190,6 +202,7 @@ class AnimalCrossingWorld(World):
         menu = Region("Menu", self.player, self.multiworld)
         names = [loan_location_name(k, j) for k in range(len(LOANS)) for j in range(1, self.loan_checks[k] + 1)]
         names += [favor_location_name(n) for n in range(1, self.options.favorsanity.value + 1)]
+        names += self.museum_locations
         menu.add_locations({name: LOCATION_NAME_TO_ID[name] for name in names}, AnimalCrossingLocation)
         self.multiworld.regions.append(menu)
 
@@ -206,6 +219,7 @@ class AnimalCrossingWorld(World):
                     self.multiworld.push_precollected(self.create_item(name))
                 else:
                     pool.append(self.create_item(name))
+        pool += [self.create_item(name) for name in self.museum_item_names]
         # Everything else is filler. Bell credit amounts are set in fill_slot_data from what was actually placed,
         # so adding other items to the pool later doesn't break the total.
         free = len(self.multiworld.get_unfilled_locations(self.player)) - len(pool)
@@ -214,6 +228,8 @@ class AnimalCrossingWorld(World):
 
     def create_item(self, name: str) -> AnimalCrossingItem:
         if name == PROGRESSIVE_HOUSE or name in MONTHS or name in TIME_SLOTS:
+            classification = ItemClassification.progression
+        elif name.startswith("Museum: ") and "Museum" in self.options.goal.value:
             classification = ItemClassification.progression
         else:
             classification = ItemClassification.filler
@@ -231,18 +247,32 @@ class AnimalCrossingWorld(World):
                 location = self.multiworld.get_location(loan_location_name(k, j), self.player)
                 set_rule(location, lambda state, k=k: state.has(PROGRESSIVE_HOUSE, self.player, k))
 
+        # Bugs and fish (catch and donate): a month and a time slot it spawns in. Fossils: nothing yet.
+        if self.options.timesanity:
+            for c, critters in ((MUSEUM_BUG, BUGS), (MUSEUM_FISH, FISH)):
+                for name, when in critters:
+                    rule = self.spawn_rule(when)
+                    for location in (museum_find_name(c, name), museum_donate_name(name)):
+                        if location in self.museum_locations:
+                            set_rule(self.multiworld.get_location(location, self.player), rule)
+
         # All chosen goals are required
         goals = {
             # The statue comes after the last loan, which needs every house upgrade
             "Statue": lambda state: state.has(PROGRESSIVE_HOUSE, self.player, len(LOANS) - 1),
-            # TODO: museum_goal_count donation items, once they exist
-            "Museum": lambda state: True,
+            "Museum": lambda state: state.has_from_list(self.museum_item_names, self.player, self.museum_goal_count),
         }
         chosen = [goals[g] for g in sorted(self.options.goal.value)]
         # Goals are only sent when K.K. Slider plays (Saturday 20:00-23:59, any month): needs a slot with those hours
         if self.options.timesanity:
             chosen.append(lambda state: state.has_any(("Evening Hours", "Night Hours"), self.player))
         self.multiworld.completion_condition[self.player] = lambda state: all(goal(state) for goal in chosen)
+
+    def spawn_rule(self, when: dict[int, tuple[int, ...]]):
+        # when: {month: time slots} from museum.py; any owned month with an owned slot of it
+        pairs = [(MONTHS[m], [TIME_SLOTS[s] for s in slots]) for m, slots in when.items()]
+        return lambda state: any(state.has(month, self.player) and state.has_any(slots, self.player)
+                                 for month, slots in pairs)
 
     def bell_credit_amounts(self) -> dict[str, int]:
         # Count the bell credits this player will actually receive (placed anywhere, plus start inventory),
