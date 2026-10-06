@@ -1,7 +1,7 @@
 #version 330 core
 in vec4 v_color;
-in vec2 v_texcoord0;
-in vec2 v_texcoord1;
+centroid in vec2 v_texcoord0;
+centroid in vec2 v_texcoord1;
 in vec3 v_normal;
 in float v_fog_z;
 

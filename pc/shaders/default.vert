@@ -11,8 +11,8 @@ uniform vec4 u_texmtx_row1[2];
 uniform int u_texmtx_enable[2];
 uniform int u_texgen_src[2];  /* 1=GX_TG_NRM, 4=GX_TG_TEX0, etc. */
 out vec4 v_color;
-out vec2 v_texcoord0;
-out vec2 v_texcoord1;
+centroid out vec2 v_texcoord0;
+centroid out vec2 v_texcoord1;
 out vec3 v_normal;
 out float v_fog_z;
 void main() {

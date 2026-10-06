@@ -468,13 +468,20 @@ set_target_properties(ac_pc PROPERTIES
 )
 
 # Copy shader files to output directory (loaded at runtime, with embedded fallback)
-add_custom_command(TARGET ac_pc POST_BUILD
+# Own target with real dependencies, so a shader-only edit still gets copied (a POST_BUILD step
+# only ran when the exe relinked)
+add_custom_command(
+    OUTPUT "${CMAKE_BINARY_DIR}/bin/shaders/default.vert" "${CMAKE_BINARY_DIR}/bin/shaders/default.frag"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bin/shaders"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    COMMAND ${CMAKE_COMMAND} -E copy
         "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.vert"
         "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.frag"
         "${CMAKE_BINARY_DIR}/bin/shaders/"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.vert" "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.frag"
     COMMENT "Copying shader files to bin/shaders/"
+)
+add_custom_target(ac_pc_shaders ALL
+    DEPENDS "${CMAKE_BINARY_DIR}/bin/shaders/default.vert" "${CMAKE_BINARY_DIR}/bin/shaders/default.frag"
 )
 
 # Copy SDL2.dll next to executable so users don't need it on PATH
