@@ -415,7 +415,7 @@ class ShopsAlwaysOpen(Toggle):
     display_name = "Shops Always Open"
 
 
-class NoWeeds(DefaultOnToggle):
+class NoWeeds(Toggle):
     """Weeds never grow in your town."""
     display_name = "No Weeds"
 
@@ -423,6 +423,14 @@ class NoWeeds(DefaultOnToggle):
 class MoreFavors(DefaultOnToggle):
     """Villagers will almost always give you a job when you talk to them."""
     display_name = "More Favors"
+
+
+class VillagersDontLeave(Toggle):
+    """
+    Villagers never move out, and nobody talks about moving. Once your town has 15 villagers,
+    nobody new moves in either.
+    """
+    display_name = "Villagers Don't Leave"
 
 
 class TurnipsNeverSpoil(Toggle):
@@ -630,6 +638,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     shops_always_open: ShopsAlwaysOpen
     no_weeds: NoWeeds
     more_favors: MoreFavors
+    villagers_dont_leave: VillagersDontLeave
     turnips_never_spoil: TurnipsNeverSpoil
     no_falling_stalks: NoFallingStalks
     normalized_time_travel: NormalizedTimeTravel

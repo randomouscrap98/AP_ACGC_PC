@@ -31,6 +31,11 @@ int pc_ap_qol_shops_always_open(void);
 // happen now). Caps and full pockets stay vanilla.
 int pc_ap_qol_more_favors(void);
 
+// Nonzero when villagers never move out. Hooked in mNpc_ForceRemove (no removal)
+// and mNpc_SetRemoveAnimalNo (no villager picked to talk about moving; clears an
+// already picked one, so talks fall through to the normal ones).
+int pc_ap_qol_villagers_dont_leave(void);
+
 // Nonzero when turnips never spoil. Hooked in mAGrw_CheckSpoilKabuTime (weekly
 // spoil) and mAGrw_ZuruSpoilKabu (going back in time).
 int pc_ap_qol_turnips_never_spoil(void);

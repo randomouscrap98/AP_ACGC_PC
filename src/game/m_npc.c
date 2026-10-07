@@ -17,6 +17,7 @@
 #include "ac_npc.h"
 #ifdef TARGET_PC
 #include "pc_ap_villagers.h"
+#include "pc_ap_qol.h"
 #endif
 
 static int mNpc_CheckIslandAnimalID(AnmPersonalID_c* anm_id);
@@ -3297,6 +3298,14 @@ static int mNpc_DecideRemoveAnimalNo(Animal_c* animal, int ignored_idx, int now_
 extern void mNpc_SetRemoveAnimalNo(u8* remove_animal_no, Animal_c* animal, int ignored_idx) {
     u8 now_npc_max = Save_Get(now_npc_max);
 
+#ifdef TARGET_PC
+    // Villagers Don't Leave: nobody is picked to talk about moving (also clears an old pick)
+    if (pc_ap_qol_villagers_dont_leave()) {
+        remove_animal_no[0] = 0xFF;
+        return;
+    }
+#endif
+
     if (now_npc_max > ANIMAL_NUM_MIN && remove_animal_no[0] == 0xFF) {
         /* First, try to pick an animal which all players have met before */
         int remove_no = mNpc_DecideRemoveAnimalNo_Friend(animal, ignored_idx, TRUE);
@@ -4495,6 +4504,12 @@ extern void mNpc_ForceRemove() {
     int animal_num = mNpc_GetAnimalNum();
     int ignored_idx = -1;
     int idx;
+
+#ifdef TARGET_PC
+    if (pc_ap_qol_villagers_dont_leave()) {
+        return;
+    }
+#endif
 
     if (animal_num == ANIMAL_NUM_MAX && force_remove_date->year != 0xFFFF && force_remove_date->month != 0xFF &&
         force_remove_date->day != 0xFF) {

@@ -22,6 +22,11 @@ int pc_ap_qol_more_favors(void) {
   return sd->valid && sd->more_favors;
 }
 
+int pc_ap_qol_villagers_dont_leave(void) {
+  ap_slotdata* sd = ap_getslotdata();
+  return sd->valid && sd->villagers_dont_leave;
+}
+
 int pc_ap_qol_turnips_never_spoil(void) {
   ap_slotdata* sd = ap_getslotdata();
   return sd->valid && sd->turnips_never_spoil;

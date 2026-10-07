@@ -128,6 +128,30 @@ static void pc_ap_timesanity_set_last(lbRTC_time_c* t, const lbRTC_time_c* befor
   }
 }
 
+// Villager move-out countdown (mNpc_ForceRemove: full town and 10+ days since this date,
+// either direction). Not an absence timer: keeps the days counted so far and adds the one
+// day a date change counts as. Cleared (0xFF/0xFFFF) = no countdown, left alone.
+static void pc_ap_timesanity_shift_force_remove(lbRTC_ymd_c* ymd, const lbRTC_time_c* old_time,
+                                                const lbRTC_time_c* new_time) {
+  lbRTC_time_c from;
+  lbRTC_time_c old_day = *old_time;
+  lbRTC_time_c to = *new_time;
+  int days;
+
+  if(ymd->year == 0xFFFF || ymd->month == 0xFF || ymd->day == 0xFF) {
+    return;
+  }
+  mTM_ymd_2_time(&from, ymd);
+  old_day.hour = old_day.min = old_day.sec = 0;
+  days = lbRTC_GetIntervalDays(&from, &old_day) + lbRTC_GetIntervalDays(&old_day, &from); // one is 0
+
+  to.hour = to.min = to.sec = 0;
+  lbRTC_Sub_DD(&to, days + 1);
+  ymd->year = to.year;
+  ymd->month = to.month;
+  ymd->day = to.day;
+}
+
 // Times that only break when they end up in the future (backward jumps): pulled back to
 // the day before, never moved forward.
 static void pc_ap_timesanity_clamp(lbRTC_time_c* t, const lbRTC_time_c* before) {
@@ -148,6 +172,7 @@ int pc_ap_timesanity_normalize(pc_ap_timesanity* t, Save_t* save,
 
   pc_ap_timesanity_set_last(&save->all_grow_renew_time, &before); // growth, turnips, dump
   pc_ap_timesanity_set_last(&save->last_grow_time, &before);      // villager move-in (24h)
+  pc_ap_timesanity_shift_force_remove(&save->force_remove_date, old_time, new_time); // move-out
   for(i = 0; i < PLAYER_NUM; i++) {
     pc_ap_timesanity_set_last(&save->homes[i].goki.time, &before); // cockroaches after 7 days
   }
