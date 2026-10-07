@@ -34,6 +34,8 @@ void pc_ap_tools_save(const pc_ap_tools* t, struct ini_t* ini);
 
 // 1 if the game may hand out item: received, not a pool tool, or the option is off
 int pc_ap_tools_allowed(const pc_ap_tools* t, mActor_name_t item);
+// Received tools, bit per tool (net, rod, shovel), also with the option off
+int pc_ap_tools_owned(const pc_ap_tools* t);
 // Next received tool that isn't mailed yet: its index in the received item list
 // (for the sender), -1 when done. Start *it at 0. Also with the option off
 // (Starting Tool is given either way).

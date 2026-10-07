@@ -326,6 +326,14 @@ int pc_ap_tool_allowed(mActor_name_t item) {
   return pc_ap_tools_allowed(&g_ap.tools, item);
 }
 
+int pc_ap_tools_in_pool(void) {
+  return g_ap.tools.enabled;
+}
+
+int pc_ap_tools_received(void) {
+  return pc_ap_tools_owned(&g_ap.tools);
+}
+
 int pc_ap_shop_tools(const int* table, int n, int* out) {
   int count = 0;
   for(int i = 0; i < n; i++) {
@@ -342,6 +350,14 @@ mActor_name_t pc_ap_lost_found_item(mActor_name_t item) {
 
 int pc_ap_time_frozen(void) {
   return g_ap.time.frozen;
+}
+
+int pc_ap_time_owned_months(void) {
+  return pc_ap_timesanity_owned_months(&g_ap.time);
+}
+
+int pc_ap_time_owned_slots(void) {
+  return pc_ap_timesanity_owned_slots(&g_ap.time);
 }
 
 int pc_ap_time_start(lbRTC_time_c* start) {

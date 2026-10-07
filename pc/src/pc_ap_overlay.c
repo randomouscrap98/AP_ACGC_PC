@@ -227,6 +227,29 @@ static void apo_append_museum(char* out, size_t size) {
   }
 }
 
+// One line of letters, white if its bit in owned is set, gray if not
+static void apo_append_owned(char* out, size_t size, const char* label, const char* const* names, int n, int owned) {
+  apo_append(out, size, "\n%s:", label);
+  for(int i = 0; i < n; i++) {
+    apo_append(out, size, "%s%s", (owned & (1 << i)) ? AP_CTRL_WHITE : AP_CTRL_GRAY, names[i]);
+  }
+  apo_append(out, size, AP_CTRL_WHITE);
+}
+
+// Timesanity months and time slots, Tools in Pool tools
+static void apo_append_unlocks(char* out, size_t size) {
+  static const char* months[] = { " J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D" };
+  static const char* slots[] = { " Mn", " Dy", " Ev", " Ni" };
+  static const char* tools[] = { " Nt", " Rd", " Sv" }; // pc_ap_tools order: net, rod, shovel
+  if(pc_ap_time_frozen()) {
+    apo_append_owned(out, size, "Months", months, 12, pc_ap_time_owned_months());
+    apo_append_owned(out, size, "Hours", slots, 4, pc_ap_time_owned_slots());
+  }
+  if(pc_ap_tools_in_pool()) {
+    apo_append_owned(out, size, "Tools", tools, 3, pc_ap_tools_received());
+  }
+}
+
 static void pc_ap_draw_tracker(struct game_s* game) {
   ap_slotdata * sd = ap_getslotdata();
   char output[512];
@@ -247,6 +270,7 @@ static void pc_ap_draw_tracker(struct game_s* game) {
       apo_append(output, sizeof(output), "\nFavors: %d / %d", pc_ap_favors_done(), pc_ap_favors_total());
     }
     apo_append_museum(output, sizeof(output));
+    apo_append_unlocks(output, sizeof(output));
   } else {
     snprintf(output, sizeof(output), "Waiting on save...");
   }

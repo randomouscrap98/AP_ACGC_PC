@@ -132,6 +132,9 @@ void pc_ap_museum_plaque_name(mActor_name_t item);
 
 // 1 if the game may hand out item (not a pool tool, or received, or the option is off)
 int pc_ap_tool_allowed(mActor_name_t item);
+// Tracker: Tools in Pool on, and the received tools (bit per tool: net, rod, shovel)
+int pc_ap_tools_in_pool(void);
+int pc_ap_tools_received(void);
 // mSP_SelectTool (Nook's shop): copies the allowed tools of table[0..n) to out, returns
 // how many. The shop picks from those and caps its tool count at that number.
 int pc_ap_shop_tools(const int* table, int n, int* out);
@@ -143,6 +146,9 @@ mActor_name_t pc_ap_lost_found_item(mActor_name_t item);
 
 // Nonzero when the clock is frozen (timesanity on in slot_data)
 int pc_ap_time_frozen(void);
+// Tracker: received months (bit m = month m, 0 = January) and time slots (bit s, 0 = Morning)
+int pc_ap_time_owned_months(void);
+int pc_ap_time_owned_slots(void);
 
 // The frozen clock's start date. lbRTC_GetHardTime returns it as the "hardware clock" while
 // frozen, so game time (start + time_delta) stands still and a new town (time_delta 0) begins

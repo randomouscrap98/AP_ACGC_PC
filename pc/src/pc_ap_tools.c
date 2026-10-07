@@ -43,6 +43,16 @@ int pc_ap_tools_allowed(const pc_ap_tools* t, mActor_name_t item) {
   return ap_item_count(item) > 0;
 }
 
+int pc_ap_tools_owned(const pc_ap_tools* t) {
+  int owned = 0;
+  for(int i = 0; i < PC_AP_TOOL_NUM; i++) {
+    if(ap_item_count(pc_ap_tool_items[i]) > 0) {
+      owned |= 1 << i;
+    }
+  }
+  return owned;
+}
+
 // Not gated by enabled: without Tools in Pool, a received tool is the Starting Tool freebie
 int pc_ap_tools_next_unmailed(const pc_ap_tools* t, int* it) {
   for(int i = *it; i < PC_AP_TOOL_NUM; i++) {
