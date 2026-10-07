@@ -2382,6 +2382,23 @@ MUSEUM_FOSSIL, MUSEUM_PAINTING, MUSEUM_BUG, MUSEUM_FISH = range(4)
 MUSEUM_NAMES = [FOSSILS, PAINTINGS, [name for name, _ in BUGS], [name for name, _ in FISH]]
 MUSEUM_ITEM_BASE_ID = 0x10100  # + museum slot
 
+# Fossil Spawns "Season Locked": the season each fossil comes out in, dinosaurs kept together.
+# WARN: the client has a copy for offline play (ap_slotdata.cpp default_fossil_seasons)!
+SEASONS = ["Spring", "Summer", "Autumn", "Winter"]
+SEASON_MONTHS = [(2, 3, 4), (5, 6, 7), (8, 9, 10), (11, 0, 1)]  # month 0-11
+_SEASON_OF_FOSSIL = {
+    # Spring: early life, hatching, flyers coming back
+    "Trilobite": 0, "Ammonite": 0, "Dinosaur Egg": 0, "Ptera Skull": 0, "Ptera Right Wing": 0, "Ptera Left Wing": 0,
+    # Summer: the Jurassic giants
+    "Apato Skull": 1, "Apato Tail": 1, "Apato Torso": 1, "Stego Skull": 1, "Stego Tail": 1, "Stego Torso": 1,
+    # Autumn: the Late Cretaceous, the dinosaurs' "fall"
+    "T-rex Skull": 2, "T-rex Tail": 2, "T-rex Torso": 2, "Tricera Skull": 2, "Tricera Tail": 2, "Tricera Torso": 2,
+    # Winter: ice age, cold seas, tracks in the snow
+    "Mammoth Skull": 3, "Mammoth Torso": 3, "Plesio Skull": 3, "Plesio Neck": 3, "Plesio Torso": 3,
+    "Amber": 3, "Dinosaur Track": 3,
+}
+FOSSIL_SEASONS = [_SEASON_OF_FOSSIL[name] for name in FOSSILS]  # museum fossil index -> season
+
 
 def museum_slot(category: int, index: int) -> int:
     return category * 0x40 + index

@@ -11,6 +11,9 @@
 #include "m_field_info.h"
 #include "m_random_field_h.h"
 #include "m_common_data.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
 static u8 l_museum_name_str[PLAYER_NAME_LEN] = {
     CHAR_M, CHAR_u, CHAR_s, CHAR_e, CHAR_u, CHAR_m, CHAR_SPACE, CHAR_SPACE
@@ -62,6 +65,11 @@ extern void mMsm_SendInformationMail() {
 static void mMsm_GetFossil(mActor_name_t* fossil) {
     static int hit_table[mMsm_FOSSIL_TYPE_NUM] = { FALSE, TRUE };
 
+#ifdef TARGET_PC
+    if (pc_ap_pick_fossil(fossil)) {
+        return;
+    }
+#endif
     *fossil = mSP_RandomOneFossilSelect(hit_table[RANDOM(mMsm_FOSSIL_TYPE_NUM)]);
 }
 

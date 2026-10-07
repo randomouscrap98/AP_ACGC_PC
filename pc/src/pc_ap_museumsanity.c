@@ -12,6 +12,10 @@ static const int pc_ap_museum_count[mMmd_CATEGORY_NUM] = {
 
 void pc_ap_museumsanity_init(pc_ap_museumsanity* m, const ap_slotdata* sd) {
   memset(m, 0, sizeof(*m));
+  m->fossil_spawns = sd->fossil_spawns;
+  for(int i = 0; i < mMmd_FOSSIL_NUM; i++) {
+    m->fossil_seasons[i] = sd->fossil_seasons[i];
+  }
   if(!sd->museumsanity) {
     return;
   }
@@ -145,4 +149,65 @@ int pc_ap_museumsanity_sender(const pc_ap_museumsanity* m, int cat, int idx) {
     }
   }
   return -1;
+}
+
+int pc_ap_museumsanity_instant_fossils(const pc_ap_museumsanity* m) {
+  return (m->checks[mMmd_CATEGORY_FOSSIL] & AP_MUSEUM_FIND) != 0;
+}
+
+void pc_ap_museumsanity_fossil_wanted(const pc_ap_museumsanity* m, const mMmd_info_c* info,
+                                      u8 wanted[mMmd_FOSSIL_NUM]) {
+  int active = pc_ap_museumsanity_active(m, mMmd_CATEGORY_FOSSIL);
+  for(int idx = 0; idx < mMmd_FOSSIL_NUM; idx++) {
+    if(active) {
+      wanted[idx] = pc_ap_museumsanity_find_check(m, mMmd_CATEGORY_FOSSIL, idx) >= 0 ||
+                    pc_ap_museumsanity_donate_check(m, mMmd_CATEGORY_FOSSIL, idx) >= 0;
+    } else {
+      // 4 bits per fossil, even index in the low nibble
+      int donator = (info->fossil_bit[idx >> 1] >> ((idx & 1) * 4)) & 0x0F;
+      wanted[idx] = donator == mMmd_DONATOR_NONE;
+    }
+  }
+}
+
+// Museum fossils 0-19 are dinosaur parts, 20-24 single fossils (m_room_type.c birth types)
+#define PC_AP_FOSSIL_PARTS_NUM 20
+
+int pc_ap_museumsanity_pick_fossil(const pc_ap_museumsanity* m, const u8 wanted[mMmd_FOSSIL_NUM], int month,
+                                   f32 r) {
+  int weight[mMmd_FOSSIL_NUM];
+  int total = 0;
+  // March-May = 0 (spring) ... December-February = 3 (winter)
+  int season = (month + 10) % 12 / 3;
+  for(int idx = 0; idx < mMmd_FOSSIL_NUM; idx++) {
+    if(m->fossil_spawns == AP_FOSSIL_SPAWNS_SEASON_LOCKED) {
+      weight[idx] = m->fossil_seasons[idx] == season;
+    } else {
+      // Vanilla: 50/50 dinosaur part or single fossil (mMsm_GetFossil), so a single
+      // fossil is 4 times as likely as a part (20 parts, 5 singles)
+      weight[idx] = idx < PC_AP_FOSSIL_PARTS_NUM ? 1 : 4;
+      if(m->fossil_spawns == AP_FOSSIL_SPAWNS_DYNAMIC && wanted[idx]) {
+        weight[idx] *= PC_AP_SPAWN_BOOST;
+      }
+    }
+    total += weight[idx];
+  }
+  // A season with no fossils (bad slot_data): any fossil
+  if(total == 0) {
+    for(int idx = 0; idx < mMmd_FOSSIL_NUM; idx++) {
+      weight[idx] = 1;
+    }
+    total = mMmd_FOSSIL_NUM;
+  }
+  int roll = (int)(r * total);
+  if(roll >= total) {
+    roll = total - 1;
+  }
+  for(int idx = 0; idx < mMmd_FOSSIL_NUM; idx++) {
+    if(roll < weight[idx]) {
+      return idx;
+    }
+    roll -= weight[idx];
+  }
+  return mMmd_FOSSIL_NUM - 1; // not reached
 }

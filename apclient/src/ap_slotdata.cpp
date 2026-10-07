@@ -91,6 +91,19 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   sd->fossil_checks = slot_data.value("fossil_checks", 0) % 4;
   sd->painting_checks = slot_data.value("painting_checks", 0) % 4;
   sd->museum_goal_count = slot_data.value("museum_goal_count", 0);
+  sd->critter_spawns = slot_data.value("critter_spawns", 0) % 3;
+  sd->fossil_spawns = slot_data.value("fossil_spawns", 2) % 3;
+  // WARN: copy of the apworld's FOSSIL_SEASONS (items.py), the default for offline play
+  static const int default_fossil_seasons[AP_FOSSIL_NUM] = {
+    2, 2, 2, 2, 2, 2, // Tricera, T-rex: autumn
+    1, 1, 1, 1, 1, 1, // Apato, Stego: summer
+    0, 0, 0,          // Ptera: spring
+    3, 3, 3, 3, 3,    // Plesio, Mammoth: winter
+    3, 3,             // Amber, Dinosaur Track: winter
+    0, 0, 0,          // Ammonite, Dinosaur Egg, Trilobite: spring
+  };
+  read_int_array(slot_data, "fossil_seasons", sd->fossil_seasons, default_fossil_seasons, AP_FOSSIL_NUM);
+  for (int i = 0; i < AP_FOSSIL_NUM; i++) { sd->fossil_seasons[i] &= 3; }
   sd->timesanity = slot_data.value("timesanity", 0) % 2;
   sd->starting_month = slot_data.value("starting_month", 0) % 12;
   sd->starting_time = slot_data.value("starting_time", 0) % 4;

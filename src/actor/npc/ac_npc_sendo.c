@@ -7,6 +7,9 @@
 #include "libultra/libultra.h"
 #include "GBA2/gba2.h"
 #include "m_ledit_ovl.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
 static void aSEN_actor_ct(ACTOR* actorx, GAME* game);
 static void aSEN_actor_dt(ACTOR* actorx, GAME* game);

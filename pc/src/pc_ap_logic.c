@@ -33,6 +33,9 @@
 #include "m_bgm.h"
 #include "m_msg.h"
 #include "m_museum_display.h"
+#include "m_room_type.h"
+#include "m_name_table.h"
+#include "libc64/qrand.h"
 
 #include <ini.h>
 #include <stdio.h>
@@ -126,6 +129,10 @@ int pc_ap_accepting(void) {
 
 int pc_ap_offline(void) {
   return ap_getconnectstate()->state == AP_CSTATE_OFFLINE;
+}
+
+int pc_ap_island_closed(void) {
+  return !pc_ap_offline();
 }
 
 int pc_ap_houses_received(void) {
@@ -541,6 +548,38 @@ void pc_ap_caught(mActor_name_t item) {
   if(id >= 0 && pc_ap_accepting()) {
     ap_send_location(id);
   }
+}
+
+// fossil_spawns pick for the current month, as the fossil's furniture item
+static mActor_name_t pc_ap_pick_fossil_item(void) {
+  u8 wanted[mMmd_FOSSIL_NUM];
+  pc_ap_museumsanity_fossil_wanted(&g_ap.museum, &Save_Get(museum_display), wanted);
+  int month = Common_Get(time.rtc_time).month - 1; // lbRTC months are 1-12
+  int idx = pc_ap_museumsanity_pick_fossil(&g_ap.museum, wanted, month, fqrand());
+  return mRmTp_FtrIdx2FtrItemNo(FTR_DIN_TRIKERA_HEAD + idx, mRmTp_DIRECT_SOUTH);
+}
+
+int pc_ap_pick_fossil(mActor_name_t* fossil) {
+  if(g_ap.museum.fossil_spawns == AP_FOSSIL_SPAWNS_VANILLA) {
+    return 0;
+  }
+  *fossil = pc_ap_pick_fossil_item();
+  return 1;
+}
+
+mActor_name_t pc_ap_dug_item(mActor_name_t item) {
+  if(item != ITM_FOSSIL || !pc_ap_museumsanity_instant_fossils(&g_ap.museum) || !pc_ap_accepting()) {
+    return item;
+  }
+  mActor_name_t fossil = pc_ap_pick_fossil_item();
+  int cat, idx;
+  if(pc_ap_museumsanity_slot_of(fossil, &cat, &idx)) {
+    int64_t id = pc_ap_museumsanity_find_check(&g_ap.museum, cat, idx);
+    if(id >= 0) {
+      ap_send_location(id);
+    }
+  }
+  return fossil;
 }
 
 void pc_ap_museum_plaque_name(mActor_name_t item) {

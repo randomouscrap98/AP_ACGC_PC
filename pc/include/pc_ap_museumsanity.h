@@ -27,7 +27,13 @@ typedef struct {
   // Config (slot_data); all 0 when museumsanity is off or offline
   int checks[mMmd_CATEGORY_NUM]; // AP_MUSEUM_* bits per category, 0 = vanilla
   int goal_count;                // Museum goal: donation items to receive
+  // Spawns: set even when museumsanity is off and offline
+  int fossil_spawns;                       // AP_FOSSIL_SPAWNS_*
+  int fossil_seasons[mMmd_FOSSIL_NUM];     // season per fossil (0 spring .. 3 winter)
 } pc_ap_museumsanity;
+
+// Dynamic spawns: wanted things are this many times as likely as vanilla
+#define PC_AP_SPAWN_BOOST 4
 
 void pc_ap_museumsanity_init(pc_ap_museumsanity* m, const ap_slotdata* sd);
 
@@ -53,6 +59,17 @@ int64_t pc_ap_museumsanity_donate_check(const pc_ap_museumsanity* m, int cat, in
 int64_t pc_ap_museumsanity_find_check(const pc_ap_museumsanity* m, int cat, int idx);
 // Slot (player) that sent the donation item, -1 if not received or inactive
 int pc_ap_museumsanity_sender(const pc_ap_museumsanity* m, int cat, int idx);
+
+// Nonzero if dug-up fossils come out appraised (fossils have find checks)
+int pc_ap_museumsanity_instant_fossils(const pc_ap_museumsanity* m);
+// Fossils dynamic spawns favour: wanted[idx] = 1 while its find or donate check
+// is unsent (fossils active), else while it isn't on display in info
+void pc_ap_museumsanity_fossil_wanted(const pc_ap_museumsanity* m, const mMmd_info_c* info,
+                                      u8 wanted[mMmd_FOSSIL_NUM]);
+// Fossil (museum index) a dug-up fossil turns out to be, by fossil_spawns.
+// month 0-11, r random in [0, 1)
+int pc_ap_museumsanity_pick_fossil(const pc_ap_museumsanity* m, const u8 wanted[mMmd_FOSSIL_NUM], int month,
+                                   f32 r);
 
 #ifdef __cplusplus
 }

@@ -18,6 +18,17 @@ extern "C" {
 #define AP_MUSEUM_FIND   (1 << 0) // bugs/fish: catching it (journal). Fossils: digging it up (pre-appraised)
 #define AP_MUSEUM_DONATE (1 << 1) // donating it to the museum
 
+#define AP_FOSSIL_NUM 25 // museum fossils (mMmd_FOSSIL_NUM)
+
+// critter_spawns (bugs + fish)
+#define AP_CRITTER_SPAWNS_VANILLA    0
+#define AP_CRITTER_SPAWNS_NORMALIZED 1 // every species equally likely
+#define AP_CRITTER_SPAWNS_DYNAMIC    2 // wanted ones (unsent check / missing) more likely
+// fossil_spawns (which fossil a dug-up one is)
+#define AP_FOSSIL_SPAWNS_VANILLA       0
+#define AP_FOSSIL_SPAWNS_DYNAMIC       1 // wanted ones (unsent check / missing) more likely
+#define AP_FOSSIL_SPAWNS_SEASON_LOCKED 2 // only fossils of the current season (fossil_seasons)
+
 typedef struct {
   // Base data (not necessarily set)
   char player_name[9];
@@ -54,6 +65,10 @@ typedef struct {
   int fossil_checks;                 // AP_MUSEUM_* bits (FIND = pre-appraised)
   int painting_checks;               // AP_MUSEUM_* bits; always 0 for now (apworld only has "Disabled")
   int museum_goal_count;             // Museum goal: donation items to receive (apworld computes it from its % option)
+  // Spawns: also without museumsanity and offline
+  int critter_spawns;                // AP_CRITTER_SPAWNS_*
+  int fossil_spawns;                 // AP_FOSSIL_SPAWNS_*
+  int fossil_seasons[AP_FOSSIL_NUM]; // per museum fossil index: 0 spring (Mar-May), 1 summer, 2 autumn, 3 winter (Dec-Feb)
   // Timesanity
   int timesanity;                    // nonzero: frozen clock, months and time slots are items
   int starting_month;                // 0-11

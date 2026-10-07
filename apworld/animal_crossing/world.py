@@ -8,11 +8,12 @@ from Options import OptionError, OptionGroup
 from worlds.AutoWorld import WebWorld, World
 from worlds.generic.Rules import set_rule
 
-from .items import (BELL_CREDITS, ITEM_NAME_TO_ID, MONTHS, MUSEUM_BUG, MUSEUM_FISH, MUSEUM_NAMES,
+from .items import (BELL_CREDITS, FOSSIL_SEASONS, ITEM_NAME_TO_ID, MONTHS, MUSEUM_BUG, MUSEUM_FISH, MUSEUM_FOSSIL,
+                    MUSEUM_NAMES, SEASON_MONTHS,
                     PROGRESSIVE_HOUSE, TIME_SLOTS, museum_item_name)
 from .locations import (LOANS, LOCATION_NAME_TO_ID, favor_location_name, loan_location_name, museum_donate_name,
                         museum_find_name, split_loan_checks)
-from .museum import BUGS, FISH
+from .museum import BUGS, FISH, FOSSILS
 from . import options
 from .options import AnimalCrossingOptions, personality_key, villager_key
 from .villagers import PERSONALITIES, VILLAGERS
@@ -100,6 +101,8 @@ class AnimalCrossingWeb(WebWorld):
             options.FishChecks,
             options.FossilChecks,
             options.PaintingChecks,
+            options.CritterSpawns,
+            options.FossilSpawns,
             options.MuseumGoalPercent,
         ]),
         OptionGroup("Quality of Life", [
@@ -247,14 +250,16 @@ class AnimalCrossingWorld(World):
                 location = self.multiworld.get_location(loan_location_name(k, j), self.player)
                 set_rule(location, lambda state, k=k: state.has(PROGRESSIVE_HOUSE, self.player, k))
 
-        # Bugs and fish (catch and donate): a month and a time slot it spawns in. Fossils: nothing yet.
+        # Bugs and fish (catch and donate): a month and a time slot it spawns in
         if self.options.timesanity:
             for c, critters in ((MUSEUM_BUG, BUGS), (MUSEUM_FISH, FISH)):
                 for name, when in critters:
-                    rule = self.spawn_rule(when)
-                    for location in (museum_find_name(c, name), museum_donate_name(name)):
-                        if location in self.museum_locations:
-                            set_rule(self.multiworld.get_location(location, self.player), rule)
+                    self.set_museum_rule(c, name, self.spawn_rule(when))
+        # Season locked fossils (dig up and donate): a month of its season
+        if self.options.timesanity and self.options.fossil_spawns == options.FossilSpawns.option_season_locked:
+            for name, season in zip(FOSSILS, FOSSIL_SEASONS):
+                months = [MONTHS[m] for m in SEASON_MONTHS[season]]
+                self.set_museum_rule(MUSEUM_FOSSIL, name, lambda state, months=months: state.has_any(months, self.player))
 
         # All chosen goals are required
         goals = {
@@ -267,6 +272,12 @@ class AnimalCrossingWorld(World):
         if self.options.timesanity:
             chosen.append(lambda state: state.has_any(("Evening Hours", "Night Hours"), self.player))
         self.multiworld.completion_condition[self.player] = lambda state: all(goal(state) for goal in chosen)
+
+    def set_museum_rule(self, category: int, name: str, rule) -> None:
+        # Find and donate locations of one museum thing, the ones that exist
+        for location in (museum_find_name(category, name), museum_donate_name(name)):
+            if location in self.museum_locations:
+                set_rule(self.multiworld.get_location(location, self.player), rule)
 
     def spawn_rule(self, when: dict[int, tuple[int, ...]]):
         # when: {month: time slots} from museum.py; any owned month with an owned slot of it
@@ -326,6 +337,9 @@ class AnimalCrossingWorld(World):
             "fossil_checks": self.options.fossil_checks.value,
             "painting_checks": self.options.painting_checks.value,
             "museum_goal_count": self.museum_goal_count,
+            "critter_spawns": self.options.critter_spawns.value,
+            "fossil_spawns": self.options.fossil_spawns.value,
+            "fossil_seasons": FOSSIL_SEASONS,
             # Timesanity clock year: the year the seed was made, fixed for the whole save
             "start_year": min(max(datetime.date.today().year, MIN_YEAR), MAX_YEAR),
             "bell_credits": self.bell_credit_amounts(),

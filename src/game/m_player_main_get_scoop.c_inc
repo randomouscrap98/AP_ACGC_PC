@@ -24,6 +24,9 @@ static void Player_actor_setup_main_Get_scoop(ACTOR* actor, GAME* game) {
     mPlayer_main_get_scoop_c* main_scoop = &player->main_data.get_scoop;
 
     item = req_scoop->item;
+#ifdef TARGET_PC
+    item = pc_ap_dug_item(item);
+#endif
     pos = &req_scoop->dig_pos;
 
     main_scoop->target_pos = *pos;

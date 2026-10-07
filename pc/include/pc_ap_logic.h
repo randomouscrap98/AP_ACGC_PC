@@ -43,6 +43,9 @@ int pc_ap_loans_enabled(void);
 int pc_ap_accepting(void);
 // Nonzero when playing from the offline json (no server)
 int pc_ap_offline(void);
+// Kapp'n won't sail to the island (AP only; offline keeps it). Temporary until the
+// island is designed.
+int pc_ap_island_closed(void);
 
 // Progressive House items received
 int pc_ap_houses_received(void);
@@ -102,6 +105,13 @@ int pc_ap_museum_donator(mActor_name_t item);
 // A bug or fish was caught (net/rod, right where the game marks the journal):
 // sends its catch check if unsent, on every catch (not only the first)
 void pc_ap_caught(mActor_name_t item);
+// mMsm_GetFossil (museum mail appraisal): 1 = handled, *fossil = the fossil_spawns pick.
+// 0 for vanilla spawns.
+int pc_ap_pick_fossil(mActor_name_t* fossil);
+// Item the shovel digs up (Get_scoop setup): with fossil find checks an unappraised
+// fossil comes out appraised (fossil_spawns pick) and sends its "Dig Up" check.
+// Anything else is returned unchanged.
+mActor_name_t pc_ap_dug_item(mActor_name_t item);
 // Exhibit plaques, after the game copied the donator's name into free string 0: replaces
 // it with the AP player who sent the item (8 chars). Nothing for vanilla exhibits.
 void pc_ap_museum_plaque_name(mActor_name_t item);

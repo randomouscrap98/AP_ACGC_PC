@@ -494,6 +494,38 @@ class FossilChecks(Choice):
     default = 1
 
 
+class CritterSpawns(Choice):
+    """
+    Which bugs and fish spawn. Works without Museumsanity too.
+    Vanilla: the game's odds.
+    Normalized: every bug and fish that can spawn is equally likely.
+    Dynamic: bugs and fish whose check isn't sent yet (or, with no checks, that are missing from the journal or
+    the museum) spawn more often.
+    """
+    display_name = "Critter Spawns"
+    option_vanilla = 0
+    option_normalized = 1
+    option_dynamic = 2
+    default = 0
+
+
+class FossilSpawns(Choice):
+    """
+    Which fossil a dug-up fossil turns out to be. Works without Museumsanity too.
+    Vanilla: the game's odds.
+    Dynamic: fossils whose check isn't sent yet (or, with no checks, that are missing from the museum) are more
+    likely.
+    Season Locked: each fossil only comes out in one season (Spring: March-May, Summer: June-August,
+    Autumn: September-November, Winter: December-February). With Timesanity, fossil checks need a month of
+    their season.
+    """
+    display_name = "Fossil Spawns"
+    option_vanilla = 0
+    option_dynamic = 1
+    option_season_locked = 2
+    default = 2
+
+
 class PaintingChecks(Choice):
     """With Museumsanity, what sends a check for each painting. Not available yet."""
     display_name = "Painting Checks"
@@ -529,6 +561,8 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     fish_checks: FishChecks
     fossil_checks: FossilChecks
     painting_checks: PaintingChecks
+    critter_spawns: CritterSpawns
+    fossil_spawns: FossilSpawns
     museum_goal_percent: MuseumGoalPercent
     skip_intro: SkipIntro
     player_name: PlayerName
