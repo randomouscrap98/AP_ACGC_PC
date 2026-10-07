@@ -6,6 +6,7 @@
 #include "pc_ap_timesanity.h"
 #include "pc_ap_museumsanity.h"
 #include "pc_ap_mail.h"
+#include "pc_ap_tools.h"
 #include "pc_ap_overlay.h"
 #include "pc_ap_strings.h"
 #include "ap_archipelago.h"
@@ -60,6 +61,7 @@ typedef struct {
   pc_ap_timesanity time;
   pc_ap_museumsanity museum;
   pc_ap_mail mail;
+  pc_ap_tools tools;
   int initialized; // module config set from slot_data
 } pc_ap;
 
@@ -73,6 +75,7 @@ void pc_ap_init(void) {
   pc_ap_timesanity_init(&g_ap.time, sd);
   pc_ap_museumsanity_init(&g_ap.museum, sd);
   pc_ap_mail_init(&g_ap.mail, sd);
+  pc_ap_tools_init(&g_ap.tools, sd);
   g_ap.initialized = 1;
 }
 
@@ -90,6 +93,7 @@ void pc_ap_load(const char* filename) {
   pc_ap_loansanity_load(&g_ap.loans, ini);
   pc_ap_credit_load(&g_ap.credit, ini);
   pc_ap_favorsanity_load(&g_ap.favors, ini);
+  pc_ap_tools_load(&g_ap.tools, ini);
   if(ini != NULL) {
     ini_destroy(ini);
   }
@@ -100,6 +104,7 @@ int pc_ap_save(const char* filename) {
   pc_ap_loansanity_save(&g_ap.loans, ini);
   pc_ap_credit_save(&g_ap.credit, ini);
   pc_ap_favorsanity_save(&g_ap.favors, ini);
+  pc_ap_tools_save(&g_ap.tools, ini);
   int ok = pc_ap_state_write(filename, ini);
   ini_destroy(ini);
   return ok;
@@ -283,6 +288,44 @@ static void pc_ap_loan_letter(int paid) {
   if(pc_ap_mail_send(&g_ap.mail, pc_ap_my_home(), Now_Private, g_ap.loans.letter_text, EMPTY_NO)) {
     pc_ap_loansanity_letter_sent(&g_ap.loans);
   }
+}
+
+// Mails each received tool once (with the tool attached); mailbox full = next tick
+static void pc_ap_tools_mail(void) {
+  int me = ap_getconnectstate()->roomplayer.player;
+  int it = 0;
+  int idx;
+  while((idx = pc_ap_tools_next_unmailed(&g_ap.tools, &it)) >= 0) {
+    mActor_name_t tool = (mActor_name_t)ap_getitem(idx);
+    int sender = ap_getitem_sender(idx);
+    char name[32];
+    char body[64];
+    // Slot 0 is the server (start inventory, !getitem): no name
+    const char* who = sender > 0 && ap_player_name(sender, name, sizeof(name)) ? name : NULL;
+    pc_ap_tools_letter(body, sizeof(body), tool, who, sender == me);
+    if(!pc_ap_mail_send(&g_ap.mail, pc_ap_my_home(), Now_Private, body, tool)) {
+      return;
+    }
+    pc_ap_tools_mark_mailed(&g_ap.tools, tool);
+  }
+}
+
+int pc_ap_tool_allowed(mActor_name_t item) {
+  return pc_ap_tools_allowed(&g_ap.tools, item);
+}
+
+int pc_ap_shop_tools(const int* table, int n, int* out) {
+  int count = 0;
+  for(int i = 0; i < n; i++) {
+    if(pc_ap_tool_allowed((mActor_name_t)table[i])) {
+      out[count++] = table[i];
+    }
+  }
+  return count;
+}
+
+mActor_name_t pc_ap_lost_found_item(mActor_name_t item) {
+  return pc_ap_tool_allowed(item) ? item : ITM_SAPLING;
 }
 
 int pc_ap_time_frozen(void) {
@@ -494,6 +537,7 @@ void pc_ap_tick(GAME_PLAY* play) {
 
   pc_ap_apply_credit(paid);
   pc_ap_loan_letter(paid); // credit stops at 100 owed, so paid is unchanged
+  pc_ap_tools_mail();
   pc_ap_museumsanity_sync(&g_ap.museum, &Save_Get(museum_display));
 }
 

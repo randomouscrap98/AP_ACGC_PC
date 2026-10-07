@@ -2367,6 +2367,10 @@ AP_ITEM_NAME_TO_ID.update({name: MONTH_ID_BASE + m for m, name in enumerate(MONT
 AP_ITEM_NAME_TO_ID.update({name: TIME_SLOT_ID_BASE + s for s, name in enumerate(TIME_SLOTS)})
 ITEM_NAME_TO_ID.update(AP_ITEM_NAME_TO_ID)
 
+# Tools in Pool: the game's own tool items (names from the table above)
+NET, FISHING_ROD, SHOVEL = "net", "fishing rod", "shovel"
+TOOLS = [NET, FISHING_ROD, SHOVEL]  # StartingTool option values 1-3, in order
+
 # Bell credits: (value ratio, pool weight). The Bells per ratio unit are computed per seed.
 BELL_CREDITS = {
     SMALL_BELL_CREDIT: (1, 30),

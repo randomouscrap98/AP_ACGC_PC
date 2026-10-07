@@ -15,6 +15,7 @@
 #ifdef TARGET_PC
 #include "pc_settings.h"
 #include "pc_ap_qol.h"
+#include "pc_ap_logic.h"
 #endif
 
 extern mActor_name_t* mSP_ftr_list[];
@@ -915,6 +916,9 @@ static void mSP_SelectTool(mActor_name_t* goods_list, int* count, int tool_num, 
     static int table[4] = { ITM_SHOVEL, ITM_NET, ITM_ROD, ITM_AXE };
 
     int tools_added = 0;
+#ifdef TARGET_PC
+    int allowed[4];
+#endif
     u16 paint_idx = Save_Get(shop).shop_info.paint_color;
     u32 sales_sum = Save_Get(shop).sales_sum;
     f32 tool_max;
@@ -932,6 +936,11 @@ static void mSP_SelectTool(mActor_name_t* goods_list, int* count, int tool_num, 
         tool_max = 4; /* shove, net, rod, axe */
     }
 
+#ifdef TARGET_PC
+    /* AP: only tools received (Tools in Pool); fewer tools also caps tool_num below */
+    tool_max = pc_ap_shop_tools(table, (int)tool_max, allowed);
+#endif
+
     if (tool_num > (int)tool_max) {
         tool_num = (int)tool_max;
     }
@@ -943,7 +952,11 @@ static void mSP_SelectTool(mActor_name_t* goods_list, int* count, int tool_num, 
     */
     while (tools_added < tool_num) {
         int idx = RANDOM_F(tool_max);
+#ifdef TARGET_PC
+        mActor_name_t tool = allowed[idx];
+#else
         mActor_name_t tool = table[idx];
+#endif
 
         /* Don't allow duplicate tools */
         if (mSP_GoodsExistAlready(goods_list, count[0], tool) == FALSE) {

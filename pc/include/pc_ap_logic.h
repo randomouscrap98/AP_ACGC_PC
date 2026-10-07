@@ -122,6 +122,16 @@ void pc_ap_insect_spawns(struct insect_spawn_info_f_s* rows, int n);
 // it with the AP player who sent the item (8 chars). Nothing for vanilla exhibits.
 void pc_ap_museum_plaque_name(mActor_name_t item);
 
+// Tools in Pool hooks (pc_ap_tools.h). The tick mails received tools.
+
+// 1 if the game may hand out item (not a pool tool, or received, or the option is off)
+int pc_ap_tool_allowed(mActor_name_t item);
+// mSP_SelectTool (Nook's shop): copies the allowed tools of table[0..n) to out, returns
+// how many. The shop picks from those and caps its tool count at that number.
+int pc_ap_shop_tools(const int* table, int n, int* out);
+// mPB_get_force_set_item_item (lost and found): a tool not received yet becomes a sapling
+mActor_name_t pc_ap_lost_found_item(mActor_name_t item);
+
 // Time hooks (on top of pc_ap_timesanity.h): frozen clock, date changes,
 // normalized time travel.
 

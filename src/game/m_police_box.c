@@ -11,6 +11,10 @@
 #include "m_lib.h"
 #include "m_shop.h"
 
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
+
 /**
  * @brief Copies an array of items to the lost and found.
  *
@@ -211,7 +215,12 @@ static mActor_name_t mPB_get_force_set_item_goods() {
 static mActor_name_t mPB_get_force_set_item_item() {
     static mActor_name_t category_table[6] = { ITM_NET, ITM_AXE, ITM_SHOVEL, ITM_ROD, ITM_SAPLING, ITM_CEDAR_SAPLING };
 
+#ifdef TARGET_PC
+    /* AP: tools not received yet (Tools in Pool) become saplings */
+    return pc_ap_lost_found_item(category_table[(int)(fqrand() * 6.0f)]);
+#else
     return category_table[(int)(fqrand() * 6.0f)];
+#endif
 }
 
 /**

@@ -231,6 +231,7 @@ static int ap_start_offline(const char * path) {
   sd->timesanity = 0;
   sd->favorsanity = 0;
   sd->museumsanity = 0;
+  sd->tools_in_pool = 0;
   sd->goal = 0;
   for (int i = 0; i < AP_LOAN_NUM; i++) { sd->loan_checks[i] = 0; }
 

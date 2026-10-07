@@ -58,6 +58,7 @@ typedef struct {
   int loans[AP_LOAN_NUM];            // loan amounts in bells
   int loan_checks[AP_LOAN_NUM];      // checks sent when each loan is paid off
   int favorsanity;                   // number of favor checks
+  int tools_in_pool;                 // nonzero: net, rod, shovel are items (shop/lost and found only after received)
   // Museumsanity: donations are items, museum shows received ones
   int museumsanity;                  // nonzero: museum donation items + the check modes below
   int bug_checks;                    // AP_MUSEUM_* bits

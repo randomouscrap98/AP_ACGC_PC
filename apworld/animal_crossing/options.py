@@ -341,6 +341,25 @@ class Favorsanity(Range):
     default = 10
 
 
+class ToolsInPool(DefaultOnToggle):
+    """
+    The net, fishing rod and shovel are items. Tom Nook doesn't sell one (and it's not in the lost and found)
+    until you receive it; it's mailed to you when you do. The axe stays vanilla.
+    """
+    display_name = "Tools in Pool"
+
+
+class StartingTool(Choice):
+    """With Tools in Pool, a tool you start with (mailed to you)."""
+    display_name = "Starting Tool"
+    option_none = 0
+    option_net = 1
+    option_fishing_rod = 2
+    option_shovel = 3
+    option_random_tool = 4
+    default = 0
+
+
 def villager_key(name: str) -> str:
     # What the player sees and writes in the yaml: "Bob (Lazy)"
     return f"{name} ({PERSONALITIES[VILLAGERS[name][1]]})"
@@ -555,6 +574,8 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     total_loan_checks: TotalLoanChecks
     filler_bells_percent: FillerBellsPercent
     favorsanity: Favorsanity
+    tools_in_pool: ToolsInPool
+    starting_tool: StartingTool
     timesanity: Timesanity
     starting_month: StartingMonth
     starting_time: StartingTime

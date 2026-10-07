@@ -6,9 +6,9 @@ from typing import Any
 from BaseClasses import Item, ItemClassification, Location, Region
 from Options import OptionError, OptionGroup
 from worlds.AutoWorld import WebWorld, World
-from worlds.generic.Rules import set_rule
+from worlds.generic.Rules import add_rule, set_rule
 
-from .items import BELL_CREDITS, ITEM_NAME_TO_ID, MONTHS, PROGRESSIVE_HOUSE, TIME_SLOTS
+from .items import BELL_CREDITS, FISHING_ROD, ITEM_NAME_TO_ID, MONTHS, NET, PROGRESSIVE_HOUSE, SHOVEL, TIME_SLOTS, TOOLS
 from .locations import LOANS, LOCATION_NAME_TO_ID, favor_location_name, loan_location_name, split_loan_checks
 from .museum import (BUGS, CHECK_DONATE, CHECK_FIND, FISH, FOSSIL_SEASONS, FOSSILS, MUSEUM_BUG, MUSEUM_FISH,
                      MUSEUM_FOSSIL, MUSEUM_ITEM_NAME_TO_ID, MUSEUM_NAMES, MUSEUM_PAINTING, SEASON_MONTHS,
@@ -79,14 +79,14 @@ class AnimalCrossingWeb(WebWorld):
             options.VillagerBlacklist,
             options.StartingVillagers,
         ]),
-        OptionGroup("Loan Goal", [
+        OptionGroup("Loansanity", [
+            options.Loansanity,
+            options.TotalLoanChecks,
             options.StartingLoan,
             options.MediumLoan,
             options.LargeLoan,
             options.BasementLoan,
             options.UpperLoan,
-            options.Loansanity,
-            options.TotalLoanChecks,
             options.FillerBellsPercent,
         ]),
         OptionGroup("Timesanity", [
@@ -155,6 +155,17 @@ class AnimalCrossingWorld(World):
                     self.museum_locations.append(museum_find_name(c, name))
                 if self.museum_modes[c] & CHECK_DONATE:
                     self.museum_locations.append(museum_donate_name(name))
+        # Tools in Pool: the tool each museum category needs, and the tools that go in the pool
+        self.category_tools = {MUSEUM_BUG: NET, MUSEUM_FISH: FISHING_ROD, MUSEUM_FOSSIL: SHOVEL}
+        self.starting_tool = None
+        self.pool_tools = []
+        if self.options.tools_in_pool:
+            choice = self.options.starting_tool.value
+            if choice == options.StartingTool.option_random_tool:
+                self.starting_tool = self.random.choice(TOOLS)
+            elif choice != options.StartingTool.option_none:
+                self.starting_tool = TOOLS[choice - 1]
+            self.pool_tools = [tool for tool in TOOLS if tool != self.starting_tool]
         self.museum_goal_count = math.ceil(len(self.museum_item_names) * self.options.museum_goal_percent.value / 100)
         self.ac_player_name = clamp_name(self.options.player_name.value) or clamp_name(self.player_name)
         self.ac_town_name = clamp_name(self.options.town_name.value) or DEFAULT_TOWN
@@ -195,7 +206,7 @@ class AnimalCrossingWorld(World):
         items = len(LOANS) - 1 if self.options.loansanity else 0
         if self.options.timesanity:
             items += len(MONTHS) + len(TIME_SLOTS) - 2
-        items += len(self.museum_item_names)
+        items += len(self.museum_item_names) + len(self.pool_tools)
         if locations < items:
             raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Total checks at {locations}, it must be at "
                               f"least {items} with these options. Raise optional checks such as Favorsanity.")
@@ -222,6 +233,9 @@ class AnimalCrossingWorld(World):
                 else:
                     pool.append(self.create_item(name))
         pool += [self.create_item(name) for name in self.museum_item_names]
+        pool += [self.create_item(name) for name in self.pool_tools]
+        if self.starting_tool:
+            self.multiworld.push_precollected(self.create_item(self.starting_tool))
         # Everything else is filler. Bell credit amounts are set in fill_slot_data from what was actually placed,
         # so adding other items to the pool later doesn't break the total.
         free = len(self.multiworld.get_unfilled_locations(self.player)) - len(pool)
@@ -233,6 +247,10 @@ class AnimalCrossingWorld(World):
             classification = ItemClassification.progression
         elif name in MUSEUM_ITEM_NAME_TO_ID and "Museum" in self.options.goal.value:
             classification = ItemClassification.progression
+        elif name in TOOLS:
+            # Progression when a museum category with checks needs it
+            needed = any(self.museum_modes[c] for c, tool in self.category_tools.items() if tool == name)
+            classification = ItemClassification.progression if needed else ItemClassification.useful
         else:
             classification = ItemClassification.filler
         return AnimalCrossingItem(name, classification, ITEM_NAME_TO_ID[name], self.player)
@@ -260,6 +278,14 @@ class AnimalCrossingWorld(World):
                 months = [MONTHS[m] for m in SEASON_MONTHS[season]]
                 self.set_museum_rule(MUSEUM_FOSSIL, name, lambda state, months=months: state.has_any(months, self.player))
 
+        # Tools in Pool: catching, digging up and donating need the tool (on top of the rules above)
+        if self.options.tools_in_pool:
+            for c, names in enumerate(MUSEUM_NAMES):
+                if c in self.category_tools:
+                    for name in names:
+                        self.add_museum_rule(c, name, lambda state, tool=self.category_tools[c]:
+                                             state.has(tool, self.player))
+
         # All chosen goals are required
         goals = {
             # The statue comes after the last loan, which needs every house upgrade
@@ -277,6 +303,11 @@ class AnimalCrossingWorld(World):
         for location in (museum_find_name(category, name), museum_donate_name(name)):
             if location in self.museum_locations:
                 set_rule(self.multiworld.get_location(location, self.player), rule)
+
+    def add_museum_rule(self, category: int, name: str, rule) -> None:
+        for location in (museum_find_name(category, name), museum_donate_name(name)):
+            if location in self.museum_locations:
+                add_rule(self.multiworld.get_location(location, self.player), rule)
 
     def spawn_rule(self, when: dict[int, tuple[int, ...]]):
         # when: {month: time slots} from museum.py; any owned month with an owned slot of it
@@ -327,6 +358,7 @@ class AnimalCrossingWorld(World):
             "loansanity": self.options.loansanity.value,
             "loan_checks": self.loan_checks,
             "favorsanity": self.options.favorsanity.value,
+            "tools_in_pool": self.options.tools_in_pool.value,
             "timesanity": self.options.timesanity.value,
             "starting_month": self.options.starting_month.value,
             "starting_time": self.options.starting_time.value,
