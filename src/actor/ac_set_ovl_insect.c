@@ -5,6 +5,9 @@
 #include "m_name_table.h"
 #include "libultra/libultra.h"
 #include "libc64/qrand.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 #include "m_common_data.h"
 #include "m_time.h"
 #include "m_event.h"
@@ -2044,6 +2047,9 @@ static void aSOI_ins_decide_insect(aSOI_set_data_c* set_data, aSetMgr_player_pos
     aSOI_ins_limit_insect_data(spawn_info, info_num, candy_spawn, trash_spawn);
   }
 
+#ifdef TARGET_PC
+  pc_ap_insect_spawns(spawn_info, info_num);
+#endif
   spawn_idx = aSOI_ins_get_idx(spawn_info, info_num, candy_spawn | trash_spawn);
   if (spawn_idx != aINS_INSECT_TYPE_INVALID) {
     aSOI_insect_spawn_info_f_c* info = spawn_info + spawn_idx;

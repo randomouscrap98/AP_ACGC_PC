@@ -2,6 +2,8 @@
 #include "ap_archipelago.h"
 #include "m_name_table.h"
 #include "m_room_type.h"
+#include "ac_gyoei.h"
+#include "ac_insect_h.h"
 
 #include <string.h>
 
@@ -12,6 +14,7 @@ static const int pc_ap_museum_count[mMmd_CATEGORY_NUM] = {
 
 void pc_ap_museumsanity_init(pc_ap_museumsanity* m, const ap_slotdata* sd) {
   memset(m, 0, sizeof(*m));
+  m->critter_spawns = sd->critter_spawns;
   m->fossil_spawns = sd->fossil_spawns;
   for(int i = 0; i < mMmd_FOSSIL_NUM; i++) {
     m->fossil_seasons[i] = sd->fossil_seasons[i];
@@ -103,6 +106,12 @@ static u8* pc_ap_museum_bits(mMmd_info_c* info, int cat) {
   }
 }
 
+// Donator code of one thing (4 bits per thing, even index in the low nibble, mMmd_BIT_INFO2)
+static int pc_ap_museum_donator_of(const mMmd_info_c* info, int cat, int idx) {
+  const u8* bits = pc_ap_museum_bits((mMmd_info_c*)info, cat); // read only
+  return (bits[idx >> 1] >> ((idx & 1) * 4)) & 0x0F;
+}
+
 int pc_ap_museumsanity_sync(const pc_ap_museumsanity* m, mMmd_info_c* info) {
   u8 got[PC_AP_MUSEUM_SLOT_NUM];
   int count = pc_ap_museum_received_slots(m, got);
@@ -163,9 +172,7 @@ void pc_ap_museumsanity_fossil_wanted(const pc_ap_museumsanity* m, const mMmd_in
       wanted[idx] = pc_ap_museumsanity_find_check(m, mMmd_CATEGORY_FOSSIL, idx) >= 0 ||
                     pc_ap_museumsanity_donate_check(m, mMmd_CATEGORY_FOSSIL, idx) >= 0;
     } else {
-      // 4 bits per fossil, even index in the low nibble
-      int donator = (info->fossil_bit[idx >> 1] >> ((idx & 1) * 4)) & 0x0F;
-      wanted[idx] = donator == mMmd_DONATOR_NONE;
+      wanted[idx] = pc_ap_museum_donator_of(info, mMmd_CATEGORY_FOSSIL, idx) == mMmd_DONATOR_NONE;
     }
   }
 }
@@ -210,4 +217,95 @@ int pc_ap_museumsanity_pick_fossil(const pc_ap_museumsanity* m, const u8 wanted[
     roll -= weight[idx];
   }
   return mMmd_FOSSIL_NUM - 1; // not reached
+}
+
+void pc_ap_museumsanity_critter_wanted(const pc_ap_museumsanity* m, int cat, const mMmd_info_c* info,
+                                       const u8 journal[PC_AP_CRITTER_NUM], u8 wanted[PC_AP_CRITTER_NUM]) {
+  int active = pc_ap_museumsanity_active(m, cat);
+  for(int idx = 0; idx < PC_AP_CRITTER_NUM; idx++) {
+    if(active) {
+      wanted[idx] = pc_ap_museumsanity_find_check(m, cat, idx) >= 0 ||
+                    pc_ap_museumsanity_donate_check(m, cat, idx) >= 0;
+    } else {
+      wanted[idx] = !journal[idx] || pc_ap_museum_donator_of(info, cat, idx) == mMmd_DONATOR_NONE;
+    }
+  }
+}
+
+// One multiplier per species from its total weight in the list (sum 0 = not in
+// the list). The total of all species stays the same.
+static void pc_ap_spawn_factors(int mode, const f32 sum[PC_AP_CRITTER_NUM], const u8 wanted[PC_AP_CRITTER_NUM],
+                                f32 factor[PC_AP_CRITTER_NUM]) {
+  f32 total = 0.0f;   // all species
+  f32 boosted = 0.0f; // all species, wanted ones boosted
+  int species = 0;
+  for(int s = 0; s < PC_AP_CRITTER_NUM; s++) {
+    if(sum[s] > 0.0f) {
+      total += sum[s];
+      boosted += sum[s] * (wanted[s] ? PC_AP_SPAWN_BOOST : 1);
+      species++;
+    }
+  }
+  for(int s = 0; s < PC_AP_CRITTER_NUM; s++) {
+    factor[s] = 1.0f;
+    if(sum[s] <= 0.0f) {
+      continue;
+    }
+    if(mode == AP_CRITTER_SPAWNS_NORMALIZED) {
+      factor[s] = total / species / sum[s];
+    } else if(mode == AP_CRITTER_SPAWNS_DYNAMIC) {
+      factor[s] = (wanted[s] ? PC_AP_SPAWN_BOOST : 1) * total / boosted;
+    }
+  }
+}
+
+// Spawn list type -> species (journal index), -1 = not a museum fish
+static int pc_ap_fish_species(int type) {
+  if(type == aGYO_TYPE_SALMON2) {
+    return aGYO_TYPE_SALMON; // river mouth salmon
+  }
+  return type >= 0 && type < PC_AP_CRITTER_NUM ? type : -1;
+}
+
+void pc_ap_museumsanity_fish_spawns(const pc_ap_museumsanity* m, const u8 wanted[PC_AP_CRITTER_NUM],
+                                    aSOG_gyoei_spawn_info_weight_f_c* rows, int n) {
+  f32 sum[PC_AP_CRITTER_NUM] = { 0 };
+  f32 factor[PC_AP_CRITTER_NUM];
+  for(int i = 0; i < n; i++) {
+    int s = pc_ap_fish_species(rows[i].type);
+    if(s >= 0) {
+      sum[s] += rows[i].spawn_weight;
+    }
+  }
+  pc_ap_spawn_factors(m->critter_spawns, sum, wanted, factor);
+  for(int i = 0; i < n; i++) {
+    int s = pc_ap_fish_species(rows[i].type);
+    if(s >= 0) {
+      rows[i].spawn_weight *= factor[s];
+    }
+  }
+}
+
+// Spawn list type -> species (journal index), -1 = not a museum bug (spirit, nothing)
+static int pc_ap_insect_species(int type) {
+  return type >= 0 && type < PC_AP_CRITTER_NUM ? type : -1;
+}
+
+void pc_ap_museumsanity_insect_spawns(const pc_ap_museumsanity* m, const u8 wanted[PC_AP_CRITTER_NUM],
+                                      aSOI_insect_spawn_info_f_c* rows, int n) {
+  f32 sum[PC_AP_CRITTER_NUM] = { 0 };
+  f32 factor[PC_AP_CRITTER_NUM];
+  for(int i = 0; i < n; i++) {
+    int s = pc_ap_insect_species(rows[i].type);
+    if(s >= 0) {
+      sum[s] += rows[i].weight;
+    }
+  }
+  pc_ap_spawn_factors(m->critter_spawns, sum, wanted, factor);
+  for(int i = 0; i < n; i++) {
+    int s = pc_ap_insect_species(rows[i].type);
+    if(s >= 0) {
+      rows[i].weight *= factor[s];
+    }
+  }
 }

@@ -12,6 +12,9 @@
 #include "m_event.h"
 #include "m_kankyo.h"
 #include "m_time.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
 /* sizeof(aSOG_term_info_c) == 4 */
 typedef struct term_info_s {
@@ -1732,6 +1735,9 @@ static int aSOG_gyoei_set_with_list(aSOG_set_data_c* set_data, SET_MANAGER* set_
     for (i = 0; i < aSetMgr_GYOEI_NUM; i++) {
       bcopy(keep->spawn_weights + i, copy_range + i, sizeof(aSOG_gyoei_spawn_info_weight_f_c));
     }
+#ifdef TARGET_PC
+    pc_ap_fish_spawns(copy_range, keep->possible_gyoei_num);
+#endif
 
     if (aSOG_gyoei_decide_gyoei(set_data, &set_manager->player_pos.next_bx, copy_range, keep->possible_gyoei_num, block_type) == TRUE) {
       res = aSOG_gyoei_make(set_data, &set_manager->player_pos.next_bx, game);

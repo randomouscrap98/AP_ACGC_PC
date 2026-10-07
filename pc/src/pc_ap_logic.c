@@ -36,6 +36,7 @@
 #include "m_room_type.h"
 #include "m_name_table.h"
 #include "libc64/qrand.h"
+#include "ac_set_manager.h"
 
 #include <ini.h>
 #include <stdio.h>
@@ -580,6 +581,34 @@ mActor_name_t pc_ap_dug_item(mActor_name_t item) {
     }
   }
   return fossil;
+}
+
+// Bugs or fish dynamic spawns favour, from the AP state, the journal and the museum
+static void pc_ap_critter_wanted(int cat, u8 wanted[PC_AP_CRITTER_NUM]) {
+  u8 journal[PC_AP_CRITTER_NUM];
+  for(int i = 0; i < PC_AP_CRITTER_NUM; i++) {
+    journal[i] = cat == mMmd_CATEGORY_FISH ? mSM_COLLECT_FISH_GET(i) : mSM_COLLECT_INSECT_GET(i);
+  }
+  pc_ap_museumsanity_critter_wanted(&g_ap.museum, cat, &Save_Get(museum_display), journal, wanted);
+}
+
+void pc_ap_fish_spawns(aSOG_gyoei_spawn_info_weight_f_c* rows, int n) {
+  // The journal needs a player (none on the title demo)
+  if(g_ap.museum.critter_spawns == AP_CRITTER_SPAWNS_VANILLA || Common_Get(now_private) == NULL) {
+    return;
+  }
+  u8 wanted[PC_AP_CRITTER_NUM];
+  pc_ap_critter_wanted(mMmd_CATEGORY_FISH, wanted);
+  pc_ap_museumsanity_fish_spawns(&g_ap.museum, wanted, rows, n);
+}
+
+void pc_ap_insect_spawns(aSOI_insect_spawn_info_f_c* rows, int n) {
+  if(g_ap.museum.critter_spawns == AP_CRITTER_SPAWNS_VANILLA || Common_Get(now_private) == NULL) {
+    return;
+  }
+  u8 wanted[PC_AP_CRITTER_NUM];
+  pc_ap_critter_wanted(mMmd_CATEGORY_INSECT, wanted);
+  pc_ap_museumsanity_insect_spawns(&g_ap.museum, wanted, rows, n);
 }
 
 void pc_ap_museum_plaque_name(mActor_name_t item) {

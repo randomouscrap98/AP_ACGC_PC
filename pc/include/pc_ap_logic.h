@@ -112,6 +112,12 @@ int pc_ap_pick_fossil(mActor_name_t* fossil);
 // fossil comes out appraised (fossil_spawns pick) and sends its "Dig Up" check.
 // Anything else is returned unchanged.
 mActor_name_t pc_ap_dug_item(mActor_name_t item);
+// critter_spawns, right before the weighted draw of the spawn lists (copies, not the
+// stored tables): fish in aSOG_gyoei_set_with_list, bugs in aSOI_ins_decide_insect
+struct gyoei_spawn_info_weight_f_s;
+struct insect_spawn_info_f_s;
+void pc_ap_fish_spawns(struct gyoei_spawn_info_weight_f_s* rows, int n);
+void pc_ap_insect_spawns(struct insect_spawn_info_f_s* rows, int n);
 // Exhibit plaques, after the game copied the donator's name into free string 0: replaces
 // it with the AP player who sent the item (8 chars). Nothing for vanilla exhibits.
 void pc_ap_museum_plaque_name(mActor_name_t item);
