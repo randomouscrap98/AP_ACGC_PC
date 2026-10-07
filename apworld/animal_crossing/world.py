@@ -264,10 +264,16 @@ class AnimalCrossingWorld(World):
     def set_rules(self) -> None:
         # Loan k only exists after k house upgrades (Progressive House x k). Without loansanity
         # there are no loan checks (loan_checks is all 0) and no Statue goal.
-        for k in range(1, len(LOANS)):
+        for k in range(len(LOANS)):
             for j in range(1, self.loan_checks[k] + 1):
                 location = self.multiworld.get_location(loan_location_name(k, j), self.player)
-                set_rule(location, lambda state, k=k: state.has(PROGRESSIVE_HOUSE, self.player, k))
+                if k > 0:
+                    set_rule(location, lambda state, k=k: state.has(PROGRESSIVE_HOUSE, self.player, k))
+                # Paying needs bells, and selling needs an open shop: no shop is surely open in Morning
+                # (only Nook 'n' Go, from 7), every other slot has at least one open hour (Night: 21)
+                if self.options.timesanity and not self.options.shops_always_open:
+                    add_rule(location, lambda state: state.has_any(("Day Hours", "Evening Hours", "Night Hours"),
+                                                                   self.player))
 
         # Bugs and fish (catch and donate): a month and a time slot it spawns in
         if self.options.timesanity:
