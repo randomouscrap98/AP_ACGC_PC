@@ -1,6 +1,7 @@
 # Stuff I added for the AP_ACGC_PC fork
 ignore/
 .clangd
+/release/
 
 # IDE folders
 .idea/

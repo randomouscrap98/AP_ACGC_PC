@@ -551,7 +551,7 @@ class FossilSpawns(Choice):
     option_vanilla = 0
     option_dynamic = 1
     option_season_locked = 2
-    default = 2
+    default = 1
 
 
 class PaintingChecks(Choice):
