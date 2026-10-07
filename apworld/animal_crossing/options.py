@@ -350,7 +350,9 @@ class ToolsInPool(DefaultOnToggle):
 
 
 class StartingTool(Choice):
-    """With Tools in Pool, a tool you start with (mailed to you)."""
+    """
+    A tool you start with, mailed to you. Without Tools in Pool it's a freebie on top of the vanilla tools.
+    """
     display_name = "Starting Tool"
     option_none = 0
     option_net = 1

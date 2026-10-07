@@ -157,14 +157,15 @@ class AnimalCrossingWorld(World):
                     self.museum_locations.append(museum_donate_name(name))
         # Tools in Pool: the tool each museum category needs, and the tools that go in the pool
         self.category_tools = {MUSEUM_BUG: NET, MUSEUM_FISH: FISHING_ROD, MUSEUM_FOSSIL: SHOVEL}
+        # Starting tool: also without Tools in Pool (a freebie, mailed at the start)
         self.starting_tool = None
+        choice = self.options.starting_tool.value
+        if choice == options.StartingTool.option_random_tool:
+            self.starting_tool = self.random.choice(TOOLS)
+        elif choice != options.StartingTool.option_none:
+            self.starting_tool = TOOLS[choice - 1]
         self.pool_tools = []
         if self.options.tools_in_pool:
-            choice = self.options.starting_tool.value
-            if choice == options.StartingTool.option_random_tool:
-                self.starting_tool = self.random.choice(TOOLS)
-            elif choice != options.StartingTool.option_none:
-                self.starting_tool = TOOLS[choice - 1]
             self.pool_tools = [tool for tool in TOOLS if tool != self.starting_tool]
         self.museum_goal_count = math.ceil(len(self.museum_item_names) * self.options.museum_goal_percent.value / 100)
         self.ac_player_name = clamp_name(self.options.player_name.value) or clamp_name(self.player_name)
@@ -248,8 +249,8 @@ class AnimalCrossingWorld(World):
         elif name in MUSEUM_ITEM_NAME_TO_ID and "Museum" in self.options.goal.value:
             classification = ItemClassification.progression
         elif name in TOOLS:
-            # Progression when a museum category with checks needs it
-            needed = any(self.museum_modes[c] for c, tool in self.category_tools.items() if tool == name)
+            # Progression when a museum category with checks needs it (only with Tools in Pool)
+            needed = self.options.tools_in_pool and any(self.museum_modes[c] for c, tool in self.category_tools.items() if tool == name)
             classification = ItemClassification.progression if needed else ItemClassification.useful
         else:
             classification = ItemClassification.filler

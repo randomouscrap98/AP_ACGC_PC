@@ -1,6 +1,6 @@
 // Tools in Pool: the net, fishing rod and shovel are AP items (AP item id ==
 // the game's item number). Not received = not in Nook's shop or the lost and
-// found; each received tool is mailed once.
+// found; each received tool is mailed once (also with the option off).
 // Reads AP state (received items), never writes to the DLL or the game:
 // the pc_ap_logic.c facade does the mailing.
 #ifndef PC_AP_TOOLS_H
@@ -35,7 +35,8 @@ void pc_ap_tools_save(const pc_ap_tools* t, struct ini_t* ini);
 // 1 if the game may hand out item: received, not a pool tool, or the option is off
 int pc_ap_tools_allowed(const pc_ap_tools* t, mActor_name_t item);
 // Next received tool that isn't mailed yet: its index in the received item list
-// (for the sender), -1 when done. Start *it at 0.
+// (for the sender), -1 when done. Start *it at 0. Also with the option off
+// (Starting Tool is given either way).
 int pc_ap_tools_next_unmailed(const pc_ap_tools* t, int* it);
 void pc_ap_tools_mark_mailed(pc_ap_tools* t, mActor_name_t item);
 // Letter body for a received tool. sender = AP player name, NULL for none (server,
