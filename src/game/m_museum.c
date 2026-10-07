@@ -62,7 +62,11 @@ extern void mMsm_SendInformationMail() {
     }
 }
 
-static void mMsm_GetFossil(mActor_name_t* fossil) {
+/* PC: also used for instant fossils (pc_ap_dug_item in pc_ap_logic.c) */
+#ifndef TARGET_PC
+static
+#endif
+void mMsm_GetFossil(mActor_name_t* fossil) {
     static int hit_table[mMsm_FOSSIL_TYPE_NUM] = { FALSE, TRUE };
 
 #ifdef TARGET_PC

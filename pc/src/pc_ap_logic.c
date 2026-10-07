@@ -43,6 +43,7 @@
 
 // From ac_animal_logo.c and m_bgm.c (static there, un-static on PC)
 extern void aAL_title_decide_p_sel_npc(void);
+extern void mMsm_GetFossil(mActor_name_t* fossil);
 extern void mBGMFieldNorm_make_req(void);
 extern void mBGMFieldNorm_delete_req(void);
 
@@ -551,20 +552,15 @@ void pc_ap_caught(mActor_name_t item) {
   }
 }
 
-// fossil_spawns pick for the current month, as the fossil's furniture item
-static mActor_name_t pc_ap_pick_fossil_item(void) {
-  u8 wanted[mMmd_FOSSIL_NUM];
-  pc_ap_museumsanity_fossil_wanted(&g_ap.museum, &Save_Get(museum_display), wanted);
-  int month = Common_Get(time.rtc_time).month - 1; // lbRTC months are 1-12
-  int idx = pc_ap_museumsanity_pick_fossil(&g_ap.museum, wanted, month, fqrand());
-  return mRmTp_FtrIdx2FtrItemNo(FTR_DIN_TRIKERA_HEAD + idx, mRmTp_DIRECT_SOUTH);
-}
-
 int pc_ap_pick_fossil(mActor_name_t* fossil) {
   if(g_ap.museum.fossil_spawns == AP_FOSSIL_SPAWNS_VANILLA) {
     return 0;
   }
-  *fossil = pc_ap_pick_fossil_item();
+  u8 wanted[mMmd_FOSSIL_NUM];
+  pc_ap_museumsanity_fossil_wanted(&g_ap.museum, &Save_Get(museum_display), wanted);
+  int month = Common_Get(time.rtc_time).month - 1; // lbRTC months are 1-12
+  int idx = pc_ap_museumsanity_pick_fossil(&g_ap.museum, wanted, month, fqrand());
+  *fossil = mRmTp_FtrIdx2FtrItemNo(FTR_DIN_TRIKERA_HEAD + idx, mRmTp_DIRECT_SOUTH);
   return 1;
 }
 
@@ -572,7 +568,9 @@ mActor_name_t pc_ap_dug_item(mActor_name_t item) {
   if(item != ITM_FOSSIL || !pc_ap_museumsanity_instant_fossils(&g_ap.museum) || !pc_ap_accepting()) {
     return item;
   }
-  mActor_name_t fossil = pc_ap_pick_fossil_item();
+  // The museum's appraisal (mail): game odds, or the fossil_spawns pick through pc_ap_pick_fossil
+  mActor_name_t fossil;
+  mMsm_GetFossil(&fossil);
   int cat, idx;
   if(pc_ap_museumsanity_slot_of(fossil, &cat, &idx)) {
     int64_t id = pc_ap_museumsanity_find_check(&g_ap.museum, cat, idx);

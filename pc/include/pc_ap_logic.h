@@ -109,7 +109,7 @@ void pc_ap_caught(mActor_name_t item);
 // 0 for vanilla spawns.
 int pc_ap_pick_fossil(mActor_name_t* fossil);
 // Item the shovel digs up (Get_scoop setup): with fossil find checks an unappraised
-// fossil comes out appraised (fossil_spawns pick) and sends its "Dig Up" check.
+// fossil comes out appraised (mMsm_GetFossil, as by mail) and sends its "Dig Up" check.
 // Anything else is returned unchanged.
 mActor_name_t pc_ap_dug_item(mActor_name_t item);
 // critter_spawns, right before the weighted draw of the spawn lists (copies, not the

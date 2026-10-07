@@ -190,8 +190,9 @@ int pc_ap_museumsanity_pick_fossil(const pc_ap_museumsanity* m, const u8 wanted[
     if(m->fossil_spawns == AP_FOSSIL_SPAWNS_SEASON_LOCKED) {
       weight[idx] = m->fossil_seasons[idx] == season;
     } else {
-      // Vanilla: 50/50 dinosaur part or single fossil (mMsm_GetFossil), so a single
-      // fossil is 4 times as likely as a part (20 parts, 5 singles)
+      // Dynamic's base: the vanilla odds. 50/50 dinosaur part or single fossil
+      // (mMsm_GetFossil), so a single fossil is 4 times as likely as a part (20 parts,
+      // 5 singles). Vanilla spawns never get here (the game's own pick).
       weight[idx] = idx < PC_AP_FOSSIL_PARTS_NUM ? 1 : 4;
       if(m->fossil_spawns == AP_FOSSIL_SPAWNS_DYNAMIC && wanted[idx]) {
         weight[idx] *= PC_AP_SPAWN_BOOST;
