@@ -164,16 +164,32 @@ int pc_ap_museumsanity_instant_fossils(const pc_ap_museumsanity* m) {
   return (m->checks[mMmd_CATEGORY_FOSSIL] & AP_MUSEUM_FIND) != 0;
 }
 
+// wanted[idx] = 1 while the find or donate check of the first n things of an active
+// category is unsent. Same answers as find_check / donate_check, but one
+// ap_locations_checked call for the whole category (spawns run this often).
+static void pc_ap_museum_unsent(const pc_ap_museumsanity* m, int cat, int n, u8* wanted) {
+  int64_t ids[2 * 0x40] = { 0 }; // find ids, then donate ids
+  u8 checked[2 * 0x40];
+  for(int idx = 0; idx < n; idx++) {
+    ids[idx] = PC_AP_LOC_FIND_BASE + PC_AP_MUSEUM_SLOT(cat, idx);
+    ids[n + idx] = PC_AP_LOC_DONATE_BASE + PC_AP_MUSEUM_SLOT(cat, idx);
+  }
+  ap_locations_checked(ids, 2 * n, checked);
+  for(int idx = 0; idx < n; idx++) {
+    int find = (m->checks[cat] & AP_MUSEUM_FIND) && !checked[idx];
+    int donate = (m->checks[cat] & AP_MUSEUM_DONATE) && !checked[n + idx];
+    wanted[idx] = find || donate;
+  }
+}
+
 void pc_ap_museumsanity_fossil_wanted(const pc_ap_museumsanity* m, const mMmd_info_c* info,
                                       u8 wanted[mMmd_FOSSIL_NUM]) {
-  int active = pc_ap_museumsanity_active(m, mMmd_CATEGORY_FOSSIL);
+  if(pc_ap_museumsanity_active(m, mMmd_CATEGORY_FOSSIL)) {
+    pc_ap_museum_unsent(m, mMmd_CATEGORY_FOSSIL, mMmd_FOSSIL_NUM, wanted);
+    return;
+  }
   for(int idx = 0; idx < mMmd_FOSSIL_NUM; idx++) {
-    if(active) {
-      wanted[idx] = pc_ap_museumsanity_find_check(m, mMmd_CATEGORY_FOSSIL, idx) >= 0 ||
-                    pc_ap_museumsanity_donate_check(m, mMmd_CATEGORY_FOSSIL, idx) >= 0;
-    } else {
-      wanted[idx] = pc_ap_museum_donator_of(info, mMmd_CATEGORY_FOSSIL, idx) == mMmd_DONATOR_NONE;
-    }
+    wanted[idx] = pc_ap_museum_donator_of(info, mMmd_CATEGORY_FOSSIL, idx) == mMmd_DONATOR_NONE;
   }
 }
 
@@ -222,14 +238,12 @@ int pc_ap_museumsanity_pick_fossil(const pc_ap_museumsanity* m, const u8 wanted[
 
 void pc_ap_museumsanity_critter_wanted(const pc_ap_museumsanity* m, int cat, const mMmd_info_c* info,
                                        const u8 journal[PC_AP_CRITTER_NUM], u8 wanted[PC_AP_CRITTER_NUM]) {
-  int active = pc_ap_museumsanity_active(m, cat);
+  if(pc_ap_museumsanity_active(m, cat)) {
+    pc_ap_museum_unsent(m, cat, PC_AP_CRITTER_NUM, wanted);
+    return;
+  }
   for(int idx = 0; idx < PC_AP_CRITTER_NUM; idx++) {
-    if(active) {
-      wanted[idx] = pc_ap_museumsanity_find_check(m, cat, idx) >= 0 ||
-                    pc_ap_museumsanity_donate_check(m, cat, idx) >= 0;
-    } else {
-      wanted[idx] = !journal[idx] || pc_ap_museum_donator_of(info, cat, idx) == mMmd_DONATOR_NONE;
-    }
+    wanted[idx] = !journal[idx] || pc_ap_museum_donator_of(info, cat, idx) == mMmd_DONATOR_NONE;
   }
 }
 

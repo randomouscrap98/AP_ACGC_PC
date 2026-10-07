@@ -80,7 +80,11 @@ AP_API void ap_send_location(int64_t id);
 AP_API int64_t ap_highest_checked(int64_t first, int64_t last);
 // Nonzero if location id is checked: by the server (this slot's checked list,
 // kept across sessions) or sent by us this session.
+// Copies the server's list on every call: in loops use ap_locations_checked.
 AP_API int ap_location_checked(int64_t id);
+// ap_location_checked for n ids at once (one copy of the server's list):
+// out[i] = 1 if ids[i] is checked, else 0
+AP_API void ap_locations_checked(const int64_t * ids, size_t n, uint8_t * out);
 // Tell the server the goal is done (once per session; resent on every reconnect)
 AP_API void ap_send_goal(void);
 // Pop specifically a toast message (might later depend on user settings?).

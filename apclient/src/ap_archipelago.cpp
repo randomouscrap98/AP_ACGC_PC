@@ -111,6 +111,17 @@ int ap_location_checked(int64_t id) {
   return g_ap && g_ap->get_checked_locations().count(id);
 }
 
+void ap_locations_checked(const int64_t * ids, size_t n, uint8_t * out) {
+  // get_checked_locations returns a copy of the set: take it once
+  std::set<int64_t> server;
+  if(g_ap) {
+    server = g_ap->get_checked_locations();
+  }
+  for(size_t i = 0; i < n; i++) {
+    out[i] = g_ap_checks.count(ids[i]) || server.count(ids[i]);
+  }
+}
+
 // apclientpp drops a StatusUpdate made while not connected, so remember it and
 // resend on every connect
 void ap_send_goal(void) {
