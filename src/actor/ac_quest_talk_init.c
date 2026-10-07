@@ -428,9 +428,20 @@ static int aQMgr_actor_check_occur(u32 type, u32 kind, Animal_c* animal, int hom
                     }
                     break;
                 case mQst_CONTEST_KIND_FISH:
+#ifdef TARGET_PC
+                    // Tools in Pool: only once the fishing rod is received
+                    occur = pc_ap_tool_allowed(ITM_ROD);
+#else
                     occur = TRUE;
+#endif
                     break;
                 case mQst_CONTEST_KIND_INSECT:
+#ifdef TARGET_PC
+                    // Tools in Pool: only once the net is received
+                    if (!pc_ap_tool_allowed(ITM_NET)) {
+                        break;
+                    }
+#endif
                     if (((rtc_time->month >= lbRTC_MARCH) && (rtc_time->month <= lbRTC_OCTOBER)) ||
                         (rtc_time->month == lbRTC_NOVEMBER && rtc_time->day <= 28)) {
                         occur = TRUE;
