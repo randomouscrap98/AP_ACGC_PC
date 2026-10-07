@@ -9,6 +9,7 @@
 
 #ifdef TARGET_PC
 #include "pc_ap_logic.h"
+#include "pc_ap_qol.h"
 #endif
 
 enum {
@@ -497,7 +498,11 @@ static int aQMgr_actor_decide_quest(QUEST_MANAGER_ACTOR* manager) {
         } else if (target->quest_info.quest_type == mQst_QUEST_TYPE_DELIVERY) {
             aQMgr_actor_set_client_quest_info(manager);
         }
+#ifdef TARGET_PC
+    } else if (pc_ap_qol_more_favors() || mQst_GetRandom(4) != 0) {
+#else
     } else if (mQst_GetRandom(4) != 0) {
+#endif
         int occur;
         int type;
         int kind;
@@ -505,6 +510,14 @@ static int aQMgr_actor_decide_quest(QUEST_MANAGER_ACTOR* manager) {
         aQMgr_actor_decide_quest_type_kind(&type, &kind);
         occur = aQMgr_actor_check_occur(type, kind, client_animal, client_animal->home_info.block_x,
                                         client_animal->home_info.block_z);
+#ifdef TARGET_PC
+        // More Favors: re-roll kinds that can't happen now (season, contest taken)
+        for (int tries = 0; occur != TRUE && tries < 16 && pc_ap_qol_more_favors(); tries++) {
+            aQMgr_actor_decide_quest_type_kind(&type, &kind);
+            occur = aQMgr_actor_check_occur(type, kind, client_animal, client_animal->home_info.block_x,
+                                            client_animal->home_info.block_z);
+        }
+#endif
 
         if (occur == TRUE) {
             target->quest_info.quest_type = type;
@@ -1557,7 +1570,12 @@ static void aQMgr_actor_talk_select_talk(QUEST_MANAGER_ACTOR* manager) {
                             target_flag = FALSE;
                         }
                     }
+#ifdef TARGET_PC
+                // More Favors: no "asked recently" cooldown
+                } else if (pc_ap_qol_more_favors() || mNpc_CheckQuestRequest(animal_idx) == TRUE) {
+#else
                 } else if (mNpc_CheckQuestRequest(animal_idx) == TRUE) {
+#endif
                     manager->talk_step = aQMgr_TALK_STEP_NEW_QUEST_OR_NORMAL;
                     manager->category_msg_no_start = 0x2A6;
                 } else {

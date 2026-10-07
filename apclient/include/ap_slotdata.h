@@ -51,6 +51,7 @@ typedef struct {
   int no_cockroaches;
   int shops_always_open;
   int no_weeds;
+  int more_favors;            // villagers (almost) always offer a favor
   int normalized_time_travel; // date changes count as one day passing
   // Goal / checks
   int goal;                          // AP_GOAL_* bits; all set goals are required

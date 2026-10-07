@@ -414,6 +414,11 @@ class NoWeeds(DefaultOnToggle):
     display_name = "No Weeds"
 
 
+class MoreFavors(DefaultOnToggle):
+    """Villagers will almost always give you a job when you talk to them."""
+    display_name = "More Favors"
+
+
 class NormalizedTimeTravel(DefaultOnToggle):
     """
     A new date always counts as one day passing, however far it jumps, forward or back: changing
@@ -608,4 +613,5 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     no_cockroaches: NoCockroaches
     shops_always_open: ShopsAlwaysOpen
     no_weeds: NoWeeds
+    more_favors: MoreFavors
     normalized_time_travel: NormalizedTimeTravel

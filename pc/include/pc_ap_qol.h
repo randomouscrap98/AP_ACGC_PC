@@ -25,6 +25,12 @@ void pc_ap_qol_cockroaches(void);
 // renewal and sale-day event statuses stay vanilla) and aNW_check_opend.
 int pc_ap_qol_shops_always_open(void);
 
+// Nonzero when villagers should (almost) always offer a favor. Hooked in
+// aQMgr_actor_talk_select_talk (skips the "asked recently" cooldown) and
+// aQMgr_actor_decide_quest (skips the 75% roll, re-rolls kinds that can't
+// happen now). Caps and full pockets stay vanilla.
+int pc_ap_qol_more_favors(void);
+
 #ifdef __cplusplus
 }
 #endif

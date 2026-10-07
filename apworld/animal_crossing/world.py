@@ -108,6 +108,7 @@ class AnimalCrossingWeb(WebWorld):
             options.NoCockroaches,
             options.ShopsAlwaysOpen,
             options.NoWeeds,
+            options.MoreFavors,
             options.NormalizedTimeTravel,
         ]),
     ]
@@ -353,6 +354,7 @@ class AnimalCrossingWorld(World):
             "no_cockroaches": self.options.no_cockroaches.value,
             "shops_always_open": self.options.shops_always_open.value,
             "no_weeds": self.options.no_weeds.value,
+            "more_favors": self.options.more_favors.value,
             "normalized_time_travel": self.options.normalized_time_travel.value,
             "goal": sorted(self.options.goal.value),
             "loans": self.loans,
