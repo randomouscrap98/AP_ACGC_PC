@@ -96,6 +96,22 @@ int pc_ap_museumsanity_received(const pc_ap_museumsanity* m) {
   return pc_ap_museum_received_slots(m, got);
 }
 
+int pc_ap_museumsanity_received_per_category(const pc_ap_museumsanity* m, int counts[mMmd_CATEGORY_NUM]) {
+  u8 got[PC_AP_MUSEUM_SLOT_NUM];
+  int total = pc_ap_museum_received_slots(m, got);
+  for(int cat = 0; cat < mMmd_CATEGORY_NUM; cat++) {
+    counts[cat] = 0;
+    for(int idx = 0; idx < pc_ap_museum_count[cat]; idx++) {
+      counts[cat] += got[PC_AP_MUSEUM_SLOT(cat, idx)];
+    }
+  }
+  return total;
+}
+
+int pc_ap_museumsanity_size(int cat) {
+  return cat >= 0 && cat < mMmd_CATEGORY_NUM ? pc_ap_museum_count[cat] : 0;
+}
+
 // The 4-bit donator array of a category
 static u8* pc_ap_museum_bits(mMmd_info_c* info, int cat) {
   switch(cat) {

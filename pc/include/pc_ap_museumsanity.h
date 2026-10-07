@@ -50,6 +50,10 @@ int pc_ap_museumsanity_active(const pc_ap_museumsanity* m, int cat);
 
 // Donation items received for active categories, each species once
 int pc_ap_museumsanity_received(const pc_ap_museumsanity* m);
+// Same, also split per category (counts[cat], 0 for inactive ones)
+int pc_ap_museumsanity_received_per_category(const pc_ap_museumsanity* m, int counts[mMmd_CATEGORY_NUM]);
+// Things in a category (museum display size)
+int pc_ap_museumsanity_size(int cat);
 // Make the bits of every active category match the received items: received =
 // donated by player 1 (a real player code, so plaques name the donator; see
 // pc_ap_museumsanity_sender), everything else cleared. Inactive categories are

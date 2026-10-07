@@ -275,31 +275,31 @@ class LoanAmount(Range):
 class StartingLoan(LoanAmount):
     """The loan for your starting house. Vanilla: 17,400."""
     display_name = "Starting Loan"
-    default = 17400
+    default = 5000
 
 
 class MediumLoan(LoanAmount):
     """The loan for the first house upgrade (bigger main floor). Vanilla: 148,000."""
     display_name = "Medium House Loan"
-    default = 98000
+    default = 10000
 
 
 class LargeLoan(LoanAmount):
     """The loan for the second house upgrade (biggest main floor). Vanilla: 398,000."""
     display_name = "Large House Loan"
-    default = 198000
+    default = 20000
 
 
 class BasementLoan(LoanAmount):
     """The loan for the basement. Vanilla: 49,800."""
     display_name = "Basement Loan"
-    default = 49800
+    default = 10000
 
 
 class UpperLoan(LoanAmount):
     """The loan for the upper floor (the last upgrade). Vanilla: 798,000."""
     display_name = "Upper Floor Loan"
-    default = 298000
+    default = 30000
 
 
 class Loansanity(DefaultOnToggle):
@@ -330,7 +330,7 @@ class FillerBellsPercent(Range):
     display_name = "Filler Bells Percent"
     range_start = 0
     range_end = 200
-    default = 80
+    default = 50
 
 
 class Favorsanity(Range):
@@ -529,7 +529,7 @@ class CritterSpawns(Choice):
     option_vanilla = 0
     option_normalized = 1
     option_dynamic = 2
-    default = 0
+    default = 1
 
 
 class FossilSpawns(Choice):

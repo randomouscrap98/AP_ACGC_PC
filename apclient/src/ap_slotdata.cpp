@@ -78,7 +78,7 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   sd->normalized_time_travel = slot_data.value("normalized_time_travel", 1) % 2;
 
   // Defaults match the apworld's option defaults
-  static const int default_loans[AP_LOAN_NUM] = { 17400, 98000, 49800, 198000, 298000 };
+  static const int default_loans[AP_LOAN_NUM] = { 5000, 10000, 10000, 20000, 30000 };
   static const int default_loan_checks[AP_LOAN_NUM] = { 1, 2, 2, 4, 6 };
   sd->goal = read_goal(slot_data);
   sd->loansanity = slot_data.value("loansanity", 1) % 2;

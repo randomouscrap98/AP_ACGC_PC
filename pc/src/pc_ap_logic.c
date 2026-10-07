@@ -201,6 +201,18 @@ int pc_ap_favors_total(void) {
   return g_ap.favors.count;
 }
 
+int pc_ap_museum_received(int counts[mMmd_CATEGORY_NUM]) {
+  return pc_ap_museumsanity_received_per_category(&g_ap.museum, counts);
+}
+
+int pc_ap_museum_category_size(int cat) {
+  return pc_ap_museumsanity_active(&g_ap.museum, cat) ? pc_ap_museumsanity_size(cat) : 0;
+}
+
+int pc_ap_museum_goal(void) {
+  return (ap_getslotdata()->goal & AP_GOAL_MUSEUM) ? g_ap.museum.goal_count : 0;
+}
+
 void pc_ap_favor_done(void) {
   if(!pc_ap_accepting()) {
     return;

@@ -65,6 +65,12 @@ struct home_s* pc_ap_my_home(void);
 int pc_ap_favors_done(void);
 // Number of Favor checks (favorsanity)
 int pc_ap_favors_total(void);
+// Museum donation items received (museumsanity), total; counts[mMmd_CATEGORY_*] per category
+int pc_ap_museum_received(int counts[4]);
+// Things in a category if it's run by AP (has checks), else 0
+int pc_ap_museum_category_size(int cat);
+// Donation items the Museum goal needs, 0 if it isn't a goal
+int pc_ap_museum_goal(void);
 // Call when a favor is completed (reward hook): counts it, sends "Favor n"
 // while n <= favorsanity. Does nothing until pc_ap_accepting().
 void pc_ap_favor_done(void);

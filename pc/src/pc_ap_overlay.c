@@ -10,11 +10,13 @@
 #include "pc_settings_menu.h"
 #include "pc_pause_menu.h" // to get some of those juicy externs
 #include "m_font.h"
+#include "m_museum_display.h"
 #include "m_common_data.h" // clip.animal_logo_clip
 #include "game.h"
 #include "graph.h"
 #include "sys_matrix.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -186,26 +188,65 @@ static void pc_ap_draw_version(struct game_s* game) {
   pc_span_boxtext(game, output, x, _APO_BOTTOM(output), _APO_SCALE);
 }
 
+// Append to the tracker text; stops quietly when full
+static void apo_append(char* out, size_t size, const char* fmt, ...) {
+  size_t len = strlen(out);
+  if(len + 1 >= size) {
+    return;
+  }
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(out + len, size - len, fmt, args);
+  va_end(args);
+}
+
+// Museumsanity: donation items received, total then per AP category
+static void apo_append_museum(char* out, size_t size) {
+  static const struct { int cat; const char* name; } cats[] = {
+    { mMmd_CATEGORY_FOSSIL, "Fossils" },
+    { mMmd_CATEGORY_INSECT, "Bugs" },
+    { mMmd_CATEGORY_FISH, "Fish" },
+    { mMmd_CATEGORY_ART, "Paintings" },
+  };
+  int counts[mMmd_CATEGORY_NUM];
+  int total = 0;
+  for(int c = 0; c < mMmd_CATEGORY_NUM; c++) {
+    total += pc_ap_museum_category_size(c);
+  }
+  if(total == 0) {
+    return; // museumsanity off
+  }
+  int received = pc_ap_museum_received(counts);
+  int goal = pc_ap_museum_goal();
+  apo_append(out, size, "\nMuseum: %d / %d", received, goal > 0 ? goal : total);
+  for(int i = 0; i < (int)(sizeof(cats) / sizeof(cats[0])); i++) {
+    int n = pc_ap_museum_category_size(cats[i].cat);
+    if(n > 0) {
+      apo_append(out, size, "\n%s: %d / %d", cats[i].name, counts[cats[i].cat], n);
+    }
+  }
+}
+
 static void pc_ap_draw_tracker(struct game_s* game) {
   ap_slotdata * sd = ap_getslotdata();
-  char output[256];
+  char output[512];
+  output[0] = '\0';
   if(sd->valid && pc_ap_accepting()) {
-    int len;
     if(pc_ap_loans_enabled()) {
       int loan_amount = pc_ap_loan_amount(pc_ap_house_stage());
-      len = snprintf(output, sizeof(output),
+      apo_append(output, sizeof(output),
         "Loans Paid: %d / %d\nHouse Unlocks: %d / %d\nLoan: %d / %d\nPending credit: %d",
         pc_ap_loans_paid(), AP_LOAN_NUM,
         pc_ap_houses_received(), AP_LOAN_NUM - 1,
         loan_amount - (int)Now_Private->inventory.loan, loan_amount,
         pc_ap_bells_pending());
     } else {
-      len = snprintf(output, sizeof(output), "Pending credit: %d", pc_ap_bells_pending());
+      apo_append(output, sizeof(output), "Pending credit: %d", pc_ap_bells_pending());
     }
-    if(pc_ap_favors_total() > 0 && len > 0 && len < (int)sizeof(output)) {
-      snprintf(output + len, sizeof(output) - len, "\nFavors: %d / %d",
-        pc_ap_favors_done(), pc_ap_favors_total());
+    if(pc_ap_favors_total() > 0) {
+      apo_append(output, sizeof(output), "\nFavors: %d / %d", pc_ap_favors_done(), pc_ap_favors_total());
     }
+    apo_append_museum(output, sizeof(output));
   } else {
     snprintf(output, sizeof(output), "Waiting on save...");
   }
