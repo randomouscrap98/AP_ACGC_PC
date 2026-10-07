@@ -30,10 +30,20 @@ ACTOR_PROFILE Kamakura_Indoor_Profile = {
 
 static mCoBG_bg_size_c aKI_mochi_collision_info = { 25.0f, 25.0f, 25.0f, 25.0f };
 
+#ifdef TARGET_PC
+extern u8 rom_kamakura_fire2_rgb_i4[];
+#endif
+
 static void Kamakura_Indoor_Actor_ct(ACTOR* actorx, GAME* game) {
     static xyz_t mochi_pos = { 160.0f, 40.0f, 160.0f };
     KAMAKURA_INDOOR_ACTOR* k_indoor = (KAMAKURA_INDOOR_ACTOR*)actorx;
     
+#ifdef TARGET_PC
+    // Drawn before the first move would bind NULL candle textures (crash on PC, garbage on GC);
+    // start on the fire animation's first frame
+    k_indoor->candle_fire[0].tex_p = rom_kamakura_fire2_rgb_i4;
+    k_indoor->candle_fire[1].tex_p = rom_kamakura_fire2_rgb_i4;
+#endif
     k_indoor->mochi.pos = mochi_pos;
     k_indoor->mochi.old_pos = mochi_pos;
     k_indoor->mochi.angle_y = 0;
