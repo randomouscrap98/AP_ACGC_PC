@@ -284,16 +284,16 @@ class MediumLoan(LoanAmount):
     default = 10000
 
 
-class LargeLoan(LoanAmount):
-    """The loan for the second house upgrade (biggest main floor). Vanilla: 398,000."""
-    display_name = "Large House Loan"
-    default = 20000
-
-
 class BasementLoan(LoanAmount):
-    """The loan for the basement. Vanilla: 49,800."""
+    """The loan for the basement (the second upgrade). Vanilla: 49,800."""
     display_name = "Basement Loan"
     default = 10000
+
+
+class LargeLoan(LoanAmount):
+    """The loan for the third house upgrade (biggest main floor). Vanilla: 398,000."""
+    display_name = "Large House Loan"
+    default = 20000
 
 
 class UpperLoan(LoanAmount):
@@ -574,8 +574,8 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     goal: Goal
     starting_loan: StartingLoan
     medium_loan: MediumLoan
-    large_loan: LargeLoan
     basement_loan: BasementLoan
+    large_loan: LargeLoan
     upper_loan: UpperLoan
     loansanity: Loansanity
     total_loan_checks: TotalLoanChecks
