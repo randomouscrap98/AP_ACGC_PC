@@ -173,9 +173,18 @@ extern int mQst_CheckLimitOver(mQst_base_c* quest) {
                     lbRTC_TimeCopy(&temp, &quest->time_limit);
                     lbRTC_Sub_DD(&temp, days);
 
+#ifdef TARGET_PC
+                    // Strictly before the start: IsOverTime counts equal as over, so a frozen
+                    // clock (timesanity) expired a quest right at the moment it was accepted
+                    if (lbRTC_IsOverTime(rtc_time, &temp) == lbRTC_OVER &&
+                        lbRTC_IsEqualTime(rtc_time, &temp, lbRTC_CHECK_ALL & ~lbRTC_CHECK_WEEKDAYS) == FALSE) {
+                        res = TRUE;
+                    }
+#else
                     if (lbRTC_IsOverTime(rtc_time, &temp) == lbRTC_OVER) {
                         res = TRUE;
                     }
+#endif
                 }
             }
         }
