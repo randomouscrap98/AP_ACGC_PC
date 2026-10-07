@@ -17,6 +17,9 @@
 // Single implementation of the vendored ini.h (pc/lib/ini) for the exe
 #define INI_IMPLEMENTATION
 #include "ini.h"
+#ifndef _WIN32
+#include <unistd.h> // chdir
+#endif
 
 /* prefer discrete GPU on laptops */
 #ifdef _WIN32
@@ -270,7 +273,30 @@ static int pc_parse_rain_intensity(const char* text) {
     return -1;
 }
 
+// Every data path (ROM, saves, settings, ap_config.ini, cacert.pem) is relative, so run
+// from the exe's folder no matter where the game was launched from
+static void pc_chdir_to_exe(void) {
+    char* base = SDL_GetBasePath(); // UTF-8, ends with a separator
+    if (base == NULL) {
+        fprintf(stderr, "Can't find the exe folder: %s\n", SDL_GetError());
+        return;
+    }
+#ifdef _WIN32
+    // Wide version so folders with non-ASCII names work
+    wchar_t wbase[MAX_PATH];
+    if (MultiByteToWideChar(CP_UTF8, 0, base, -1, wbase, MAX_PATH) == 0 || !SetCurrentDirectoryW(wbase)) {
+        fprintf(stderr, "Can't change to the exe folder: %s\n", base);
+    }
+#else
+    if (chdir(base) != 0) {
+        fprintf(stderr, "Can't change to the exe folder: %s\n", base);
+    }
+#endif
+    SDL_free(base);
+}
+
 int main(int argc, char* argv[]) {
+    pc_chdir_to_exe();
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             printf("Usage: AnimalCrossing [options]\n");

@@ -2,6 +2,7 @@
 #include "pc_ap_logic.h"
 #include "pc_menu_util.h"
 #include "m_font.h" // CHAR_SPACE, CHAR_NEW_LINE, mem_clear
+#include "ap_log.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,14 +56,18 @@ static int pc_replace_msg_text(u8* buf, int len, const char * needle, const char
   int rlen = strlen(replace);
   int shift = rlen - nlen;
   int idx = pc_find_bytes(buf, len, 0, needle, nlen);
-  if(idx >= 0) { // idk, it's weird if you don't find it but ehg?
-    int afterneedle = idx + nlen;
-    if (len + shift > mMsg_MSG_BUF_MAX) return len; // If it won't fit, do nothing
-    memmove(buf + afterneedle + shift, buf + afterneedle, len - afterneedle);
-    memcpy(buf + idx, replace, rlen);
-    len += shift;
+  if(idx < 0) { // the message isn't what the patch expects (other ROM region/version?)
+    APLOG_WARN("message patch: '%s' not found", needle);
+    return len;
   }
-  return len;
+  if(len + shift > mMsg_MSG_BUF_MAX) { // If it won't fit, do nothing
+    APLOG_WARN("message patch: '%s' -> '%s' doesn't fit", needle, replace);
+    return len;
+  }
+  int afterneedle = idx + nlen;
+  memmove(buf + afterneedle + shift, buf + afterneedle, len - afterneedle);
+  memcpy(buf + idx, replace, rlen);
+  return len + shift;
 }
 
 void pc_comma_number(char * out, size_t maxsize, int number) {

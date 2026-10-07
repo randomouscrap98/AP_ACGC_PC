@@ -53,7 +53,8 @@ int pc_ap_houses_received(void);
 // House upgrades built so far, in AP order (Medium, Basement, Large, Upper): 0-4.
 // Loan k exists once stage k is built.
 int pc_ap_house_stage(void);
-// Number of loans paid off (0-5); loan k paid = all its checks are reached
+// Number of loans paid off (0-5), from the save: every loan before the current house stage,
+// plus the current one once it's 0 and Nook has set it (not renew)
 int pc_ap_loans_paid(void);
 // Nonzero if Nook may offer the next upgrade (more houses received than built)
 int pc_ap_house_offer_allowed(void);

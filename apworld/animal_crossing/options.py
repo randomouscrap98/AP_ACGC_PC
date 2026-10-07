@@ -20,19 +20,25 @@ class SkipIntro(Choice):
 
 
 class PlayerName(FreeText):
-    """Your character's name (max 8 characters). Empty uses your slot name (truncated)."""
+    """
+    Your character's name (max 8 characters). Empty uses your slot name (truncated).
+    Only used with Skip Intro.
+    """
     display_name = "Player Name"
     default = ""
 
 
 class TownName(FreeText):
-    """Your town's name (max 8 characters). Empty uses "Archi"."""
+    """
+    Your town's name (max 8 characters). Empty uses "Archi".
+    Only used with Skip Intro.
+    """
     display_name = "Town Name"
     default = ""
 
 
 class Gender(Choice):
-    """Your character's gender."""
+    """Your character's gender. Only used with Skip Intro."""
     display_name = "Gender"
     option_boy = 0
     option_girl = 1
@@ -40,7 +46,7 @@ class Gender(Choice):
 
 
 class Face(Choice):
-    """Your character's face (the game normally picks this from Rover's questions)."""
+    """Your character's face. Only used with Skip Intro."""
     display_name = "Face"
     option_face_1 = 0
     option_face_2 = 1
@@ -86,7 +92,7 @@ class StartingShirt(Choice):
 
 
 class House(Choice):
-    """Which house you get when the job is skipped."""
+    """Which house you get. Only used with Skip Intro."""
     display_name = "House"
     option_top_left = 0
     option_top_right = 1
