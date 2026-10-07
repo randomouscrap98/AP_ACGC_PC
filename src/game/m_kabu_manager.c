@@ -3,6 +3,9 @@
 #include "lb_rtc.h"
 #include "m_common_data.h"
 #include "libc64/qrand.h"
+#ifdef TARGET_PC
+#include "pc_ap_qol.h"
+#endif
 
 #define TRADE_MARKET_ODDS_NUM (Kabu_TRADE_MARKET_TYPE_NUM - 1)
 
@@ -54,6 +57,13 @@ static void Kabu_decide_trade_market() {
   f32* next_type_market = next_trade_market[Save_Get(kabu_price_schedule.trade_market)];
   f32 chosen = fqrand(); /* [0.0f, 1.0f) */
   int i;
+
+#ifdef TARGET_PC
+  // No Falling Stalks: roll only within A + B, keeping their odds to each other
+  if (pc_ap_qol_no_falling_stalks()) {
+    chosen *= next_type_market[0] + next_type_market[1];
+  }
+#endif
 
   /* Subtract odds from chosen until we're below the current odds, or reach the last market type */
   for (i = 0; i < TRADE_MARKET_ODDS_NUM; i++) {

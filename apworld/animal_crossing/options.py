@@ -425,6 +425,16 @@ class MoreFavors(DefaultOnToggle):
     display_name = "More Favors"
 
 
+class TurnipsNeverSpoil(Toggle):
+    """Turnips never spoil, not when the week ends and not when you go back in time."""
+    display_name = "Turnips Never Spoil"
+
+
+class NoFallingStalks(Toggle):
+    """The stalk market never rolls the falling pattern (prices only go down all week)."""
+    display_name = "No Falling Stalks"
+
+
 class NormalizedTimeTravel(DefaultOnToggle):
     """
     A new date always counts as one day passing, however far it jumps, forward or back: changing
@@ -620,4 +630,6 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     shops_always_open: ShopsAlwaysOpen
     no_weeds: NoWeeds
     more_favors: MoreFavors
+    turnips_never_spoil: TurnipsNeverSpoil
+    no_falling_stalks: NoFallingStalks
     normalized_time_travel: NormalizedTimeTravel

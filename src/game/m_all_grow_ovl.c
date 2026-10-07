@@ -326,7 +326,10 @@ static int mAGrw_CheckSpoilKabuTime(lbRTC_time_c* grow_time, lbRTC_time_c* now) 
     // Date & Time change: the decision made on the real old -> new date (grow_time is the
     // rewritten "day before", which would spoil on every Monday)
     if (pc_ap_time_take_turnip_spoil(&spoil)) {
-        return spoil;
+        return spoil && !pc_ap_qol_turnips_never_spoil();
+    }
+    if (pc_ap_qol_turnips_never_spoil()) {
+        return FALSE;
     }
 #endif
 
@@ -3044,6 +3047,11 @@ static void mAGrw_ZuruSpoilKabuIslandFgItem(Island_c* island) {
 }
 
 static void mAGrw_ZuruSpoilKabu(lbRTC_time_c* now_time) {
+#ifdef TARGET_PC
+    if (pc_ap_qol_turnips_never_spoil()) {
+        return;
+    }
+#endif
     if (Save_Get(save_exist) == TRUE &&
         lbRTC_IsEqualDate(now_time->year, now_time->month, now_time->day, Save_Get(save_check).time.year,
                           Save_Get(save_check).time.month, Save_Get(save_check).time.day) < lbRTC_EQUAL) {

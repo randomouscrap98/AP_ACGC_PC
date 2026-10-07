@@ -31,6 +31,14 @@ int pc_ap_qol_shops_always_open(void);
 // happen now). Caps and full pockets stay vanilla.
 int pc_ap_qol_more_favors(void);
 
+// Nonzero when turnips never spoil. Hooked in mAGrw_CheckSpoilKabuTime (weekly
+// spoil) and mAGrw_ZuruSpoilKabu (going back in time).
+int pc_ap_qol_turnips_never_spoil(void);
+
+// Nonzero when the stalk market never rolls the falling pattern (type C).
+// Hooked in Kabu_decide_trade_market.
+int pc_ap_qol_no_falling_stalks(void);
+
 #ifdef __cplusplus
 }
 #endif

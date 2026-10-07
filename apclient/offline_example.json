@@ -30,6 +30,8 @@
   "shops_always_open": 0,
   "no_weeds": 1,
   "more_favors": 1,
+  "turnips_never_spoil": 0,
+  "no_falling_stalks": 0,
   "normalized_time_travel": 1,
   "critter_spawns": 0,
   "fossil_spawns": 1,

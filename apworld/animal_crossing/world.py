@@ -109,6 +109,8 @@ class AnimalCrossingWeb(WebWorld):
             options.ShopsAlwaysOpen,
             options.NoWeeds,
             options.MoreFavors,
+            options.TurnipsNeverSpoil,
+            options.NoFallingStalks,
             options.NormalizedTimeTravel,
         ]),
     ]
@@ -361,6 +363,8 @@ class AnimalCrossingWorld(World):
             "shops_always_open": self.options.shops_always_open.value,
             "no_weeds": self.options.no_weeds.value,
             "more_favors": self.options.more_favors.value,
+            "turnips_never_spoil": self.options.turnips_never_spoil.value,
+            "no_falling_stalks": self.options.no_falling_stalks.value,
             "normalized_time_travel": self.options.normalized_time_travel.value,
             "goal": sorted(self.options.goal.value),
             "loans": self.loans,

@@ -22,6 +22,16 @@ int pc_ap_qol_more_favors(void) {
   return sd->valid && sd->more_favors;
 }
 
+int pc_ap_qol_turnips_never_spoil(void) {
+  ap_slotdata* sd = ap_getslotdata();
+  return sd->valid && sd->turnips_never_spoil;
+}
+
+int pc_ap_qol_no_falling_stalks(void) {
+  ap_slotdata* sd = ap_getslotdata();
+  return sd->valid && sd->no_falling_stalks;
+}
+
 int pc_ap_qol_shops_always_open(void) {
   ap_slotdata* sd = ap_getslotdata();
   return sd->valid && sd->shops_always_open;

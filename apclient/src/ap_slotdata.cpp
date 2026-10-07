@@ -76,6 +76,8 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   sd->shops_always_open = slot_data.value("shops_always_open", 0) % 2;
   sd->no_weeds = slot_data.value("no_weeds", 0) % 2;
   sd->more_favors = slot_data.value("more_favors", 0) % 2;
+  sd->turnips_never_spoil = slot_data.value("turnips_never_spoil", 0) % 2;
+  sd->no_falling_stalks = slot_data.value("no_falling_stalks", 0) % 2;
   sd->normalized_time_travel = slot_data.value("normalized_time_travel", 1) % 2;
 
   // Defaults match the apworld's option defaults
