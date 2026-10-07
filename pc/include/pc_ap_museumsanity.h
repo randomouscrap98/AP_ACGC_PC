@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-// WARN: keep in sync with apworld items.py / locations.py! Museum slot = category
+// WARN: keep in sync with apworld museum.py! Museum slot = category
 // (mMmd_CATEGORY_*) * 0x40 + museum index; the item and both locations use it.
 #define PC_AP_MUSEUM_SLOT(cat, idx)  ((cat) * 0x40 + (idx))
 #define PC_AP_MUSEUM_SLOT_NUM        (mMmd_CATEGORY_NUM * 0x40)

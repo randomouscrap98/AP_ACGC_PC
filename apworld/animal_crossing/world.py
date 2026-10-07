@@ -8,12 +8,11 @@ from Options import OptionError, OptionGroup
 from worlds.AutoWorld import WebWorld, World
 from worlds.generic.Rules import set_rule
 
-from .items import (BELL_CREDITS, FOSSIL_SEASONS, ITEM_NAME_TO_ID, MONTHS, MUSEUM_BUG, MUSEUM_FISH, MUSEUM_FOSSIL,
-                    MUSEUM_NAMES, SEASON_MONTHS,
-                    PROGRESSIVE_HOUSE, TIME_SLOTS, museum_item_name)
-from .locations import (LOANS, LOCATION_NAME_TO_ID, favor_location_name, loan_location_name, museum_donate_name,
-                        museum_find_name, split_loan_checks)
-from .museum import BUGS, FISH, FOSSILS
+from .items import BELL_CREDITS, ITEM_NAME_TO_ID, MONTHS, PROGRESSIVE_HOUSE, TIME_SLOTS
+from .locations import LOANS, LOCATION_NAME_TO_ID, favor_location_name, loan_location_name, split_loan_checks
+from .museum import (BUGS, CHECK_DONATE, CHECK_FIND, FISH, FOSSIL_SEASONS, FOSSILS, MUSEUM_BUG, MUSEUM_FISH,
+                     MUSEUM_FOSSIL, MUSEUM_ITEM_NAME_TO_ID, MUSEUM_NAMES, MUSEUM_PAINTING, SEASON_MONTHS,
+                     museum_donate_name, museum_find_name, museum_item_name)
 from . import options
 from .options import AnimalCrossingOptions, personality_key, villager_key
 from .villagers import PERSONALITIES, VILLAGERS
@@ -134,16 +133,16 @@ class AnimalCrossingWorld(World):
             raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] The Statue goal needs Loansanity on.")
         if "Museum" in self.options.goal.value and not self.options.museumsanity:
             raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] The Museum goal needs Museumsanity on.")
-        # Museum check mode per category (MUSEUM_NAMES order), bits: 1 = find, 2 = donate. 0 = vanilla, no items.
-        self.museum_modes = [0, 0, 0, 0]
+        # Check mode per museum category (CHECK_* bits), 0 = vanilla, no items. All 0 without Museumsanity.
+        self.museum_modes = {MUSEUM_FOSSIL: 0, MUSEUM_PAINTING: 0, MUSEUM_BUG: 0, MUSEUM_FISH: 0}
         if self.options.museumsanity:
-            self.museum_modes = [
-                self.options.fossil_checks.value,
-                self.options.painting_checks.value,
-                self.options.bug_checks.value,
-                self.options.fish_checks.value,
-            ]
-            if not any(self.museum_modes):
+            self.museum_modes = {
+                MUSEUM_FOSSIL: self.options.fossil_checks.value,
+                MUSEUM_PAINTING: self.options.painting_checks.value,
+                MUSEUM_BUG: self.options.bug_checks.value,
+                MUSEUM_FISH: self.options.fish_checks.value,
+            }
+            if not any(self.museum_modes.values()):
                 raise OptionError(f"[{GAME_NAME} - '{self.player_name}'] Museumsanity needs at least one of Bug, "
                                   f"Fish or Fossil Checks on.")
         # One donation item per thing in each category with checks; locations per mode bit
@@ -152,9 +151,9 @@ class AnimalCrossingWorld(World):
         for c, names in enumerate(MUSEUM_NAMES):
             for name in names if self.museum_modes[c] else []:
                 self.museum_item_names.append(museum_item_name(name))
-                if self.museum_modes[c] & 1:
+                if self.museum_modes[c] & CHECK_FIND:
                     self.museum_locations.append(museum_find_name(c, name))
-                if self.museum_modes[c] & 2:
+                if self.museum_modes[c] & CHECK_DONATE:
                     self.museum_locations.append(museum_donate_name(name))
         self.museum_goal_count = math.ceil(len(self.museum_item_names) * self.options.museum_goal_percent.value / 100)
         self.ac_player_name = clamp_name(self.options.player_name.value) or clamp_name(self.player_name)
@@ -232,7 +231,7 @@ class AnimalCrossingWorld(World):
     def create_item(self, name: str) -> AnimalCrossingItem:
         if name == PROGRESSIVE_HOUSE or name in MONTHS or name in TIME_SLOTS:
             classification = ItemClassification.progression
-        elif name.startswith("Museum: ") and "Museum" in self.options.goal.value:
+        elif name in MUSEUM_ITEM_NAME_TO_ID and "Museum" in self.options.goal.value:
             classification = ItemClassification.progression
         else:
             classification = ItemClassification.filler
@@ -332,10 +331,11 @@ class AnimalCrossingWorld(World):
             "starting_month": self.options.starting_month.value,
             "starting_time": self.options.starting_time.value,
             "museumsanity": self.options.museumsanity.value,
-            "bug_checks": self.options.bug_checks.value,
-            "fish_checks": self.options.fish_checks.value,
-            "fossil_checks": self.options.fossil_checks.value,
-            "painting_checks": self.options.painting_checks.value,
+            # Effective modes: 0 without Museumsanity
+            "bug_checks": self.museum_modes[MUSEUM_BUG],
+            "fish_checks": self.museum_modes[MUSEUM_FISH],
+            "fossil_checks": self.museum_modes[MUSEUM_FOSSIL],
+            "painting_checks": self.museum_modes[MUSEUM_PAINTING],
             "museum_goal_count": self.museum_goal_count,
             "critter_spawns": self.options.critter_spawns.value,
             "fossil_spawns": self.options.fossil_spawns.value,

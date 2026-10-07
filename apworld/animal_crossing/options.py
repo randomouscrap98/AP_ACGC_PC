@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from Options import Choice, DefaultOnToggle, FreeText, OptionSet, PerGameCommonOptions, Range, Toggle
 
+from .museum import CHECK_DONATE, CHECK_FIND
 from .villagers import PERSONALITIES, VILLAGERS
 
 
@@ -447,13 +448,13 @@ class Museumsanity(DefaultOnToggle):
     display_name = "Museumsanity"
 
 
-# Values are the client's bits: 1 = when found (caught or dug up), 2 = when donated
+# Values are the check mode bits (museum.py CHECK_*, the client's AP_MUSEUM_*)
 class CritterChecks(Choice):
     option_off = 0
-    option_journal = 1
-    option_museum = 2
-    option_both = 3
-    default = 1
+    option_journal = CHECK_FIND
+    option_museum = CHECK_DONATE
+    option_both = CHECK_FIND | CHECK_DONATE
+    default = CHECK_FIND
 
 
 class BugChecks(CritterChecks):
@@ -487,11 +488,12 @@ class FossilChecks(Choice):
     Instant Donate: as Instant, plus a second check for donating it.
     """
     display_name = "Fossil Checks"
+    # Values are the check mode bits (museum.py CHECK_*): "Vanilla" is donate only
     option_off = 0
-    option_instant = 1
-    option_vanilla = 2
-    option_instant_donate = 3
-    default = 1
+    option_instant = CHECK_FIND
+    option_vanilla = CHECK_DONATE
+    option_instant_donate = CHECK_FIND | CHECK_DONATE
+    default = CHECK_FIND
 
 
 class CritterSpawns(Choice):

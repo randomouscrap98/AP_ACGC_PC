@@ -93,7 +93,7 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   sd->museum_goal_count = slot_data.value("museum_goal_count", 0);
   sd->critter_spawns = slot_data.value("critter_spawns", 0) % 3;
   sd->fossil_spawns = slot_data.value("fossil_spawns", 2) % 3;
-  // WARN: copy of the apworld's FOSSIL_SEASONS (items.py), the default for offline play
+  // WARN: copy of the apworld's FOSSIL_SEASONS (museum.py), the default for offline play
   static const int default_fossil_seasons[AP_FOSSIL_NUM] = {
     2, 2, 2, 2, 2, 2, // Tricera, T-rex: autumn
     1, 1, 1, 1, 1, 1, // Apato, Stego: summer
