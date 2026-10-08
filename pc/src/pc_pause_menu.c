@@ -40,6 +40,10 @@ static PauseMenuPage cur_page = PAGE_MAIN;
 static int main_sel = 0;    /* 0=Resume, 1=Date & Time, 2=Settings, 3=Quit Game */
 static int confirm_sel = 0; /* 0=No (default), 1=Yes */
 
+int pc_pause_menu_submenu_open(void) {
+    return g_pc_paused && cur_page != PAGE_MAIN;
+}
+
 void pc_pause_menu_toggle(void) {
     if (!g_pc_paused && (g_pc_title_main_menu_visible || g_pc_nes_active)) return;
 

@@ -402,7 +402,7 @@ int pc_ap_weather_rain_day_today(void) {
   return pc_ap_weather_rain_day(now->month, now->day);
 }
 
-const char* pc_ap_weather_of_date(const lbRTC_time_c* date) {
+int pc_ap_weather_of_date(const lbRTC_time_c* date, int* intensity_out) {
   lbRTC_time_c* now = Common_GetPointer(time.rtc_time);
   lbRTC_time_c saved = *now;
   s16 weather;
@@ -410,15 +410,16 @@ const char* pc_ap_weather_of_date(const lbRTC_time_c* date) {
 
   // Today: what was rolled (or set by an event, or before this hook existed)
   if(lbRTC_IsEqualDate(now->year, now->month, now->day, date->year, date->month, date->day) == lbRTC_EQUAL) {
-    return pc_ap_weather_name(mEnv_SAVE_GET_WEATHER_TYPE(Save_Get(weather)),
-                              mEnv_SAVE_GET_WEATHER_INTENSITY(Save_Get(weather)));
+    *intensity_out = mEnv_SAVE_GET_WEATHER_INTENSITY(Save_Get(weather));
+    return mEnv_SAVE_GET_WEATHER_TYPE(Save_Get(weather));
   }
   // Another date: the game's own roll with that date in the clock, put back right after
   // (the roll reads the date from Common rtc_time)
   *now = *date;
   mEnv_RandomWeather(&weather, &intensity);
   *now = saved;
-  return pc_ap_weather_name(weather, intensity);
+  *intensity_out = intensity;
+  return weather;
 }
 
 void pc_ap_time_step_year(lbRTC_time_c* t, int dir) {

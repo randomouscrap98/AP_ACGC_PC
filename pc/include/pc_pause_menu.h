@@ -22,6 +22,9 @@ void pc_pause_menu_toggle(void);
 /* Forward an SDL event for menu navigation. Returns 1 if consumed. No-op if not paused. */
 int  pc_pause_menu_handle_event(const SDL_Event* e);
 
+/* 1 while paused on any page other than the main one (settings, date/time, quit confirm). */
+int  pc_pause_menu_submenu_open(void);
+
 /* Append the pause overlay to the game's font display list, from graph_main
  * after game_main() returns. No-op if not paused. */
 void pc_pause_menu_draw(struct game_s* game);

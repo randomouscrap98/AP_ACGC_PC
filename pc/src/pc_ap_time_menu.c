@@ -2,8 +2,11 @@
 #include "pc_ap_logic.h"
 #include "pc_ap_timesanity.h" // slot_of_hour
 #include "pc_menu_util.h"
+#include "pc_text_draw.h"
 
 #include "lb_rtc.h"
+#include "m_font.h"
+#include "m_kankyo.h"
 #include "game.h"
 #include "graph.h"
 
@@ -136,6 +139,42 @@ static void pc_ap_time_menu_format(int row, char* out, int size) {
   }
 }
 
+// Colored weather symbol of the picked date, after the Day row's text
+static void pc_ap_time_menu_draw_weather(struct game_s* game, f32 vx, f32 y) {
+  char value[64];
+  char sym[2] = { 0, 0 };
+  int r, g, b;
+  int intensity;
+  f32 s = s_sel == ROW_DAY ? PC_MENU_SCALE_SELECTED : 1.0f;
+  f32 x;
+
+  pc_ap_time_menu_format(ROW_DAY, value, sizeof(value));
+  x = vx + (pc_text_width(value) + 6) * s;
+  int weather = pc_ap_weather_of_date(&s_pending, &intensity);
+  switch(weather) {
+    case mEnv_WEATHER_RAIN:
+      sym[0] = (char)CHAR_SYMBOL_DROPLET;
+      r = 90, g = 160, b = 255;
+      break;
+    case mEnv_WEATHER_SNOW:
+      sym[0] = (char)CHAR_SYMBOL_SNOWMAN;
+      r = 255, g = 255, b = 255;
+      break;
+    default: // clear, cherry blossoms, falling leaves
+      sym[0] = (char)CHAR_SYMBOL_SUN;
+      r = 255, g = 210, b = 60;
+      break;
+  }
+  pc_menu_draw_left(game, sym, x, y, r, g, b, 255, s);
+
+  // Thunderstorm: lightning after the droplet
+  if(weather == mEnv_WEATHER_RAIN && intensity == mEnv_WEATHER_INTENSITY_HEAVY) {
+    x += pc_text_width(sym) * s;
+    sym[0] = (char)CHAR_SYMBOL_LIGTNING;
+    pc_menu_draw_left(game, sym, x, y, 255, 210, 60, 255, s);
+  }
+}
+
 static void pc_ap_time_menu_draw_page(struct game_s* game) {
   static const char* labels[ROW_HOUR + 1] = { "Year", "Month", "Day", "Hour" };
   int r, g, b, a;
@@ -155,12 +194,9 @@ static void pc_ap_time_menu_draw_page(struct game_s* game) {
     pc_menu_draw_left(game, value, vx, y0 + i * line_h, r, g, b, a, s);
   }
 
-  // Weather of the picked date (not a row: nothing to pick)
-  pc_menu_row_colors(0, &r, &g, &b, &a);
-  pc_menu_draw_left(game, "Weather", lx, y0 + 4 * line_h, r, g, b, a, 1.0f);
-  pc_menu_draw_left(game, pc_ap_weather_of_date(&s_pending), vx, y0 + 4 * line_h, r, g, b, a, 1.0f);
+  pc_ap_time_menu_draw_weather(game, vx, y0 + ROW_DAY * line_h);
 
-  f32 y = y0 + 5 * line_h + 10.0f;
+  f32 y = y0 + 4 * line_h + 10.0f;
   pc_menu_row_colors(s_sel == ROW_CHANGE, &r, &g, &b, &a);
   pc_menu_draw_centered(game, "Change", y, r, g, b, a, s_sel == ROW_CHANGE ? PC_MENU_SCALE_SELECTED : 1.0f);
   pc_menu_row_colors(s_sel == ROW_BACK, &r, &g, &b, &a);

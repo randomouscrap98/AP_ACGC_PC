@@ -296,7 +296,7 @@ void pc_ap_overlay_draw(struct game_s* game) {
   int show_status = menu_screen || g_pc_settings.ap_status_always;
   // Offline has nothing to track
   int show_tracker = (menu_screen || g_pc_settings.ap_tracker_always) && !pc_settings_menu_active() &&
-                     ap_getconnectstate()->state != AP_CSTATE_OFFLINE;
+                     !pc_pause_menu_submenu_open() && ap_getconnectstate()->state != AP_CSTATE_OFFLINE;
   int show_toasts = s_toast_count > 0;
   if(!menu_screen && !show_status && !show_tracker && !show_toasts) {
     return;

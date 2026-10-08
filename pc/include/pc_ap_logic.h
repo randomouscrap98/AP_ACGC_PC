@@ -203,9 +203,10 @@ int pc_ap_time_reloading(void);
 int pc_ap_weather_roll_today(void);
 // For the hook at the end of mEnv_RandomWeather: nonzero when today is the rain day
 int pc_ap_weather_rain_day_today(void);
-// Date & Time page: today's weather, or the weather another date will roll (ignores event days,
-// which force their own weather, and Nook's job, which turns rain into clear)
-const char* pc_ap_weather_of_date(const lbRTC_time_c* date);
+// Date & Time page: today's weather type (mEnv_WEATHER_*) and intensity (mEnv_WEATHER_INTENSITY_*),
+// or the ones another date will roll (ignores event days, which force their own weather, and
+// Nook's job, which turns rain into clear)
+int pc_ap_weather_of_date(const lbRTC_time_c* date, int* intensity_out);
 
 // Date & Time page stepping (dir +1/-1), see pc_ap_timesanity_step_*
 void pc_ap_time_step_year(lbRTC_time_c* t, int dir);
