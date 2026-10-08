@@ -36,6 +36,10 @@ int pc_ap_qol_more_favors(void);
 // already picked one, so talks fall through to the normal ones).
 int pc_ap_qol_villagers_dont_leave(void);
 
+// Nonzero when villagers never sleep. Hooked in mNPS_schedule_manager_sub: a SLEEP
+// schedule entry becomes IN_HOUSE (awake at home, door open, talks and favors work).
+int pc_ap_qol_villagers_never_sleep(void);
+
 // Nonzero when turnips never spoil. Hooked in mAGrw_CheckSpoilKabuTime (weekly
 // spoil) and mAGrw_ZuruSpoilKabu (going back in time).
 int pc_ap_qol_turnips_never_spoil(void);

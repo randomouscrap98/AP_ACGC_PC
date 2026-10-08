@@ -1,6 +1,9 @@
 #include "m_npc_schedule.h"
 
 #include "m_common_data.h"
+#ifdef TARGET_PC
+#include "pc_ap_qol.h"
+#endif
 
 #define mNPS_TIME_2_SEC(hour, min, sec) ((hour) * 3600 + (min) * 60 + (sec))
 #define mNPS_MAKE_SCHEDULE_TABLE(sched_data) { ARRAY_SIZE(sched_data, mNPS_schedule_data_c), sched_data }
@@ -164,6 +167,11 @@ static void mNPS_schedule_manager_sub(mNPS_schedule_c* schedule, int forced_tick
   }
 
   schedule->saved_type = schedule_entry->type;
+#ifdef TARGET_PC
+  if (schedule->saved_type == mNPS_SCHED_SLEEP && pc_ap_qol_villagers_never_sleep()) {
+    schedule->saved_type = mNPS_SCHED_IN_HOUSE;
+  }
+#endif
   if (schedule->forced_timer > 0) {
     schedule->current_type = schedule->forced_type;
     schedule->forced_timer -= forced_ticks;

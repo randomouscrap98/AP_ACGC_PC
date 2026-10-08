@@ -45,8 +45,8 @@ Quality-of-life options, mostly on by default:
 - Each date always has the same weather (vanilla odds), and the Date & Time page of the pause
   menu shows it for the date you pick. Event days and Nook's job can still override it. It always
   rains on the 13th from February to November, for the Coelacanth and the Snail.
-- Optional: shops always open, no weeds, villagers never leave, turnips never spoil, no falling
-  stalk market.
+- Optional: shops always open, no weeds, villagers never leave, villagers never sleep, turnips
+  never spoil, no falling stalk market.
 
 Cosmetic options: town fruit, grass shape, train station, Town Day, starting shirt, starting
 villagers and a villager blacklist, and the stationery used for letters from Archipelago.

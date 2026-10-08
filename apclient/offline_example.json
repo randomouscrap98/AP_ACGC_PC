@@ -31,6 +31,7 @@
   "no_weeds": 0,
   "more_favors": 1,
   "villagers_dont_leave": 0,
+  "villagers_never_sleep": 0,
   "turnips_never_spoil": 0,
   "no_falling_stalks": 0,
   "normalized_time_travel": 1,

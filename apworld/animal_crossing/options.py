@@ -433,6 +433,14 @@ class VillagersDontLeave(Toggle):
     display_name = "Villagers Don't Leave"
 
 
+class VillagersNeverSleep(Toggle):
+    """
+    Villagers never go to sleep: when they would, they stay awake at home, so you can always visit
+    them (handy for favors when you only have early-morning or night hours).
+    """
+    display_name = "Villagers Never Sleep"
+
+
 class TurnipsNeverSpoil(Toggle):
     """Turnips never spoil, not when the week ends and not when you go back in time.
     Ants only appear on spoiled turnips or candy, so with Timesanity the ant then needs October (candy is
@@ -641,6 +649,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     no_weeds: NoWeeds
     more_favors: MoreFavors
     villagers_dont_leave: VillagersDontLeave
+    villagers_never_sleep: VillagersNeverSleep
     turnips_never_spoil: TurnipsNeverSpoil
     no_falling_stalks: NoFallingStalks
     normalized_time_travel: NormalizedTimeTravel

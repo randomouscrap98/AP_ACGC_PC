@@ -53,6 +53,7 @@ typedef struct {
   int no_weeds;
   int more_favors;            // villagers (almost) always offer a favor
   int villagers_dont_leave;   // no move-outs, no "thinking of moving" talk
+  int villagers_never_sleep;  // asleep in the schedule = awake at home
   int turnips_never_spoil;
   int no_falling_stalks;      // stalk market never rolls the falling pattern
   int normalized_time_travel; // date changes count as one day passing
