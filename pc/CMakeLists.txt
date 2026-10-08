@@ -316,6 +316,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_villagers.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_timesanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_time_menu.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_weather.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_museumsanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_tools.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_text_draw.c

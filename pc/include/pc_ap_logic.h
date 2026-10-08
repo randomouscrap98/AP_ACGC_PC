@@ -198,6 +198,15 @@ void pc_ap_time_reload_failed(void);
 // Nonzero from the fade until player select is left (player select's music stays off)
 int pc_ap_time_reloading(void);
 
+// For the hook in mEnv_RandomWeather: today's roll (0-9) from the town id and the date, see
+// pc_ap_weather.h
+int pc_ap_weather_roll_today(void);
+// For the hook at the end of mEnv_RandomWeather: nonzero when today is the rain day
+int pc_ap_weather_rain_day_today(void);
+// Date & Time page: today's weather, or the weather another date will roll (ignores event days,
+// which force their own weather, and Nook's job, which turns rain into clear)
+const char* pc_ap_weather_of_date(const lbRTC_time_c* date);
+
 // Date & Time page stepping (dir +1/-1), see pc_ap_timesanity_step_*
 void pc_ap_time_step_year(lbRTC_time_c* t, int dir);
 void pc_ap_time_step_month(lbRTC_time_c* t, int dir);

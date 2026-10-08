@@ -42,6 +42,9 @@ Quality-of-life options, mostly on by default:
 - Bugs, fish and fossils can spawn evenly, or favor ones you still need.
 - Fossils can come out of the ground already appraised.
 - No cockroaches, more favors from villagers.
+- Each date always has the same weather (vanilla odds), and the Date & Time page of the pause
+  menu shows it for the date you pick. Event days and Nook's job can still override it. It always
+  rains on the 13th from February to November, for the Coelacanth and the Snail.
 - Optional: shops always open, no weeds, villagers never leave, turnips never spoil, no falling
   stalk market.
 

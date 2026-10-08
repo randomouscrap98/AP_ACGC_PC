@@ -9,6 +9,7 @@
 #include "pc_ap_tools.h"
 #include "pc_ap_overlay.h"
 #include "pc_ap_strings.h"
+#include "pc_ap_weather.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 #include "m_common_data.h"
@@ -32,6 +33,7 @@
 #include "m_field_info.h"
 #include "m_land.h"
 #include "m_bgm.h"
+#include "m_kankyo.h"
 #include "m_msg.h"
 #include "m_museum_display.h"
 #include "m_room_type.h"
@@ -388,6 +390,35 @@ void pc_ap_time_normalize_start(void) {
 
 int pc_ap_time_take_turnip_spoil(int* spoil) {
   return pc_ap_timesanity_take_turnip_spoil(&g_ap.time, spoil);
+}
+
+int pc_ap_weather_roll_today(void) {
+  lbRTC_time_c* now = Common_GetPointer(time.rtc_time);
+  return pc_ap_weather_roll(Save_Get(land_info).id, now->year, now->month, now->day);
+}
+
+int pc_ap_weather_rain_day_today(void) {
+  lbRTC_time_c* now = Common_GetPointer(time.rtc_time);
+  return pc_ap_weather_rain_day(now->month, now->day);
+}
+
+const char* pc_ap_weather_of_date(const lbRTC_time_c* date) {
+  lbRTC_time_c* now = Common_GetPointer(time.rtc_time);
+  lbRTC_time_c saved = *now;
+  s16 weather;
+  s16 intensity;
+
+  // Today: what was rolled (or set by an event, or before this hook existed)
+  if(lbRTC_IsEqualDate(now->year, now->month, now->day, date->year, date->month, date->day) == lbRTC_EQUAL) {
+    return pc_ap_weather_name(mEnv_SAVE_GET_WEATHER_TYPE(Save_Get(weather)),
+                              mEnv_SAVE_GET_WEATHER_INTENSITY(Save_Get(weather)));
+  }
+  // Another date: the game's own roll with that date in the clock, put back right after
+  // (the roll reads the date from Common rtc_time)
+  *now = *date;
+  mEnv_RandomWeather(&weather, &intensity);
+  *now = saved;
+  return pc_ap_weather_name(weather, intensity);
 }
 
 void pc_ap_time_step_year(lbRTC_time_c* t, int dir) {

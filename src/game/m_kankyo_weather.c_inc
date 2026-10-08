@@ -111,7 +111,12 @@ extern void mEnv_RandomWeather(s16* next_weather, s16* next_intensity) {
   c5 = (weather >>  0) & 0xF; // light cherry blossoms
   #endif
   
+#ifdef TARGET_PC
+  // Same town and date, same weather (pc_ap_weather.h)
+  selected = pc_ap_weather_roll_today();
+#else
   selected = RANDOM_F(10.0f);
+#endif
 
   if (selected < c0) {
     next_weather[0] = mEnv_WEATHER_CLEAR;
@@ -141,6 +146,14 @@ extern void mEnv_RandomWeather(s16* next_weather, s16* next_intensity) {
     next_weather[0] = mEnv_WEATHER_SAKURA;
     next_intensity[0] = mEnv_WEATHER_INTENSITY_HEAVY;
   }
+
+#ifdef TARGET_PC
+  // Rain on the 13th, Feb-Nov (pc_ap_weather.h)
+  if (pc_ap_weather_rain_day_today()) {
+    next_weather[0] = mEnv_WEATHER_RAIN;
+    next_intensity[0] = mEnv_WEATHER_INTENSITY_LIGHT;
+  }
+#endif
 }
 
 typedef struct wind_power_range_s {

@@ -155,7 +155,12 @@ static void pc_ap_time_menu_draw_page(struct game_s* game) {
     pc_menu_draw_left(game, value, vx, y0 + i * line_h, r, g, b, a, s);
   }
 
-  f32 y = y0 + 4 * line_h + 10.0f;
+  // Weather of the picked date (not a row: nothing to pick)
+  pc_menu_row_colors(0, &r, &g, &b, &a);
+  pc_menu_draw_left(game, "Weather", lx, y0 + 4 * line_h, r, g, b, a, 1.0f);
+  pc_menu_draw_left(game, pc_ap_weather_of_date(&s_pending), vx, y0 + 4 * line_h, r, g, b, a, 1.0f);
+
+  f32 y = y0 + 5 * line_h + 10.0f;
   pc_menu_row_colors(s_sel == ROW_CHANGE, &r, &g, &b, &a);
   pc_menu_draw_centered(game, "Change", y, r, g, b, a, s_sel == ROW_CHANGE ? PC_MENU_SCALE_SELECTED : 1.0f);
   pc_menu_row_colors(s_sel == ROW_BACK, &r, &g, &b, &a);

@@ -8,6 +8,9 @@
 #include "m_npc_schedule.h"
 #include "m_player_lib.h"
 #include "libultra/libultra.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
 #define mEnv_TIME_TO_SECS(hour, min, sec) ((hour) * mTM_SECONDS_IN_HOUR + (min) * mTM_SECONDS_IN_MINUTE + (sec))
 
