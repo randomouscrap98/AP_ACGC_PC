@@ -48,6 +48,18 @@ Quality-of-life options, mostly on by default:
 Cosmetic options: town fruit, grass shape, train station, Town Day, starting shirt, starting
 villagers and a villager blacklist, and the stationery used for letters from Archipelago.
 
+## Fossil seasons
+
+With Fossil Spawns set to Season Locked, each fossil only comes out of the ground in its season,
+to even out progression:
+
+| Season | Months | Fossils |
+|--------|--------|---------|
+| Spring | March-May | Trilobite, Ammonite, Dinosaur Egg, Ptera (skull, both wings) |
+| Summer | June-August | Apato (skull, tail, torso), Stego (skull, tail, torso) |
+| Autumn | September-November | T-rex (skull, tail, torso), Tricera (skull, tail, torso) |
+| Winter | December-February | Mammoth (skull, torso), Plesio (skull, neck, torso), Amber, Dinosaur Track |
+
 ## What does another world's item look like in Animal Crossing?
 
 Checks are sent in the background; a message shows on screen when you send or receive an item.
