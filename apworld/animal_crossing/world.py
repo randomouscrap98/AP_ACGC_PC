@@ -291,6 +291,11 @@ class AnimalCrossingWorld(World):
                 if not self.options.shops_always_open:
                     self.add_museum_rule(MUSEUM_BUG, "Ant", lambda state: state.has_any(
                         ("Day Hours", "Evening Hours", "Night Hours"), self.player))
+            # Snails spawn on flowers (in the rain). New towns have none and only Nook sells seeds, so it
+            # needs a slot with an open shop. Ladybugs and the Mantis only spawn in Day Hours: already covered.
+            if not self.options.shops_always_open:
+                self.add_museum_rule(MUSEUM_BUG, "Snail", lambda state: state.has_any(
+                    ("Day Hours", "Evening Hours", "Night Hours"), self.player))
         # Season locked fossils (dig up and donate): a month of its season
         if self.options.timesanity and self.options.fossil_spawns == options.FossilSpawns.option_season_locked:
             for name, season in zip(FOSSILS, FOSSIL_SEASONS):
