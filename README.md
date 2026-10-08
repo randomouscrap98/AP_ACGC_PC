@@ -10,6 +10,10 @@ Supported versions: GAFE01_00: Rev 0 (USA)
 
 The game reads all assets directly from the disc image at startup. No extraction or preprocessing step is needed.
 
+## Setup
+- Setup guide: [docs/setup_en.md](docs/setup_en.md)
+- Game info: [docs/game_info_en.md](docs/game_info_en.md)
+
 ## Building from Source
 
 ### Requirements
