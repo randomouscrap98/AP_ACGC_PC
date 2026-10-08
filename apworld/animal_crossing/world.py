@@ -283,6 +283,13 @@ class AnimalCrossingWorld(World):
             for c, critters in ((MUSEUM_BUG, BUGS), (MUSEUM_FISH, FISH)):
                 for name, when in critters:
                     self.set_museum_rule(c, name, self.spawn_rule(when))
+            # Ants spawn on spoiled turnips or candy. With turnips never spoiling only candy is left, sold by
+            # Nook Oct 16-30: needs October and a slot with an open shop (as for loans above)
+            if self.options.turnips_never_spoil:
+                self.add_museum_rule(MUSEUM_BUG, "Ant", lambda state: state.has("October", self.player))
+                if not self.options.shops_always_open:
+                    self.add_museum_rule(MUSEUM_BUG, "Ant", lambda state: state.has_any(
+                        ("Day Hours", "Evening Hours", "Night Hours"), self.player))
         # Season locked fossils (dig up and donate): a month of its season
         if self.options.timesanity and self.options.fossil_spawns == options.FossilSpawns.option_season_locked:
             for name, season in zip(FOSSILS, FOSSIL_SEASONS):

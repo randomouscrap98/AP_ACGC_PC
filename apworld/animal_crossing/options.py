@@ -434,7 +434,9 @@ class VillagersDontLeave(Toggle):
 
 
 class TurnipsNeverSpoil(Toggle):
-    """Turnips never spoil, not when the week ends and not when you go back in time."""
+    """Turnips never spoil, not when the week ends and not when you go back in time.
+    Ants only appear on spoiled turnips or candy, so with Timesanity the ant then needs October (candy is
+    sold Oct 16-30)."""
     display_name = "Turnips Never Spoil"
 
 
