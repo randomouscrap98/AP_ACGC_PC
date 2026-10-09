@@ -20,7 +20,9 @@ Animal Crossing has no dungeons or keys, so the randomizer locks parts of everyd
   bugs and fish and digging up fossils sends checks.
 - **Favors (Favorsanity):** a number of villager favors (errands and contests) send checks.
 
-Filler items are Bell Credits, which pay off your current loan directly.
+Filler items are Bell Credits, which pay off your current loan directly. They stop at 100 Bells owed: you pay
+the last 100 yourself at the post office, so you choose when the payoff (and its checks) happens. Credits that
+arrive between an upgrade and Nook's next loan are held, and once every loan is paid they go into your savings.
 
 ## What is the goal?
 
