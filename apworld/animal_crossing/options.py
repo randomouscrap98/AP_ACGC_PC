@@ -283,14 +283,14 @@ class TownDay(Range):
 class Goal(OptionSet):
     """
     What you need to do to finish. With several goals, all of them are required.
-    Statue: pay off every house loan so Tom Nook builds your statue.
-    Museum: receive Museum Goal Percent of the museum donation items (needs Museumsanity).
-    Froggy Chair: get the froggy chair into your catalog, any way you can (never a Catalogsanity item).
-    Catalog: get Catalog Goal Percent of the Catalogsanity items into your catalog (needs Catalogsanity).
-    Furniture Set: every piece of the Furniture Set placed somewhere in your house. Each piece is an item,
-    mailed to you, and can't be found any other way before that.
-    Chess Set: a full chess board's pieces somewhere in your house (8 pawns, 2 rooks, 2 knights, 2 bishops, a queen
-    and a king per colour). One item per piece kind; order the rest from the catalog.
+    - Statue: pay off every house loan so Tom Nook builds your statue.
+    - Museum: receive Museum Goal Percent of the museum donation items (needs Museumsanity).
+    - Froggy Chair: get the froggy chair into your catalog, any way you can (never a Catalogsanity item).
+    - Catalog: get Catalog Goal Percent of the Catalogsanity items into your catalog (needs Catalogsanity).
+    - Furniture Set: every piece of the Furniture Set placed somewhere in your house. Each piece is an item,
+      mailed to you, and can't be found any other way before that.
+    - Chess Set: a full chess board's pieces somewhere in your house (8 pawns, 2 rooks, 2 knights, 2 bishops, a queen
+      and a king per colour). One item per piece kind; order the rest from the catalog.
     Both set goals need the basement built and an open shop (to order lost pieces again).
     Once all goals are done, listen to K.K. Slider on a Saturday night (20:00-23:59) to finish.
     """
@@ -359,7 +359,7 @@ class UpperLoan(LoanAmount):
 class Loansanity(DefaultOnToggle):
     """
     Paying off loans sends checks, next loan gated by Progressive House item.
-    Off: no loan checks, and Tom Nook offers upgrades as usual (the loan amounts still apply).
+    Setting this to false means no loan checks, and Tom Nook offers upgrades as usual (the loan amounts still apply).
     Must be on for the Statue goal.
     """
     display_name = "Loansanity"
@@ -369,7 +369,7 @@ class FossilLoans(DefaultOnToggle):
     """
     The loans after the first (and the Statue goal) also expect the shovel (with Tools in Pool) and one
     dinosaur fossil item (with Progressive fossil availability), so you can dig up fossils to sell.
-    Off: only the Progressive House items.
+    Settings this to false will make it only require the Progressive House items.
     """
     display_name = "Fossil Loans"
 
@@ -464,7 +464,7 @@ class ShellsanityItemChance(Range):
     Shellsanity: chance (percent) that a shell washing up is an Archipelago item
     instead, while the current month has checks left. A full beach walk is about
     20 shells.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Shellsanity Item Chance"
     range_start = 1
@@ -501,9 +501,9 @@ class NookStoreUpgrades(Choice):
     What upgrades Tom Nook's store (Nook's Cranny -> Nook 'n' Go -> Nookway -> Nookington's). 
     Nookington's never needs a visitor from another town. Each upgrade still
     takes two days of renovation, one level at a time.
-    Progressive: three Progressive Nook Store items in the pool, one upgrade each.
-    Sales: total Bells spent at the store reaches the Nook Store Sales amounts (Vanilla behavior).
-    Catalog: the number of entries in your catalog reaches the Nook Store Catalog counts (any, not just Catalogsanity).
+    - Progressive: three Progressive Nook Store items in the pool, one upgrade each.
+    - Sales: total Bells spent at the store reaches the Nook Store Sales amounts (Vanilla behavior).
+    - Catalog: the number of entries in your catalog reaches the Nook Store Catalog counts (any, not just Catalogsanity).
     """
     display_name = "Nook Store Upgrades"
     option_progressive = 1
@@ -602,7 +602,7 @@ class StartingVillagers(OptionSet):
 class NoCockroaches(DefaultOnToggle):
     """
     Cockroaches never appear in your house, even if you're away for a while.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "No Cockroaches"
 
@@ -615,7 +615,7 @@ class ShopsAlwaysOpen(DefaultOnToggle):
 class NoWeeds(DefaultOnToggle):
     """
     Weeds never grow in your town.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "No Weeds"
 
@@ -623,7 +623,7 @@ class NoWeeds(DefaultOnToggle):
 class MoreFavors(DefaultOnToggle):
     """
     Villagers will almost always give you a job when you talk to them.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "More Favors"
 
@@ -632,7 +632,7 @@ class VillagersDontLeave(Toggle):
     """
     Villagers never move out, and nobody talks about moving. Once your town has
     15 villagers, nobody new moves in either.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Villagers Don't Leave"
 
@@ -642,7 +642,7 @@ class VillagersNeverSleep(Toggle):
     Villagers never go to sleep: when they would, they stay awake at home,
     so you can always visit them (handy for favors when you only have
     early-morning or night hours).
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Villagers Never Sleep"
 
@@ -659,7 +659,7 @@ class TurnipsNeverSpoil(DefaultOnToggle):
 class NoFishingTrash(DefaultOnToggle):
     """
     Fishing never hooks an empty can, boot or old tire.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "No Fishing Trash"
 
@@ -669,7 +669,7 @@ class HiddenBugHints(DefaultOnToggle):
     Bugs that hide give themselves away now and then: a little dirt pops up where a
     mole cricket is buried or in front of a rock with a pill bug under it, and a tree
     with a bagworm or spider in it wiggles.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Hidden Bug Hints"
 
@@ -679,7 +679,7 @@ class HiddenItemHints(DefaultOnToggle):
     A little sparkle now and then over the rock that gives Bells when you hit it, and in
     trees with furniture, a present or the golden shovel in them (not the ones with 100 Bells).
     With Catalogsanity, goods in Nook's shop that would send a catalog check sparkle too.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Hidden Item Hints"
 
@@ -688,7 +688,7 @@ class SkipHRATalk(DefaultOnToggle):
     """
     Tom Nook never stops you in his shop to talk about the Happy Room Academy.
     The Academy starts judging your house the day after you move in.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Skip HRA Talk"
 
@@ -698,7 +698,7 @@ class ShortShopTalk(Toggle):
     Tom Nook keeps it short when you buy something in his shop: just the item, the
     price and "would you like it?". He still gives you raffle tickets, he just
     doesn't talk about them. Catalog orders skip the small talk too.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Short Shop Talk"
 
@@ -707,7 +707,7 @@ class ShopNeverSellsOut(Toggle):
     """
     Things you buy in Tom Nook's shop stay on the shelf, so you can buy them again
     (stationery already works like this). Grab bags still sell out.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Shop Never Sells Out"
 
@@ -720,7 +720,7 @@ class EasierCritterCatch(DefaultOnToggle):
     Bugs take twice as long to notice you moving near them. Shaking a tree or
     swinging the net next to a bug still scares it. Bees chase you at half speed.
     Purple butterflies fly as low as the other butterflies instead of high above the trees.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Easier Critter Catch"
 
@@ -728,7 +728,7 @@ class EasierCritterCatch(DefaultOnToggle):
 class NoFallingStalks(Toggle):
     """
     The stalk market never rolls the falling pattern (prices only go down all week).
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "No Falling Stalks"
 
@@ -737,7 +737,7 @@ class CoconutsWashUp(DefaultOnToggle):
     """
     Coconuts sometimes wash up on the town beach in place of a shell (about one
     in every two to three full beach walks). Plant one on the beach row to grow a palm tree.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Coconuts Wash Up"
 
@@ -747,10 +747,10 @@ class NormalizedTimeTravel(DefaultOnToggle):
     A new date always counts as one day passing, however far it jumps, forward
     or back: changing the date (pause menu or the game's own clock setting) or
     coming back after days away.
-    Off: the game sees the real jump, so a big jump forward is like being away
+    Setting this to false makes the game sees the real jump, so a big jump forward is like being away
     that long (weeds, villagers moving out or greeting you like you were gone)
     and going back in time has the usual penalties.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Normalized Time Travel"
 
@@ -835,7 +835,7 @@ class NewItemChance(Range):
     """
     How often a random item you get from Catalogsanity sources is new
     (Nook's shop, favors, balloon presents, ...)
-    Starting value only: change it in game in Settings > AP (kept per save).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "New Item Chance"
     range_start = 5
@@ -862,15 +862,15 @@ class CatalogSources(OptionSet):
     only gives items that aren't checks (or are already in your catalog).
     Nook's shop is always a source and will eventually sell everything, so this
     never changes what is reachable.
-    Favors: villager favor rewards.
-    Trades: villagers trading or selling in a chat.
-    Lost and Found: the daily item.
-    Dump: the daily items.
-    Letters: villager reply presents and letter-quality rewards.
-    Trees: furniture from shaking trees.
-    Presents: from trees and balloons.
-    Grab Bags: Nook's sale day bags.
-    Wisp: his reward.
+    - Favors: villager favor rewards.
+    - Trades: villagers trading or selling in a chat.
+    - Lost and Found: the daily item.
+    - Dump: the daily items.
+    - Letters: villager reply presents and letter-quality rewards.
+    - Trees: furniture from shaking trees.
+    - Presents: from trees and balloons.
+    - Grab Bags: Nook's sale day bags.
+    - Wisp: his reward.
     """
     display_name = "Catalog Sources"
     valid_keys = set(CATALOG_SOURCES)
@@ -911,10 +911,10 @@ class CritterChecks(Choice):
 class BugChecks(CritterChecks):
     """
     With Museumsanity, what sends a check for each bug.
-    Off: no bug checks.
-    Journal: catching it for the first time. With the Museum goal, Blathers never takes bugs.
-    Museum: donating it. With the Museum goal, Blathers takes it while its check isn't sent.
-    Both: catching and donating are separate checks.
+    - Off: no bug checks.
+    - Journal: catching it for the first time. With the Museum goal, Blathers never takes bugs.
+    - Museum: donating it. With the Museum goal, Blathers takes it while its check isn't sent.
+    - Both: catching and donating are separate checks.
     """
     display_name = "Bug Checks"
 
@@ -922,10 +922,10 @@ class BugChecks(CritterChecks):
 class FishChecks(CritterChecks):
     """
     With Museumsanity, what sends a check for each fish.
-    Off: no fish checks.
-    Journal: catching it for the first time. With the Museum goal, Blathers never takes fish.
-    Museum: donating it. With the Museum goal, Blathers takes it while its check isn't sent.
-    Both: catching and donating are separate checks.
+    - Off: no fish checks.
+    - Journal: catching it for the first time. With the Museum goal, Blathers never takes fish.
+    - Museum: donating it. With the Museum goal, Blathers takes it while its check isn't sent.
+    - Both: catching and donating are separate checks.
     """
     display_name = "Fish Checks"
 
@@ -933,10 +933,10 @@ class FishChecks(CritterChecks):
 class FossilChecks(Choice):
     """
     With Museumsanity, what sends a check for each fossil.
-    Off: no fossil checks.
-    Instant: fossils come out of the ground already appraised; digging one up sends its check.
-    Vanilla: mail the fossil to the museum for appraisal, then donating it sends the check.
-    Instant Donate: as Instant, plus a second check for donating it.
+    - Off: no fossil checks.
+    - Instant: fossils come out of the ground already appraised; digging one up sends its check.
+    - Vanilla: mail the fossil to the museum for appraisal, then donating it sends the check.
+    - Instant Donate: as Instant, plus a second check for donating it.
     """
     display_name = "Fossil Checks"
     # Values are the check mode bits (CHECK_* at the top): "Vanilla" is donate only
@@ -950,15 +950,13 @@ class FossilChecks(Choice):
 class CritterOdds(Choice):
     """
     How likely each bug and fish is. Works without Museumsanity too.
-    Vanilla: the game's odds.
-    Normalized: every bug and fish that can spawn is equally likely.
-    Dynamic: like Normalized, but bugs and fish whose check isn't sent yet (or, with no checks, that are missing
-    from the journal or the museum) are 6 times as likely.
-    Normalized and Dynamic: in the river's lake and waterfall acres, the fish that only live there get 3/4 of
-    the spawns.
-    Normalized and Dynamic: sparse bug times (winter, spring nights) spawn a bug at least half the time an
-    acre rolls one (vanilla: as little as 17%).
-    Starting value only: change it in game in Settings > AP (kept per save).
+    - Vanilla: the game's odds.
+    - Normalized: every bug and fish that can spawn is equally likely.
+    - Dynamic: like Normalized, but bugs and fish whose check isn't sent yet (or, with no checks, that are missing
+      from the journal or the museum) are 6 times as likely.
+    With anything but vanilla, the fish that only live in river's lake and waterfall acres get 3/4 of the spawns.
+    For bugs, they will spawn a bug at least half the time an acre rolls one during sparse bug times (winter, spring nights) (vanilla: as little as 17%).
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Critter Odds"
     option_vanilla = 0
@@ -970,11 +968,14 @@ class CritterOdds(Choice):
 class BugAvailability(Choice):
     """
     Which bugs can spawn.
-    All: every bug.
-    Progressive: a bug only spawns once you have its item: "Tree Bugs" (cicadas, Bagworm, Spider, Purple
-    Butterfly, Bee), "Beetles", "Flower Bugs" (butterflies, ladybugs, Mantis, Snail), "Ground Bugs" (crickets,
-    Grasshopper, locusts, Mole Cricket, Pill Bug, Ant, Cockroach) and "Flying Bugs" (dragonflies, Mosquito,
-    Firefly, Pond Skater). Needs Bug Checks (with Museumsanity); without them this is All.
+    - All: every bug.
+    - Progressive: a bug only spawns once you have its item:
+        - "Tree Bugs" (cicadas, Bagworm, Spider, Purple Butterfly, Bee)
+        - "Beetles"
+        - "Flower Bugs" (butterflies, ladybugs, Mantis, Snail)
+        - "Ground Bugs" (crickets, Grasshopper, locusts, Mole Cricket, Pill Bug, Ant, Cockroach)
+        - "Flying Bugs" (dragonflies, Mosquito, Firefly, Pond Skater)
+    Needs Bug Checks (with Museumsanity); without them this is All.
     """
     display_name = "Bug Availability"
     option_all = 0
@@ -985,11 +986,14 @@ class BugAvailability(Choice):
 class FishAvailability(Choice):
     """
     Which fish can spawn.
-    All: every fish.
-    Progressive: a fish only spawns once you have one of its items: "Small River Fish", "Medium River Fish" and
-    "Large River Fish" (river, waterfall and river mouth, by the size of the fish's shadow), "Pond Fish" (ponds and
-    the fish that live only in the river's lake) and "Sea Fish". The fishing tourney needs the river items for the
-    basses. Needs Fish Checks (with Museumsanity); without them this is All.
+    - All: every fish.
+    - Progressive: a fish only spawns once you have one of its items:
+        - "Small River Fish"
+        - "Medium River Fish"
+        - "Large River Fish" (river, waterfall and river mouth, by the size of the fish's shadow)
+        - "Pond Fish" (ponds and the fish that live only in the river's lake)
+        - "Sea Fish"
+    The fishing tourney needs the river items for the basses. Needs Fish Checks (with Museumsanity); without them this is All.
     """
     display_name = "Fish Availability"
     option_all = 0
@@ -1000,13 +1004,17 @@ class FishAvailability(Choice):
 class FossilAvailability(Choice):
     """
     Which fossils can come out of the ground. Works without Museumsanity too.
-    All: every fossil.
-    Season Locked: each fossil only comes out in one season (Spring: March-May, Summer: June-August,
-    Autumn: September-November, Winter: December-February). With Timesanity, fossil checks need a month of
-    their season.
-    Progressive: each dinosaur series (Tricera, T-rex, Apato, Stego, Ptera, Plesio, Mammoth) only comes out once
-    you have its item ("T-rex Fossils", ...); "Single Fossils" opens Amber, Dinosaur Track, Ammonite, Dinosaur Egg
-    and Trilobite. No fossils are buried until you have one of these items. Needs Fossil Checks (with
+    - All: every fossil.
+    - Season Locked: each fossil only comes out in one season:
+        - Spring: March-May
+        - Summer: June-August
+        - Autumn: September-November
+        - Winter: December-February
+      With Timesanity, fossil checks need a month of their season.
+    - Progressive: each dinosaur series (Tricera, T-rex, Apato, Stego, Ptera, Plesio, Mammoth) only comes out once
+      you have its item ("T-rex Fossils", ...); "Single Fossils" opens Amber, Dinosaur Track, Ammonite, Dinosaur Egg
+    and Trilobite.
+    No fossils are buried until you have one of these items. Needs Fossil Checks (with
     Museumsanity); without them this is All.
     """
     display_name = "Fossil Availability"
@@ -1019,11 +1027,11 @@ class FossilAvailability(Choice):
 class FossilOdds(Choice):
     """
     How likely each available fossil is. Works without Museumsanity too.
-    Vanilla: the game's odds (half the time one of the five single fossils, else a dinosaur part).
-    Normalized: every available fossil equally likely.
-    Dynamic: like Normalized, but fossils whose check isn't sent yet (or, with no checks, that are missing from
-    the museum) are 6 times as likely.
-    Starting value only: change it in game in Settings > AP (kept per save).
+    - Vanilla: the game's odds (half the time one of the five single fossils, else a dinosaur part).
+    - Normalized: every available fossil equally likely.
+    - Dynamic: like Normalized, but fossils whose check isn't sent yet (or, with no checks, that are missing from
+      the museum) are 6 times as likely.
+    - This can later be changed in-game under Settings > AP.
     """
     display_name = "Fossil Odds"
     option_vanilla = 0
