@@ -28,6 +28,7 @@ typedef struct {
     int ap_tracker_always;  // Simple number tracking: 0 = title + pause, 1 = always
     int ap_toast_seconds;   // How long an AP toast stays on screen, 0 = no toasts (default 10)
     int ap_toast_max;       // Max AP toasts on screen at once, 1-16 (default 8)
+    int ap_text_client;     // AP text client box in the pause menu (pc_ap_ui.c): 1 = on (default), 0 = never started
 } PCSettings;
 
 extern PCSettings g_pc_settings;

@@ -1,0 +1,2 @@
+Dear ImGui v1.92.9b (https://github.com/ocornut/imgui/releases/tag/v1.92.9b), unmodified.
+Only the core files and the OpenGL 3 backend (backends/imgui_impl_opengl3*) are vendored.

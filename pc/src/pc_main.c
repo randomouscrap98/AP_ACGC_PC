@@ -4,6 +4,7 @@
 #include "pc_texture_pack.h"
 #include "pc_settings.h"
 #include "pc_render_target.h"
+#include "pc_ap_ui.h"
 #include "pc_keybindings.h"
 #include "pc_assets.h"
 #include "pc_disc.h"
@@ -162,6 +163,7 @@ static void pc_speedhack_toggle(void) {
 void pc_platform_shutdown(void) {
     // NEW: PROBABLY safe to shutdown archipelago first... it's 
     // probably the least important system?
+    pc_ap_ui_shutdown(); // GL context still current
     ap_stop();
     pc_settings_save_window_size();
 
@@ -201,6 +203,7 @@ void pc_platform_swap_buffers(void) {
         pc_render_target_present();
     }
 #endif
+    pc_ap_ui_draw(); // AP text client over everything (pause menu only)
     SDL_GL_SwapWindow(g_pc_window);
 }
 
@@ -213,6 +216,7 @@ int pc_platform_poll_events(void) {
     pc_ap_update();
 
     while (SDL_PollEvent(&event)) {
+        if (pc_ap_ui_handle_event(&event)) continue;
         switch (event.type) {
             case SDL_QUIT:
                 g_pc_running = 0;

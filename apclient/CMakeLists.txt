@@ -88,12 +88,31 @@ add_custom_command(OUTPUT "${AP_UPGRADES_H}"
     DEPENDS "${AP_UPGRADES_JSON}" "${CMAKE_CURRENT_SOURCE_DIR}/embed_upgrades.cmake"
 )
 
-add_library(ap_client SHARED src/ap_archipelago.cpp src/ap_log.cpp src/ap_slotdata.cpp "${AP_UPGRADES_H}")
+# Text client font (lib/fonts/README.txt), embedded (embed_font.cmake)
+set(AP_UI_FONT_TTF "${CMAKE_CURRENT_SOURCE_DIR}/lib/fonts/NotoSans-Regular-subset.ttf")
+set(AP_UI_FONT_H "${CMAKE_CURRENT_BINARY_DIR}/generated/ap_ui_font.h")
+add_custom_command(OUTPUT "${AP_UI_FONT_H}"
+    COMMAND ${CMAKE_COMMAND} -DIN=${AP_UI_FONT_TTF} -DOUT=${AP_UI_FONT_H}
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/embed_font.cmake"
+    DEPENDS "${AP_UI_FONT_TTF}" "${CMAKE_CURRENT_SOURCE_DIR}/embed_font.cmake"
+)
+
+# Dear ImGui (lib/imgui/VERSION.txt) for the text client (src/ap_ui.cpp): core + the OpenGL 3 backend
+set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/imgui")
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp ${IMGUI_DIR}/imgui_draw.cpp ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+)
+
+add_library(ap_client SHARED src/ap_archipelago.cpp src/ap_log.cpp src/ap_slotdata.cpp src/ap_messages.cpp
+    src/ap_ui.cpp ${IMGUI_SOURCES} "${AP_UPGRADES_H}" "${AP_UI_FONT_H}")
 
 target_include_directories(ap_client
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include   # C API header, used by the game
     PRIVATE
-        ${CMAKE_CURRENT_BINARY_DIR}/generated          # ap_slotdata_upgrades.h
+        ${CMAKE_CURRENT_BINARY_DIR}/generated          # ap_slotdata_upgrades.h, ap_ui_font.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/src                # ap_imconfig.h
+        ${IMGUI_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/apclientpp/include
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/wswrap/include
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/json/include
@@ -106,6 +125,7 @@ target_include_directories(ap_client
 
 target_compile_definitions(ap_client PRIVATE
     AP_CLIENT_EXPORTS
+    "IMGUI_USER_CONFIG=\"ap_imconfig.h\""
     ASIO_STANDALONE
     _WEBSOCKETPP_CPP11_THREAD_
     $<$<BOOL:${WIN32}>:_WIN32_WINNT=0x0601>
@@ -147,6 +167,8 @@ set(THIRD_PARTY_LICENSES
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/asio/LICENSE_1_0.txt|asio-LICENSE.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/zlib/LICENSE|zlib-LICENSE.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/cacert/LICENSE-MPL-2.0.txt|cacert-MPL-2.0.txt"
+    "${CMAKE_CURRENT_SOURCE_DIR}/lib/imgui/LICENSE.txt|imgui-LICENSE.txt"
+    "${CMAKE_CURRENT_SOURCE_DIR}/lib/fonts/NotoSans-OFL.txt|NotoSans-OFL.txt"
 )
 foreach(entry IN LISTS THIRD_PARTY_LICENSES)
     string(REPLACE "|" ";" pair "${entry}")

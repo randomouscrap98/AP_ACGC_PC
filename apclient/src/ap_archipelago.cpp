@@ -1,4 +1,5 @@
 #include "ap_archipelago.h"
+#include "ap_messages.h"
 #include "ap_slotdata.h"
 
 #include <apclient.hpp>
@@ -43,6 +44,52 @@ static std::string ap_plain(const std::string& in) {
   }
   while (!out.empty() && out.back() == ' ') out.pop_back();
   return out;
+}
+
+// One PrintJSON as text client segments, coloured like AP's text client (NetUtils JSONtoTextParser)
+static void ap_msg_from_print_json(const APClient::PrintJSONArgs& args) {
+  std::vector<ap_msg_seg> segs;
+  for (const auto& node : args.data) {
+    std::string text = node.text;
+    std::string color = node.color;
+    long long id = strtoll(node.text.c_str(), NULL, 10);
+    if (node.type == "player_id") {
+      text = g_ap->get_player_alias((int)id);
+      color = g_ap->slot_concerns_self((int)id) ? "magenta" : "yellow";
+    } else if (node.type == "player_name") {
+      color = "yellow";
+    } else if (node.type == "item_id" || node.type == "item_name") {
+      if (node.type == "item_id") { text = g_ap->get_item_name(id, g_ap->get_player_game(node.player)); }
+      if (node.flags & APClient::FLAG_ADVANCEMENT) { color = "plum"; }
+      else if (node.flags & APClient::FLAG_NEVER_EXCLUDE) { color = "slateblue"; }
+      else if (node.flags & APClient::FLAG_TRAP) { color = "salmon"; }
+      else { color = "cyan"; }
+    } else if (node.type == "location_id" || node.type == "location_name") {
+      if (node.type == "location_id") { text = g_ap->get_location_name(id, g_ap->get_player_game(node.player)); }
+      color = "green";
+    } else if (node.type == "entrance_name") {
+      color = "blue";
+    } else if (node.type == "hint_status") {
+      switch (node.hintStatus) {
+        case APClient::HINT_FOUND: color = "green"; break;
+        case APClient::HINT_UNSPECIFIED: color = "white"; break;
+        case APClient::HINT_NO_PRIORITY: color = "cyan"; break;
+        case APClient::HINT_AVOID: color = "salmon"; break;
+        case APClient::HINT_PRIORITY: color = "plum"; break;
+        default: color = "red"; break;
+      }
+    }
+    segs.push_back({ text, ap_msg_color(color) });
+  }
+  ap_msg_add(segs);
+}
+
+int ap_say(const char * text) {
+  if (!g_ap || text == NULL || text[0] == 0 || !g_ap->Say(text)) {
+    return 0;
+  }
+  if (text[0] == '!') { ap_msg_add({ { text, ap_msg_color("orange") } }); } // AP's command echo
+  return 1;
 }
 
 size_t ap_getitemcount(void) {
@@ -456,6 +503,7 @@ void ap_start(void) {
 
   g_ap->set_print_json_handler([](const APClient::PrintJSONArgs & args) {
     if(g_ap_room_changed) return;
+    ap_msg_from_print_json(args); // the text client gets everything
     int me = g_ap->get_player_number(); // just look it up again, whatever
     // Quickly filter messages we don't care about (for toast)
     // For this version, we only show item/hint messages for us (to reduce spam, it's a toast)
