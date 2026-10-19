@@ -835,9 +835,9 @@ class StartingTime(Choice):
 
 class Catalogsanity(DefaultOnToggle):
     """
-    Catalog items are split into pools. Getting an item of an unlocked pool
-    into your catalog (picking it up, wearing it, ...) sends a check. No pool
-    is open at the start: each Progressive Catalog Pool unlocks the next one.
+    Reserve a section of the catalog for AP. Sections are gated by Progressive
+    Catalog Pool. Registering an item sends a check. Items in the Catalogsanity
+    pool only come from registered sources (see "Catalog Sources").
     Must be on for the Catalog goal.
     """
     display_name = "Catalogsanity"
@@ -847,7 +847,7 @@ class CatalogPools(Range):
     """
     Catalog is split into pools, each one requiring a Progressive Catalog Pool
     unlock (none open at the start). Pools x Pool Size = total catalog checks,
-    at most 575 (furniture, clothes, carpets and wallpaper; no stationery or diaries).
+    at most 575 (furniture, clothes, carpets and wallpaper only)
     """
     display_name = "Catalog Pools"
     range_start = 1
@@ -857,7 +857,7 @@ class CatalogPools(Range):
 
 class CatalogPoolSize(Range):
     """
-    Catalog checks unlocked per Progressive Catalog Pool. Items are picked at
+    Catalog items unlocked per Progressive Catalog Pool. Items are picked at
     random, with every pool getting a similar mix of furniture, clothes,
     carpets and wallpaper.
     """
@@ -894,10 +894,9 @@ CATALOG_SOURCES = [
 
 class CatalogSources(OptionSet):
     """
-    With Catalogsanity, what can give you catalog checks. Turned off, a source
-    only gives items that aren't checks (or are already in your catalog).
+    What can give you items from the reserved Catalogsanity catalog.
     Nook's shop is always a source and will eventually sell everything, so this
-    never changes what is reachable.
+    never changes what is reachable, only how easy it is to get items outside Nook.
     - Favors: villager favor rewards.
     - Trades: villagers trading or selling in a chat.
     - Lost and Found: the daily item.
@@ -927,10 +926,7 @@ class CatalogGoalPercent(Range):
 class Museumsanity(DefaultOnToggle):
     """
     Catching, digging up or donating things sends checks (see the options below).
-    With the Museum goal, museum donations are also items: your own donations
-    never fill the museum, it shows the donation items you received.
-    Without it the museum works as usual.
-    Must be on for the Museum goal.
+    Required for the Museum Goal, which replaces museum donations with AP items.
     """
     display_name = "Museumsanity"
 
@@ -947,10 +943,10 @@ class CritterChecks(Choice):
 class BugChecks(CritterChecks):
     """
     With Museumsanity, what sends a check for each bug.
-    - Off: no bug checks.
+    - Off: no bug checks or AP items
     - Journal: catching it for the first time. With the Museum goal, Blathers never takes bugs.
     - Museum: donating it. With the Museum goal, Blathers takes it while its check isn't sent.
-    - Both: catching and donating are separate checks.
+    - Both: catching and donating are separate checks. Doubles bug checks
     """
     display_name = "Bug Checks"
 
@@ -961,7 +957,7 @@ class FishChecks(CritterChecks):
     - Off: no fish checks.
     - Journal: catching it for the first time. With the Museum goal, Blathers never takes fish.
     - Museum: donating it. With the Museum goal, Blathers takes it while its check isn't sent.
-    - Both: catching and donating are separate checks.
+    - Both: catching and donating are separate checks. Doubles fish checks
     """
     display_name = "Fish Checks"
 
@@ -972,7 +968,7 @@ class FossilChecks(Choice):
     - Off: no fossil checks.
     - Instant: fossils come out of the ground already appraised; digging one up sends its check.
     - Vanilla: mail the fossil to the museum for appraisal, then donating it sends the check.
-    - Instant Donate: as Instant, plus a second check for donating it.
+    - Instant Donate: dig up as Instant, plus a second check for donating it. Doubles fossil checks
     """
     display_name = "Fossil Checks"
     # Values are the check mode bits (CHECK_* at the top): "Vanilla" is donate only
@@ -987,11 +983,12 @@ class CritterOdds(Choice):
     """
     How likely each bug and fish is. Works without Museumsanity too.
     - Vanilla: the game's odds.
-    - Normalized: every bug and fish that can spawn is equally likely.
-    - Dynamic: like Normalized, but bugs and fish whose check isn't sent yet (or, with no checks, that are missing
-      from the journal or the museum) are 6 times as likely.
-    With anything but vanilla, the fish that only live in river's lake and waterfall acres get 3/4 of the spawns.
-    For bugs, they will spawn a bug at least half the time an acre rolls one during sparse bug times (winter, spring nights) (vanilla: as little as 17%).
+    - Normalized: every bug and fish spawn is equally likely.
+    - Dynamic: like Normalized, but bugs and fish whose check isn't sent yet (or have not been found)
+      are 6 times as likely.
+    Normalized and Dynamic force unique region fish (waterfall, lake) to take up a greater
+    share of the fish in that region over river fish. Bugs also spawn more frequently in
+    acres, which helps with winter sparseness.
     This can later be changed in-game under Settings > AP.
     """
     display_name = "Critter Odds"
@@ -1006,11 +1003,11 @@ class BugAvailability(Choice):
     Which bugs can spawn.
     - All: every bug.
     - Progressive: a bug only spawns once you have its item:
-        - "Tree Bugs" (cicadas, Bagworm, Spider, Purple Butterfly, Bee)
-        - "Beetles"
-        - "Flower Bugs" (butterflies, ladybugs, Mantis, Snail)
-        - "Ground Bugs" (crickets, Grasshopper, locusts, Mole Cricket, Pill Bug, Ant, Cockroach)
-        - "Flying Bugs" (dragonflies, Mosquito, Firefly, Pond Skater)
+      - "Tree Bugs" (cicadas, Bagworm, Spider, Purple Butterfly, Bee)
+      - "Beetles"
+      - "Flower Bugs" (butterflies, ladybugs, Mantis, Snail)
+      - "Ground Bugs" (crickets, Grasshopper, locusts, Mole Cricket, Pill Bug, Ant, Cockroach)
+      - "Flying Bugs" (dragonflies, Mosquito, Firefly, Pond Skater)
     Needs Bug Checks (with Museumsanity); without them this is All.
     """
     display_name = "Bug Availability"
@@ -1024,11 +1021,11 @@ class FishAvailability(Choice):
     Which fish can spawn.
     - All: every fish.
     - Progressive: a fish only spawns once you have one of its items:
-        - "Small River Fish"
-        - "Medium River Fish"
-        - "Large River Fish" (river, waterfall and river mouth, by the size of the fish's shadow)
-        - "Pond Fish" (ponds and the fish that live only in the river's lake)
-        - "Sea Fish"
+      - "Small River Fish"
+      - "Medium River Fish"
+      - "Large River Fish"
+      - "Pond Fish" (includes the lake)
+      - "Sea Fish"
     The fishing tourney needs the river items for the basses. Needs Fish Checks (with Museumsanity); without them this is All.
     """
     display_name = "Fish Availability"
@@ -1042,14 +1039,11 @@ class FossilAvailability(Choice):
     Which fossils can come out of the ground. Works without Museumsanity too.
     - All: every fossil.
     - Season Locked: each fossil only comes out in one season:
-        - Spring: March-May
-        - Summer: June-August
-        - Autumn: September-November
-        - Winter: December-February
-      With Timesanity, fossil checks need a month of their season.
-    - Progressive: each dinosaur series (Tricera, T-rex, Apato, Stego, Ptera, Plesio, Mammoth) only comes out once
-      you have its item ("T-rex Fossils", ...); "Single Fossils" opens Amber, Dinosaur Track, Ammonite, Dinosaur Egg
-    and Trilobite.
+      - Spring: March-May
+      - Summer: June-August
+      - Autumn: September-November
+      - Winter: December-February
+    - Progressive: each dinosaur series requires an item before it spawns, adds 8 progressive items to pool.
     No fossils are buried until you have one of these items. Needs Fossil Checks (with
     Museumsanity); without them this is All.
     """
@@ -1063,11 +1057,10 @@ class FossilAvailability(Choice):
 class FossilOdds(Choice):
     """
     How likely each available fossil is. Works without Museumsanity too.
-    - Vanilla: the game's odds (half the time one of the five single fossils, else a dinosaur part).
+    - Vanilla: the game's original odds (not in your favor)
     - Normalized: every available fossil equally likely.
-    - Dynamic: like Normalized, but fossils whose check isn't sent yet (or, with no checks, that are missing from
-      the museum) are 6 times as likely.
-    - This can later be changed in-game under Settings > AP.
+    - Dynamic: like Normalized, but fossils whose check isn't sent yet (or which have not been found) are 6 times as likely.
+    This can later be changed in-game under Settings > AP.
     """
     display_name = "Fossil Odds"
     option_vanilla = 0
@@ -1087,8 +1080,7 @@ class PaintingChecks(Choice):
 
 class MuseumGoalPercent(Range):
     """
-    For the Museum goal: percentage of the museum donation items you need to
-    receive.
+    For the Museum goal: percentage of the museum donation items you need to receive.
     """
     display_name = "Museum Goal Percent"
     range_start = 1
