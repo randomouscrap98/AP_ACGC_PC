@@ -4,7 +4,11 @@
 #include "ap_ui.h"
 #include "ap_archipelago.h"
 #include "ap_messages.h"
-#include "ap_ui_font.h" // AP_UI_FONT: the embedded Noto Sans subset (embed_font.cmake)
+// Embedded fonts (lib/fonts/README.txt, embed_font.cmake)
+#include "ap_ui_font.h"
+#include "ap_ui_font_math.h"
+#include "ap_ui_font_symbols.h"
+#include "ap_ui_font_symbols2.h"
 
 #include "imgui.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -143,9 +147,19 @@ int ap_ui_init(ap_ui_gl_proc_fn gl_get_proc) {
     ImGui::DestroyContext();
     return 0;
   }
+  // Noto Sans, then the symbol fonts merged in for what it lacks (first font with a glyph wins)
   ImFontConfig cfg;
-  cfg.FontDataOwnedByAtlas = false; // static array
+  cfg.FontDataOwnedByAtlas = false; // static arrays
   io.Fonts->AddFontFromMemoryTTF((void *)AP_UI_FONT, (int)sizeof(AP_UI_FONT), AP_UI_FONT_PX, &cfg);
+  // ImGui sizes a font by its ascent - descent; these have taller line metrics than Noto Sans, so scale them up to
+  // the same em size: (ascent - descent) / (Noto Sans' 1069 + 293), all 1000 units per em (hhea tables)
+  cfg.MergeMode = true;
+  cfg.ExtraSizeScale = (1069 + 630) / 1362.0f;
+  io.Fonts->AddFontFromMemoryTTF((void *)AP_UI_FONT_SYMBOLS2, (int)sizeof(AP_UI_FONT_SYMBOLS2), AP_UI_FONT_PX, &cfg);
+  cfg.ExtraSizeScale = (1480 + 570) / 1362.0f;
+  io.Fonts->AddFontFromMemoryTTF((void *)AP_UI_FONT_SYMBOLS, (int)sizeof(AP_UI_FONT_SYMBOLS), AP_UI_FONT_PX, &cfg);
+  cfg.ExtraSizeScale = (1069 + 423) / 1362.0f;
+  io.Fonts->AddFontFromMemoryTTF((void *)AP_UI_FONT_MATH, (int)sizeof(AP_UI_FONT_MATH), AP_UI_FONT_PX, &cfg);
   ui_load();
   g_ui_scroll_bottom = true;
   g_ui_ready = true;
@@ -326,7 +340,8 @@ static void ui_status_line(void) {
 }
 
 static void ui_box(const ImVec2& display) {
-  ImGui::SetNextWindowPos(ImVec2(display.x - AP_UI_MARGIN, AP_UI_MARGIN), ImGuiCond_Always, ImVec2(1, 0));
+  // Top left: the game's mini tracker is on the right
+  ImGui::SetNextWindowPos(ImVec2(AP_UI_MARGIN, AP_UI_MARGIN), ImGuiCond_Always);
   ImGui::Begin("##ap_box", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
                ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing);
   uint64_t unread = g_ui_seen - g_ui_seen_box; // new lines since the window was last open
@@ -347,11 +362,11 @@ static void ui_box(const ImVec2& display) {
 }
 
 static void ui_window(const ImVec2& display) {
-  // Default place: top right, under the box; a saved place off the screen (smaller window now) is reset
+  // Default place: top left, over the box; a saved place off the screen (smaller window now) is reset
   if (g_ui.x < 0 || g_ui.w <= 0 || g_ui.x > display.x - 32 || g_ui.y > display.y - 32) {
     g_ui.w = std::floor(display.x * 0.45f);
     g_ui.h = std::floor(display.y * 0.55f);
-    g_ui.x = display.x - g_ui.w - AP_UI_MARGIN;
+    g_ui.x = AP_UI_MARGIN;
     g_ui.y = AP_UI_MARGIN;
   }
   ImGui::SetNextWindowPos(ImVec2(g_ui.x, g_ui.y), ImGuiCond_Appearing);

@@ -88,14 +88,28 @@ add_custom_command(OUTPUT "${AP_UPGRADES_H}"
     DEPENDS "${AP_UPGRADES_JSON}" "${CMAKE_CURRENT_SOURCE_DIR}/embed_upgrades.cmake"
 )
 
-# Text client font (lib/fonts/README.txt), embedded (embed_font.cmake)
-set(AP_UI_FONT_TTF "${CMAKE_CURRENT_SOURCE_DIR}/lib/fonts/NotoSans-Regular-subset.ttf")
-set(AP_UI_FONT_H "${CMAKE_CURRENT_BINARY_DIR}/generated/ap_ui_font.h")
-add_custom_command(OUTPUT "${AP_UI_FONT_H}"
-    COMMAND ${CMAKE_COMMAND} -DIN=${AP_UI_FONT_TTF} -DOUT=${AP_UI_FONT_H}
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/embed_font.cmake"
-    DEPENDS "${AP_UI_FONT_TTF}" "${CMAKE_CURRENT_SOURCE_DIR}/embed_font.cmake"
+# Text client fonts (lib/fonts/README.txt), one embedded array each (embed_font.cmake): file|array|header
+set(AP_UI_FONTS
+    "NotoSans-Regular.ttf|AP_UI_FONT|ap_ui_font.h"
+    "NotoSansSymbols2-subset.ttf|AP_UI_FONT_SYMBOLS2|ap_ui_font_symbols2.h"
+    "NotoSansSymbols-subset.ttf|AP_UI_FONT_SYMBOLS|ap_ui_font_symbols.h"
+    "NotoSansMath-subset.ttf|AP_UI_FONT_MATH|ap_ui_font_math.h"
 )
+set(AP_UI_FONT_HEADERS "")
+foreach(entry IN LISTS AP_UI_FONTS)
+    string(REPLACE "|" ";" parts "${entry}")
+    list(GET parts 0 font_file)
+    list(GET parts 1 font_name)
+    list(GET parts 2 font_header)
+    set(font_in "${CMAKE_CURRENT_SOURCE_DIR}/lib/fonts/${font_file}")
+    set(font_out "${CMAKE_CURRENT_BINARY_DIR}/generated/${font_header}")
+    add_custom_command(OUTPUT "${font_out}"
+        COMMAND ${CMAKE_COMMAND} -DIN=${font_in} -DOUT=${font_out} -DNAME=${font_name}
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/embed_font.cmake"
+        DEPENDS "${font_in}" "${CMAKE_CURRENT_SOURCE_DIR}/embed_font.cmake"
+    )
+    list(APPEND AP_UI_FONT_HEADERS "${font_out}")
+endforeach()
 
 # Dear ImGui (lib/imgui/VERSION.txt) for the text client (src/ap_ui.cpp): core + the OpenGL 3 backend
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/imgui")
@@ -105,12 +119,12 @@ set(IMGUI_SOURCES
 )
 
 add_library(ap_client SHARED src/ap_archipelago.cpp src/ap_log.cpp src/ap_slotdata.cpp src/ap_messages.cpp
-    src/ap_ui.cpp ${IMGUI_SOURCES} "${AP_UPGRADES_H}" "${AP_UI_FONT_H}")
+    src/ap_ui.cpp ${IMGUI_SOURCES} "${AP_UPGRADES_H}" ${AP_UI_FONT_HEADERS})
 
 target_include_directories(ap_client
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include   # C API header, used by the game
     PRIVATE
-        ${CMAKE_CURRENT_BINARY_DIR}/generated          # ap_slotdata_upgrades.h, ap_ui_font.h
+        ${CMAKE_CURRENT_BINARY_DIR}/generated          # ap_slotdata_upgrades.h, ap_ui_font*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src                # ap_imconfig.h
         ${IMGUI_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/apclientpp/include
@@ -169,6 +183,9 @@ set(THIRD_PARTY_LICENSES
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/cacert/LICENSE-MPL-2.0.txt|cacert-MPL-2.0.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/imgui/LICENSE.txt|imgui-LICENSE.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/fonts/NotoSans-OFL.txt|NotoSans-OFL.txt"
+    "${CMAKE_CURRENT_SOURCE_DIR}/lib/fonts/NotoSansSymbols2-OFL.txt|NotoSansSymbols2-OFL.txt"
+    "${CMAKE_CURRENT_SOURCE_DIR}/lib/fonts/NotoSansSymbols-OFL.txt|NotoSansSymbols-OFL.txt"
+    "${CMAKE_CURRENT_SOURCE_DIR}/lib/fonts/NotoSansMath-OFL.txt|NotoSansMath-OFL.txt"
 )
 foreach(entry IN LISTS THIRD_PARTY_LICENSES)
     string(REPLACE "|" ";" pair "${entry}")
