@@ -7,8 +7,8 @@ from Options import (
 
 from .villager_data import PERSONALITIES, VILLAGERS
 
-# Museumsanity check mode bits: the Bug/Fish/Fossil Checks option values below.
-# WARN: the client mirrors them (AP_MUSEUM_FIND / AP_MUSEUM_DONATE in ap_slotdata.h)!
+# Museumsanity check mode bits
+# WARN: mirrored in ap_slotdata.h: AP_MUSEUM_FIND AP_MUSEUM_DONATE
 CHECK_FIND = 1    # catching a bug/fish, digging up a fossil (pre-appraised)
 CHECK_DONATE = 2  # donating it
 
@@ -16,8 +16,8 @@ CHECK_DONATE = 2  # donating it
 class SkipIntro(Choice):
     """
     How much of the new game intro to skip.
-    off: play the train ride and Tom Nook's part-time job normally.
-    skip_all: skip the train ride and the job; you start next to your house.
+    - off: full intro
+    - skip_all: jump straight to house; train and job are skipped
     """
     display_name = "Skip Intro"
     option_off = 0
@@ -28,9 +28,9 @@ class SkipIntro(Choice):
 
 class PlayerName(FreeText):
     """
-    Your character's name (max 8 characters). Empty uses your slot name
-    (truncated), or "-" if it has no plain (ASCII) characters. Only used with
-    Skip Intro.
+    In-game name (max 8 characters). Empty uses slot name (truncated).
+    If your name has no valid characters, the placeholder "-" is used.
+    Only used when train is skipped.
     """
     display_name = "Player Name"
     default = ""
@@ -38,15 +38,17 @@ class PlayerName(FreeText):
 
 class TownName(FreeText):
     """
-    Your town's name (max 8 characters). Empty uses "Archi".
-    Only used with Skip Intro.
+    In-game town name (max 8 characters). Empty uses "Archi".
+    Only used when train is skipped.
     """
     display_name = "Town Name"
     default = ""
 
 
 class Gender(Choice):
-    """Your character's gender. Only used with Skip Intro."""
+    """
+    In-game gender. Only used when train is skipped.
+    """
     display_name = "Gender"
     option_boy = 0
     option_girl = 1
@@ -54,7 +56,11 @@ class Gender(Choice):
 
 
 class Face(Choice):
-    """Your character's face. Only used with Skip Intro."""
+    """
+    In-game face; each gender has 8 possible faces.
+    See github repo for list of faces by ID.
+    Only used when train is skipped.
+    """
     display_name = "Face"
     option_face_1 = 0
     option_face_2 = 1
@@ -101,7 +107,11 @@ class StartingShirt(Choice):
 
 
 class House(Choice):
-    """Which house you get. Only used with Skip Intro."""
+    """
+    There are four houses in this game to pick from. Usually
+    Tom Nook asks which one you want; skipping his job also
+    skips this part, so it pulls from the yaml.
+    """
     display_name = "House"
     option_top_left = 0
     option_top_right = 1
@@ -112,7 +122,7 @@ class House(Choice):
 
 class TownFruit(Choice):
     """
-    Your town's native fruit (applies to every new town, regardless of intro skip).
+    Pick the starting fruit. This is purely cosmetic.
     """
     display_name = "Town Fruit"
     option_apple = 0
@@ -124,7 +134,9 @@ class TownFruit(Choice):
 
 
 class GrassShape(Choice):
-    """The shape of the pattern in your town's grass texture."""
+    """
+    The shape of the pattern in your town's grass texture.
+    """
     display_name = "Grass Shape"
     option_triangle = 0
     option_square = 1
@@ -190,8 +202,8 @@ class LetterSender(FreeText):
 class LoanLetterText(FreeText):
     """
     Text of the letter Archipelago sends when your loan is ready for payoff
-    at the post office (max 192 characters, printable ASCII). Use | for a line
-    break: the game doesn't wrap lines by itself. Empty uses the default.
+    at the post office (max 192 characters). Use | for a line break:
+    the game doesn't wrap lines by itself. Empty uses the default.
     """
     display_name = "Loan Letter Text"
     default = "Your loan is ready for|payoff at the post office!"
@@ -199,7 +211,7 @@ class LoanLetterText(FreeText):
 
 class LetterPaper(Choice):
     """
-    Stationery for letters from Archipelago (e.g. "your loan is ready for payoff").
+    Stationery for letters sent from Archipelago (items, goals, etc).
     """
     display_name = "Letter Paper"
     option_airmail_paper = 0
@@ -271,8 +283,8 @@ class LetterPaper(Choice):
 
 class TownDay(Range):
     """
-    The day in July of your town's Town Day. 4 is reserved for the Fireworks
-    Festival, so it's replaced with a random day.
+    A day in July is picked to be the "Town Day" holiday. 4 is reserved for
+    the Fireworks Festival (if you pick 4 it just rolls a random day).
     """
     display_name = "Town Day"
     range_start = 1
@@ -282,17 +294,19 @@ class TownDay(Range):
 
 class Goal(OptionSet):
     """
-    What you need to do to finish. With several goals, all of them are required.
+    What you need to do to finish. With several goals, all are required.
+    Once all goals are done, listen to K.K. Slider on Saturday night (8pm-12am) to finish.
     - Statue: pay off every house loan so Tom Nook builds your statue.
-    - Museum: receive Museum Goal Percent of the museum donation items (needs Museumsanity).
+    - Museum: receive "Museum Goal Percent" of the museum donation items (needs Museumsanity).
     - Froggy Chair: get the froggy chair into your catalog, any way you can (never a Catalogsanity item).
-    - Catalog: get Catalog Goal Percent of the Catalogsanity items into your catalog (needs Catalogsanity).
-    - Furniture Set: every piece of the Furniture Set placed somewhere in your house. Each piece is an item,
-      mailed to you, and can't be found any other way before that.
-    - Chess Set: a full chess board's pieces somewhere in your house (8 pawns, 2 rooks, 2 knights, 2 bishops, a queen
-      and a king per colour). One item per piece kind; order the rest from the catalog.
-    Both set goals need the basement built and an open shop (to order lost pieces again).
-    Once all goals are done, listen to K.K. Slider on a Saturday night (20:00-23:59) to finish.
+    - Catalog: get "Catalog Goal Percent" of the Catalogsanity items into your catalog (needs Catalogsanity).
+    - Furniture Set: every piece of the Furniture Set placed somewhere in your house. 
+      Each piece is an item mailed to you from AP and is unobtainable through normal means.
+    - Chess Set: a full chess board's pieces somewhere in your house.
+      Per color: 8 pawns, 2 rooks, 2 knights, 2 bishops, 1 queen, 1 king.
+      Only one item of each kind is sent through AP, after which you can order the rest
+      from the catalog.
+    Chess and furniture goals need the basement built and an open shop time unlocked.
     """
     display_name = "Goal"
     valid_keys = {"Statue", "Museum", "Froggy Chair", "Catalog", "Furniture Set", "Chess Set"}
@@ -300,7 +314,10 @@ class Goal(OptionSet):
 
 
 class FurnitureSet(Choice):
-    """Furniture Set goal only: the furniture series (10 pieces each) to collect."""
+    """
+    Furniture Set goal only: the furniture series (10 pieces each) to collect.
+    Wallpaper and flooring not included.
+    """
     display_name = "Furniture Set"
     option_exotic = 0
     option_lovely = 1
@@ -322,35 +339,45 @@ class LoanAmount(NamedRange):
 
 
 class StartingLoan(LoanAmount):
-    """The loan for your starting house. Vanilla: 17,400."""
+    """
+    Loan amount for your starting house. Vanilla: 17,400.
+    """
     display_name = "Starting Loan"
     default = 15000
     special_range_names = {"default": 15000, "vanilla": 17400}
 
 
 class MediumLoan(LoanAmount):
-    """The loan for the first house upgrade (bigger main floor). Vanilla: 148,000."""
+    """
+    Loan amount for the first house upgrade (bigger main floor). Vanilla: 148,000.
+    """
     display_name = "Medium House Loan"
     default = 45000
     special_range_names = {"default": 45000, "vanilla": 148000}
 
 
 class BasementLoan(LoanAmount):
-    """The loan for the basement (the second upgrade). Vanilla: 49,800."""
+    """
+    Loan amount for the basement (second upgrade). Vanilla: 49,800.
+    """
     display_name = "Basement Loan"
     default = 30000
     special_range_names = {"default": 30000, "vanilla": 49800}
 
 
 class LargeLoan(LoanAmount):
-    """The loan for the third house upgrade (biggest main floor). Vanilla: 398,000."""
+    """
+    Loan amount for the third house upgrade (biggest main floor). Vanilla: 398,000
+    ."""
     display_name = "Large House Loan"
     default = 60000
     special_range_names = {"default": 60000, "vanilla": 398000}
 
 
 class UpperLoan(LoanAmount):
-    """The loan for the upper floor (the last upgrade). Vanilla: 798,000."""
+    """
+    Loan amount for the upper floor (the last upgrade). Vanilla: 798,000.
+    """
     display_name = "Upper Floor Loan"
     default = 80000
     special_range_names = {"default": 80000, "vanilla": 798000}
@@ -358,26 +385,29 @@ class UpperLoan(LoanAmount):
 
 class Loansanity(DefaultOnToggle):
     """
-    Paying off loans sends checks, next loan gated by Progressive House item.
-    Setting this to false means no loan checks, and Tom Nook offers upgrades as usual (the loan amounts still apply).
-    Must be on for the Statue goal.
+    Paying of loans sends a configurable amount of checks. Next loan gated by
+    Progressive House items in AP pool. Turning this off sets loan behavior
+    to vanilla, except for your configured loan amounts.
+    Required for "Statue" goal.
     """
     display_name = "Loansanity"
 
 
 class FossilLoans(DefaultOnToggle):
     """
-    The loans after the first (and the Statue goal) also expect the shovel (with Tools in Pool) and one
-    dinosaur fossil item (with Progressive fossil availability), so you can dig up fossils to sell.
-    Settings this to false will make it only require the Progressive House items.
+    All loans after the first have logic to require the shovel and one dinosaur
+    fossil set, IF those are set to be AP items. This ensures you have a consistent
+    way to make money if early game is stacked with Progressive Houses. Note that
+    this gives less varied seeds, as you'll almost always get early shovel.
     """
     display_name = "Fossil Loans"
 
 
 class TotalLoanChecks(Range):
     """
-    Number of checks spread over the five loans, split by each loan's share of the total debt
-    (every loan gets at least one; its last check is paying it off).
+    Number of checks spread over the five loans in total, split by each loan's
+    share of the total debt. Each loan gets at LEAST one check. Paying a loan
+    releases ALL checks associated with that loan at once.
     """
     display_name = "Total Loan Checks"
     range_start = 5
@@ -387,10 +417,10 @@ class TotalLoanChecks(Range):
 
 class LoanCreditPercent(Range):
     """
-    Bell Credits are the filler: they pay your loan down directly (to 100 owed), then go to savings. They never
-    reach your pocket. All credits together are worth this percentage of the total debt. With few filler items,
-    the bigger credits are left out (no credit is worth less than 100 Bells while that helps).
-    Extra Bells take filler slots first, so a high Extra Bells can leave no room for Bell Credits at all.
+    The main filler in this game: credits applied to your house loan, or to your
+    savings if your loans are paid off. Setting is the percentage of your total
+    loan; setting to 100 means filler will be enough to completely pay your loan.
+    Bell credits reduce interruptions and menuing, and are the recommended filler.
     """
     display_name = "Loan Credit Percent"
     range_start = 1
@@ -400,9 +430,10 @@ class LoanCreditPercent(Range):
 
 class ExtraBells(Range):
     """
-    Extra Bells in the pool, in steps of 10,000 Bells, on top of the Bell Credits. Mailed to you as 10,000 and
-    30,000 Bell bags (10,000 three times as likely). Best fit: takes filler slots before Bell Credits (can leave
-    none), and when there aren't enough slots you get as close as fits.
+    Extra Bells in the pool, sent directly to you in the mail. Value is x10,000,
+    so 6 = 60,000. A mix of 10k and 30k bags. If there's not enough filler items,
+    you may not get the full amount or the exact amount. In the extreme case, can
+    completely remove the credit filler, but this is unusual.
     """
     display_name = "Extra Bells (x10,000)"
     range_start = 0
@@ -412,16 +443,17 @@ class ExtraBells(Range):
 
 class Favorsanity(DefaultOnToggle):
     """
-    Villager favors (errands and contests) send checks, in pools of Favors per Pool. Any favor from any
-    villager counts. The first pool is open from the start; each Progressive Favor Pool opens the next.
-    Favors done while every open pool is used up still count: their checks are sent once the next pool opens.
+    Villager favors send checks. This is the "give me work!" dialog option when
+    talking to villagers. Favors are gated by pools to deepen progression/spheres.
+    First pool always open from start. ANY favor from any Villager counts.
     """
     display_name = "Favorsanity"
 
 
 class FavorPools(Range):
     """
-    With Favorsanity, the number of favor pools. Favor Pools x Favors per Pool is at most 100.
+    With Favorsanity, the number of pools to gate favors. Each pool has "Favors Per Pool"
+    amount of favors in it. "Favor Pools" x "Favors per Pool" is at most 100.
     """
     display_name = "Favor Pools"
     range_start = 1
@@ -441,10 +473,9 @@ class FavorsPerPool(Range):
 
 class Shellsanity(DefaultOnToggle):
     """
-    Archipelago items sometimes wash up on the town beach in place of a shell.
-    Picking one up sends a check for the month it washed up in. No more of a month's
-    items lie on the beach than it has checks left, and they stay there until picked
-    up, like shells.
+    Archipelago items sometimes wash up on the beach in place of a shell.
+    Like shells, they stay forever until picked up. To get more shells to
+    spawn, pick up existing ones (including non-AP shells) and move to a new day.
     """
     display_name = "Shellsanity"
 
@@ -461,9 +492,8 @@ class BeachChecksPerMonth(Range):
 
 class ShellsanityItemChance(Range):
     """
-    Shellsanity: chance (percent) that a shell washing up is an Archipelago item
-    instead, while the current month has checks left. A full beach walk is about
-    20 shells.
+    With Shellsanity, percent chance that a generated shell is an Archipelago item.
+    The beach can hold at most 20 of any shell, including AP items.
     This can later be changed in-game under Settings > AP.
     """
     display_name = "Shellsanity Item Chance"
@@ -474,10 +504,9 @@ class ShellsanityItemChance(Range):
 
 class ToolsInPool(DefaultOnToggle):
     """
-    The net, fishing rod and shovel are items. The tool is unobtainable through
-    normal means (store, lost and found, etc) until you receive it.
-    Tools and other items are mailed to you. Axe stays vanilla. The mole cricket and pill bug
-    need the shovel as well as the net.
+    The net, fishing rod and shovel are AP items. Axe stays vanilla.
+    The tool can't be bought or found until you receive it in the mail from
+    the multiworld.
     """
     display_name = "Tools in Pool"
 
@@ -485,7 +514,7 @@ class ToolsInPool(DefaultOnToggle):
 class StartingTool(Choice):
     """
     A tool you start with, mailed to you. Without Tools in Pool it's a freebie
-    on top of the vanilla tools.
+    on top of the vanilla tools. This can greatly change logic.
     """
     display_name = "Starting Tool"
     option_none = 0
@@ -498,9 +527,8 @@ class StartingTool(Choice):
 
 class NookStoreUpgrades(Choice):
     """
-    What upgrades Tom Nook's store (Nook's Cranny -> Nook 'n' Go -> Nookway -> Nookington's). 
-    Nookington's never needs a visitor from another town. Each upgrade still
-    takes two days of renovation, one level at a time.
+    How Tom Nook upgrades his store. Regardless of setting, Nookington's never
+    needs a visitor to upgrade, unlike vanilla.
     - Progressive: three Progressive Nook Store items in the pool, one upgrade each.
     - Sales: total Bells spent at the store reaches the Nook Store Sales amounts (Vanilla behavior).
     - Catalog: the number of entries in your catalog reaches the Nook Store Catalog counts (any, not just Catalogsanity).
@@ -518,21 +546,27 @@ class StoreSales(NamedRange):
 
 
 class NookNGoSales(StoreSales):
-    """Sales Upgrades only: total Bells spent for Nook 'n' Go. Vanilla: 25,000."""
+    """
+    Sales Upgrades only: total Bells spent for Nook 'n' Go. Vanilla: 25,000.
+    """
     display_name = "Nook 'n' Go Sales"
     default = 15000
     special_range_names = {"default": 15000, "vanilla": 25000}
 
 
 class NookwaySales(StoreSales):
-    """Sales Upgrades only: total Bells spent for Nookway. Vanilla: 90,000."""
+    """
+    Sales Upgrades only: total Bells spent for Nookway. Vanilla: 90,000.
+    """
     display_name = "Nookway Sales"
     default = 40000
     special_range_names = {"default": 40000, "vanilla": 90000}
 
 
 class NookingtonsSales(StoreSales):
-    """Sales Upgrades only: total Bells spent for Nookington's. Vanilla: 240,000."""
+    """
+    Sales Upgrades only: total Bells spent for Nookington's. Vanilla: 240,000.
+    """
     display_name = "Nookington's Sales"
     default = 75000
     special_range_names = {"default": 75000, "vanilla": 240000}
@@ -544,19 +578,25 @@ class StoreCatalog(Range):
 
 
 class NookNGoCatalog(StoreCatalog):
-    """Catalog Upgrades only: catalog entries (of the current player) for Nook 'n' Go."""
+    """
+    Catalog Upgrades only: catalog entries (of the current player) for Nook 'n' Go.
+    """
     display_name = "Nook 'n' Go Catalog"
     default = 30
 
 
 class NookwayCatalog(StoreCatalog):
-    """Catalog Upgrades only: catalog entries (of the current player) for Nookway."""
+    """
+    Catalog Upgrades only: catalog entries (of the current player) for Nookway.
+    """
     display_name = "Nookway Catalog"
     default = 70
 
 
 class NookingtonsCatalog(StoreCatalog):
-    """Catalog Upgrades only: catalog entries (of the current player) for Nookington's."""
+    """
+    Catalog Upgrades only: catalog entries (of the current player) for Nookington's.
+    """
     display_name = "Nookington's Catalog"
     default = 120
 
@@ -588,11 +628,9 @@ class VillagerBlacklist(OptionSet):
 
 class StartingVillagers(OptionSet):
     """
-    Villagers that start in a new town. With 6 or fewer, all of them start and
-    the rest is random; with more, the 6 starters are picked from this list at
-    random. "Personality: Cranky" (or Normal, Peppy, Lazy, Jock, Snooty) adds
+    Can force starting villagers. If more than 6, will be chosen randomly.
+    "Personality: Cranky" (or Normal, Peppy, Lazy, Jock, Snooty) adds
     every villager with it. Blacklisted villagers are skipped.
-    Only applies when the town is made, not to an existing save.
     """
     display_name = "Starting Villagers"
     valid_keys = VILLAGER_KEYS
@@ -608,7 +646,10 @@ class NoCockroaches(DefaultOnToggle):
 
 
 class ShopsAlwaysOpen(DefaultOnToggle):
-    """Shops are open at any hour."""
+    """
+    Shops are open at any hour. This impacts logic, as some time slots have
+    no store available, so this setting cannot be changed later in-game.
+    """
     display_name = "Shops Always Open"
 
 
@@ -649,9 +690,9 @@ class VillagersNeverSleep(Toggle):
 
 class TurnipsNeverSpoil(DefaultOnToggle):
     """
-    Turnips never spoil, not when the week ends and not when you go back in time.
-    Ants only appear on spoiled turnips or candy, so with Timesanity the ant
-    adds logic to need October (candy is sold Oct 16-30).
+    Turnips never spoil under any circumstances. This impacts ant logic,
+    as the only way to get ants without spoiled turnips is candy, which
+    is sold in October. This setting can't be changed later in-game.
     """
     display_name = "Turnips Never Spoil"
 
@@ -666,9 +707,9 @@ class NoFishingTrash(DefaultOnToggle):
 
 class HiddenBugHints(DefaultOnToggle):
     """
-    Bugs that hide give themselves away now and then: a little dirt pops up where a
-    mole cricket is buried or in front of a rock with a pill bug under it, and a tree
-    with a bagworm or spider in it wiggles.
+    Normally hidden bugs now show a visible sign for where they are.
+    Dirt pops up near rocks with pill bugs or mole crickets underground,
+    and trees with spiders or bagworms shake.
     This can later be changed in-game under Settings > AP.
     """
     display_name = "Hidden Bug Hints"
@@ -676,8 +717,7 @@ class HiddenBugHints(DefaultOnToggle):
 
 class HiddenItemHints(DefaultOnToggle):
     """
-    A little sparkle now and then over the rock that gives Bells when you hit it, and in
-    trees with furniture, a present or the golden shovel in them (not the ones with 100 Bells).
+    Money rocks and trees with furniture, a present, or the golden shovel now sparkle.
     With Catalogsanity, goods in Nook's shop that would send a catalog check sparkle too.
     This can later be changed in-game under Settings > AP.
     """
@@ -705,8 +745,8 @@ class ShortShopTalk(Toggle):
 
 class ShopNeverSellsOut(Toggle):
     """
-    Things you buy in Tom Nook's shop stay on the shelf, so you can buy them again
-    (stationery already works like this). Grab bags still sell out.
+    Things you buy in Tom Nook's shop stay on the shelf, so you can buy them again.
+    Grab bags still sell out.
     This can later be changed in-game under Settings > AP.
     """
     display_name = "Shop Never Sells Out"
@@ -714,12 +754,11 @@ class ShopNeverSellsOut(Toggle):
 
 class EasierCritterCatch(DefaultOnToggle):
     """
-    Fish give you one more second to press A once the bobber goes under, and
-    running near them no longer scares them (tools and the bobber still do). Sea fish
-    face the beach instead of out to sea.
-    Bugs take twice as long to notice you moving near them. Shaking a tree or
-    swinging the net next to a bug still scares it. Bees chase you at half speed.
-    Purple butterflies fly as low as the other butterflies instead of high above the trees.
+    Fish can't get scared from running, and give you one whole additional second
+    when biting the bobber. Tools can still be used to manually scare fish. Sea
+    fish (attempt to) face the beach like in newer games. Bugs take longer to
+    flee with walking or running (but still can). Bees chase at half speed,
+    and Purple butterflies fly low to the ground.
     This can later be changed in-game under Settings > AP.
     """
     display_name = "Easier Critter Catch"
@@ -735,8 +774,7 @@ class NoFallingStalks(Toggle):
 
 class CoconutsWashUp(DefaultOnToggle):
     """
-    Coconuts sometimes wash up on the town beach in place of a shell (about one
-    in every two to three full beach walks). Plant one on the beach row to grow a palm tree.
+    Coconuts sometimes wash up on the town beach in place of a shell.
     This can later be changed in-game under Settings > AP.
     """
     display_name = "Coconuts Wash Up"
@@ -744,12 +782,10 @@ class CoconutsWashUp(DefaultOnToggle):
 
 class NormalizedTimeTravel(DefaultOnToggle):
     """
-    A new date always counts as one day passing, however far it jumps, forward
-    or back: changing the date (pause menu or the game's own clock setting) or
-    coming back after days away.
-    Setting this to false makes the game sees the real jump, so a big jump forward is like being away
-    that long (weeds, villagers moving out or greeting you like you were gone)
-    and going back in time has the usual penalties.
+    Time travel always counts as one day forward, no matter how far forward
+    or back you actually travel. Setting this to false uses vanilla logic:
+    backwards travel has penalties, and forward travel brings weeds and
+    villager move-outs, etc.
     This can later be changed in-game under Settings > AP.
     """
     display_name = "Normalized Time Travel"
@@ -757,7 +793,7 @@ class NormalizedTimeTravel(DefaultOnToggle):
 
 class Timesanity(DefaultOnToggle):
     """
-    The clock stops. Each month and each time slot (Morning 4-8, Day 9-15, Evening 16-20, Night 21-3)
+    The clock stops fully. Each month and each time slot (Morning 4-8, Day 9-15, Evening 16-20, Night 21-3)
     is an item. You set the date and hour from the pause menu, to any month and slot you own.
     """
     display_name = "Timesanity"
