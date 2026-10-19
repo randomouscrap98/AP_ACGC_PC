@@ -196,17 +196,18 @@ class LetterSender(FreeText):
     Empty uses "Archipelago". The mailbox list still shows "AP"
     """
     display_name = "Letter Sender"
-    default = "Archipelago"
+    default = ""
 
 
 class LoanLetterText(FreeText):
     """
     Text of the letter Archipelago sends when your loan is ready for payoff
     at the post office (max 192 characters). Use | for a line break:
-    the game doesn't wrap lines by itself. Empty uses the default.
+    the game doesn't wrap lines by itself. Empty uses
+    "Your loan is ready for|payoff at the post office!"
     """
     display_name = "Loan Letter Text"
-    default = "Your loan is ready for|payoff at the post office!"
+    default = ""
 
 
 class LetterPaper(Choice):
@@ -278,7 +279,7 @@ class LetterPaper(Choice):
     option_butterfly_paper = 61
     option_new_years_card = 62
     option_inky_paper = 63
-    default = 0
+    default = "random"
 
 
 class TownDay(Range):
@@ -309,7 +310,7 @@ class Goal(OptionSet):
     Chess and furniture goals need the basement built and an open shop time unlocked.
     """
     display_name = "Goal"
-    valid_keys = {"Statue", "Museum", "Froggy Chair", "Catalog", "Furniture Set", "Chess Set"}
+    valid_keys = ["Statue", "Museum", "Froggy Chair", "Catalog", "Furniture Set", "Chess Set"]
     default = frozenset({"Statue", "Museum"})
 
 
@@ -908,7 +909,7 @@ class CatalogSources(OptionSet):
     - Wisp: his reward.
     """
     display_name = "Catalog Sources"
-    valid_keys = set(CATALOG_SOURCES)
+    valid_keys = CATALOG_SOURCES
     default = frozenset(CATALOG_SOURCES)
 
 

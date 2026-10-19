@@ -1,12 +1,13 @@
 # Town Generation: new-town settings (fruit, grass, station, town day), the letters the client sends (paper,
 # sender, loan letter text) and the villager blacklist + starting pool.
 from .intro import clamp_name
-from .options import LoanLetterText, personality_key, villager_key
+from .options import personality_key, villager_key
 from .villager_data import PERSONALITIES, VILLAGERS
 
 LETTER_SENDER_MAX = 32  # MAIL_FOOTER_LEN in the game
 DEFAULT_LETTER_SENDER = "Archipelago"
 LETTER_TEXT_MAX = 192  # MAIL_BODY_LEN in the game
+DEFAULT_LOAN_LETTER_TEXT = "Your loan is ready for|payoff at the post office!"
 MIN_VILLAGERS = 6  # the game starts with 6 villagers
 
 
@@ -27,7 +28,7 @@ def villager_indices(chosen: set[str]) -> list[int]:
 def setup(world) -> None:
     o = world.options
     world.ac_letter_sender = clamp_name(o.letter_sender.value, LETTER_SENDER_MAX) or DEFAULT_LETTER_SENDER
-    world.ac_loan_letter_text = letter_text(o.loan_letter_text.value) or letter_text(LoanLetterText.default)
+    world.ac_loan_letter_text = letter_text(o.loan_letter_text.value) or letter_text(DEFAULT_LOAN_LETTER_TEXT)
     # The 4th of July is the Fireworks Festival; the game never picks it either
     if o.town_day.value == 4:
         o.town_day.value = world.random.choice([d for d in range(1, 32) if d != 4])
