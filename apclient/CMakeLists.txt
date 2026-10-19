@@ -78,11 +78,22 @@ endif()
 # -----------------------------------------------------------------------------
 # ap_client shared library
 # -----------------------------------------------------------------------------
-add_library(ap_client SHARED src/ap_archipelago.cpp src/ap_log.cpp src/ap_slotdata.cpp)
+# slot_data upgrade steps: the apworld's json, embedded (embed_upgrades.cmake)
+set(AP_UPGRADES_JSON "${CMAKE_CURRENT_SOURCE_DIR}/../apworld/animal_crossing/slot_data_upgrades.json")
+set(AP_UPGRADES_H "${CMAKE_CURRENT_BINARY_DIR}/generated/ap_slotdata_upgrades.h")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated")
+add_custom_command(OUTPUT "${AP_UPGRADES_H}"
+    COMMAND ${CMAKE_COMMAND} -DIN=${AP_UPGRADES_JSON} -DOUT=${AP_UPGRADES_H}
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/embed_upgrades.cmake"
+    DEPENDS "${AP_UPGRADES_JSON}" "${CMAKE_CURRENT_SOURCE_DIR}/embed_upgrades.cmake"
+)
+
+add_library(ap_client SHARED src/ap_archipelago.cpp src/ap_log.cpp src/ap_slotdata.cpp "${AP_UPGRADES_H}")
 
 target_include_directories(ap_client
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include   # C API header, used by the game
     PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/generated          # ap_slotdata_upgrades.h
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/apclientpp/include
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/wswrap/include
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/json/include

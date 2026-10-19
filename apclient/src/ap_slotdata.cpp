@@ -1,5 +1,6 @@
 #include "ap_slotdata.h"
 #include "ap_log.h"
+#include "ap_slotdata_upgrades.h"
 
 #include <nlohmann/json.hpp>
 #include <climits>
@@ -21,16 +22,63 @@ void ap_slotdata_init(ap_slotdata * sd) {
   memset(sd, 0, sizeof(ap_slotdata));
 }
 
-// The only code that knows slot_data versions: old seeds are translated up to the current format here, so the
-// parser and the game only ever see the current one. Add a step only for a version that removed a key or changed
-// what one means; a new key needs none (missing key = its default = the old behaviour).
-int ap_slotdata_upgrade(nlohmann::json& slot_data) {
+// One step of slot_data_upgrades.json (its _readme), applied like slot_data_upgrade.py apply
+static void apply_step(nlohmann::json& slot_data, const nlohmann::json& step, int v) {
+  for (const auto& op : step.items()) {
+    const std::string& name = op.key();
+    if (name != "note" && name != "renamed" && name != "remapped" && name != "added" && name != "removed") {
+      APLOG_WARN("slot_data upgrade step %d: unknown entry %s", v, name.c_str());
+    }
+  }
+  if (step.contains("renamed")) {
+    for (const auto& kv : step["renamed"].items()) {
+      if (slot_data.contains(kv.key())) {
+        nlohmann::json value = slot_data[kv.key()];
+        slot_data.erase(kv.key());
+        slot_data[kv.value().get<std::string>()] = value;
+      }
+    }
+  }
+  if (step.contains("remapped")) {
+    for (const auto& kv : step["remapped"].items()) {
+      if (!slot_data.contains(kv.key())) { continue; }
+      for (const auto& pair : kv.value()) {
+        if (slot_data[kv.key()] == pair.at(0)) {
+          slot_data[kv.key()] = pair.at(1);
+          break;
+        }
+      }
+    }
+  }
+  if (step.contains("added")) {
+    for (const auto& kv : step["added"].items()) {
+      if (!slot_data.contains(kv.key())) { slot_data[kv.key()] = kv.value(); }
+    }
+  }
+  if (step.contains("removed")) {
+    for (const auto& key : step["removed"]) { slot_data.erase(key.get<std::string>()); }
+  }
+}
+
+int ap_slotdata_apply_upgrades(nlohmann::json& slot_data, const nlohmann::json& steps, int current) {
   int version = slot_data.value("slot_data_version", 1);
-  if (version > AP_SLOTDATA_VERSION) {
+  if (version > current) {
     return 0;
   }
-  // Steps go here, oldest first: if (version < 2) { ...v1 -> v2... }
+  for (int v = version + 1; v <= current; v++) {
+    auto it = steps.find(std::to_string(v));
+    if (it != steps.end()) { apply_step(slot_data, *it, v); }
+  }
+  slot_data["slot_data_version"] = current;
   return 1;
+}
+
+// The only code that knows slot_data versions: old seeds are translated up to the current format here, so the
+// parser and the game only ever see the current one. The steps are the apworld's slot_data_upgrades.json, embedded
+// at build time (ap_slotdata_upgrades.h, apclient/embed_upgrades.cmake), so the tracker and the client agree.
+int ap_slotdata_upgrade(nlohmann::json& slot_data) {
+  static const nlohmann::json steps = nlohmann::json::parse(AP_SLOTDATA_UPGRADES_JSON);
+  return ap_slotdata_apply_upgrades(slot_data, steps, AP_SLOTDATA_VERSION);
 }
 
 // An int key in [min, max]; missing = def, anything else (wrong type, out of range) = def + a warning.

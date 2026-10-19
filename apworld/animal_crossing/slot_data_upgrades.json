@@ -1,0 +1,19 @@
+{
+  "_readme": [
+    "Upgrade steps for old seeds' slot_data, read by the apworld (slot_data_upgrade.py, Universal Tracker) and",
+    "embedded into the client DLL (ap_slotdata.cpp). Both apply the same steps, oldest version first, so code",
+    "only ever sees the current format. One entry per slot_data_version that needs one; each entry may have:",
+    "  note:     why (free text, ignored)",
+    "  renamed:  {old key: new key}",
+    "  remapped: {key: [[old value, new value], ...]}  (pairs, since json object keys can only be strings)",
+    "  added:    {key: value meaning the old behaviour}  (only when the key is missing)",
+    "  removed:  [key, ...]",
+    "Applied in that order (renamed, remapped, added, removed). Every new slot_data key needs an 'added' entry,",
+    "also Universal Tracker-only ones (check_compat.py fails otherwise). What data can't say (a changed meaning,",
+    "a split or merge) needs a new op, built in BOTH slot_data_upgrade.py and ap_slotdata.cpp."
+  ],
+  "2": {
+    "note": "0.5.1: Fruit Filler (new option, off = 0.5.0); Extra Bells now in slot_data (0.5.0 seeds didn't say, its default)",
+    "added": {"fruit_filler": 0, "extra_bells": 6}
+  }
+}

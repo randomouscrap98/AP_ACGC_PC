@@ -4,6 +4,7 @@
 #   shellsanity, museumsanity, fossil_availability, fish_availability, bug_availability, tools_in_pool, catalogsanity,
 #   nook_store_upgrades, furniture_sets, quality_of_life
 # Generated data: game_items, museum_data, catalog_data, villager_data. Options: options.py.
+# Old seeds' slot_data: slot_data_upgrade (steps in slot_data_upgrades.json).
 #
 # A feature file has whichever of these it needs (plain functions taking the world):
 #   setup(world)           generate_early: check options, roll random choices, store decisions on the world
@@ -27,13 +28,15 @@ from worlds.AutoWorld import WebWorld, World
 
 from . import (bell_credits, bug_availability, catalogsanity, extra_bells, favor_pools, fish_availability,
                fossil_availability, fruit_filler, furniture_sets, goal, intro, loansanity, museumsanity,
-               nook_store_upgrades, options, quality_of_life, shellsanity, timesanity, tools_in_pool, town_generation)
+               nook_store_upgrades, options, quality_of_life, shellsanity, slot_data_upgrade, timesanity, tools_in_pool,
+               town_generation)
 from .game_items import ITEM_NAME_TO_ID as GAME_ITEMS
 from .options import AnimalCrossingOptions
 
 GAME_NAME = "Animal Crossing"
 # slot_data format (the client's AP_SLOTDATA_VERSION). Bump on any change the client reads (new key, new ids,
-# removed/renamed key, changed meaning); not for apworld-only changes. Rules: ignore/docs/reference.md "Versions"
+# removed/renamed key, changed meaning; new keys also get an upgrade step: slot_data_upgrades.json); not for
+# apworld-only changes. Rules: ignore/docs/reference.md "Versions"
 SLOT_DATA_VERSION = 2
 # Universal Tracker: slot_data keys named like an option but holding something else (villager indices, the pools,
 # a tool name), so they're not restored as options
@@ -202,7 +205,8 @@ class AnimalCrossingWorld(World):
 
     @staticmethod
     def interpret_slot_data(slot_data: dict[str, Any]) -> dict[str, Any]:
-        return slot_data
+        # Old seeds -> today's format (slot_data_upgrades.json), so restored options keep their old meaning
+        return slot_data_upgrade.upgrade(slot_data, SLOT_DATA_VERSION)
 
     def ut_slot_data(self) -> dict[str, Any] | None:
         # The real seed's slot_data while Universal Tracker regenerates, else None

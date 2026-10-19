@@ -184,6 +184,8 @@ AP_API void ap_slotdata_init(ap_slotdata *);
 #include <nlohmann/json_fwd.hpp>
 // Old slot_data -> the current format, before ap_slotdata_fill. 0 = the seed needs a newer client.
 int ap_slotdata_upgrade(nlohmann::json& slot_data);
+// The same with explicit steps and target version (unit tests); 0 = slot_data is newer than current
+int ap_slotdata_apply_upgrades(nlohmann::json& slot_data, const nlohmann::json& steps, int current);
 void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data);
 // The slot_data the DLL fills (ap_getslotdata is the game's read-only view)
 ap_slotdata * ap_slotdata_writable(void);
