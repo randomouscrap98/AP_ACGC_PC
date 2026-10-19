@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 // slot_data format this client reads (apworld SLOT_DATA_VERSION). Bump rules: ignore/docs/reference.md "Versions"
-#define AP_SLOTDATA_VERSION 1
+#define AP_SLOTDATA_VERSION 2
 
 #define AP_LOAN_NUM     5 // starting, medium, basement, large, upper (upgrade order)
 #define AP_BELLCREDIT_NUM 3 // small, modest, large

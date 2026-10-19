@@ -9,6 +9,7 @@
 #include "pc_ap_mail.h"
 #include "pc_ap_tools.h"
 #include "pc_ap_money.h"
+#include "pc_ap_fruit.h"
 #include "pc_ap_furniture.h"
 #include "pc_ap_store.h"
 #include "pc_ap_catalogsanity.h"
@@ -115,6 +116,7 @@ typedef struct {
   pc_ap_mail mail;
   pc_ap_tools tools;
   pc_ap_money money;
+  pc_ap_fruit fruit;
   pc_ap_furniture furniture;
   pc_ap_store store;
   pc_ap_catalogsanity catalog;
@@ -144,6 +146,7 @@ void pc_ap_init(void) {
   pc_ap_mail_init(&g_ap.mail, sd);
   pc_ap_tools_init(&g_ap.tools, sd);
   pc_ap_money_init(&g_ap.money);
+  pc_ap_fruit_init(&g_ap.fruit);
   pc_ap_furniture_init(&g_ap.furniture, sd);
   pc_ap_store_init(&g_ap.store, sd);
   pc_ap_catalogsanity_init(&g_ap.catalog, sd);
@@ -255,6 +258,7 @@ void pc_ap_load(const char* filename) {
   pc_ap_favorsanity_load(&g_ap.favors, ini);
   pc_ap_tools_load(&g_ap.tools, ini);
   pc_ap_money_load(&g_ap.money, ini);
+  pc_ap_fruit_load(&g_ap.fruit, ini);
   pc_ap_furniture_load(&g_ap.furniture, ini);
   g_ap.goal_letter_sent = pc_ap_ini_get_int(ini, NULL, PC_AP_KEY_GOAL_LETTER_SENT, 0);
   if(ini != NULL) {
@@ -269,6 +273,7 @@ int pc_ap_save(const char* filename) {
   pc_ap_favorsanity_save(&g_ap.favors, ini);
   pc_ap_tools_save(&g_ap.tools, ini);
   pc_ap_money_save(&g_ap.money, ini);
+  pc_ap_fruit_save(&g_ap.fruit, ini);
   pc_ap_furniture_save(&g_ap.furniture, ini);
   pc_ap_ini_set_int(ini, NULL, PC_AP_KEY_GOAL_LETTER_SENT, g_ap.goal_letter_sent);
   int ok = pc_ap_state_write(filename, ini);
@@ -565,6 +570,25 @@ static void pc_ap_money_mail(void) {
       return;
     }
     pc_ap_money_mark_mailed(&g_ap.money);
+  }
+}
+
+// Mails each received fruit once (fruit attached); mailbox full = next tick
+static void pc_ap_fruit_mail(void) {
+  int me = ap_getconnectstate()->roomplayer.player;
+  int idx;
+  while((idx = pc_ap_fruit_next_unmailed(&g_ap.fruit)) >= 0) {
+    mActor_name_t fruit = (mActor_name_t)ap_getitem(idx);
+    int sender = ap_getitem_sender(idx);
+    char name[32];
+    char body[64];
+    // Slot 0 is the server (start inventory, !getitem): no name
+    const char* who = sender > 0 && ap_player_name(sender, name, sizeof(name)) ? name : NULL;
+    pc_ap_fruit_letter(body, sizeof(body), who, sender == me);
+    if(!pc_ap_mail_send(&g_ap.mail, pc_ap_my_home(), Now_Private, body, fruit)) {
+      return;
+    }
+    pc_ap_fruit_mark_mailed(&g_ap.fruit);
   }
 }
 
@@ -1122,6 +1146,7 @@ void pc_ap_tick(GAME_PLAY* play) {
   pc_ap_tools_mail();
   pc_ap_goal_letter();
   pc_ap_furniture_mail();
+  pc_ap_fruit_mail();
   pc_ap_money_mail(); // last: a pile of bags shouldn't hold up the other letters
   pc_ap_museumsanity_sync(&g_ap.museum, &Save_Get(museum_display));
   // Vanilla display (no Museum goal): everything on display is donated. Also covers donations made

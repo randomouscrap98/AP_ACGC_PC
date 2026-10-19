@@ -21,3 +21,8 @@ def items(world, free: int) -> list[str]:
     target = world.options.extra_bells.value
     thirty = min(free, max(0, (target - free) // 2))
     return [THIRTY_K] * thirty + [TEN_K] * (free - thirty)
+
+
+def slot_data(world) -> dict:
+    # Universal Tracker only (the client mails whatever bags it gets): Fruit Filler takes the slots left after these
+    return {"extra_bells": world.options.extra_bells.value}

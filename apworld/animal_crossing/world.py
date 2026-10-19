@@ -1,7 +1,7 @@
 # The Archipelago world: calls each feature at each generation step, in a fixed order. Everything about a feature
 # (its items, locations, rules, slot_data, ids) is in its own file, named after its option:
-#   goal, intro, town_generation, loansanity, bell_credits, extra_bells, timesanity, favor_pools, shellsanity,
-#   museumsanity, fossil_availability, fish_availability, bug_availability, tools_in_pool, catalogsanity,
+#   goal, intro, town_generation, loansanity, bell_credits, extra_bells, fruit_filler, timesanity, favor_pools,
+#   shellsanity, museumsanity, fossil_availability, fish_availability, bug_availability, tools_in_pool, catalogsanity,
 #   nook_store_upgrades, furniture_sets, quality_of_life
 # Generated data: game_items, museum_data, catalog_data, villager_data. Options: options.py.
 #
@@ -26,15 +26,15 @@ from Options import OptionError, OptionGroup
 from worlds.AutoWorld import WebWorld, World
 
 from . import (bell_credits, bug_availability, catalogsanity, extra_bells, favor_pools, fish_availability,
-               fossil_availability, furniture_sets, goal, intro, loansanity, museumsanity, nook_store_upgrades, options,
-               quality_of_life, shellsanity, timesanity, tools_in_pool, town_generation)
+               fossil_availability, fruit_filler, furniture_sets, goal, intro, loansanity, museumsanity,
+               nook_store_upgrades, options, quality_of_life, shellsanity, timesanity, tools_in_pool, town_generation)
 from .game_items import ITEM_NAME_TO_ID as GAME_ITEMS
 from .options import AnimalCrossingOptions
 
 GAME_NAME = "Animal Crossing"
 # slot_data format (the client's AP_SLOTDATA_VERSION). Bump on any change the client reads (new key, new ids,
 # removed/renamed key, changed meaning); not for apworld-only changes. Rules: ignore/docs/reference.md "Versions"
-SLOT_DATA_VERSION = 1
+SLOT_DATA_VERSION = 2
 # Universal Tracker: slot_data keys named like an option but holding something else (villager indices, the pools,
 # a tool name), so they're not restored as options
 UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "starting_tool"}
@@ -54,7 +54,7 @@ assert len(LOCATION_NAME_TO_ID) == sum(len(f.LOCATIONS) for f in (
     loansanity, favor_pools, shellsanity, museumsanity, catalogsanity)), "location name in two features"
 # Features with items, for create_item's classification
 ITEM_FEATURES = (loansanity, timesanity, favor_pools, catalogsanity, fossil_availability, fish_availability,
-                 bug_availability, museumsanity, tools_in_pool, nook_store_upgrades, furniture_sets)
+                 bug_availability, museumsanity, tools_in_pool, nook_store_upgrades, furniture_sets, fruit_filler)
 
 
 class AnimalCrossingItem(Item):
@@ -273,6 +273,9 @@ class AnimalCrossingWorld(World):
         # Everything else is filler. Bell credit amounts are set in fill_slot_data from what was actually placed,
         # so adding other items to the pool later doesn't break the total.
         free = len(self.multiworld.get_unfilled_locations(self.player)) - len(pool)
+        fruit = [self.create_item(name) for name in fruit_filler.items(self, free)]
+        pool += fruit
+        free -= len(fruit)
         money = [self.create_item(name) for name in extra_bells.items(self, free)]
         pool += money
         free -= len(money)
@@ -334,6 +337,8 @@ class AnimalCrossingWorld(World):
             **fish_availability.slot_data(self),
             **fossil_availability.slot_data(self),
             **bell_credits.slot_data(self),
+            **extra_bells.slot_data(self),
+            **fruit_filler.slot_data(self),
             **furniture_sets.slot_data(self),
             # From archipelago.json; the client compares it with its own build
             "world_version": ".".join(str(n) for n in self.world_version),

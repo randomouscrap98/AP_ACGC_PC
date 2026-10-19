@@ -8,7 +8,7 @@
 #define PC_AP_STATE_FILENAME "ap_state.ini"
 // Format of ap_state.ini and ap_settings.ini (one number for both), in their global section.
 // Bump rules: ignore/docs/reference.md "Versions"
-#define PC_AP_STATE_VERSION 1
+#define PC_AP_STATE_VERSION 2
 #define PC_AP_STATE_KEY_VERSION "version"
 
 #ifdef __cplusplus

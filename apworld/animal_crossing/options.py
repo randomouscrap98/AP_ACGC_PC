@@ -698,6 +698,13 @@ class TurnipsNeverSpoil(DefaultOnToggle):
     display_name = "Turnips Never Spoil"
 
 
+class FruitFiller(DefaultOnToggle):
+    """
+    Add non-town fruit to pool as filler.
+    """
+    display_name = "Fruit Filler"
+
+
 class NoFishingTrash(DefaultOnToggle):
     """
     Fishing never hooks an empty can, boot or old tire.
@@ -1100,6 +1107,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     starting_tool: StartingTool
     shops_always_open: ShopsAlwaysOpen
     turnips_never_spoil: TurnipsNeverSpoil
+    fruit_filler: FruitFiller
     skip_intro: SkipIntro
     player_name: PlayerName
     town_name: TownName
