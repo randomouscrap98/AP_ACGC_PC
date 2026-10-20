@@ -43,7 +43,7 @@ static ap_ui_gl_proc_fn g_ui_gl_proc = NULL;
 static const char * (*g_ui_clip_get)(void) = NULL;
 static void (*g_ui_clip_set)(const char *) = NULL;
 
-static ap_ui_state g_ui;
+static ui_settings g_ui;
 static std::string g_ui_saved; // ap_ui.ini's text as last read or written (ui_ini_text)
 enum { UI_TAB_LOG, UI_TAB_HINTS, UI_TAB_ITEMS, UI_TAB_CHECKS, UI_TAB_COUNT };
 static bool g_ui_select_tab = true; // select g_ui.tab once (from ap_ui.ini)
@@ -328,7 +328,7 @@ static void ui_box(void) {
     snprintf(label, sizeof(label), "AP###ap_open");
   }
   if (ImGui::Button(label)) {
-    g_ui.expanded = 1;
+    g_ui.expanded = true;
     g_ui_log.scroll_bottom = true;
   }
   if (ImGui::IsItemHovered()) { ImGui::SetTooltip("Archipelago text client"); }
@@ -413,7 +413,7 @@ static void ui_window(const ImVec2& display) {
   g_ui.h = size.y;
   ImGui::End();
   g_ui_log.unread = 0;
-  if (!open) { g_ui.expanded = 0; } // the title bar's X folds it back into the box
+  if (!open) { g_ui.expanded = false; } // the title bar's X folds it back into the box
 }
 
 void ap_ui_frame(int width, int height, float dt) {

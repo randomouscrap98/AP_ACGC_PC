@@ -4,7 +4,7 @@
 
 #include <cfloat>
 
-static bool ui_line_shown(const ap_ui_state * st, int kind) {
+static bool ui_line_shown(const ui_settings * st, int kind) {
   switch (kind) {
     case AP_MSG_OTHERS: return st->everyone;
     case AP_MSG_CHAT: return st->chat;
@@ -13,7 +13,7 @@ static bool ui_line_shown(const ap_ui_state * st, int kind) {
   }
 }
 
-void ui_log_sync(ui_log * log, const ap_ui_state * st, bool window_open) {
+void ui_log_sync(ui_log * log, const ui_settings * st, bool window_open) {
   uint64_t total = ap_msg_total();
   if (total == log->seen) { return; }
   // The newest lines; any that already left the DLL's log are skipped
@@ -39,7 +39,7 @@ void ui_log_sync(ui_log * log, const ap_ui_state * st, bool window_open) {
 
 // Word-wrap every shown line to width: a word (with the spaces after it) that doesn't fit starts a new row; a word
 // wider than the whole row stays on its own row (cut off)
-static void ui_wrap_rows(ui_log * log, const ap_ui_state * st, float width) {
+static void ui_wrap_rows(ui_log * log, const ui_settings * st, float width) {
   // Unrounded widths (ImGui::CalcTextSize rounds up, which adds up to a gap per word)
   ImFont * font = ImGui::GetFont();
   float size = ImGui::GetFontSize();
@@ -81,16 +81,12 @@ static void ui_wrap_rows(ui_log * log, const ap_ui_state * st, float width) {
   log->rows_dirty = false;
 }
 
-static void ui_filter_box(ui_log * log, const char * label, int * value, const char * tip) {
-  bool on = *value != 0;
-  if (ImGui::Checkbox(label, &on)) {
-    *value = on;
-    log->rows_dirty = true;
-  }
+static void ui_filter_box(ui_log * log, const char * label, bool * value, const char * tip) {
+  if (ImGui::Checkbox(label, value)) { log->rows_dirty = true; }
   if (ImGui::IsItemHovered()) { ImGui::SetTooltip("%s", tip); }
 }
 
-void ui_log_tab(ui_log * log, ap_ui_state * st) {
+void ui_log_tab(ui_log * log, ui_settings * st) {
   // Text-height boxes (a checkbox is as tall as a text field otherwise)
   ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 0));
   ui_filter_box(log, "Everyone", &st->everyone,

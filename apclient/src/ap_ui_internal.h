@@ -8,12 +8,12 @@
 #include <string>
 
 // What ap_ui.ini keeps. x < 0 = no position yet (placed by default on the first expanded frame)
-struct ap_ui_state {
-  int expanded = 0;
+struct ui_settings {
+  bool expanded = false;
   float x = -1, y = -1, w = 0, h = 0;
   float scale = 0; // 0 = not chosen yet: from the window height on the first frame
   // Log filters, each shows its kind of line: everyone = items / hints between other players, chat, system
-  int everyone = 1, chat = 1, system = 1;
+  bool everyone = true, chat = true, system = true;
   int tab = 0; // UI_TAB_*
 };
 
