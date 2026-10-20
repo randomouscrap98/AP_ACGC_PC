@@ -41,6 +41,7 @@ AP_API int ap_say(const char * text);
 #define AP_NAMES_ITEMS     0
 #define AP_NAMES_LOCATIONS 1
 AP_API size_t ap_game_name_count(int which);
+// The pointer stays valid until the names are set again (a new data package on connect); NULL past the count
 AP_API const char * ap_game_name(int which, size_t i);
 
 #ifdef __cplusplus

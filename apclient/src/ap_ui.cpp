@@ -129,6 +129,14 @@ static void ui_clip_set(ImGuiContext *, const char * text) {
   if (g_ui_clip_set) { g_ui_clip_set(text); }
 }
 
+// Hand the caller's clipboard to ImGui once there's a context; without one, ImGui's default stays
+static void ui_apply_clipboard(void) {
+  if (!g_ui_ready || (!g_ui_clip_get && !g_ui_clip_set)) { return; }
+  ImGuiPlatformIO& pio = ImGui::GetPlatformIO();
+  pio.Platform_GetClipboardTextFn = ui_clip_get;
+  pio.Platform_SetClipboardTextFn = ui_clip_set;
+}
+
 int ap_ui_init(ap_ui_gl_proc_fn gl_get_proc) {
   if (g_ui_ready) { return 1; }
   if (gl_get_proc == NULL) { return 0; }
@@ -164,6 +172,7 @@ int ap_ui_init(ap_ui_gl_proc_fn gl_get_proc) {
   g_ui_select_tab = true;
   g_ui_display = ImVec2(0, 0); // fit on the first frame
   g_ui_ready = true;
+  ui_apply_clipboard(); // if ap_ui_set_clipboard came first
   return 1;
 }
 
@@ -178,6 +187,7 @@ void ap_ui_shutdown(void) {
 void ap_ui_set_clipboard(const char * (*get)(void), void (*set)(const char * text)) {
   g_ui_clip_get = get;
   g_ui_clip_set = set;
+  ui_apply_clipboard();
 }
 
 // ---- input ----
@@ -424,11 +434,6 @@ void ap_ui_frame(int width, int height, float dt) {
   ImGuiIO& io = ImGui::GetIO();
   io.DisplaySize = ImVec2((float)width, (float)height);
   io.DeltaTime = dt > 0 ? dt : 1.0f / 60.0f;
-  if (g_ui_clip_get || g_ui_clip_set) {
-    ImGuiPlatformIO& pio = ImGui::GetPlatformIO();
-    pio.Platform_GetClipboardTextFn = ui_clip_get;
-    pio.Platform_SetClipboardTextFn = ui_clip_set;
-  }
   if (g_ui.scale == 0) {
     // First run: about 1x at 720 lines, in scale steps
     float s = std::round(height / 720.0f / AP_UI_SCALE_STEP) * AP_UI_SCALE_STEP;
