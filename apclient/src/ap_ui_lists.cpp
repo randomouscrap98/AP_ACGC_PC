@@ -1,7 +1,7 @@
 // The text client's Hints, Items and Checks tabs: the lists (ap_ui_lists.h)
 #include "ap_ui_lists.h"
 #include "ap_archipelago.h"
-#include "ap_messages.h"
+#include "ap_messages_internal.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -312,6 +312,11 @@ static void ui_checks_refresh(ui_checks * t) {
   }
 }
 
+// A check is listed when it's missing (or "Show checked" is on) and matches the search q
+static bool ui_check_shown(const ui_checks * t, const ui_check& c, const std::string& q) {
+  return (t->show_done || !c.checked) && (q.empty() || ui_ifind(c.name, q) != std::string::npos);
+}
+
 void ui_checks_tab(ui_checks * t) {
   ui_checks_refresh(t);
   float box_w = ImGui::CalcTextSize("Show checked").x + ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x * 3;
@@ -333,7 +338,7 @@ void ui_checks_tab(ui_checks * t) {
   for (const auto& g : t->groups) {
     int shown = 0;
     for (const auto& c : g.checks) {
-      if ((t->show_done || !c.checked) && (q.empty() || ui_ifind(c.name, q) != std::string::npos)) { shown++; }
+      if (ui_check_shown(t, c, q)) { shown++; }
     }
     if (shown == 0) { continue; }
     char label[256];
@@ -343,9 +348,7 @@ void ui_checks_tab(ui_checks * t) {
     if (!ImGui::CollapsingHeader(label)) { continue; }
     ImGui::Indent();
     for (const auto& c : g.checks) {
-      if (!((t->show_done || !c.checked) && (q.empty() || ui_ifind(c.name, q) != std::string::npos))) {
-        continue;
-      }
+      if (!ui_check_shown(t, c, q)) { continue; }
       ImGui::PushID((int)(c.id & 0x7FFFFFFF));
       ImGui::PushStyleColor(ImGuiCol_Text, c.checked ? ImGui::GetColorU32(ImGuiCol_TextDisabled) : ui_ap_color("green"));
       ImGui::Selectable(c.checked ? ("✓ " + c.name).c_str() : c.name.c_str());

@@ -1,6 +1,6 @@
 // The text client's Log tab (ap_ui_log.h)
 #include "ap_ui_log.h"
-#include "ap_messages.h"
+#include "ap_messages_internal.h"
 
 #include <cfloat>
 

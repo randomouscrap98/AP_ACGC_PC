@@ -2,7 +2,7 @@
 #include "ap_ui_cmdline.h"
 #include "ap_ui_internal.h"
 #include "ap_archipelago.h"
-#include "ap_messages.h"
+#include "ap_messages_internal.h"
 
 #include "imgui.h"
 #include "imgui_internal.h" // BringWindowToDisplayFront, GetCurrentWindow (the match list over the window)

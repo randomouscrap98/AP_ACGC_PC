@@ -15,10 +15,6 @@ struct ap_ui_state {
   // Log filters, each shows its kind of line: everyone = items / hints between other players, chat, system
   int everyone = 1, chat = 1, system = 1;
   int tab = 0; // UI_TAB_*
-  bool operator!=(const ap_ui_state& o) const {
-    return expanded != o.expanded || x != o.x || y != o.y || w != o.w || h != o.h || scale != o.scale ||
-           everyone != o.everyone || chat != o.chat || system != o.system || tab != o.tab;
-  }
 };
 
 // 0xRRGGBB (or AP_MSG_DEFAULT_COLOR = the normal text colour) as an ImGui colour

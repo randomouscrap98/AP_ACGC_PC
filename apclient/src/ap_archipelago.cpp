@@ -1,6 +1,6 @@
 #include "ap_archipelago.h"
 #include "ap_info.h"
-#include "ap_messages.h"
+#include "ap_messages_internal.h"
 #include "ap_slotdata.h"
 
 #include <apclient.hpp>
@@ -202,14 +202,6 @@ int ap_hint_set_status(int finding, int64_t location, int status) {
   return g_ap->UpdateHint(finding, location, (APClient::HintStatus)status);
 }
 
-int64_t ap_getitem_location(size_t idx) {
-  return idx < g_ap_item_locations.size() ? g_ap_item_locations[idx] : 0;
-}
-
-unsigned ap_getitem_flags(size_t idx) {
-  return idx < g_ap_item_flags.size() ? g_ap_item_flags[idx] : 0;
-}
-
 size_t ap_location_ids(int checked, int64_t * out, size_t max) {
   if (!g_ap) return 0;
   std::set<int64_t> ids = checked ? g_ap->get_checked_locations() : g_ap->get_missing_locations();
@@ -237,6 +229,14 @@ int ap_getitem_sender(size_t idx) {
     return -1;
   }
   return g_ap_item_senders.at(idx);
+}
+
+int64_t ap_getitem_location(size_t idx) {
+  return idx < g_ap_item_locations.size() ? g_ap_item_locations[idx] : 0;
+}
+
+unsigned ap_getitem_flags(size_t idx) {
+  return idx < g_ap_item_flags.size() ? g_ap_item_flags[idx] : 0;
 }
 
 int ap_player_name(int slot, char * buf, size_t len) {

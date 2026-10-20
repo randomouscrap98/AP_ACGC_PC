@@ -2,6 +2,7 @@
 #define AP_INFO_H
 
 #include "ap_common.h"
+#include "ap_archipelago.h" // AP_ITEM_*
 #include <stdint.h>
 #include <stddef.h>
 
@@ -9,8 +10,8 @@
 extern "C" {
 #endif
 
-// Session information for a text client's tabs (ap_ui.h uses it; any program using the DLL may): hints, details
-// of received items, this slot's locations, and names. Empty / 0 until the slot is connected.
+// Session information for a text client's tabs (ap_ui.h uses it; any program using the DLL may): hints, this
+// slot's locations, and names. Empty / 0 until the slot is connected. Received items: ap_archipelago.h.
 
 // ---- names ----
 // Name of an item / location as the given slot's game calls it, into buf. 1 = known
@@ -28,11 +29,6 @@ AP_API int ap_slot_is_me(int slot);
 #define AP_HINT_AVOID       20
 #define AP_HINT_PRIORITY    30
 #define AP_HINT_FOUND       40
-
-// Item flags (an item's classification)
-#define AP_ITEM_PROGRESSION 1
-#define AP_ITEM_USEFUL      2
-#define AP_ITEM_TRAP        4
 
 typedef struct {
   int receiving;        // slot the item is for
@@ -52,10 +48,6 @@ AP_API int ap_hint_get(size_t i, ap_hint * out);
 AP_API uint64_t ap_hint_version(void);
 // Ask the server to change a hint's status (only the receiver may; not to/from AP_HINT_FOUND). 1 = sent
 AP_API int ap_hint_set_status(int finding, int64_t location, int status);
-
-// ---- received items (same order as ap_getitem) ----
-AP_API int64_t ap_getitem_location(size_t idx); // in the sender's world; -1 cheat, -2 start inventory
-AP_API unsigned ap_getitem_flags(size_t idx);   // AP_ITEM_*
 
 // ---- this slot's locations ----
 // Ids of the missing (checked = 0) or checked (checked = 1) locations, up to max into out (out may be NULL with

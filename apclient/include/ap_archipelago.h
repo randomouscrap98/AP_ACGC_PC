@@ -66,6 +66,15 @@ AP_API const ap_connectstate * ap_getconnectstate(void);
 AP_API int64_t ap_getitem(size_t idx);
 // Slot (player number) that sent the item at ap index idx, -1 if out of range
 AP_API int ap_getitem_sender(size_t idx);
+// Location (in the sender's world) the item at ap index idx came from: -1 cheat, -2 start inventory; 0 if out of
+// range
+AP_API int64_t ap_getitem_location(size_t idx);
+// Item flags (an item's classification)
+#define AP_ITEM_PROGRESSION 1
+#define AP_ITEM_USEFUL      2
+#define AP_ITEM_TRAP        4
+// AP_ITEM_* of the item at ap index idx, 0 if out of range
+AP_API unsigned ap_getitem_flags(size_t idx);
 // Name (alias) of a slot, ASCII control bytes as spaces, truncated to len - 1.
 // 0 when not connected yet (buf untouched)
 AP_API int ap_player_name(int slot, char * buf, size_t len);

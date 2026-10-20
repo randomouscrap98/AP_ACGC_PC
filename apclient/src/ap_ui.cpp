@@ -4,7 +4,7 @@
 #include "ap_ui.h"
 #include "ap_archipelago.h"
 #include "ap_info.h"
-#include "ap_messages.h"
+#include "ap_messages_internal.h"
 #include "ap_ui_internal.h"
 #include "ap_ui_cmdline.h"
 #include "ap_ui_log.h"
@@ -44,7 +44,7 @@ static const char * (*g_ui_clip_get)(void) = NULL;
 static void (*g_ui_clip_set)(const char *) = NULL;
 
 static ap_ui_state g_ui;
-static ap_ui_state g_ui_saved; // as last written to ap_ui.ini
+static std::string g_ui_saved; // ap_ui.ini's text as last read or written (ui_ini_text)
 enum { UI_TAB_LOG, UI_TAB_HINTS, UI_TAB_ITEMS, UI_TAB_CHECKS, UI_TAB_COUNT };
 static bool g_ui_select_tab = true; // select g_ui.tab once (from ap_ui.ini)
 static ImVec2 g_ui_display(0, 0);   // game window size the text client was last drawn for
@@ -91,20 +91,28 @@ static void ui_load(void) {
   g_ui.tab = (int)ini_float(ini, "tab", 0);
   if (g_ui.tab < 0 || g_ui.tab >= UI_TAB_COUNT) { g_ui.tab = 0; }
   ini_destroy(ini);
-  g_ui_saved = g_ui;
 }
 
-static void ui_save(void) {
-  FILE * f = fopen(AP_UI_INI, "wb");
-  if (!f) { return; }
-  fprintf(f, "; Archipelago text client window (written by the game)\n");
-  fprintf(f, "expanded=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\n", g_ui.expanded, g_ui.x, g_ui.y, g_ui.w, g_ui.h,
-          g_ui.scale);
-  fprintf(f, "; log filters (1 = shown): other players' items / hints, chat, system messages\n");
-  fprintf(f, "everyone=%d\nchat=%d\nsystem=%d\n", g_ui.everyone, g_ui.chat, g_ui.system);
-  fprintf(f, "; open tab: 0 log, 1 hints, 2 items, 3 checks\ntab=%d\n", g_ui.tab);
-  fclose(f);
-  g_ui_saved = g_ui;
+// What ap_ui.ini gets for g_ui (compared with g_ui_saved to see whether anything changed)
+static std::string ui_ini_text(void) {
+  char text[1024];
+  snprintf(text, sizeof(text),
+           "; Archipelago text client window (written by the game)\n"
+           "expanded=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\n"
+           "; log filters (1 = shown): other players' items / hints, chat, system messages\n"
+           "everyone=%d\nchat=%d\nsystem=%d\n"
+           "; open tab: 0 log, 1 hints, 2 items, 3 checks\ntab=%d\n",
+           g_ui.expanded, g_ui.x, g_ui.y, g_ui.w, g_ui.h, g_ui.scale, g_ui.everyone, g_ui.chat, g_ui.system, g_ui.tab);
+  return text;
+}
+
+// Write ap_ui.ini if g_ui changed since it was last read or written
+static void ui_save_changes(void) {
+  std::string text = ui_ini_text();
+  if (text == g_ui_saved) { return; }
+  std::ofstream out(AP_UI_INI, std::ios::binary);
+  if (!(out << text)) { return; } // try again next time
+  g_ui_saved = text;
 }
 
 // ---- setup ----
@@ -151,6 +159,7 @@ int ap_ui_init(ap_ui_gl_proc_fn gl_get_proc) {
   cfg.ExtraSizeScale = (1069 + 423) / 1362.0f;
   io.Fonts->AddFontFromMemoryTTF((void *)AP_UI_FONT_MATH, (int)sizeof(AP_UI_FONT_MATH), AP_UI_FONT_PX, &cfg);
   ui_load();
+  g_ui_saved = ui_ini_text(); // no write until something changes
   g_ui_log.scroll_bottom = true;
   g_ui_select_tab = true;
   g_ui_display = ImVec2(0, 0); // fit on the first frame
@@ -160,7 +169,7 @@ int ap_ui_init(ap_ui_gl_proc_fn gl_get_proc) {
 
 void ap_ui_shutdown(void) {
   if (!g_ui_ready) { return; }
-  if (g_ui != g_ui_saved) { ui_save(); }
+  ui_save_changes();
   ImGui_ImplOpenGL3_Shutdown();
   ImGui::DestroyContext();
   g_ui_ready = false;
@@ -443,5 +452,5 @@ void ap_ui_frame(int width, int height, float dt) {
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
   // Save once a change is done (not every frame of a drag)
-  if (g_ui != g_ui_saved && !ImGui::IsAnyMouseDown()) { ui_save(); }
+  if (!ImGui::IsAnyMouseDown()) { ui_save_changes(); }
 }
