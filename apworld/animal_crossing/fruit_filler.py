@@ -8,7 +8,7 @@ FRUITS = ("apple", "cherry", "pear", "peach", "orange")  # Town Fruit option val
 
 
 def items(world, free: int) -> list[str]:
-    if not world.options.fruit_filler:
+    if not world.options.fruit_filler or world.options.treesanity:  # Treesanity puts them in the pool itself
         return []
     names = [name for value, name in enumerate(FRUITS) if value != world.options.town_fruit.value]
     return names[:max(0, free - world.options.extra_bells.value)]

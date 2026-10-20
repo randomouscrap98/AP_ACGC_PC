@@ -1,7 +1,7 @@
 # The Archipelago world: calls each feature at each generation step, in a fixed order. Everything about a feature
 # (its items, locations, rules, slot_data, ids) is in its own file, named after its option:
 #   goal, intro, town_generation, loansanity, bell_credits, extra_bells, fruit_filler, timesanity, favor_pools,
-#   shellsanity, museumsanity, fossil_availability, fish_availability, bug_availability, tools_in_pool, catalogsanity,
+#   shellsanity, treesanity, museumsanity, fossil_availability, fish_availability, bug_availability, tools_in_pool, catalogsanity,
 #   nook_store_upgrades, furniture_sets, quality_of_life
 # Generated data: game_items, museum_data, catalog_data, villager_data. Options: options.py.
 # Old seeds' slot_data: slot_data_upgrade (steps in slot_data_upgrades.json).
@@ -29,7 +29,7 @@ from worlds.AutoWorld import WebWorld, World
 from . import (bell_credits, bug_availability, catalogsanity, extra_bells, favor_pools, fish_availability,
                fossil_availability, fruit_filler, furniture_sets, goal, intro, loansanity, museumsanity,
                nook_store_upgrades, options, quality_of_life, shellsanity, slot_data_upgrade, timesanity, tools_in_pool,
-               town_generation)
+               town_generation, treesanity)
 from .game_items import ITEM_NAME_TO_ID as GAME_ITEMS
 from .options import AnimalCrossingOptions
 
@@ -37,7 +37,7 @@ GAME_NAME = "Animal Crossing"
 # slot_data format (the client's AP_SLOTDATA_VERSION). Bump on any change the client reads (new key, new ids,
 # removed/renamed key, changed meaning; new keys also get an upgrade step: slot_data_upgrades.json); not for
 # apworld-only changes. Rules: ignore/docs/reference.md "Versions"
-SLOT_DATA_VERSION = 2
+SLOT_DATA_VERSION = 3
 # Universal Tracker: slot_data keys named like an option but holding something else (villager indices, the pools,
 # a tool name), so they're not restored as options
 UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "starting_tool"}
@@ -48,16 +48,17 @@ ITEM_NAME_TO_ID = {**GAME_ITEMS, **loansanity.ITEMS, **bell_credits.ITEMS, **noo
                    **catalogsanity.ITEMS, **favor_pools.ITEMS, **timesanity.ITEMS, **museumsanity.ITEMS,
                    **fossil_availability.ITEMS, **fish_availability.ITEMS, **bug_availability.ITEMS}
 LOCATION_NAME_TO_ID = {**loansanity.LOCATIONS, **favor_pools.LOCATIONS, **shellsanity.LOCATIONS,
-                       **museumsanity.LOCATIONS, **catalogsanity.LOCATIONS}
+                       **museumsanity.LOCATIONS, **catalogsanity.LOCATIONS, **treesanity.LOCATIONS}
 # A name in two features would silently keep only one id
 assert len(ITEM_NAME_TO_ID) == len(GAME_ITEMS) + sum(len(f.ITEMS) for f in (
     loansanity, bell_credits, nook_store_upgrades, catalogsanity, favor_pools, timesanity, museumsanity,
     fossil_availability, fish_availability, bug_availability)), "item name in two features"
 assert len(LOCATION_NAME_TO_ID) == sum(len(f.LOCATIONS) for f in (
-    loansanity, favor_pools, shellsanity, museumsanity, catalogsanity)), "location name in two features"
-# Features with items, for create_item's classification
+    loansanity, favor_pools, shellsanity, museumsanity, catalogsanity, treesanity)), "location name in two features"
+# Features with items, for create_item's classification (first answer wins: treesanity before fruit_filler)
 ITEM_FEATURES = (loansanity, timesanity, favor_pools, catalogsanity, fossil_availability, fish_availability,
-                 bug_availability, museumsanity, tools_in_pool, nook_store_upgrades, furniture_sets, fruit_filler)
+                 bug_availability, museumsanity, tools_in_pool, nook_store_upgrades, furniture_sets, treesanity,
+                 fruit_filler)
 
 
 class AnimalCrossingItem(Item):
@@ -117,6 +118,10 @@ class AnimalCrossingWeb(WebWorld):
         OptionGroup("Shellsanity", [
             options.Shellsanity,
             options.BeachChecksPerMonth,
+        ]),
+        OptionGroup("Treesanity", [
+            options.Treesanity,
+            options.TreeChecksPerFruit,
         ]),
         OptionGroup("Loansanity", [
             options.Loansanity,
@@ -247,7 +252,7 @@ class AnimalCrossingWorld(World):
 
         locations, items = len(self.seed_locations()), len(self.seed_pool_items())
         if not locations:
-            raise self.option_error("Turn on Loansanity, Favorsanity or Shellsanity.")
+            raise self.option_error("Turn on Loansanity, Favorsanity, Shellsanity or Treesanity.")
         # Every non-filler item needs a location
         if locations < items:
             raise self.option_error(f"Total checks at {locations}, it must be at least {items} with these options. "
@@ -255,14 +260,14 @@ class AnimalCrossingWorld(World):
 
     def seed_locations(self) -> list[str]:
         return (loansanity.locations(self) + favor_pools.locations(self) + museumsanity.locations(self)
-                + catalogsanity.locations(self) + shellsanity.locations(self))
+                + catalogsanity.locations(self) + shellsanity.locations(self) + treesanity.locations(self))
 
     def seed_pool_items(self) -> list[str]:
         # Non-filler items, in pool order
         return (loansanity.items(self) + timesanity.items(self) + museumsanity.items(self) + tools_in_pool.items(self)
                 + fossil_availability.items(self) + fish_availability.items(self) + bug_availability.items(self)
                 + nook_store_upgrades.items(self) + catalogsanity.items(self) + favor_pools.items(self)
-                + furniture_sets.items(self))
+                + furniture_sets.items(self) + treesanity.items(self))
 
     def create_regions(self) -> None:
         menu = Region("Menu", self.player, self.multiworld)
@@ -304,6 +309,7 @@ class AnimalCrossingWorld(World):
         favor_pools.rules(self)
         catalogsanity.rules(self)
         shellsanity.rules(self)
+        treesanity.rules(self)
         museumsanity.rules(self)
         fossil_availability.rules(self)
         fish_availability.rules(self)
@@ -317,7 +323,7 @@ class AnimalCrossingWorld(World):
         start = CollectionState(self.multiworld)  # every player's precollected items
         if not any(location.can_reach(start) for location in self.get_locations()):
             raise self.option_error("No check can be done at the start with these options. Turn on Loansanity, "
-                                    "Favorsanity or Shellsanity. Museum checks only count at the "
+                                    "Favorsanity, Shellsanity or Treesanity. Museum checks only count at the "
                                     "start with their category's Availability set to All (and, with Tools in Pool, "
                                     "its tool as Starting Tool); loan checks at a Morning start need Shops Always "
                                     "Open.")
@@ -329,6 +335,7 @@ class AnimalCrossingWorld(World):
             **town_generation.slot_data(self),
             **quality_of_life.slot_data(self),
             **shellsanity.slot_data(self),
+            **treesanity.slot_data(self),
             **goal.slot_data(self),
             **loansanity.slot_data(self),
             **favor_pools.slot_data(self),

@@ -491,6 +491,28 @@ class BeachChecksPerMonth(Range):
     default = 3
 
 
+class Treesanity(Toggle):
+    """
+    Fruit trees drop AP items, up to the given amount per fruit tree type.
+    Fruit is now progressive and in the pool, and is unobtainable through
+    normal means in-game. Note that once fruit is received, Tom Nook will
+    sell it in his store, should you lose it.
+    """
+    display_name = "Treesanity"
+
+
+class TreeChecksPerFruit(Range):
+    """
+    With Treesanity, the amount of tree checks per fruit 
+    (3 makes 15, or one tree per type). A tree drops 3 at most per harvest;
+    it bears again 3 days after shaking.
+    """
+    display_name = "Tree Checks per Fruit"
+    range_start = 1
+    range_end = 20
+    default = 3
+
+
 class ShellsanityItemChance(Range):
     """
     With Shellsanity, percent chance that a generated shell is an Archipelago item.
@@ -700,7 +722,8 @@ class TurnipsNeverSpoil(DefaultOnToggle):
 
 class FruitFiller(DefaultOnToggle):
     """
-    Add non-town fruit to pool as filler.
+    Add non-town fruit to pool as filler. With Treesanity they're always in
+    the pool (as progression).
     """
     display_name = "Fruit Filler"
 
@@ -1136,6 +1159,8 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     favors_per_pool: FavorsPerPool
     shellsanity: Shellsanity
     beach_checks_per_month: BeachChecksPerMonth
+    treesanity: Treesanity
+    tree_checks_per_fruit: TreeChecksPerFruit
     loansanity: Loansanity
     fossil_loans: FossilLoans
     total_loan_checks: TotalLoanChecks
