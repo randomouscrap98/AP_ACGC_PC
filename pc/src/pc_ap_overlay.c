@@ -1,4 +1,5 @@
 #include "pc_ap_overlay.h"
+#include "pc_ap_treesanity.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 
@@ -335,6 +336,14 @@ static void pc_ap_draw_tracker(struct game_s* game) {
       if(pc_ap_catalog_goal() > 0) {
         apo_append(output, sizeof(output), "\nCatalog: %d / %d", pc_ap_catalog_registered(), pc_ap_catalog_goal());
       }
+    }
+    if(pc_ap_trees_per_fruit() > 0) {
+      int left = 0;
+      for(int f = 0; f < PC_AP_FRUITS; f++) {
+        left += pc_ap_trees_left(f);
+      }
+      int total = pc_ap_trees_per_fruit() * PC_AP_FRUITS;
+      apo_append(output, sizeof(output), "\nTrees: %d / %d", total - left, total);
     }
     apo_append_unlocks(output, sizeof(output));
   } else {

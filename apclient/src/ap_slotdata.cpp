@@ -338,6 +338,8 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   sd->beach_per_month = read_bool(slot_data, "shellsanity", 0) ?
       read_int(slot_data, "beach_checks_per_month", 0, 0, AP_BEACH_PER_MONTH_MAX) : 0;
   sd->shellsanity_item_chance = read_int(slot_data, "shellsanity_item_chance", 20, 0, 100);
+  sd->tree_per_fruit = read_bool(slot_data, "treesanity", 0) ?
+      read_int(slot_data, "tree_checks_per_fruit", 0, 0, AP_TREE_PER_FRUIT_MAX) : 0;
 
   // Keyed by item name in the apworld (Small/Modest/Large Bell Credit)
   static const char * credit_names[AP_BELLCREDIT_NUM] = { "Small Bell Credit", "Modest Bell Credit", "Large Bell Credit" };

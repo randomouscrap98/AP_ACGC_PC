@@ -43,6 +43,7 @@ extern "C" {
 #define AP_FISH_AREA_NUM         6
 
 #define AP_BEACH_PER_MONTH_MAX 20 // Shellsanity: apworld BEACH_PER_MONTH_MAX
+#define AP_TREE_PER_FRUIT_MAX 20  // Treesanity: apworld TREE_PER_FRUIT_MAX
 #define AP_CATALOG_MAX 575 // Catalogsanity: eligible catalog items (apworld CATALOG_ELIGIBLE)
 // catalog_sources: sources besides Nook that can give new pool items (bits, apworld CATALOG_SOURCES order)
 #define AP_CATALOG_SOURCE_FAVORS     (1 << 0)
@@ -163,6 +164,8 @@ typedef struct {
   int beach_per_month;                // Shellsanity: checks per month washing up on the beach, 0 = off (slot_data
                                       // beach_checks_per_month, 0 with shellsanity 0)
   int shellsanity_item_chance;        // Shellsanity: percent of washed-up shells that are AP items
+  int tree_per_fruit;                 // Treesanity: checks per fruit borne by its trees, 0 = off (slot_data
+                                      // tree_checks_per_fruit, 0 with treesanity 0)
   int catalog_goal_count;            // Catalog goal: pool items to get into the catalog (apworld computes it from its % option)
   int bell_credits[AP_BELLCREDIT_NUM]; // bells per small/modest/large bell credit
   int furniture_set_count;           // Furniture Set goal: pieces in furniture_set_items (0 without the goal)

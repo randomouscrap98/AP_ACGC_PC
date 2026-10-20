@@ -264,6 +264,36 @@ void pc_ap_beach_item_name(mActor_name_t item, u8* dst);
 int pc_ap_shells_per_month(void);
 int pc_ap_shells_left(int month);
 
+// Treesanity (pc_ap_treesanity.h). drop_fruit: AP items (0-3) a bearing tree drops before its real fruit,
+// *item = that fruit's tree item; 0 for any other tree, or when Treesanity is off.
+int pc_ap_tree_drop(mActor_name_t tree, mActor_name_t* item);
+// bg_item draw tables: a bearing tree with AP items is drawn bare (the AP items and fruit come from
+// pc_ap_tree_draw_item); anything else as itself
+mActor_name_t pc_ap_tree_draw_fg(mActor_name_t fg);
+// What a bearing tree with AP items shows at fruit spot (0-2, the drop spots): its tree item or its
+// fruit; EMPTY_NO when the tree is drawn as vanilla
+mActor_name_t pc_ap_tree_draw_item(mActor_name_t fg, int spot);
+// Shellsanity beach items and Treesanity tree items ("AP ground items": the AP logo on the ground)
+int pc_ap_ground_item(mActor_name_t item);
+// Player_actor_setup_main_Pickup: nonzero for an AP ground item, which never goes into the pockets
+// (the caller clears its tile); sends the next unsent check of its month / fruit, if any.
+int pc_ap_ground_pickup(mActor_name_t item);
+// mIN_copy_name_str: name of an AP ground item in the game charset (mIN_ITEM_NAME_LEN chars)
+void pc_ap_ground_item_name(mActor_name_t item, u8* dst);
+// mSP_SelectPlant: what plain sapling slot (0 first) sells: a fruit (pc_ap_treesanity_shop_slot) or
+// ITM_SAPLING
+mActor_name_t pc_ap_shop_sapling(int slot);
+// mFI_GetOtherFruit: 1 = *fruit is a received non-town fruit (the town's if none), with Treesanity
+// on; 0 = vanilla
+int pc_ap_other_fruit(mActor_name_t* fruit);
+// Gift passwords: 0 for a fruit the player hasn't received (Treesanity on), else 1
+int pc_ap_fruit_allowed(mActor_name_t item);
+// Trees page: Treesanity checks per fruit (0 = off), checks of fruit (0-4) not sent yet, and whether
+// the player has fruit (received or the town's)
+int pc_ap_trees_per_fruit(void);
+int pc_ap_trees_left(int fruit);
+int pc_ap_trees_fruit_owned(int fruit);
+
 // Time hooks (on top of pc_ap_timesanity.h): frozen clock, date changes,
 // normalized time travel.
 
