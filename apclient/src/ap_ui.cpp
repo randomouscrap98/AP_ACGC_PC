@@ -1,11 +1,14 @@
 // Archipelago text client window (ap_ui.h). Dear ImGui + its OpenGL 3 backend, with GL functions looked up
-// through the caller's loader. Messages come from the DLL's log (ap_messages.h), copied here so the window owns
-// stable text; long lines are word-wrapped into rows of one height so only the visible rows are drawn.
+// through the caller's loader. This file: setup, input, ap_ui.ini, the box and the window; it owns the parts'
+// state (ap_ui_log.h, ap_ui_cmdline.h, ap_ui_tabs.h).
 #include "ap_ui.h"
 #include "ap_archipelago.h"
 #include "ap_info.h"
 #include "ap_messages.h"
 #include "ap_ui_internal.h"
+#include "ap_ui_cmdline.h"
+#include "ap_ui_log.h"
+#include "ap_ui_tabs.h"
 // Embedded fonts (lib/fonts/README.txt, embed_font.cmake)
 #include "ap_ui_font.h"
 #include "ap_ui_font_math.h"
@@ -13,7 +16,6 @@
 #include "ap_ui_font_symbols2.h"
 
 #include "imgui.h"
-#include "imgui_internal.h" // BringWindowToDisplayFront, GetCurrentWindow (the completion list over the window)
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_opengl3_loader.h" // imgl3wInit2
 
@@ -22,10 +24,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cfloat>
-#include <cstring>
 #include <cmath>
 #include <cstdio>
-#include <deque>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -43,73 +43,23 @@ static ap_ui_gl_proc_fn g_ui_gl_proc = NULL;
 static const char * (*g_ui_clip_get)(void) = NULL;
 static void (*g_ui_clip_set)(const char *) = NULL;
 
-// What ap_ui.ini keeps. x < 0 = no position yet (placed by default on the first expanded frame)
-struct ap_ui_state {
-  int expanded = 0;
-  float x = -1, y = -1, w = 0, h = 0;
-  float scale = 0; // 0 = not chosen yet: from the window height on the first frame
-  // Log filters, each shows its kind of line: everyone = items / hints between other players, chat, system
-  int everyone = 1, chat = 1, system = 1;
-  int tab = 0; // UI_TAB_*
-  bool operator!=(const ap_ui_state& o) const {
-    return expanded != o.expanded || x != o.x || y != o.y || w != o.w || h != o.h || scale != o.scale ||
-           everyone != o.everyone || chat != o.chat || system != o.system || tab != o.tab;
-  }
-};
 static ap_ui_state g_ui;
-static ap_ui_state g_ui_saved;
+static ap_ui_state g_ui_saved; // as last written to ap_ui.ini
 enum { UI_TAB_LOG, UI_TAB_HINTS, UI_TAB_ITEMS, UI_TAB_CHECKS, UI_TAB_COUNT };
 static bool g_ui_select_tab = true; // select g_ui.tab once (from ap_ui.ini)
 static ImVec2 g_ui_display(0, 0);   // game window size the text client was last drawn for
-static float g_ui_style_scale = 0; // scale the style was built for
+static float g_ui_style_scale = 0;  // scale the style was built for
+// Keyboard focus between frames
+static bool g_ui_unfocus = false;  // ap_ui_release_all: drop the focus (ending any text editing) on the next frame
+static bool g_ui_any_text = false; // a text field was active this frame (ap_ui_wants_text; io.WantTextInput lags)
 
-// The window's copy of the message log
-struct ap_ui_seg {
-  std::string text;
-  ImU32 color;
-};
-struct ap_ui_line {
-  std::vector<ap_ui_seg> segs;
-  int kind; // AP_MSG_*
-};
-static std::deque<ap_ui_line> g_ui_lines;
-static uint64_t g_ui_seen = 0;      // ap_msg_total() copied so far
-static uint64_t g_ui_seen_box = 0;  // ... when the window was last open (the box shows the difference)
+// The parts
+static ui_log g_ui_log;
+static ui_cmdline g_ui_cmd;
+static ui_hints g_ui_hints;
+static ui_items g_ui_items;
+static ui_checks g_ui_checks;
 
-// Wrapped rows: pieces of segments, each at its x offset in the row
-struct ap_ui_piece {
-  const char * begin;
-  const char * end;
-  float x;
-  ImU32 color;
-};
-struct ap_ui_row {
-  size_t first, count;
-  size_t line; // in g_ui_lines (for "Copy line")
-};
-static std::vector<ap_ui_piece> g_ui_pieces;
-static std::vector<ap_ui_row> g_ui_rows;
-static bool g_ui_rows_dirty = true;
-static float g_ui_rows_width = -1;
-static float g_ui_rows_font = -1;
-static bool g_ui_scroll_bottom = true;
-static bool g_ui_unfocus = false; // ap_ui_release_all: leave the text line on the next frame
-static bool g_ui_typing = false;  // the command line was active in the last frame
-static bool g_ui_any_text = false; // any text field was (ap_ui_wants_text; io.WantTextInput lags a frame)
-static char g_ui_input[512];
-
-// Command line: sent lines (Up / Down), and the "!hint" / "!hint_location" name completion
-#define AP_UI_HISTORY_MAX 100
-#define AP_UI_MATCHES_MAX 8
-static std::vector<std::string> g_ui_history;
-static int g_ui_history_pos = -1;          // -1 = the line being written, else an index in g_ui_history
-static std::vector<std::string> g_ui_matches; // names for the word being completed
-static int g_ui_match_sel = 0;
-static size_t g_ui_match_from = 0;         // where the name starts in g_ui_input
-static bool g_ui_typing_before = false;    // the text line was active the frame before (a click on the list ends it)
-static bool g_ui_refocus = false;          // give the text line the keyboard again (after a click on the list)
-static bool g_ui_cursor_end = false;       // ... with the cursor at the end (focusing selects everything)
-static size_t g_ui_copy_line = 0;          // the line the "Copy line" menu is for
 
 // ---- ap_ui.ini ----
 
@@ -201,7 +151,7 @@ int ap_ui_init(ap_ui_gl_proc_fn gl_get_proc) {
   cfg.ExtraSizeScale = (1069 + 423) / 1362.0f;
   io.Fonts->AddFontFromMemoryTTF((void *)AP_UI_FONT_MATH, (int)sizeof(AP_UI_FONT_MATH), AP_UI_FONT_PX, &cfg);
   ui_load();
-  g_ui_scroll_bottom = true;
+  g_ui_log.scroll_bottom = true;
   g_ui_select_tab = true;
   g_ui_display = ImVec2(0, 0); // fit on the first frame
   g_ui_ready = true;
@@ -271,26 +221,23 @@ int ap_ui_wants_text(void) {
   return g_ui_ready && !g_ui_unfocus && g_ui_any_text;
 }
 
-// ---- messages ----
+// ---- shared helpers (ap_ui_internal.h) ----
 
-static ImU32 ui_color(int rgb) {
+ImU32 ui_rgb(int rgb) {
   if (rgb == AP_MSG_DEFAULT_COLOR) { return ImGui::GetColorU32(ImGuiCol_Text); }
   return IM_COL32((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 0xFF);
 }
 
 ImU32 ui_ap_color(const char * name) {
-  return ui_color(ap_msg_color(name));
+  return ui_rgb(ap_msg_color(name));
 }
 
 ImU32 ui_item_color(unsigned flags) {
-  if (flags & AP_ITEM_PROGRESSION) { return ui_ap_color("plum"); }
-  if (flags & AP_ITEM_USEFUL) { return ui_ap_color("slateblue"); }
-  if (flags & AP_ITEM_TRAP) { return ui_ap_color("salmon"); }
-  return ui_ap_color("cyan");
+  return ui_rgb(ap_msg_item_color(flags));
 }
 
 ImU32 ui_player_color(int slot) {
-  return ui_ap_color(slot != 0 && slot == ap_my_slot() ? "magenta" : "yellow");
+  return ui_rgb(ap_msg_player_color(ap_slot_is_me(slot)));
 }
 
 void ui_note_text_field(void) {
@@ -311,78 +258,10 @@ void ui_copy_menu(const std::string& text) {
   }
 }
 
-// Copy the lines added since the last frame
-static void ui_sync_lines(void) {
-  uint64_t total = ap_msg_total();
-  if (total == g_ui_seen) { return; }
-  if (total < g_ui_seen) { g_ui_lines.clear(); g_ui_seen = 0; g_ui_seen_box = 0; } // log was cleared
-  size_t count = ap_msg_count();
-  uint64_t fresh = total - g_ui_seen;
-  size_t first = fresh >= count ? 0 : count - (size_t)fresh;
-  for (size_t i = first; i < count; i++) {
-    ap_ui_line line = { {}, ap_msg_kind(i) };
-    size_t n = ap_msg_segment_count(i);
-    for (size_t s = 0; s < n; s++) {
-      int color = AP_MSG_DEFAULT_COLOR;
-      const char * text = ap_msg_segment(i, s, &color);
-      line.segs.push_back({ text ? text : "", ui_color(color) });
-    }
-    g_ui_lines.push_back(std::move(line));
-  }
-  while (g_ui_lines.size() > AP_MSG_MAX) { g_ui_lines.pop_front(); }
-  g_ui_seen = total;
-  g_ui_rows_dirty = true;
-}
-
-static bool ui_line_shown(int kind) {
-  switch (kind) {
-    case AP_MSG_OTHERS: return g_ui.everyone;
-    case AP_MSG_CHAT: return g_ui.chat;
-    case AP_MSG_SYSTEM: return g_ui.system;
-    default: return true;
-  }
-}
-
-// Word-wrap every shown line to width: a word (with the spaces after it) that doesn't fit starts a new row; a word
-// wider than the whole row stays on its own row (cut off)
-static void ui_wrap_rows(float width) {
-  // Unrounded widths (ImGui::CalcTextSize rounds up, which adds up to a gap per word)
-  ImFont * font = ImGui::GetFont();
-  float size = ImGui::GetFontSize();
-  g_ui_pieces.clear();
-  g_ui_rows.clear();
-  for (size_t l = 0; l < g_ui_lines.size(); l++) {
-    const ap_ui_line& line = g_ui_lines[l];
-    if (!ui_line_shown(line.kind)) { continue; }
-    g_ui_rows.push_back({ g_ui_pieces.size(), 0, l });
-    float x = 0;
-    for (const auto& seg : line.segs) {
-      const char * p = seg.text.c_str();
-      const char * end = p + seg.text.size();
-      bool same_piece = false; // the last piece is this segment's, in this row
-      while (p < end) {
-        const char * q = p;
-        while (q < end && *q != ' ') { q++; }
-        while (q < end && *q == ' ') { q++; }
-        float w = font->CalcTextSizeA(size, FLT_MAX, 0.0f, p, q).x;
-        if (x > 0 && x + w > width) {
-          g_ui_rows.push_back({ g_ui_pieces.size(), 0, l });
-          x = 0;
-          same_piece = false;
-        }
-        if (same_piece) {
-          g_ui_pieces.back().end = q;
-        } else {
-          g_ui_pieces.push_back({ p, q, x, seg.color });
-          g_ui_rows.back().count++;
-          same_piece = true;
-        }
-        x += w;
-        p = q;
-      }
-    }
-  }
-  g_ui_rows_dirty = false;
+size_t ui_ifind(const std::string& hay, const std::string& needle) {
+  auto it = std::search(hay.begin(), hay.end(), needle.begin(), needle.end(),
+                        [](char a, char b) { return std::tolower((unsigned char)a) == std::tolower((unsigned char)b); });
+  return it == hay.end() ? std::string::npos : (size_t)(it - hay.begin());
 }
 
 // ---- drawing ----
@@ -430,224 +309,21 @@ static void ui_box(void) {
   ImGui::SetNextWindowPos(ImVec2(AP_UI_MARGIN, AP_UI_MARGIN), ImGuiCond_Always);
   ImGui::Begin("##ap_box", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
                ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing);
-  uint64_t unread = g_ui_seen - g_ui_seen_box; // new lines since the window was last open
+  int unread = g_ui_log.unread;
   char label[32];
   if (unread > 99) {
     snprintf(label, sizeof(label), "AP (99+)###ap_open");
   } else if (unread > 0) {
-    snprintf(label, sizeof(label), "AP (%d)###ap_open", (int)unread);
+    snprintf(label, sizeof(label), "AP (%d)###ap_open", unread);
   } else {
     snprintf(label, sizeof(label), "AP###ap_open");
   }
   if (ImGui::Button(label)) {
     g_ui.expanded = 1;
-    g_ui_scroll_bottom = true;
+    g_ui_log.scroll_bottom = true;
   }
   if (ImGui::IsItemHovered()) { ImGui::SetTooltip("Archipelago text client"); }
   ImGui::End();
-}
-
-static void ui_filter_box(const char * label, int * value, const char * tip) {
-  bool on = *value != 0;
-  if (ImGui::Checkbox(label, &on)) {
-    *value = on;
-    g_ui_rows_dirty = true;
-  }
-  if (ImGui::IsItemHovered()) { ImGui::SetTooltip("%s", tip); }
-}
-
-// The message log, filters on top, leaving bottom_h for what's under it
-static void ui_log(float bottom_h) {
-  // Text-height boxes (a checkbox is as tall as a text field otherwise)
-  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 0));
-  ui_filter_box("Everyone", &g_ui.everyone, "Show item and hint messages between other players (yours always show)");
-  ImGui::SameLine();
-  ui_filter_box("Chat", &g_ui.chat, "Show chat");
-  ImGui::SameLine();
-  ui_filter_box("System", &g_ui.system, "Show joins, leaves and server notices");
-  ImGui::PopStyleVar();
-
-  ImGui::BeginChild("log", ImVec2(0, -bottom_h));
-  float width = ImGui::GetContentRegionAvail().x;
-  float font = ImGui::GetFontSize();
-  if (g_ui_rows_dirty || width != g_ui_rows_width || font != g_ui_rows_font) {
-    ui_wrap_rows(width);
-    g_ui_rows_width = width;
-    g_ui_rows_font = font;
-  }
-  float row_h = ImGui::GetTextLineHeight();
-  bool at_bottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - row_h * 0.5f;
-  bool open_menu = false;
-  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-  ImDrawList * draw = ImGui::GetWindowDrawList();
-  ImGuiListClipper clipper;
-  clipper.Begin((int)g_ui_rows.size(), row_h);
-  while (clipper.Step()) {
-    for (int r = clipper.DisplayStart; r < clipper.DisplayEnd; r++) {
-      ImVec2 pos = ImGui::GetCursorScreenPos();
-      const ap_ui_row& row = g_ui_rows[r];
-      ImGui::PushID(r);
-      ImGui::InvisibleButton("##row", ImVec2(width, row_h));
-      ImGui::PopID();
-      if (ImGui::IsItemHovered()) {
-        draw->AddRectFilled(pos, ImVec2(pos.x + width, pos.y + row_h), ImGui::GetColorU32(ImGuiCol_HeaderHovered, 0.35f));
-      }
-      if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-        g_ui_copy_line = row.line;
-        open_menu = true;
-      }
-      for (size_t i = row.first; i < row.first + row.count; i++) {
-        const ap_ui_piece& p = g_ui_pieces[i];
-        draw->AddText(ImVec2(pos.x + p.x, pos.y), p.color, p.begin, p.end);
-      }
-    }
-  }
-  ImGui::PopStyleVar();
-  if (open_menu) { ImGui::OpenPopup("##line_menu"); }
-  if (ImGui::BeginPopup("##line_menu")) {
-    if (ImGui::MenuItem("Copy line") && g_ui_copy_line < g_ui_lines.size()) {
-      std::string text;
-      for (const auto& seg : g_ui_lines[g_ui_copy_line].segs) { text += seg.text; }
-      ImGui::SetClipboardText(text.c_str());
-    }
-    ImGui::EndPopup();
-  }
-  if (g_ui_scroll_bottom || (at_bottom && g_ui_seen != g_ui_seen_box)) {
-    ImGui::SetScrollHereY(1.0f);
-    g_ui_scroll_bottom = false;
-  }
-  g_ui_seen_box = g_ui_seen;
-  ImGui::EndChild();
-}
-
-// ---- command line ----
-
-static bool ui_starts_with(const char * s, const char * prefix) {
-  return strncmp(s, prefix, strlen(prefix)) == 0;
-}
-
-size_t ui_ifind(const std::string& hay, const std::string& needle) {
-  auto it = std::search(hay.begin(), hay.end(), needle.begin(), needle.end(),
-                        [](char a, char b) { return std::tolower((unsigned char)a) == std::tolower((unsigned char)b); });
-  return it == hay.end() ? std::string::npos : (size_t)(it - hay.begin());
-}
-
-// Names for "!hint <item>" / "!hint_location <location>" (the rest of the line, spaces included): names starting
-// with it first, then names containing it; nothing once the line is exactly a name
-static void ui_update_matches(void) {
-  static std::string last; // only when the line changed
-  if (last == g_ui_input) { return; }
-  last = g_ui_input;
-  g_ui_matches.clear();
-  int which = -1;
-  if (ui_starts_with(g_ui_input, "!hint_location ")) {
-    which = AP_NAMES_LOCATIONS;
-    g_ui_match_from = strlen("!hint_location ");
-  } else if (ui_starts_with(g_ui_input, "!hint ")) {
-    which = AP_NAMES_ITEMS;
-    g_ui_match_from = strlen("!hint ");
-  }
-  if (which < 0) { return; }
-  std::string query = g_ui_input + g_ui_match_from;
-  if (query.empty()) { return; }
-  std::vector<std::string> contains;
-  size_t n = ap_game_name_count(which);
-  for (size_t i = 0; i < n; i++) {
-    std::string name = ap_game_name(which, i);
-    if (name.size() == query.size() && ui_ifind(name, query) == 0) { g_ui_matches.clear(); return; } // complete
-    size_t at = ui_ifind(name, query);
-    if (at == 0 && g_ui_matches.size() < AP_UI_MATCHES_MAX) { g_ui_matches.push_back(name); }
-    else if (at != std::string::npos && contains.size() < AP_UI_MATCHES_MAX) { contains.push_back(name); }
-  }
-  for (size_t i = 0; i < contains.size() && g_ui_matches.size() < AP_UI_MATCHES_MAX; i++) {
-    g_ui_matches.push_back(contains[i]);
-  }
-  if (g_ui_match_sel >= (int)g_ui_matches.size()) { g_ui_match_sel = 0; }
-}
-
-static void ui_set_line(ImGuiInputTextCallbackData * data, const std::string& text) {
-  data->DeleteChars(0, data->BufTextLen);
-  data->InsertChars(0, text.c_str());
-}
-
-static int ui_input_callback(ImGuiInputTextCallbackData * data) {
-  bool listing = !g_ui_matches.empty();
-  if (data->EventFlag == ImGuiInputTextFlags_CallbackCompletion && listing) {
-    // Tab: take the selected name
-    ui_set_line(data, std::string(data->Buf, g_ui_match_from) + g_ui_matches[g_ui_match_sel]);
-  } else if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory && listing) {
-    int n = (int)g_ui_matches.size();
-    g_ui_match_sel = (g_ui_match_sel + (data->EventKey == ImGuiKey_UpArrow ? n - 1 : 1)) % n;
-  } else if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory && !g_ui_history.empty()) {
-    // Up: older sent lines, Down: newer, past the newest: empty
-    int last = (int)g_ui_history.size() - 1;
-    if (data->EventKey == ImGuiKey_UpArrow) {
-      g_ui_history_pos = g_ui_history_pos < 0 ? last : std::max(0, g_ui_history_pos - 1);
-    } else if (g_ui_history_pos >= 0) {
-      g_ui_history_pos = g_ui_history_pos < last ? g_ui_history_pos + 1 : -1;
-    }
-    ui_set_line(data, g_ui_history_pos < 0 ? "" : g_ui_history[g_ui_history_pos]);
-  } else if (data->EventFlag == ImGuiInputTextFlags_CallbackEdit) {
-    g_ui_history_pos = -1;
-    g_ui_match_sel = 0;
-  } else if (data->EventFlag == ImGuiInputTextFlags_CallbackAlways && g_ui_cursor_end) {
-    data->CursorPos = data->SelectionStart = data->SelectionEnd = data->BufTextLen;
-    g_ui_cursor_end = false;
-  }
-  return 0;
-}
-
-// The matches above the text line; a click takes one (that click ends the text line's editing: refocus after)
-static void ui_match_list(const ImVec2& line_top_left) {
-  ImGui::SetNextWindowPos(line_top_left, ImGuiCond_Always, ImVec2(0, 1));
-  ImGui::Begin("##matches", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
-               ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
-  ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
-  for (int i = 0; i < (int)g_ui_matches.size(); i++) {
-    ImGui::Selectable(g_ui_matches[i].c_str(), i == g_ui_match_sel);
-    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-      std::string line = std::string(g_ui_input, g_ui_match_from) + g_ui_matches[i];
-      snprintf(g_ui_input, sizeof(g_ui_input), "%s", line.c_str());
-      g_ui_matches.clear();
-      g_ui_refocus = true;
-      g_ui_cursor_end = true;
-      break;
-    }
-  }
-  ImGui::TextDisabled("Tab: take   Up/Down: choose");
-  ImGui::End();
-}
-
-// Chat / command line (Enter sends and keeps the focus)
-static void ui_command_line(void) {
-  bool connected = ap_getconnectstate()->state == AP_CSTATE_CONNECTED;
-  ImGui::BeginDisabled(!connected);
-  ImGui::SetNextItemWidth(-FLT_MIN);
-  if (g_ui_refocus) {
-    ImGui::SetKeyboardFocusHere();
-    g_ui_refocus = false;
-  }
-  ImVec2 line_top_left = ImGui::GetCursorScreenPos();
-  ImGuiInputTextFlags flags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCompletion |
-                              ImGuiInputTextFlags_CallbackHistory | ImGuiInputTextFlags_CallbackEdit |
-                              ImGuiInputTextFlags_CallbackAlways;
-  if (ImGui::InputTextWithHint("##say", connected ? "Chat or !command (!help)" : "Not connected", g_ui_input,
-                               sizeof(g_ui_input), flags, ui_input_callback)) {
-    if (ap_say(g_ui_input)) {
-      if (g_ui_history.empty() || g_ui_history.back() != g_ui_input) { g_ui_history.push_back(g_ui_input); }
-      if (g_ui_history.size() > AP_UI_HISTORY_MAX) { g_ui_history.erase(g_ui_history.begin()); }
-      g_ui_history_pos = -1;
-      g_ui_input[0] = 0;
-      g_ui_scroll_bottom = true;
-    }
-    ImGui::SetKeyboardFocusHere(-1);
-  }
-  g_ui_typing = ImGui::IsItemActive();
-  ui_note_text_field();
-  ImGui::EndDisabled();
-  ui_update_matches();
-  if (!g_ui_matches.empty() && (g_ui_typing || g_ui_typing_before)) { ui_match_list(line_top_left); }
-  g_ui_typing_before = g_ui_typing;
 }
 
 static void ui_window(const ImVec2& display) {
@@ -709,12 +385,12 @@ static void ui_window(const ImVec2& display) {
       if (!ImGui::BeginTabItem(names[t], NULL, flags)) { continue; }
       g_ui.tab = t;
       if (t == UI_TAB_LOG) {
-        ui_log(bottom_h);
+        ui_log_draw(&g_ui_log, &g_ui, bottom_h);
       } else {
         ImGui::BeginChild("##tab", ImVec2(0, -bottom_h));
-        if (t == UI_TAB_HINTS) { ui_hints_tab(); }
-        if (t == UI_TAB_ITEMS) { ui_items_tab(); }
-        if (t == UI_TAB_CHECKS) { ui_checks_tab(); }
+        if (t == UI_TAB_HINTS) { ui_hints_tab(&g_ui_hints); }
+        if (t == UI_TAB_ITEMS) { ui_items_tab(&g_ui_items); }
+        if (t == UI_TAB_CHECKS) { ui_checks_tab(&g_ui_checks); }
         ImGui::EndChild();
       }
       ImGui::EndTabItem();
@@ -722,7 +398,7 @@ static void ui_window(const ImVec2& display) {
     g_ui_select_tab = false;
     ImGui::EndTabBar();
   }
-  ui_command_line();
+  if (ui_cmdline_draw(&g_ui_cmd)) { g_ui_log.scroll_bottom = true; }
 
   ImVec2 pos = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
   g_ui.x = pos.x;
@@ -730,14 +406,14 @@ static void ui_window(const ImVec2& display) {
   g_ui.w = size.x;
   g_ui.h = size.y;
   ImGui::End();
+  g_ui_log.unread = 0;
   if (!open) { g_ui.expanded = 0; } // the title bar's X folds it back into the box
 }
 
 void ap_ui_frame(int width, int height, float dt) {
   if (!g_ui_ready || width <= 0 || height <= 0) { return; }
-  g_ui_typing = false; // set again while the window draws its text fields
-  g_ui_any_text = false;
-  ui_sync_lines();
+  g_ui_any_text = false; // set again while the window draws its text fields
+  ui_log_sync(&g_ui_log, &g_ui, g_ui.expanded);
   if (ap_getconnectstate()->state == AP_CSTATE_OFFLINE) { return; } // no server: nothing to show
   ImGuiIO& io = ImGui::GetIO();
   io.DisplaySize = ImVec2((float)width, (float)height);

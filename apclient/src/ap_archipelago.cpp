@@ -95,35 +95,25 @@ static void ap_msg_from_print_json(const APClient::PrintJSONArgs& args) {
   }
   for (const auto& node : args.data) {
     std::string text = node.text;
-    std::string color = node.color;
+    int color = ap_msg_color(node.color);
     long long id = strtoll(node.text.c_str(), NULL, 10);
     if (node.type == "player_id") {
       text = g_ap->get_player_alias((int)id);
-      color = g_ap->slot_concerns_self((int)id) ? "magenta" : "yellow";
+      color = ap_msg_player_color(g_ap->slot_concerns_self((int)id));
     } else if (node.type == "player_name") {
-      color = "yellow";
+      color = ap_msg_player_color(false);
     } else if (node.type == "item_id" || node.type == "item_name") {
       if (node.type == "item_id") { text = g_ap->get_item_name(id, g_ap->get_player_game(node.player)); }
-      if (node.flags & APClient::FLAG_ADVANCEMENT) { color = "plum"; }
-      else if (node.flags & APClient::FLAG_NEVER_EXCLUDE) { color = "slateblue"; }
-      else if (node.flags & APClient::FLAG_TRAP) { color = "salmon"; }
-      else { color = "cyan"; }
+      color = ap_msg_item_color(node.flags); // APClient::FLAG_* = AP_ITEM_*
     } else if (node.type == "location_id" || node.type == "location_name") {
       if (node.type == "location_id") { text = g_ap->get_location_name(id, g_ap->get_player_game(node.player)); }
-      color = "green";
+      color = ap_msg_color("green");
     } else if (node.type == "entrance_name") {
-      color = "blue";
+      color = ap_msg_color("blue");
     } else if (node.type == "hint_status") {
-      switch (node.hintStatus) {
-        case APClient::HINT_FOUND: color = "green"; break;
-        case APClient::HINT_UNSPECIFIED: color = "white"; break;
-        case APClient::HINT_NO_PRIORITY: color = "cyan"; break;
-        case APClient::HINT_AVOID: color = "salmon"; break;
-        case APClient::HINT_PRIORITY: color = "plum"; break;
-        default: color = "red"; break;
-      }
+      color = ap_msg_hint_color(node.hintStatus); // APClient::HINT_* = AP_HINT_*
     }
-    segs.push_back({ text, ap_msg_color(color) });
+    segs.push_back({ text, color });
   }
   // What it's about, for the text client's filters
   int me = g_ap->get_player_number();
@@ -168,6 +158,10 @@ int ap_my_slot(void) {
   return g_ap && g_ap_connectstate.state == AP_CSTATE_CONNECTED ? g_ap->get_player_number() : 0;
 }
 
+int ap_slot_is_me(int slot) {
+  return ap_my_slot() != 0 && g_ap->slot_concerns_self(slot);
+}
+
 static std::string ap_hints_key(void) {
   return "_read_hints_" + std::to_string(g_ap->get_team_number()) + "_" + std::to_string(g_ap->get_player_number());
 }
@@ -191,10 +185,6 @@ static void ap_hints_from_json(const nlohmann::json& list) {
     }
   }
   g_ap_hint_version++;
-}
-
-size_t ap_hint_count(void) {
-  return g_ap_hints.size();
 }
 
 int ap_hint_get(size_t i, ap_hint * out) {

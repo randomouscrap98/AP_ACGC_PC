@@ -1,13 +1,13 @@
-// The text client's Hints, Items and Checks tabs (ap_ui.cpp draws the window, the Log tab and the command line).
-// Each tab keeps its own copy of what it shows, rebuilt only when the DLL's data changed (ap_info.h).
-#include "ap_ui_internal.h"
+// The text client's Hints, Items and Checks tabs (ap_ui_tabs.h)
+#include "ap_ui_tabs.h"
 #include "ap_archipelago.h"
-#include "ap_info.h"
+#include "ap_messages.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <string>
 #include <vector>
 
 static std::string ui_player_name(int slot) {
@@ -48,49 +48,48 @@ static bool ui_iless(const std::string& a, const std::string& b) {
 
 // ---- Hints ----
 
-struct ui_hint_row {
-  ap_hint h;
-  std::string item, receiver, finder, location;
+// Statuses in the order of the status drop-down (the receiver picks one of the first UI_HINT_PICKABLE); the index
+// is a hint's rank when sorting
+static const struct { int status; const char * name; } UI_HINT_STATUS[] = {
+  { AP_HINT_PRIORITY, "Priority" },
+  { AP_HINT_UNSPECIFIED, "Unspecified" },
+  { AP_HINT_NO_PRIORITY, "No priority" },
+  { AP_HINT_AVOID, "Avoid" },
+  { AP_HINT_FOUND, "Found" },
 };
-static std::vector<ui_hint_row> s_hints;
-static uint64_t s_hints_version = UINT64_MAX;
-static bool s_hints_entrances = false; // any hint has an entrance: show that column
-static bool s_hints_sorted = false;
-
-// Status names and colours, in the order of the status drop-down
-static const struct { int status; const char * name; const char * color; } UI_HINT_STATUS[] = {
-  { AP_HINT_PRIORITY, "Priority", "plum" },
-  { AP_HINT_UNSPECIFIED, "Unspecified", "white" },
-  { AP_HINT_NO_PRIORITY, "No priority", "cyan" },
-  { AP_HINT_AVOID, "Avoid", "salmon" },
-  { AP_HINT_FOUND, "Found", "green" },
-};
+#define UI_HINT_PICKABLE 4 // all but Found
+#define UI_HINT_RANK_FOUND 4
+#define UI_HINT_RANK_UNKNOWN 1 // Unspecified
 
 static int ui_hint_rank(const ap_hint& h) {
-  if (h.found) { return 4; }
-  for (int i = 0; i < 4; i++) {
+  if (h.found) { return UI_HINT_RANK_FOUND; }
+  for (int i = 0; i < UI_HINT_PICKABLE; i++) {
     if (UI_HINT_STATUS[i].status == h.status) { return i; }
   }
-  return 1;
+  return UI_HINT_RANK_UNKNOWN;
 }
 
-static void ui_hints_refresh(void) {
-  if (ap_hint_version() == s_hints_version) { return; }
-  s_hints_version = ap_hint_version();
-  s_hints.clear();
-  s_hints_entrances = false;
+static ImU32 ui_hint_color(int rank) {
+  return ui_rgb(ap_msg_hint_color(UI_HINT_STATUS[rank].status));
+}
+
+static void ui_hints_refresh(ui_hints * t) {
+  if (ap_hint_version() == t->version) { return; }
+  t->version = ap_hint_version();
+  t->rows.clear();
+  t->entrances = false;
   ap_hint h;
   for (size_t i = 0; ap_hint_get(i, &h); i++) {
-    s_hints.push_back({ h, ui_item_name(h.item, h.receiving), ui_player_name(h.receiving), ui_player_name(h.finding),
+    t->rows.push_back({ h, ui_item_name(h.item, h.receiving), ui_player_name(h.receiving), ui_player_name(h.finding),
                         ui_location_name(h.location, h.finding) });
-    if (h.entrance[0]) { s_hints_entrances = true; }
+    if (h.entrance[0]) { t->entrances = true; }
   }
-  s_hints_sorted = false;
+  t->sorted = false;
 }
 
 enum { UI_HINT_ITEM, UI_HINT_FOR, UI_HINT_IN, UI_HINT_LOCATION, UI_HINT_ENTRANCE, UI_HINT_STATUS_COL };
 
-static void ui_hints_sort(const ImGuiTableColumnSortSpecs& spec) {
+static void ui_hints_sort(ui_hints * t, const ImGuiTableColumnSortSpecs& spec) {
   auto key = [&](const ui_hint_row& r) -> const std::string& {
     switch (spec.ColumnUserID) {
       case UI_HINT_FOR: return r.receiver;
@@ -100,7 +99,7 @@ static void ui_hints_sort(const ImGuiTableColumnSortSpecs& spec) {
     }
   };
   bool desc = spec.SortDirection == ImGuiSortDirection_Descending;
-  std::stable_sort(s_hints.begin(), s_hints.end(), [&](const ui_hint_row& a, const ui_hint_row& b) {
+  std::stable_sort(t->rows.begin(), t->rows.end(), [&](const ui_hint_row& a, const ui_hint_row& b) {
     if (spec.ColumnUserID == UI_HINT_STATUS_COL || spec.ColumnUserID == UI_HINT_ENTRANCE) {
       int ra = ui_hint_rank(a.h), rb = ui_hint_rank(b.h);
       if (ra != rb) { return desc ? ra > rb : ra < rb; }
@@ -113,14 +112,14 @@ static void ui_hints_sort(const ImGuiTableColumnSortSpecs& spec) {
   });
 }
 
-void ui_hints_tab(void) {
-  ui_hints_refresh();
-  if (s_hints.empty()) {
+void ui_hints_tab(ui_hints * t) {
+  ui_hints_refresh(t);
+  if (t->rows.empty()) {
     ImGui::TextDisabled("No hints yet. Ask for one below: !hint <item> or !hint_location <location>.");
     return;
   }
   int me = ap_my_slot();
-  int columns = s_hints_entrances ? 6 : 5;
+  int columns = t->entrances ? 6 : 5;
   ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV |
                           ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp;
   if (!ImGui::BeginTable("##hints", columns, flags)) { return; }
@@ -129,18 +128,18 @@ void ui_hints_tab(void) {
   ImGui::TableSetupColumn("For", 0, 1.5f, UI_HINT_FOR);
   ImGui::TableSetupColumn("In world of", 0, 1.5f, UI_HINT_IN);
   ImGui::TableSetupColumn("Location", 0, 3.0f, UI_HINT_LOCATION);
-  if (s_hints_entrances) { ImGui::TableSetupColumn("Entrance", 0, 1.5f, UI_HINT_ENTRANCE); }
+  if (t->entrances) { ImGui::TableSetupColumn("Entrance", 0, 1.5f, UI_HINT_ENTRANCE); }
   ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_DefaultSort, 1.5f, UI_HINT_STATUS_COL);
   ImGui::TableHeadersRow();
   ImGuiTableSortSpecs * specs = ImGui::TableGetSortSpecs();
-  if (specs && specs->SpecsCount > 0 && (specs->SpecsDirty || !s_hints_sorted)) {
-    ui_hints_sort(specs->Specs[0]);
+  if (specs && specs->SpecsCount > 0 && (specs->SpecsDirty || !t->sorted)) {
+    ui_hints_sort(t, specs->Specs[0]);
     specs->SpecsDirty = false;
-    s_hints_sorted = true;
+    t->sorted = true;
   }
 
-  for (size_t i = 0; i < s_hints.size(); i++) {
-    const ui_hint_row& r = s_hints[i];
+  for (size_t i = 0; i < t->rows.size(); i++) {
+    const ui_hint_row& r = t->rows[i];
     auto col = [&](ImU32 c) { return r.h.found ? ui_faded(c) : c; }; // found hints step back
     ImGui::PushID((int)i);
     ImGui::TableNextRow();
@@ -157,7 +156,7 @@ void ui_hints_tab(void) {
     ui_cell(r.finder, col(ui_player_color(r.h.finding)));
     ImGui::TableNextColumn();
     ui_cell(r.location, col(ui_ap_color("green")));
-    if (s_hints_entrances) {
+    if (t->entrances) {
       ImGui::TableNextColumn();
       ui_cell(r.h.entrance, col(ui_ap_color("blue")));
     }
@@ -166,13 +165,13 @@ void ui_hints_tab(void) {
     if (r.h.receiving == me && !r.h.found) {
       // Only the receiver can change it (and never to or from Found)
       ImGui::SetNextItemWidth(-FLT_MIN);
-      ImGui::PushStyleColor(ImGuiCol_Text, ui_ap_color(UI_HINT_STATUS[rank].color));
+      ImGui::PushStyleColor(ImGuiCol_Text, ui_hint_color(rank));
       ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 0)); // row height
       bool open = ImGui::BeginCombo("##status", UI_HINT_STATUS[rank].name);
       ImGui::PopStyleVar();
       if (open) {
-        for (int s = 0; s < 4; s++) {
-          ImGui::PushStyleColor(ImGuiCol_Text, ui_ap_color(UI_HINT_STATUS[s].color));
+        for (int s = 0; s < UI_HINT_PICKABLE; s++) {
+          ImGui::PushStyleColor(ImGuiCol_Text, ui_hint_color(s));
           if (ImGui::Selectable(UI_HINT_STATUS[s].name, s == rank)) {
             ap_hint_set_status(r.h.finding, r.h.location, UI_HINT_STATUS[s].status);
           }
@@ -182,7 +181,7 @@ void ui_hints_tab(void) {
       }
       ImGui::PopStyleColor();
     } else {
-      ui_cell(UI_HINT_STATUS[rank].name, col(ui_ap_color(UI_HINT_STATUS[rank].color)));
+      ui_cell(UI_HINT_STATUS[rank].name, col(ui_hint_color(rank)));
     }
     ImGui::PopID();
   }
@@ -191,21 +190,12 @@ void ui_hints_tab(void) {
 
 // ---- Items ----
 
-struct ui_item_row {
-  std::string item, from, location;
-  ImU32 item_color, from_color, location_color;
-};
-static std::vector<ui_item_row> s_items;
-static std::vector<int> s_items_shown; // indices into s_items matching the search, newest first
-static char s_items_search[128];
-static bool s_items_filter_dirty = true;
-
-static void ui_items_refresh(void) {
+static void ui_items_refresh(ui_items * t) {
   size_t count = ap_getitemcount();
-  if (count < s_items.size()) { s_items.clear(); } // a new list (reconnect)
-  if (count == s_items.size()) { return; }
+  if (count < t->rows.size()) { t->rows.clear(); } // a new list (reconnect)
+  if (count == t->rows.size()) { return; }
   int me = ap_my_slot();
-  for (size_t i = s_items.size(); i < count; i++) {
+  for (size_t i = t->rows.size(); i < count; i++) {
     int from = ap_getitem_sender(i);
     int64_t location = ap_getitem_location(i);
     ui_item_row r;
@@ -223,27 +213,27 @@ static void ui_items_refresh(void) {
       r.location = ui_location_name(location, from);
       r.location_color = ui_ap_color("green");
     }
-    s_items.push_back(r);
+    t->rows.push_back(r);
   }
-  s_items_filter_dirty = true;
+  t->filter_dirty = true;
 }
 
-void ui_items_tab(void) {
-  ui_items_refresh();
-  if (ui_search_box("##items_search", s_items_search, sizeof(s_items_search))) { s_items_filter_dirty = true; }
-  if (s_items_filter_dirty) {
-    s_items_shown.clear();
-    std::string q = s_items_search;
-    for (int i = (int)s_items.size() - 1; i >= 0; i--) {
-      const ui_item_row& r = s_items[i];
+void ui_items_tab(ui_items * t) {
+  ui_items_refresh(t);
+  if (ui_search_box("##items_search", t->search, sizeof(t->search))) { t->filter_dirty = true; }
+  if (t->filter_dirty) {
+    t->shown.clear();
+    std::string q = t->search;
+    for (int i = (int)t->rows.size() - 1; i >= 0; i--) {
+      const ui_item_row& r = t->rows[i];
       if (q.empty() || ui_ifind(r.item, q) != std::string::npos || ui_ifind(r.from, q) != std::string::npos ||
           ui_ifind(r.location, q) != std::string::npos) {
-        s_items_shown.push_back(i);
+        t->shown.push_back(i);
       }
     }
-    s_items_filter_dirty = false;
+    t->filter_dirty = false;
   }
-  if (s_items.empty()) {
+  if (t->rows.empty()) {
     ImGui::TextDisabled("No items received yet.");
     return;
   }
@@ -257,11 +247,11 @@ void ui_items_tab(void) {
   ImGui::TableSetupColumn("Location", 0, 3.0f);
   ImGui::TableHeadersRow();
   ImGuiListClipper clipper;
-  clipper.Begin((int)s_items_shown.size());
+  clipper.Begin((int)t->shown.size());
   while (clipper.Step()) {
     for (int n = clipper.DisplayStart; n < clipper.DisplayEnd; n++) {
-      int i = s_items_shown[n];
-      const ui_item_row& r = s_items[i];
+      int i = t->shown[n];
+      const ui_item_row& r = t->rows[i];
       ImGui::PushID(i);
       ImGui::TableNextRow();
       ImGui::TableNextColumn();
@@ -283,21 +273,6 @@ void ui_items_tab(void) {
 
 // ---- Checks ----
 
-struct ui_check {
-  int64_t id;
-  std::string name;
-  bool checked;
-};
-struct ui_check_group {
-  std::string name;
-  std::vector<ui_check> checks; // by id (the game's order: Loan 2 before Loan 10)
-  int missing;
-};
-static std::vector<ui_check_group> s_groups; // by their first location id
-static size_t s_checks_missing = SIZE_MAX, s_checks_done = SIZE_MAX;
-static char s_checks_search[128];
-static bool s_checks_show_done = false;
-
 // The group of a location name: the part before ":" ("Catalog: lamp"), else the name without a trailing number
 // ("Starting Loan 12"), else its first word ("Donate tricera skull")
 static std::string ui_check_group_of(const std::string& name) {
@@ -310,11 +285,11 @@ static std::string ui_check_group_of(const std::string& name) {
   return space == std::string::npos ? name : name.substr(0, space);
 }
 
-static void ui_checks_refresh(void) {
+static void ui_checks_refresh(ui_checks * t) {
   size_t missing = ap_location_ids(0, NULL, 0), done = ap_location_ids(1, NULL, 0);
-  if (missing == s_checks_missing && done == s_checks_done) { return; }
-  s_checks_missing = missing;
-  s_checks_done = done;
+  if (missing == t->missing && done == t->done) { return; }
+  t->missing = missing;
+  t->done = done;
   int me = ap_my_slot();
   std::vector<ui_check> all;
   for (int checked = 0; checked < 2; checked++) {
@@ -324,41 +299,41 @@ static void ui_checks_refresh(void) {
   }
   std::sort(all.begin(), all.end(), [](const ui_check& a, const ui_check& b) { return a.id < b.id; });
   std::map<std::string, size_t> index;
-  s_groups.clear();
+  t->groups.clear();
   for (const auto& c : all) {
     std::string g = ui_check_group_of(c.name);
     auto it = index.find(g);
     if (it == index.end()) {
-      it = index.emplace(g, s_groups.size()).first;
-      s_groups.push_back({ g, {}, 0 });
+      it = index.emplace(g, t->groups.size()).first;
+      t->groups.push_back({ g, {}, 0 });
     }
-    s_groups[it->second].checks.push_back(c);
-    if (!c.checked) { s_groups[it->second].missing++; }
+    t->groups[it->second].checks.push_back(c);
+    if (!c.checked) { t->groups[it->second].missing++; }
   }
 }
 
-void ui_checks_tab(void) {
-  ui_checks_refresh();
+void ui_checks_tab(ui_checks * t) {
+  ui_checks_refresh(t);
   float box_w = ImGui::CalcTextSize("Show checked").x + ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x * 3;
   ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - box_w);
-  ImGui::InputTextWithHint("##checks_search", "Search", s_checks_search, sizeof(s_checks_search));
+  ImGui::InputTextWithHint("##checks_search", "Search", t->search, sizeof(t->search));
   ui_note_text_field();
   ImGui::SameLine();
   ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetStyle().FramePadding.y); // centred on the search box
   ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 0)); // text-height box
-  ImGui::Checkbox("Show checked", &s_checks_show_done);
+  ImGui::Checkbox("Show checked", &t->show_done);
   ImGui::PopStyleVar();
-  if (s_groups.empty()) {
+  if (t->groups.empty()) {
     ImGui::TextDisabled("No locations yet (connect to the server).");
     return;
   }
-  ImGui::Text("%d checks left of %d", (int)s_checks_missing, (int)(s_checks_missing + s_checks_done));
-  std::string q = s_checks_search;
+  ImGui::Text("%d checks left of %d", (int)t->missing, (int)(t->missing + t->done));
+  std::string q = t->search;
   ImGui::BeginChild("##groups");
-  for (const auto& g : s_groups) {
+  for (const auto& g : t->groups) {
     int shown = 0;
     for (const auto& c : g.checks) {
-      if ((s_checks_show_done || !c.checked) && (q.empty() || ui_ifind(c.name, q) != std::string::npos)) { shown++; }
+      if ((t->show_done || !c.checked) && (q.empty() || ui_ifind(c.name, q) != std::string::npos)) { shown++; }
     }
     if (shown == 0) { continue; }
     char label[256];
@@ -368,7 +343,7 @@ void ui_checks_tab(void) {
     if (!ImGui::CollapsingHeader(label)) { continue; }
     ImGui::Indent();
     for (const auto& c : g.checks) {
-      if (!((s_checks_show_done || !c.checked) && (q.empty() || ui_ifind(c.name, q) != std::string::npos))) {
+      if (!((t->show_done || !c.checked) && (q.empty() || ui_ifind(c.name, q) != std::string::npos))) {
         continue;
       }
       ImGui::PushID((int)(c.id & 0x7FFFFFFF));

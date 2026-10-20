@@ -18,6 +18,8 @@ AP_API int ap_item_name(int64_t item, int slot, char * buf, size_t len);
 AP_API int ap_location_name(int64_t location, int slot, char * buf, size_t len);
 // This slot's number (0 = not connected)
 AP_API int ap_my_slot(void);
+// 1 = slot is this slot or a group (item link) it's in; 0 when not connected
+AP_API int ap_slot_is_me(int slot);
 
 // ---- hints ----
 // Hint status (the server's HintStatus)
@@ -43,9 +45,8 @@ typedef struct {
   char entrance[128];   // "" = none / vanilla
 } ap_hint;
 
-// The hints that involve this slot (as receiver or finder), kept current by the server
-AP_API size_t ap_hint_count(void);
-// 1 = filled out
+// The hints that involve this slot (as receiver or finder), kept current by the server: 1 = filled out, 0 = past
+// the end
 AP_API int ap_hint_get(size_t i, ap_hint * out);
 // Bumped whenever the hint list changes
 AP_API uint64_t ap_hint_version(void);

@@ -1,4 +1,5 @@
 #include "ap_messages.h"
+#include "ap_info.h"
 
 #include <algorithm>
 #include <deque>
@@ -29,6 +30,28 @@ int ap_msg_color(const std::string& name) {
     }
   }
   return AP_MSG_DEFAULT_COLOR;
+}
+
+int ap_msg_item_color(unsigned flags) {
+  if (flags & AP_ITEM_PROGRESSION) { return ap_msg_color("plum"); }
+  if (flags & AP_ITEM_USEFUL) { return ap_msg_color("slateblue"); }
+  if (flags & AP_ITEM_TRAP) { return ap_msg_color("salmon"); }
+  return ap_msg_color("cyan");
+}
+
+int ap_msg_hint_color(int status) {
+  switch (status) {
+    case AP_HINT_FOUND: return ap_msg_color("green");
+    case AP_HINT_UNSPECIFIED: return ap_msg_color("white");
+    case AP_HINT_NO_PRIORITY: return ap_msg_color("cyan");
+    case AP_HINT_AVOID: return ap_msg_color("salmon");
+    case AP_HINT_PRIORITY: return ap_msg_color("plum");
+    default: return ap_msg_color("red");
+  }
+}
+
+int ap_msg_player_color(bool self) {
+  return ap_msg_color(self ? "magenta" : "yellow");
 }
 
 static void ap_msg_push(ap_msg_line&& line) {
