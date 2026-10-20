@@ -1,0 +1,14 @@
+# The longer game (the defaults before 0.5.1): build the statue and fill the museum, with time locks, catalog and
+# beach checks, and the tools as items.
+name: Player
+game: Animal Crossing
+Animal Crossing:
+  goal: ["Statue", "Museum"]
+  timesanity: true
+  catalogsanity: true
+  shellsanity: true
+  tools_in_pool: true
+  fossil_loans: true
+  favor_pools: 5
+  favors_per_pool: 3
+  shops_always_open: true

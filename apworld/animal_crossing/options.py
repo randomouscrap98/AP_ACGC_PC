@@ -311,7 +311,7 @@ class Goal(OptionSet):
     """
     display_name = "Goal"
     valid_keys = ["Statue", "Museum", "Froggy Chair", "Catalog", "Furniture Set", "Chess Set"]
-    default = frozenset({"Statue", "Museum"})
+    default = frozenset({"Statue"})
 
 
 class FurnitureSet(Choice):
@@ -394,7 +394,7 @@ class Loansanity(DefaultOnToggle):
     display_name = "Loansanity"
 
 
-class FossilLoans(DefaultOnToggle):
+class FossilLoans(Toggle):
     """
     All loans after the first have logic to require the shovel and one dinosaur
     fossil set, IF those are set to be AP items. This ensures you have a consistent
@@ -459,7 +459,7 @@ class FavorPools(Range):
     display_name = "Favor Pools"
     range_start = 1
     range_end = 100
-    default = 5
+    default = 3
 
 
 class FavorsPerPool(Range):
@@ -469,10 +469,10 @@ class FavorsPerPool(Range):
     display_name = "Favors per Pool"
     range_start = 1
     range_end = 100
-    default = 3
+    default = 5
 
 
-class Shellsanity(DefaultOnToggle):
+class Shellsanity(Toggle):
     """
     Archipelago items sometimes wash up on the beach in place of a shell.
     Like shells, they stay forever until picked up. To get more shells to
@@ -503,7 +503,7 @@ class ShellsanityItemChance(Range):
     default = 20
 
 
-class ToolsInPool(DefaultOnToggle):
+class ToolsInPool(Toggle):
     """
     The net, fishing rod and shovel are AP items. Axe stays vanilla.
     The tool can't be bought or found until you receive it in the mail from
@@ -646,7 +646,7 @@ class NoCockroaches(DefaultOnToggle):
     display_name = "No Cockroaches"
 
 
-class ShopsAlwaysOpen(DefaultOnToggle):
+class ShopsAlwaysOpen(Toggle):
     """
     Shops are open at any hour. This impacts logic, as some time slots have
     no store available, so this setting cannot be changed later in-game.
@@ -799,7 +799,7 @@ class NormalizedTimeTravel(DefaultOnToggle):
     display_name = "Normalized Time Travel"
 
 
-class Timesanity(DefaultOnToggle):
+class Timesanity(Toggle):
     """
     The clock stops fully. Each month and each time slot (Morning 4-8, Day 9-15, Evening 16-20, Night 21-3)
     is an item. You set the date and hour from the pause menu, to any month and slot you own.
@@ -841,7 +841,7 @@ class StartingTime(Choice):
     default = "random"
 
 
-class Catalogsanity(DefaultOnToggle):
+class Catalogsanity(Toggle):
     """
     Reserve a section of the catalog for AP. Sections are gated by Progressive
     Catalog Pool. Registering an item sends a check. Items in the Catalogsanity

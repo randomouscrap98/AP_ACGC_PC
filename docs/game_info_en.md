@@ -16,7 +16,7 @@ Animal Crossing has no dungeons or keys, so the randomizer locks parts of everyd
   and found, ...) until you receive it, and then it's mailed to you. Fishing and bug-catching contests
   need the rod or net. The axe works as usual.
 - **House upgrades (Loansanity):** each upgrade needs a Progressive House item. Paying off loans
-  sends checks. Loans are much smaller than in vanilla by default. With Fossil Loans (on by default),
+  sends checks. Loans are much smaller than in vanilla by default. With Fossil Loans (off by default),
   logic expects the shovel and one dinosaur fossil item before the loans after the first (and the Statue
   goal), so you can dig up fossils to sell.
 - **Museum (Museumsanity):** catching bugs and fish, digging up fossils and/or donating them sends
@@ -90,7 +90,7 @@ Quality-of-life options, mostly on by default:
 - Normalized time travel: changing the date always counts as one day passing, so no weeds or
   move-outs from jumping around.
 - Bugs, fish and fossils can spawn evenly, or favor ones you still need.
-- No cockroaches, no weeds, more favors from villagers, shops always open, turnips never spoil.
+- No cockroaches, no weeds, more favors from villagers, shops always open (off by default), turnips never spoil.
 - Easier critter catch (longer bite window, fish don't flee from running, sea fish face the beach, bugs
   notice you half as fast, slower bees, purple butterflies fly low).
 - Hidden bug hints: buried mole crickets, pill bug rocks and bagworm/spider trees give small visual hints
@@ -131,8 +131,8 @@ Checks are sent in the background; a message shows on screen when you send or re
 
 ## Example options
 
-- [simple.yaml](example_yamls/simple.yaml): a simpler game for new players, with no time locks and fewer kinds of
-  checks.
+- [expert.yaml](example_yamls/expert.yaml): a longer game (the defaults before 0.5.1): Statue and Museum goals,
+  with time locks, catalog and beach checks, and the tools as items.
 - [museum_short.yaml](example_yamls/museum_short.yaml): a short game focused on the museum.
 - [house_only.yaml](example_yamls/house_only.yaml): a house-only game with no time locks.
 

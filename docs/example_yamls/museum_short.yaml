@@ -6,6 +6,7 @@ Animal Crossing:
   museum_goal_percent: 50
   loansanity: false
   catalogsanity: false
+  shellsanity: true
   favorsanity: false
   timesanity: false
   bug_checks: both
