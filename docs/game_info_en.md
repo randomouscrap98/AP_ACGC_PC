@@ -131,6 +131,8 @@ Checks are sent in the background; a message shows on screen when you send or re
 
 ## Example options
 
+- [simple.yaml](example_yamls/simple.yaml): a simpler game for new players, with no time locks and fewer kinds of
+  checks.
 - [museum_short.yaml](example_yamls/museum_short.yaml): a short game focused on the museum.
 - [house_only.yaml](example_yamls/house_only.yaml): a house-only game with no time locks.
 
