@@ -18,6 +18,37 @@
 
 
 static std::unique_ptr<APClient> g_ap;
+
+// This game's item / location names for the text client's "!hint" completion (ap_game_names_set)
+static void ap_names_from_package(const nlohmann::json& game) {
+  const char * keys[2] = { "item_name_to_id", "location_name_to_id" }; // AP_NAMES_ITEMS, AP_NAMES_LOCATIONS
+  for (int which = 0; which < 2; which++) {
+    std::vector<std::string> names;
+    auto table = game.find(keys[which]);
+    if (table != game.end() && table->is_object()) {
+      for (const auto& kv : table->items()) names.push_back(kv.key());
+    }
+    ap_game_names_set(which, std::move(names));
+  }
+  APLOG_INFO("Data package: %zu item and %zu location names for the text client",
+      ap_game_name_count(AP_NAMES_ITEMS), ap_game_name_count(AP_NAMES_LOCATIONS));
+}
+
+// apclientpp's default data package cache, also taking this game's names from it: when the cached package is
+// current, apclientpp only loads it (no request, no data_package_changed callback); a new one is saved here first
+class ap_names_store : public DefaultDataPackageStore {
+public:
+  bool load(const std::string& game, const std::string& checksum, nlohmann::json& data) override {
+    bool ok = DefaultDataPackageStore::load(game, checksum, data);
+    if (ok && game == AP_GAMENAME) ap_names_from_package(data);
+    return ok;
+  }
+  bool save(const std::string& game, const nlohmann::json& data) override {
+    if (game == AP_GAMENAME) ap_names_from_package(data);
+    return DefaultDataPackageStore::save(game, data);
+  }
+};
+static ap_names_store g_ap_names_store;
 static ap_config g_ap_config;
 static ap_connectstate g_ap_connectstate;
 static std::vector<int64_t> g_ap_items;
@@ -81,14 +112,26 @@ static void ap_msg_from_print_json(const APClient::PrintJSONArgs& args) {
     }
     segs.push_back({ text, ap_msg_color(color) });
   }
-  ap_msg_add(segs);
+  // What it's about, for the text client's filters
+  int me = g_ap->get_player_number();
+  int kind = AP_MSG_SYSTEM;
+  if (args.type == "Chat" || args.type == "ServerChat") {
+    kind = AP_MSG_CHAT;
+  } else if (args.type == "ItemSend" || args.type == "ItemCheat" || args.type == "Hint") {
+    bool mine = (args.receiving && *args.receiving == me) || (args.item && args.item->player == me);
+    kind = mine ? AP_MSG_SELF : AP_MSG_OTHERS;
+  } else if (args.type == "Release" || args.type == "Collect") {
+    kind = args.slot && *args.slot == me ? AP_MSG_SELF : AP_MSG_OTHERS;
+  } else if (args.type == "Goal" || args.type == "CommandResult" || args.type == "AdminCommandResult") {
+    kind = AP_MSG_SELF;
+  }
+  ap_msg_add(segs, kind);
 }
 
 int ap_say(const char * text) {
   if (!g_ap || text == NULL || text[0] == 0 || !g_ap->Say(text)) {
     return 0;
   }
-  if (text[0] == '!') { ap_msg_add({ { text, ap_msg_color("orange") } }); } // AP's command echo
   return 1;
 }
 
@@ -372,7 +415,7 @@ void ap_start(void) {
   std::string uuid = ap_get_uuid("uuid");          // persists a uuid in a file
   std::string pw = g_ap_config.password, name = g_ap_config.slotname;
 
-  g_ap = std::make_unique<APClient>(uuid, AP_GAMENAME, g_ap_config.host, AP_CERTPATH);
+  g_ap = std::make_unique<APClient>(uuid, AP_GAMENAME, g_ap_config.host, AP_CERTPATH, &g_ap_names_store);
   g_ap_connectstate.state = AP_CSTATE_CONNECTING;
 
   g_ap->set_slot_connected_handler([](const nlohmann::json& slot_data) {

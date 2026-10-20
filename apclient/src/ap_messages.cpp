@@ -1,10 +1,15 @@
 #include "ap_messages.h"
 
+#include <algorithm>
 #include <deque>
 #include <sstream>
 
-typedef std::vector<ap_msg_seg> ap_msg_line;
+struct ap_msg_line {
+  std::vector<ap_msg_seg> segs;
+  int kind;
+};
 static std::deque<ap_msg_line> g_ap_msgs;
+static std::vector<std::string> g_ap_names[2]; // AP_NAMES_*
 static uint64_t g_ap_msg_total = 0;
 
 // Same as AP's text client (Archipelago data/client.kv TextColors)
@@ -32,18 +37,18 @@ static void ap_msg_push(ap_msg_line&& line) {
   if (g_ap_msgs.size() > AP_MSG_MAX) { g_ap_msgs.pop_front(); }
 }
 
-void ap_msg_add(const std::vector<ap_msg_seg>& segs) {
-  ap_msg_line line;
+void ap_msg_add(const std::vector<ap_msg_seg>& segs, int kind) {
+  ap_msg_line line = { {}, kind };
   for (const auto& seg : segs) {
     size_t start = 0;
     while (true) {
       size_t nl = seg.text.find('\n', start);
       std::string part = seg.text.substr(start, nl == std::string::npos ? std::string::npos : nl - start);
       if (!part.empty() && part.back() == '\r') { part.pop_back(); }
-      if (!part.empty()) { line.push_back({ part, seg.color }); }
+      if (!part.empty()) { line.segs.push_back({ part, seg.color }); }
       if (nl == std::string::npos) { break; }
       ap_msg_push(std::move(line));
-      line.clear();
+      line = { {}, kind };
       start = nl + 1;
     }
   }
@@ -64,12 +69,31 @@ uint64_t ap_msg_total(void) {
 }
 
 size_t ap_msg_segment_count(size_t line) {
-  return line < g_ap_msgs.size() ? g_ap_msgs[line].size() : 0;
+  return line < g_ap_msgs.size() ? g_ap_msgs[line].segs.size() : 0;
 }
 
 const char * ap_msg_segment(size_t line, size_t seg, int * color) {
-  if (line >= g_ap_msgs.size() || seg >= g_ap_msgs[line].size()) { return NULL; }
-  const ap_msg_seg& s = g_ap_msgs[line][seg];
+  if (line >= g_ap_msgs.size() || seg >= g_ap_msgs[line].segs.size()) { return NULL; }
+  const ap_msg_seg& s = g_ap_msgs[line].segs[seg];
   if (color) { *color = s.color; }
   return s.text.c_str();
+}
+
+int ap_msg_kind(size_t line) {
+  return line < g_ap_msgs.size() ? g_ap_msgs[line].kind : AP_MSG_SYSTEM;
+}
+
+void ap_game_names_set(int which, std::vector<std::string> names) {
+  if (which != AP_NAMES_ITEMS && which != AP_NAMES_LOCATIONS) { return; }
+  std::sort(names.begin(), names.end());
+  g_ap_names[which] = std::move(names);
+}
+
+size_t ap_game_name_count(int which) {
+  return which == AP_NAMES_ITEMS || which == AP_NAMES_LOCATIONS ? g_ap_names[which].size() : 0;
+}
+
+const char * ap_game_name(int which, size_t i) {
+  if (i >= ap_game_name_count(which)) { return NULL; }
+  return g_ap_names[which][i].c_str();
 }
