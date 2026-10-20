@@ -48,18 +48,19 @@ struct ap_ui_state {
   int expanded = 0;
   float x = -1, y = -1, w = 0, h = 0;
   float scale = 0; // 0 = not chosen yet: from the window height on the first frame
-  // Log filters: self = only the item / hint lines that involve this slot; chat / system = show those
-  int self = 0, chat = 1, system = 1;
+  // Log filters, each shows its kind of line: everyone = items / hints between other players, chat, system
+  int everyone = 1, chat = 1, system = 1;
   int tab = 0; // UI_TAB_*
   bool operator!=(const ap_ui_state& o) const {
     return expanded != o.expanded || x != o.x || y != o.y || w != o.w || h != o.h || scale != o.scale ||
-           self != o.self || chat != o.chat || system != o.system || tab != o.tab;
+           everyone != o.everyone || chat != o.chat || system != o.system || tab != o.tab;
   }
 };
 static ap_ui_state g_ui;
 static ap_ui_state g_ui_saved;
 enum { UI_TAB_LOG, UI_TAB_HINTS, UI_TAB_ITEMS, UI_TAB_CHECKS, UI_TAB_COUNT };
 static bool g_ui_select_tab = true; // select g_ui.tab once (from ap_ui.ini)
+static ImVec2 g_ui_display(0, 0);   // game window size the text client was last drawn for
 static float g_ui_style_scale = 0; // scale the style was built for
 
 // The window's copy of the message log
@@ -134,7 +135,7 @@ static void ui_load(void) {
   g_ui.h = ini_float(ini, "h", 0);
   g_ui.scale = ini_float(ini, "scale", 0);
   if (g_ui.scale != 0 && (g_ui.scale < AP_UI_SCALE_MIN || g_ui.scale > AP_UI_SCALE_MAX)) { g_ui.scale = 0; }
-  g_ui.self = ini_float(ini, "self", 0) != 0;
+  g_ui.everyone = ini_float(ini, "everyone", 1) != 0;
   g_ui.chat = ini_float(ini, "chat", 1) != 0;
   g_ui.system = ini_float(ini, "system", 1) != 0;
   g_ui.tab = (int)ini_float(ini, "tab", 0);
@@ -149,8 +150,8 @@ static void ui_save(void) {
   fprintf(f, "; Archipelago text client window (written by the game)\n");
   fprintf(f, "expanded=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\n", g_ui.expanded, g_ui.x, g_ui.y, g_ui.w, g_ui.h,
           g_ui.scale);
-  fprintf(f, "; log filters: self = only items / hints involving you, chat and system shown or not\n");
-  fprintf(f, "self=%d\nchat=%d\nsystem=%d\n", g_ui.self, g_ui.chat, g_ui.system);
+  fprintf(f, "; log filters (1 = shown): other players' items / hints, chat, system messages\n");
+  fprintf(f, "everyone=%d\nchat=%d\nsystem=%d\n", g_ui.everyone, g_ui.chat, g_ui.system);
   fprintf(f, "; open tab: 0 log, 1 hints, 2 items, 3 checks\ntab=%d\n", g_ui.tab);
   fclose(f);
   g_ui_saved = g_ui;
@@ -202,6 +203,7 @@ int ap_ui_init(ap_ui_gl_proc_fn gl_get_proc) {
   ui_load();
   g_ui_scroll_bottom = true;
   g_ui_select_tab = true;
+  g_ui_display = ImVec2(0, 0); // fit on the first frame
   g_ui_ready = true;
   return 1;
 }
@@ -334,7 +336,7 @@ static void ui_sync_lines(void) {
 
 static bool ui_line_shown(int kind) {
   switch (kind) {
-    case AP_MSG_OTHERS: return !g_ui.self;
+    case AP_MSG_OTHERS: return g_ui.everyone;
     case AP_MSG_CHAT: return g_ui.chat;
     case AP_MSG_SYSTEM: return g_ui.system;
     default: return true;
@@ -458,7 +460,7 @@ static void ui_filter_box(const char * label, int * value, const char * tip) {
 static void ui_log(float bottom_h) {
   // Text-height boxes (a checkbox is as tall as a text field otherwise)
   ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 0));
-  ui_filter_box("Self", &g_ui.self, "Only item and hint messages that involve you (goals and command answers stay)");
+  ui_filter_box("Everyone", &g_ui.everyone, "Show item and hint messages between other players (yours always show)");
   ImGui::SameLine();
   ui_filter_box("Chat", &g_ui.chat, "Show chat");
   ImGui::SameLine();
@@ -649,15 +651,26 @@ static void ui_command_line(void) {
 }
 
 static void ui_window(const ImVec2& display) {
-  // Default place: top left, over the box; a saved place off the screen (smaller window now) is reset
-  if (g_ui.x < 0 || g_ui.w <= 0 || g_ui.x > display.x - 32 || g_ui.y > display.y - 32) {
+  // Default place: top left, over the box
+  bool fit = display.x != g_ui_display.x || display.y != g_ui_display.y; // game window resized (or first time)
+  g_ui_display = display;
+  if (g_ui.x < 0 || g_ui.w <= 0) {
     g_ui.w = std::floor(display.x * 0.45f);
     g_ui.h = std::floor(display.y * 0.55f);
     g_ui.x = AP_UI_MARGIN;
     g_ui.y = AP_UI_MARGIN;
   }
-  ImGui::SetNextWindowPos(ImVec2(g_ui.x, g_ui.y), ImGuiCond_Appearing);
-  ImGui::SetNextWindowSize(ImVec2(g_ui.w, g_ui.h), ImGuiCond_Appearing);
+  // After a resize, shrink / move it fully inside the game window (edges allowed); otherwise the player may move or
+  // stretch it past the edges
+  if (fit) {
+    g_ui.w = std::min(g_ui.w, display.x);
+    g_ui.h = std::min(g_ui.h, display.y);
+    g_ui.x = std::max(0.0f, std::min(g_ui.x, display.x - g_ui.w));
+    g_ui.y = std::max(0.0f, std::min(g_ui.y, display.y - g_ui.h));
+  }
+  ImGuiCond cond = fit ? ImGuiCond_Always : ImGuiCond_Appearing;
+  ImGui::SetNextWindowPos(ImVec2(g_ui.x, g_ui.y), cond);
+  ImGui::SetNextWindowSize(ImVec2(g_ui.w, g_ui.h), cond);
   bool open = true;
   ImGui::Begin("Archipelago###ap_client", &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings);
 
