@@ -1,5 +1,5 @@
 // Shared between the text client's files: ap_ui.cpp (setup, input, the window), ap_ui_log.cpp (Log tab),
-// ap_ui_cmdline.cpp (chat / command line), ap_ui_tabs.cpp (Hints, Items, Checks). Each part is a struct and the
+// ap_ui_cmdline.cpp (chat / command line), ap_ui_lists.cpp (Hints, Items, Checks). Each part is a struct and the
 // functions that take it (its own header); ap_ui.cpp owns one of each. Not part of the DLL's API.
 #pragma once
 

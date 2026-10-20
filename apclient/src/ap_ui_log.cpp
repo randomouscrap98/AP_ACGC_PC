@@ -90,7 +90,7 @@ static void ui_filter_box(ui_log * log, const char * label, int * value, const c
   if (ImGui::IsItemHovered()) { ImGui::SetTooltip("%s", tip); }
 }
 
-void ui_log_draw(ui_log * log, ap_ui_state * st, float bottom_h) {
+void ui_log_tab(ui_log * log, ap_ui_state * st) {
   // Text-height boxes (a checkbox is as tall as a text field otherwise)
   ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 0));
   ui_filter_box(log, "Everyone", &st->everyone,
@@ -101,7 +101,7 @@ void ui_log_draw(ui_log * log, ap_ui_state * st, float bottom_h) {
   ui_filter_box(log, "System", &st->system, "Show joins, leaves and server notices");
   ImGui::PopStyleVar();
 
-  ImGui::BeginChild("log", ImVec2(0, -bottom_h));
+  ImGui::BeginChild("log"); // scrolls under the filters
   float width = ImGui::GetContentRegionAvail().x;
   if (log->rows_dirty || width != log->rows_width || ImGui::GetFontSize() != log->rows_font) {
     ui_wrap_rows(log, st, width);

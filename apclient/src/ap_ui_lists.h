@@ -1,4 +1,4 @@
-// The text client's Hints, Items and Checks tabs (ap_ui_tabs.cpp). Each tab keeps its own copy of what it shows,
+// The text client's Hints, Items and Checks tabs: the lists (ap_ui_lists.cpp). Each tab keeps its own copy of what it shows,
 // rebuilt only when the DLL's data changed (ap_info.h).
 #pragma once
 

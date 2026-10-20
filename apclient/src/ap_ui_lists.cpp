@@ -1,5 +1,5 @@
-// The text client's Hints, Items and Checks tabs (ap_ui_tabs.h)
-#include "ap_ui_tabs.h"
+// The text client's Hints, Items and Checks tabs: the lists (ap_ui_lists.h)
+#include "ap_ui_lists.h"
 #include "ap_archipelago.h"
 #include "ap_messages.h"
 

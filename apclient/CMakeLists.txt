@@ -119,7 +119,7 @@ set(IMGUI_SOURCES
 )
 
 add_library(ap_client SHARED src/ap_archipelago.cpp src/ap_log.cpp src/ap_slotdata.cpp src/ap_messages.cpp
-    src/ap_ui.cpp src/ap_ui_log.cpp src/ap_ui_cmdline.cpp src/ap_ui_tabs.cpp ${IMGUI_SOURCES} "${AP_UPGRADES_H}" ${AP_UI_FONT_HEADERS})
+    src/ap_ui.cpp src/ap_ui_log.cpp src/ap_ui_cmdline.cpp src/ap_ui_lists.cpp ${IMGUI_SOURCES} "${AP_UPGRADES_H}" ${AP_UI_FONT_HEADERS})
 
 target_include_directories(ap_client
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include   # C API header, used by the game

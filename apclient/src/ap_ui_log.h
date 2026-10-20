@@ -45,5 +45,5 @@ struct ui_log {
 
 // Copy the lines added since the last call; window_open = the window shows (else shown lines count as unread)
 void ui_log_sync(ui_log * log, const ap_ui_state * st, bool window_open);
-// Filters on top (they change st), then the log, leaving bottom_h for what's under it
-void ui_log_draw(ui_log * log, ap_ui_state * st, float bottom_h);
+// The tab: filters on top (they change st), the log under them
+void ui_log_tab(ui_log * log, ap_ui_state * st);

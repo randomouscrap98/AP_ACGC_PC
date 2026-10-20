@@ -1,6 +1,6 @@
 // Archipelago text client window (ap_ui.h). Dear ImGui + its OpenGL 3 backend, with GL functions looked up
 // through the caller's loader. This file: setup, input, ap_ui.ini, the box and the window; it owns the parts'
-// state (ap_ui_log.h, ap_ui_cmdline.h, ap_ui_tabs.h).
+// state (ap_ui_log.h, ap_ui_cmdline.h, ap_ui_lists.h).
 #include "ap_ui.h"
 #include "ap_archipelago.h"
 #include "ap_info.h"
@@ -8,7 +8,7 @@
 #include "ap_ui_internal.h"
 #include "ap_ui_cmdline.h"
 #include "ap_ui_log.h"
-#include "ap_ui_tabs.h"
+#include "ap_ui_lists.h"
 // Embedded fonts (lib/fonts/README.txt, embed_font.cmake)
 #include "ap_ui_font.h"
 #include "ap_ui_font_math.h"
@@ -384,15 +384,12 @@ static void ui_window(const ImVec2& display) {
       ImGuiTabItemFlags flags = t == select ? ImGuiTabItemFlags_SetSelected : 0;
       if (!ImGui::BeginTabItem(names[t], NULL, flags)) { continue; }
       g_ui.tab = t;
-      if (t == UI_TAB_LOG) {
-        ui_log_draw(&g_ui_log, &g_ui, bottom_h);
-      } else {
-        ImGui::BeginChild("##tab", ImVec2(0, -bottom_h));
-        if (t == UI_TAB_HINTS) { ui_hints_tab(&g_ui_hints); }
-        if (t == UI_TAB_ITEMS) { ui_items_tab(&g_ui_items); }
-        if (t == UI_TAB_CHECKS) { ui_checks_tab(&g_ui_checks); }
-        ImGui::EndChild();
-      }
+      ImGui::BeginChild("##tab", ImVec2(0, -bottom_h));
+      if (t == UI_TAB_LOG) { ui_log_tab(&g_ui_log, &g_ui); }
+      if (t == UI_TAB_HINTS) { ui_hints_tab(&g_ui_hints); }
+      if (t == UI_TAB_ITEMS) { ui_items_tab(&g_ui_items); }
+      if (t == UI_TAB_CHECKS) { ui_checks_tab(&g_ui_checks); }
+      ImGui::EndChild();
       ImGui::EndTabItem();
     }
     g_ui_select_tab = false;
