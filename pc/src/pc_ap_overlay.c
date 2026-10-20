@@ -193,21 +193,35 @@ static void pc_ap_draw_toasts(struct game_s* game) {
   }
 }
 
-// Apworld version, bottom right. Green if the seed's apworld version matches this build,
-// red with (!) if not, white until slot_data arrives.
+// Oldest apworld release whose seeds this client still plays (0.5.0 was the last breaking one)
+#define APO_OLDEST_COMPATIBLE 5 // 0.5.x
+
+// Seeds from before 0.5.0 (or without a version) don't load correctly
+static int apo_version_compatible(const char* v) {
+  int major, minor;
+  if(sscanf(v, "%d.%d", &major, &minor) != 2) {
+    return 0;
+  }
+  return major > 0 || minor >= APO_OLDEST_COMPATIBLE;
+}
+
+// Apworld version, bottom right: green if the seed's apworld version matches this build; white with the seed's
+// version in gray if it's another compatible one ("v0.5.1 (0.5.0)"); red if the seed is from before 0.5.0;
+// white until slot_data arrives.
 static void pc_ap_draw_version(struct game_s* game) {
   const ap_slotdata* sd = ap_getslotdata();
   char output[_APO_MAXSTRING];
+  const char* seed = sd->world_version[0] ? sd->world_version : "?";
 
   // Offline: no apworld to compare with
-  if(ap_getconnectstate()->state == AP_CSTATE_OFFLINE) {
+  if(ap_getconnectstate()->state == AP_CSTATE_OFFLINE || !sd->valid) {
     snprintf(output, sizeof(output), "v%s", PC_AP_VERSION);
-  } else if(sd->valid && strcmp(sd->world_version, PC_AP_VERSION) == 0) {
+  } else if(strcmp(sd->world_version, PC_AP_VERSION) == 0) {
     snprintf(output, sizeof(output), AP_CTRL_GREEN "v%s", PC_AP_VERSION);
-  } else if(sd->valid) {
-    snprintf(output, sizeof(output), AP_CTRL_RED "v%s (!)", PC_AP_VERSION);
+  } else if(apo_version_compatible(sd->world_version)) {
+    snprintf(output, sizeof(output), "v%s" AP_CTRL_GRAY " (%s)", PC_AP_VERSION, seed);
   } else {
-    snprintf(output, sizeof(output), "v%s", PC_AP_VERSION);
+    snprintf(output, sizeof(output), AP_CTRL_RED "v%s (%s)", PC_AP_VERSION, seed);
   }
   if(g_pc_debug) {
     size_t len = strlen(output);
