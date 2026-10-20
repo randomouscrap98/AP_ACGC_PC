@@ -421,7 +421,7 @@ static void aAL_pc_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
     return;
   }
 
-  /* Main menu navigation (3 items: Start / Options / Quit) */
+  /* Main menu navigation (3 items: Start / Settings / Quit) */
   if (actor->pc_cursor_cooldown <= 0.0f) {
     if (stick_y > 30 || (on_btn & BUTTON_DUP)) {
       if (actor->pc_menu_sel > 0) {
@@ -449,7 +449,7 @@ static void aAL_pc_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
           aAL_setupAction(actor, game, aAL_ACTION_FADE_OUT_START);
         }
         break;
-      case 1: /* Options */
+      case 1: /* Settings */
         actor->pc_options_open = 1;
         actor->pc_cursor_cooldown = 10.0f;
         pc_settings_menu_enter();
@@ -834,15 +834,15 @@ static void aAL_pc_menu_draw(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
   static const u32 dim_g[5] = { 190, 205, 190, 210, 220 };
   static const u32 dim_b[5] = { 180, 170, 225, 225, 170 };
 
-  static const char* const labels[3] = { "Start Game", "Options", "Quit Game" }; // me when const
+  static const char* const labels[3] = { "Start Game", "Settings", "Quit Game" }; // me when const
   static const char* const wait_label = "Connecting"; // replaces Start until AP is ready
 
   f32 y_base = 135.0f;
   f32 line_h = 18.0f;
   int sel = actor->pc_menu_sel;
 
-  /* Hide the title's main menu items while the Options overlay is open, else
-   * Start/Options/Quit bleed through the dimmed backdrop. */
+  /* Hide the title's main menu items while the Settings overlay is open, else
+   * Start/Settings/Quit bleed through the dimmed backdrop. */
   if (!actor->pc_options_open) {
     // Dark box behind the three labels, sized to the widest one at the selected scale
     int ap_ready = pc_ap_start_allowed();

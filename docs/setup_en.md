@@ -74,7 +74,7 @@ in the upper left corner. The client can be expanded or collapsed, moved and
 resized.
 
 If for some reason your game crashes when opening the PC pause menu, you can
-turn off the built-in client entirely by going to "Options" in the title menu. 
+turn off the built-in client entirely by going to "Settings" in the title menu. 
 Under "Video", you'll find an option to disable the built-in client.
 
 ## Playing Without a Server
