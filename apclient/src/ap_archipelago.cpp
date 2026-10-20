@@ -1,4 +1,5 @@
 #include "ap_archipelago.h"
+#include "ap_info.h"
 #include "ap_messages.h"
 #include "ap_slotdata.h"
 
@@ -30,8 +31,8 @@ static void ap_names_from_package(const nlohmann::json& game) {
     }
     ap_game_names_set(which, std::move(names));
   }
-  APLOG_INFO("Data package: %zu item and %zu location names for the text client",
-      ap_game_name_count(AP_NAMES_ITEMS), ap_game_name_count(AP_NAMES_LOCATIONS));
+  APLOG_INFO("Data package: %d item and %d location names for the text client",
+      (int)ap_game_name_count(AP_NAMES_ITEMS), (int)ap_game_name_count(AP_NAMES_LOCATIONS));
 }
 
 // apclientpp's default data package cache, also taking this game's names from it: when the cached package is
@@ -53,6 +54,10 @@ static ap_config g_ap_config;
 static ap_connectstate g_ap_connectstate;
 static std::vector<int64_t> g_ap_items;
 static std::vector<int> g_ap_item_senders; // slot that sent g_ap_items[i]
+static std::vector<int64_t> g_ap_item_locations; // ... from which of its locations
+static std::vector<unsigned> g_ap_item_flags;    // ... AP_ITEM_*
+static std::vector<ap_hint> g_ap_hints;          // hints involving this slot (data storage _read_hints_<team>_<slot>)
+static uint64_t g_ap_hint_version = 0;
 static std::set<int64_t> g_ap_checks;
 static int g_ap_goal = 0;
 // Connected to a different room than the first one (server restarted with a
@@ -80,6 +85,14 @@ static std::string ap_plain(const std::string& in) {
 // One PrintJSON as text client segments, coloured like AP's text client (NetUtils JSONtoTextParser)
 static void ap_msg_from_print_json(const APClient::PrintJSONArgs& args) {
   std::vector<ap_msg_seg> segs;
+  // This slot's own chat and commands (the server echoes both as chat with the sender's slot): name magenta,
+  // text orange, so they stand out
+  if (args.type == "Chat" && args.slot && args.team && args.message && *args.slot == g_ap->get_player_number() &&
+      *args.team == g_ap->get_team_number()) {
+    ap_msg_add({ { g_ap->get_player_alias(*args.slot) + ":", ap_msg_color("magenta") },
+                 { " " + *args.message, ap_msg_color("orange") } }, AP_MSG_CHAT);
+    return;
+  }
   for (const auto& node : args.data) {
     std::string text = node.text;
     std::string color = node.color;
@@ -133,6 +146,89 @@ int ap_say(const char * text) {
     return 0;
   }
   return 1;
+}
+
+// ---- text client information (ap_info.h) ----
+
+int ap_item_name(int64_t item, int slot, char * buf, size_t len) {
+  if (!g_ap || len == 0) return 0;
+  std::string name = g_ap->get_item_name(item, g_ap->get_player_game(slot));
+  snprintf(buf, len, "%s", name.c_str());
+  return name != "Unknown";
+}
+
+int ap_location_name(int64_t location, int slot, char * buf, size_t len) {
+  if (!g_ap || len == 0) return 0;
+  std::string name = g_ap->get_location_name(location, g_ap->get_player_game(slot));
+  snprintf(buf, len, "%s", name.c_str());
+  return name != "Unknown";
+}
+
+int ap_my_slot(void) {
+  return g_ap && g_ap_connectstate.state == AP_CSTATE_CONNECTED ? g_ap->get_player_number() : 0;
+}
+
+static std::string ap_hints_key(void) {
+  return "_read_hints_" + std::to_string(g_ap->get_team_number()) + "_" + std::to_string(g_ap->get_player_number());
+}
+
+// The server's hint list (data storage value: a list of Hint objects); anything malformed is skipped
+static void ap_hints_from_json(const nlohmann::json& list) {
+  g_ap_hints.clear();
+  if (list.is_array()) {
+    for (const auto& h : list) {
+      if (!h.is_object()) continue;
+      ap_hint hint = {};
+      hint.receiving = h.value("receiving_player", 0);
+      hint.finding = h.value("finding_player", 0);
+      hint.item = h.value("item", (int64_t)0);
+      hint.location = h.value("location", (int64_t)0);
+      hint.flags = h.value("item_flags", 0u);
+      hint.found = h.value("found", false);
+      hint.status = h.value("status", hint.found ? AP_HINT_FOUND : AP_HINT_UNSPECIFIED);
+      snprintf(hint.entrance, sizeof(hint.entrance), "%s", h.value("entrance", std::string()).c_str());
+      g_ap_hints.push_back(hint);
+    }
+  }
+  g_ap_hint_version++;
+}
+
+size_t ap_hint_count(void) {
+  return g_ap_hints.size();
+}
+
+int ap_hint_get(size_t i, ap_hint * out) {
+  if (i >= g_ap_hints.size() || out == NULL) return 0;
+  *out = g_ap_hints[i];
+  return 1;
+}
+
+uint64_t ap_hint_version(void) {
+  return g_ap_hint_version;
+}
+
+int ap_hint_set_status(int finding, int64_t location, int status) {
+  if (!g_ap || g_ap_connectstate.state != AP_CSTATE_CONNECTED) return 0;
+  return g_ap->UpdateHint(finding, location, (APClient::HintStatus)status);
+}
+
+int64_t ap_getitem_location(size_t idx) {
+  return idx < g_ap_item_locations.size() ? g_ap_item_locations[idx] : 0;
+}
+
+unsigned ap_getitem_flags(size_t idx) {
+  return idx < g_ap_item_flags.size() ? g_ap_item_flags[idx] : 0;
+}
+
+size_t ap_location_ids(int checked, int64_t * out, size_t max) {
+  if (!g_ap) return 0;
+  std::set<int64_t> ids = checked ? g_ap->get_checked_locations() : g_ap->get_missing_locations();
+  size_t i = 0;
+  for (int64_t id : ids) {
+    if (i < max && out) out[i] = id;
+    i++;
+  }
+  return i;
 }
 
 size_t ap_getitemcount(void) {
@@ -456,6 +552,9 @@ void ap_start(void) {
     }
     g_ap_connectstate.connect_once = 1;
     g_ap_connectstate.state = AP_CSTATE_CONNECTED;
+    // The text client's hints: current list now, then every change (retrieved / set_reply handlers)
+    g_ap->SetNotify({ ap_hints_key() });
+    g_ap->Get({ ap_hints_key() });
     if(!ap_roomplayer_valid(&g_ap_connectstate.roomplayer)) {
       g_ap_connectstate.roomplayer.player = g_ap->get_player_number();
       g_ap_connectstate.roomplayer.team = g_ap->get_team_number();
@@ -533,6 +632,8 @@ void ap_start(void) {
     if (start == 0) {
       g_ap_items.clear();
       g_ap_item_senders.clear();
+      g_ap_item_locations.clear();
+      g_ap_item_flags.clear();
     } else if(start != (int)g_ap_items.size()) {
       APLOG_WARN("ITEM INDEX OUT OF SYNC! %d, expected %d (resyncing)", start, (int)g_ap_items.size());
       g_ap->Sync();
@@ -541,7 +642,17 @@ void ap_start(void) {
     for (auto& i : items) { 
       g_ap_items.push_back(i.item);
       g_ap_item_senders.push_back(i.player);
+      g_ap_item_locations.push_back(i.location);
+      g_ap_item_flags.push_back(i.flags);
     }
+  });
+
+  g_ap->set_retrieved_handler([](const std::map<std::string, nlohmann::json>& keys) {
+    auto it = keys.find(ap_hints_key());
+    if (it != keys.end()) ap_hints_from_json(it->second);
+  });
+  g_ap->set_set_reply_handler([](const std::string& key, const nlohmann::json& value, const nlohmann::json&) {
+    if (key == ap_hints_key()) ap_hints_from_json(value);
   });
 
   g_ap->set_print_json_handler([](const APClient::PrintJSONArgs & args) {
