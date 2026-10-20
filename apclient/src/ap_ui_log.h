@@ -11,7 +11,7 @@
 
 struct ui_log_seg {
   std::string text;
-  ImU32 color;
+  int color; // 0xRRGGBB or AP_MSG_DEFAULT_COLOR, turned into an ImGui colour when drawn (ui_rgb)
 };
 struct ui_log_line {
   std::vector<ui_log_seg> segs;
@@ -23,7 +23,7 @@ struct ui_log_piece {
   const char * begin;
   const char * end;
   float x;
-  ImU32 color;
+  int color; // as ui_log_seg
 };
 struct ui_log_row {
   size_t first, count; // in pieces

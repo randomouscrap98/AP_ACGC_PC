@@ -200,18 +200,16 @@ static void ui_items_refresh(ui_items * t) {
     int64_t location = ap_getitem_location(i);
     ui_item_row r;
     r.item = ui_item_name(ap_getitem(i), me);
-    r.item_color = ui_item_color(ap_getitem_flags(i));
+    r.flags = ap_getitem_flags(i);
     r.from = ui_player_name(from);
-    r.from_color = from == 0 ? ImGui::GetColorU32(ImGuiCol_TextDisabled) : ui_player_color(from);
+    r.sender = from;
+    r.location_id = location;
     if (location == -2) {
       r.location = "Starting inventory";
-      r.location_color = ImGui::GetColorU32(ImGuiCol_TextDisabled);
     } else if (location == -1) {
       r.location = "Sent by the server";
-      r.location_color = ImGui::GetColorU32(ImGuiCol_TextDisabled);
     } else {
       r.location = ui_location_name(location, from);
-      r.location_color = ui_ap_color("green");
     }
     t->rows.push_back(r);
   }
@@ -260,11 +258,13 @@ void ui_items_tab(ui_items * t) {
       ImGui::SameLine(0, 0);
       ImGui::TextDisabled("%d", i + 1);
       ImGui::TableNextColumn();
-      ui_cell(r.item, r.item_color);
+      // Colours looked up here, not when the row was made, so they follow the style
+      ImU32 disabled = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+      ui_cell(r.item, ui_item_color(r.flags));
       ImGui::TableNextColumn();
-      ui_cell(r.from, r.from_color);
+      ui_cell(r.from, r.sender == 0 ? disabled : ui_player_color(r.sender));
       ImGui::TableNextColumn();
-      ui_cell(r.location, r.location_color);
+      ui_cell(r.location, r.location_id < 0 ? disabled : ui_ap_color("green"));
       ImGui::PopID();
     }
   }

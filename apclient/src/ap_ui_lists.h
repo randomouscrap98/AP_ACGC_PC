@@ -22,7 +22,9 @@ struct ui_hints {
 
 struct ui_item_row {
   std::string item, from, location;
-  ImU32 item_color, from_color, location_color;
+  unsigned flags;   // AP_ITEM_*: the item's colour
+  int sender;       // 0 = the server: the from colour
+  int64_t location_id; // < 0 = no location (starting inventory, sent by the server): the location colour
 };
 struct ui_items {
   std::vector<ui_item_row> rows;  // as ap_getitem

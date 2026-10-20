@@ -26,7 +26,7 @@ void ui_log_sync(ui_log * log, const ui_settings * st, bool window_open) {
     for (size_t s = 0; s < n; s++) {
       int color = AP_MSG_DEFAULT_COLOR;
       const char * text = ap_msg_segment(i, s, &color);
-      line.segs.push_back({ text ? text : "", ui_rgb(color) });
+      line.segs.push_back({ text ? text : "", color });
     }
     if (!window_open && ui_line_shown(st, line.kind)) { log->unread++; }
     log->lines.push_back(std::move(line));
@@ -127,7 +127,7 @@ void ui_log_tab(ui_log * log, ui_settings * st) {
       }
       for (size_t i = row.first; i < row.first + row.count; i++) {
         const ui_log_piece& p = log->pieces[i];
-        draw->AddText(ImVec2(pos.x + p.x, pos.y), p.color, p.begin, p.end);
+        draw->AddText(ImVec2(pos.x + p.x, pos.y), ui_rgb(p.color), p.begin, p.end);
       }
     }
   }
