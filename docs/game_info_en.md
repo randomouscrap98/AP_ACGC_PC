@@ -9,39 +9,41 @@ Every option has a description there.
 
 Animal Crossing has no dungeons or keys, so the randomizer locks parts of everyday life behind items:
 
-- **Time (Timesanity):** the clock stops. Each month and each time slot (Morning 4-8, Day 9-15,
-  Evening 16-20, Night 21-3) is an item. You set the date and hour from the pause menu, to any month
-  and slot you own. This controls which bugs, fish and events you can get.
-- **Tools (Tools in Pool):** the net, fishing rod and shovel are items. You can't get one (shop, lost
-  and found, ...) until you receive it, and then it's mailed to you. Fishing and bug-catching contests
-  need the rod or net. The axe works as usual.
 - **House upgrades (Loansanity):** each upgrade needs a Progressive House item. Paying off loans
-  sends checks. Loans are much smaller than in vanilla by default. With Fossil Loans (off by default),
-  logic expects the shovel and one dinosaur fossil item before the loans after the first (and the Statue
-  goal), so you can dig up fossils to sell.
-- **Museum (Museumsanity):** catching bugs and fish, digging up fossils and/or donating them sends
-  checks (set per category). With the Museum goal, donation items fill the museum, not your own
-  donations, each exhibit shows who sent it, and Blathers only takes a donation while its check is
-  unsent. Without the Museum goal the museum works as in vanilla. With
-  Instant fossil checks, fossils come out of the ground already appraised. By default bugs, fish and
-  fossils are gated by items:
-  - Fish: "Small/Medium/Large River Fish" (river fish by shadow size), "Pond Fish" (ponds and the
-    river lake's own fish), "Sea Fish".
-  - Bugs: "Tree Bugs", "Beetles", "Flower Bugs", "Ground Bugs", "Flying Bugs". No bee trees before
-    Tree Bugs.
-  - Fossils: one "<Series> Fossils" item per dinosaur, plus "Single Fossils" for the rest. Nothing is
+  sends checks. Loans are much smaller than in vanilla by default. With the Statue goal, you
+  must pay off every loan.
+- **Museum (Museumsanity):** catching bugs and fish, digging up fossils, and donating art sends checks. 
+  You can turn each category on or off; art is currently not implemented and is forced off.
+  Checks by default are sent when the critter is caught, or immediately upon digging up the fossil
+  (which is pre-appraised), however the vanilla donation experience (including fossil appraisal)
+  can be re-enabled by setting the check type in your yaml. You can also 
+  double the checks by having them sent both on catch and on donate. With the Museum Goal
+  (off by default), players collect your donations in the multiworld and fill up your museum. 
+  You must complete a certain percentage of the museum (using the multiworld items, not your own 
+  checks, which are separate) to complete the goal. To make progression more interesting, fish,
+  bugs, and fossils are locked behind progressive items:
+  - Fish (5): "Small/Medium/Large River Fish", "Pond Fish" (including the lake), "Sea Fish".
+  - Bugs (5): "Tree Bugs" (including bees), "Beetles", "Flower Bugs", "Ground Bugs", "Flying Bugs"
+  - Fossils (8): one "<Series> Fossils" item per dinosaur, plus "Single Fossils" for the rest. Nothing is
     buried until you have one.
-
-  Locked bugs and fish simply don't spawn; the Bugs / Fish pages group them by these items.
-- **Catalog (Catalogsanity):** catalog items are split into pools. Getting an item of an unlocked pool
-  into your catalog (buying, picking up, wearing...) sends a check. No pool is open at the start; each
-  Progressive Catalog Pool unlocks the next one. Nook's shop stocks items you still need, and Catalog
-  Sources picks what else can give them (favors, trades, presents, the dump...). Passwords don't work.
+- **Time (Timesanity):** the clock stops. Off by default. Each month and each time slot 
+  (Morning 4-8, Day 9-15, Evening 16-20, Night 21-3) is an item. You set the date and 
+  hour from the pause menu, to any month and slot you own. This controls which bugs, 
+  fish and events you can get.
+- **Tools (Tools in Pool):** the net, fishing rod and shovel are items. Off by default.
+  These tools are unobtainable until receiving them from the multiworld, where it is mailed to
+  you. This adds additional logic to bugs, fish, and fossils.
+- **Catalog (Catalogsanity):** A configurable section of the whole catalog is reserved for the multiworld,
+  and collecting items in this section releases checks. Off by default. The section is split into pools, which
+  must be unlocked with progression items. No pool is open at the start. You can get all items
+  from Nook's shop, however you can also enable additional sources to obtain these items. Without
+  the pool unlocked, the items in that pool are unobtainable through any means.
 - **Favors (Favorsanity):** villager favors (errands and contests) send checks, in pools (Favor Pools x
   Favors per Pool). The first pool is open; each Progressive Favor Pool opens the next. Favors done while the
   open pools are used up still count and send once the next pool opens.
-- **Beach (Shellsanity, 3 per month by default):** Archipelago items sometimes wash up on the town beach in place
-  of shells. Picking one up sends a check for the month it washed up in (Beach Checks per Month sets how many).
+- **Beach (Shellsanity, 3 per month by default):** Archipelago items sometimes wash up on the beach in 
+  place of shells. Off by default. Picking one up sends a check for the month it washed up in 
+  (Beach Checks per Month sets how many). Not good to use without Timesanity (all shells available at start).
 - **Nook's store:** by default each upgrade (Nook 'n' Go, Nookway, Nookington's) is a Progressive Nook
   Store item. It can also go by Bells spent or catalog size instead. Nookington's never needs a visitor.
 
@@ -49,7 +51,7 @@ Filler items are Bell Credits, which pay off your current loan directly. They st
 the last 100 yourself at the post office, so you choose when the payoff (and its checks) happens. Credits that
 arrive between an upgrade and Nook's next loan are held, and once every loan is paid they go into your savings.
 Extra Bells (60,000 by default) adds real Bells on top: 10,000 and 30,000 Bell bags, mailed to you. They take filler
-slots before the Bell Credits.
+slots before the Bell Credits. Finally, non-town fruit can be added to the pool (on by default).
 
 ## What is the goal?
 
@@ -77,7 +79,7 @@ Once your goals are done, a letter arrives telling you to listen to K.K. Slider 
 - Pause menu: Date & Time and Save, plus an "AP" page (right under Resume) with Catalog (your unlocked
   pools), Bugs / Fish (what's around each month, which time slots, weather, what you already have, and your
   town's spawn rate), Shells (beach checks per month) and, with their goal, Furniture Set / Chess Set (every
-  piece: received, and in your house).
+  piece: received, and in your house). A full in-game Archipelago client is also in there.
 - Checks made while disconnected are sent when you reconnect. If you quit before that, catches, digs
   and donations are lost; loans, favors and catalog checks are sent again next time.
 

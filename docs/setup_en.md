@@ -66,11 +66,16 @@ Then run the game. It connects on startup and shows its connection status
 on screen. If something in the file is wrong, the status line says what (`EDIT ap_config.ini: ...`) and Start
 Game stays blocked until it's fixed and the game restarted. Lines starting with `;` are comments.
 
-### Text Client
+### AP Client
 
-The game has no chat, and its on-screen messages disappear quickly. To see the full message log, chat, or
-use hint commands (e.g. `!hint <item>`), open the Archipelago Text Client from the Archipelago Launcher and
-connect it to the same server and slot name while you play.
+The game has a built-in client, letting you send commands and easily track your
+received items, hints, and checks left to do. It shows up on the PC pause menu,
+in the upper left corner. The client can be expanded or collapsed, moved and
+resized.
+
+If for some reason your game crashes when opening the PC pause menu, you can
+turn off the built-in client entirely by going to "Options" in the title menu. 
+Under "Video", you'll find an option to disable the built-in client.
 
 ## Playing Without a Server
 
