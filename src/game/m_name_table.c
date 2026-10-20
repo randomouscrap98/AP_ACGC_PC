@@ -5,6 +5,7 @@
 #include "m_common_data.h"
 #ifdef TARGET_PC
 #include "pc_ap_shellsanity.h"
+#include "pc_ap_logic.h"
 #endif
 
 s16 move_obj_profile_table[] = {
@@ -178,8 +179,8 @@ extern int mNT_get_itemTableNo(mActor_name_t item) {
                                                 item1_C_tableNo, item1_D_tableNo, item1_E_tableNo, item1_F_tableNo };
 
 #ifdef TARGET_PC
-    /* AP Shellsanity: beach items have their own draw type (past the ETC table's end) */
-    if (pc_ap_shellsanity_is_item(item)) {
+    /* AP Shellsanity / Treesanity: beach and tree items have their own draw type (past the ETC table's end) */
+    if (pc_ap_ground_item(item)) {
         return PC_AP_ITEM_TYPE_BEACH;
     }
 #endif

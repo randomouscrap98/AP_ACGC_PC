@@ -2768,6 +2768,14 @@ extern mActor_name_t mFI_GetOtherFruit() {
 #else
 /* This implementation gives an equal 25% chance for all non-native fruit to be rolled */
 extern mActor_name_t mFI_GetOtherFruit() {
+#ifdef TARGET_PC
+    /* AP Treesanity: only fruit the player has received (or the town's) */
+    mActor_name_t ap_fruit;
+
+    if (pc_ap_other_fruit(&ap_fruit)) {
+        return ap_fruit;
+    }
+#endif
     mActor_name_t other_fruit = ITM_FOOD_START | RANDOM(4);
 
     /* simple fix is to add one if the random fruit is also greater than the town fruit */

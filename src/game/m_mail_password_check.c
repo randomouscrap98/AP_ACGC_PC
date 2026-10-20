@@ -1195,8 +1195,9 @@ extern int mMpswd_check_present(mMpswd_password_c* password) {
     }
 
 #ifdef TARGET_PC
-    /* AP Catalogsanity: pool items not in the catalog yet make the password invalid */
-    if (valid && present != RSV_NO && !pc_ap_catalog_item_allowed(present)) {
+    /* AP Catalogsanity: pool items not in the catalog yet make the password invalid; Treesanity: so does
+       fruit the player hasn't received */
+    if (valid && present != RSV_NO && (!pc_ap_catalog_item_allowed(present) || !pc_ap_fruit_allowed(present))) {
         valid = FALSE;
     }
 #endif

@@ -509,9 +509,9 @@ extern void mIN_copy_name_str(u8* dst, mActor_name_t item) {
     mActor_name_t item_no = mRmTp_FtrItemNo2Item1ItemNo(item, FALSE);
 
 #ifdef TARGET_PC
-    /* AP Shellsanity: beach items sit past the ETC name table */
-    if (pc_ap_shellsanity_is_item(item_no)) {
-        pc_ap_beach_item_name(item_no, dst);
+    /* AP Shellsanity / Treesanity: beach and tree items sit past the ETC name table */
+    if (pc_ap_ground_item(item_no)) {
+        pc_ap_ground_item_name(item_no, dst);
         return;
     }
 #endif
@@ -586,8 +586,8 @@ extern int mIN_get_item_article(mActor_name_t item) {
     int index = item_no & 0xFF;
 
 #ifdef TARGET_PC
-    /* AP Shellsanity: beach items sit past the ETC article table */
-    if (pc_ap_shellsanity_is_item(item_no)) {
+    /* AP Shellsanity / Treesanity: beach and tree items sit past the ETC article table */
+    if (pc_ap_ground_item(item_no)) {
         return mIN_ARTICLE_AN;
     }
 #endif

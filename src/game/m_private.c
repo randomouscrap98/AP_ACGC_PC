@@ -1062,6 +1062,10 @@ static void mPr_GetMotherMailMonthlyData(mPr_mother_mail_data_c* send_data, int*
     } else if (month == lbRTC_DECEMBER) {
         if (*event_no == 0) {
             *present = ITM_FOOD_APPLE;
+#ifdef TARGET_PC
+            /* AP Treesanity: only fruit the player has */
+            *present = pc_ap_gate_fruit(*present);
+#endif
         } else {
             *present = december_2_item_table[RANDOM(6)];
         }

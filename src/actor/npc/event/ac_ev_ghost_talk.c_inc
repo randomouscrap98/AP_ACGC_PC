@@ -290,9 +290,10 @@ static mActor_name_t aEGH_not_collect_get() {
   int total_count;
 
 #ifdef TARGET_PC
-  /* AP Catalogsanity: Wisp's pick (new pool items as a source, never locked ones) */
+  /* AP Catalogsanity: Wisp's pick (new pool items as a source, never locked ones); Treesanity: the
+     peach only if the player has it */
   if (pc_ap_wisp_item(item_list, aEGH_ITEM_LIST_NUM, &item)) {
-    return mRmTp_FtrItemNo2Item1ItemNo(item != EMPTY_NO ? item : ITM_FOOD_PEACH, TRUE);
+    return mRmTp_FtrItemNo2Item1ItemNo(item != EMPTY_NO ? item : pc_ap_gate_fruit(ITM_FOOD_PEACH), TRUE);
   }
 #endif
 

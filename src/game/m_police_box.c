@@ -80,8 +80,8 @@ extern int mPB_get_keep_item_sum() {
  **/
 extern void mPB_keep_item(mActor_name_t item_no) {
 #ifdef TARGET_PC
-    /* AP Shellsanity: beach items are never kept (another one washes up later) */
-    if (pc_ap_shellsanity_is_item(item_no)) {
+    /* AP Shellsanity / Treesanity: beach and tree items are never kept (another one turns up later) */
+    if (pc_ap_ground_item(item_no)) {
         return;
     }
 #endif
@@ -138,8 +138,8 @@ extern void mPB_keep_all_item_in_block(int blk_x, int blk_z) {
         /* only accept items in the 0x1XXX, 2XXX, and 3XXX range */
         item_type = ITEM_NAME_GET_TYPE(item);
 #ifdef TARGET_PC
-        /* AP Shellsanity: a beach item is removed, never kept (another one washes up later) */
-        if (pc_ap_shellsanity_is_item(item)) {
+        /* AP Shellsanity / Treesanity: a beach or tree item is removed, never kept (another one turns up later) */
+        if (pc_ap_ground_item(item)) {
             *block_items = EMPTY_NO;
             item_type = -1;
         }

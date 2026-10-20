@@ -288,6 +288,9 @@ mActor_name_t pc_ap_shop_sapling(int slot);
 int pc_ap_other_fruit(mActor_name_t* fruit);
 // Gift passwords: 0 for a fruit the player hasn't received (Treesanity on), else 1
 int pc_ap_fruit_allowed(mActor_name_t item);
+// A fixed fruit a source gives (mom's December apple, Wisp's peach): item, or with Treesanity on and
+// item not received, what pc_ap_other_fruit gives; anything not a fruit stays
+mActor_name_t pc_ap_gate_fruit(mActor_name_t item);
 // Trees page: Treesanity checks per fruit (0 = off), checks of fruit (0-4) not sent yet, and whether
 // the player has fruit (received or the town's)
 int pc_ap_trees_per_fruit(void);

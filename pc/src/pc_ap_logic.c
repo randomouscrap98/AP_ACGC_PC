@@ -922,6 +922,14 @@ int pc_ap_fruit_allowed(mActor_name_t item) {
   return (pc_ap_fruit_available() >> (item - ITM_FOOD_APPLE)) & 1;
 }
 
+mActor_name_t pc_ap_gate_fruit(mActor_name_t item) {
+  mActor_name_t fruit;
+  if(pc_ap_fruit_allowed(item) || !pc_ap_other_fruit(&fruit)) {
+    return item;
+  }
+  return fruit;
+}
+
 int pc_ap_trees_per_fruit(void) {
   return g_ap.trees.per_fruit;
 }

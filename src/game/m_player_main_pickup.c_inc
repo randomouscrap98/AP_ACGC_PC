@@ -57,9 +57,9 @@ static void Player_actor_setup_main_Pickup(ACTOR* actorx, GAME* game) {
     {
         u32 bell_amount = mPr_GetAmountForMoneyItem(item);
 #ifdef TARGET_PC
-        /* AP Shellsanity: a beach item sends its check and never goes into the pockets
-           (putaway_money then just means "nothing entered a pocket") */
-        if (pc_ap_beach_pickup(item)) {
+        /* AP Shellsanity / Treesanity: a beach or tree item sends its check and never goes into the
+           pockets (putaway_money then just means "nothing entered a pocket") */
+        if (pc_ap_ground_pickup(item)) {
             if (target_pos_p != NULL) {
                 mFI_SetFG_common(EMPTY_NO, *target_pos_p, TRUE);
             }

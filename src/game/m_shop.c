@@ -1039,7 +1039,12 @@ static void mSP_SelectPlant(mActor_name_t* goods_list, int* count, int flower_co
     }
 
     for (i = sapling_count; i > 0; i--) {
+#ifdef TARGET_PC
+        /* AP Treesanity: plain sapling slots sometimes sell fruit (slot 0 first) */
+        goods_list[count[0]] = pc_ap_shop_sapling(sapling_count - i);
+#else
         goods_list[count[0]] = ITM_SAPLING;
+#endif
         count[0] += 1;
     }
 

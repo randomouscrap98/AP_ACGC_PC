@@ -3,8 +3,11 @@
 #include "pc_ap_catalogsanity.h"
 #include "pc_ap_shellsanity.h"
 #include "pc_ap_qol.h"
-/* AP Shellsanity: beach items get the shells' random position offset */
-#define bIT_IS_SHELL(item) (((item) >= ITM_SHELL0 && (item) <= ITM_SHELL7) || pc_ap_shellsanity_is_item(item))
+/* AP Shellsanity / Treesanity: beach and tree items get the shells' random position offset */
+#define bIT_IS_SHELL(item) (((item) >= ITM_SHELL0 && (item) <= ITM_SHELL7) || pc_ap_ground_item(item))
+/* AP Treesanity: drop_fruit's AP items for fruit_set, dropped at the first spots */
+static int bIT_pc_ap_drops = 0;
+static mActor_name_t bIT_pc_ap_drop_item = EMPTY_NO;
 #else
 #define bIT_IS_SHELL(item) ((item) >= ITM_SHELL0 && (item) <= ITM_SHELL7)
 #endif
@@ -897,6 +900,11 @@ static int fruit_set(mActor_name_t fg_item, int ut_x, int ut_z, s16 num, int dro
         drop_pos.y = mCoBG_GetBgY_OnlyCenter_FromWpos2(drop_pos, -1.0f);
         drop.actorx_p = parent_actor;
         drop.fg_item = fg_item;
+#ifdef TARGET_PC
+        if (i < bIT_pc_ap_drops) {
+            drop.fg_item = bIT_pc_ap_drop_item;
+        }
+#endif
         xyz_t_move(&drop.position, &fruit_pos);
         xyz_t_move(&drop.target_position, &drop_pos);
         drop._8A = 0;
@@ -1085,7 +1093,14 @@ static void drop_fruit(mActor_name_t fg_item, int ut_x, int ut_z, xyz_t* drop_po
                     }
                 }
 
+#ifdef TARGET_PC
+                /* AP Treesanity: a bearing tree drops its AP items first, then its fruit */
+                bIT_pc_ap_drops = pc_ap_tree_drop(fg_item, &bIT_pc_ap_drop_item);
+#endif
                 fruit_set(drop_item, ut_x, ut_z, fg_ytable[i].drop_count, 0, drop_pos, parent_actor);
+#ifdef TARGET_PC
+                bIT_pc_ap_drops = 0;
+#endif
             }
 
             mFI_UtNum2CenterWpos(&tree_pos, ut_x, ut_z);
@@ -2610,10 +2625,19 @@ static void bg_item_common_classifyitemDataTable(const GAME_PLAY* const play, bg
                     bg_item_type_data_c type_data;
                     flag = TRUE;
 
+#ifdef TARGET_PC
+                    /* AP Treesanity: a tree bearing AP items is drawn bare (bIT_pc_tree_ap_draw adds them) */
+                    fg_no2fg_type(pc_ap_tree_draw_fg(*fg_p), &type_data, col, type_data_table);
+#else
                     fg_no2fg_type(*fg_p, &type_data, col, type_data_table);
+#endif
                     if (deposit == NULL || ((*deposit >> ut_x) & 1) == 0 || type_data.type == bIT_DRAW_TYPE_FISH2) {
                         if (*fg_p != EMPTY_NO) {
+#ifdef TARGET_PC
+                            fg_no2fg_type(pc_ap_tree_draw_fg(*fg_p), &type_data, col, type_data_table);
+#else
                             fg_no2fg_type(*fg_p, &type_data, col, type_data_table);
+#endif
                         } else {
                             flag = FALSE;
                         }
@@ -3290,6 +3314,48 @@ static void bIT_pc_bee_hint_draw(GAME* game, bg_item_common_c* common) {
         }
     }
 }
+
+// Treesanity: a tree bearing AP items is drawn bare (pc_ap_tree_draw_fg); this draws its AP items, then its
+// fruit, at the spots they drop from (fruit_set's pos_part)
+static void bIT_pc_tree_ap_draw(GAME* game, bg_item_common_c* common) {
+    static xyz_t spot_ofs[3] = {
+        { -22.5f, 65.0f, 17.5f },
+        { 22.5f, 72.0f, 12.5f },
+        { -2.5f, 97.5f, 7.5f },
+    };
+    static xyz_t scale = { 0.01f, 0.01f, 0.01f };
+    int i;
+
+    // Loaded acres as in bIT_pc_bee_hint_draw
+    for (i = 0; i < common->item_table.count; i++) {
+        bg_item_draw_table_c* draw_table = &common->draw_table[common->_139F4[i]];
+        mActor_name_t* fg_p = common->item_table.block_info_tbl[i].items;
+        int ut;
+
+        if (draw_table->draw_flag != TRUE || fg_p == NULL) {
+            continue;
+        }
+
+        for (ut = 0; ut < UT_TOTAL_NUM; ut++) {
+            bg_item_draw_pos_c* draw_pos = &draw_table->draw_data.draw_pos[ut + 1];
+            int spot;
+
+            if (draw_pos->next_add_cnt == 256 || pc_ap_tree_draw_item(fg_p[ut], 0) == EMPTY_NO) {
+                continue;
+            }
+
+            for (spot = 0; spot < 3; spot++) {
+                xyz_t pos;
+
+                pos.x = draw_pos->mtxf.xw + spot_ofs[spot].x;
+                pos.y = draw_pos->mtxf.yw + spot_ofs[spot].y;
+                pos.z = draw_pos->mtxf.zw + spot_ofs[spot].z;
+                bit_cmn_single_drawS(game, &common->common_info, pc_ap_tree_draw_item(fg_p[ut], spot), &pos,
+                                     &ZeroSVec, &scale, 255, NULL, NULL, NULL);
+            }
+        }
+    }
+}
 #endif
 
 static void bg_item_common_draw(GAME_PLAY* play, bg_item_common_c* common, bg_item_draw_part_table_c* draw_part_table) {
@@ -3342,6 +3408,7 @@ static void bg_item_common_draw(GAME_PLAY* play, bg_item_common_c* common, bg_it
     bIT_actor_drop_draw(game, &common->common_info, &common->fruit_drop_info);
 #ifdef TARGET_PC
     bIT_pc_bee_hint_draw(game, common);
+    bIT_pc_tree_ap_draw(game, common);
 #endif
     bIT_actor_hole_effect_draw(game, &common->common_info, common->hole);
     bIT_actor_pit_draw(game, &common->common_info, common->pit);
