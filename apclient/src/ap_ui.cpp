@@ -422,14 +422,13 @@ static void ui_window(const ImVec2& display) {
   g_ui.w = size.x;
   g_ui.h = size.y;
   ImGui::End();
-  g_ui_log.unread = 0;
   if (!open) { g_ui.expanded = false; } // the title bar's X folds it back into the box
 }
 
 void ap_ui_frame(int width, int height, float dt) {
   if (!g_ui_ready || width <= 0 || height <= 0) { return; }
   g_ui_any_text = false; // set again while the window draws its text fields
-  ui_log_sync(&g_ui_log, &g_ui, g_ui.expanded);
+  ui_log_sync(&g_ui_log, &g_ui);
   if (ap_getconnectstate()->state == AP_CSTATE_OFFLINE) { return; } // no server: nothing to show
   ImGuiIO& io = ImGui::GetIO();
   io.DisplaySize = ImVec2((float)width, (float)height);

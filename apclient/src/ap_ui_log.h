@@ -43,7 +43,7 @@ struct ui_log {
   std::string copy_text;      // what the "Copy line" menu copies (taken at the right-click)
 };
 
-// Copy the lines added since the last call; window_open = the window shows (else shown lines count as unread)
-void ui_log_sync(ui_log * log, const ui_settings * st, bool window_open);
+// Copy the lines added since the last call; while the window is closed (st->expanded), shown lines count as unread
+void ui_log_sync(ui_log * log, const ui_settings * st);
 // The tab: filters on top (they change st), the log under them
 void ui_log_tab(ui_log * log, ui_settings * st);

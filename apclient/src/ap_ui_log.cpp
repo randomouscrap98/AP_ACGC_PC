@@ -13,7 +13,8 @@ static bool ui_line_shown(const ui_settings * st, int kind) {
   }
 }
 
-void ui_log_sync(ui_log * log, const ui_settings * st, bool window_open) {
+void ui_log_sync(ui_log * log, const ui_settings * st) {
+  if (st->expanded) { log->unread = 0; }
   uint64_t total = ap_msg_total();
   if (total == log->seen) { return; }
   // The newest lines; any that already left the DLL's log are skipped
@@ -28,7 +29,7 @@ void ui_log_sync(ui_log * log, const ui_settings * st, bool window_open) {
       const char * text = ap_msg_segment(i, s, &color);
       line.segs.push_back({ text ? text : "", color });
     }
-    if (!window_open && ui_line_shown(st, line.kind)) { log->unread++; }
+    if (!st->expanded && ui_line_shown(st, line.kind)) { log->unread++; }
     log->lines.push_back(std::move(line));
   }
   while (log->lines.size() > AP_MSG_MAX) { log->lines.pop_front(); }
