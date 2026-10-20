@@ -280,8 +280,8 @@ int pc_ap_ground_item(mActor_name_t item);
 int pc_ap_ground_pickup(mActor_name_t item);
 // mIN_copy_name_str: name of an AP ground item in the game charset (mIN_ITEM_NAME_LEN chars)
 void pc_ap_ground_item_name(mActor_name_t item, u8* dst);
-// mSP_SelectPlant: what plain sapling slot (0 first) sells: a fruit (pc_ap_treesanity_shop_slot) or
-// ITM_SAPLING
+// mSP_SelectPlant: what plain sapling slot (0 first) sells: a fruit (pc_ap_treesanity_shop_slot, also
+// with Treesanity off) or ITM_SAPLING
 mActor_name_t pc_ap_shop_sapling(int slot);
 // mFI_GetOtherFruit: 1 = *fruit is a received non-town fruit (the town's if none), with Treesanity
 // on; 0 = vanilla

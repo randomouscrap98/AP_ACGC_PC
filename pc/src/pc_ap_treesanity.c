@@ -119,9 +119,7 @@ mActor_name_t pc_ap_treesanity_shop_slot(const pc_ap_treesanity* s, int slot, in
   int done = 0;
   int fruit;
 
-  if (s->per_fruit <= 0) {
-    return ITM_SAPLING;
-  }
+  // Treesanity off: no fruit has checks, so every available one is "done" (33% per slot)
   for (int f = 0; f < PC_AP_FRUITS; f++) {
     if ((available >> f) & 1) {
       if (pc_ap_treesanity_left(s, f) > 0) {

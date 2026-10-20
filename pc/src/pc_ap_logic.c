@@ -899,7 +899,7 @@ void pc_ap_ground_item_name(mActor_name_t item, u8* dst) {
 }
 
 mActor_name_t pc_ap_shop_sapling(int slot) {
-  if(g_ap.trees.per_fruit <= 0 || !pc_ap_accepting()) {
+  if(!pc_ap_accepting()) {
     return ITM_SAPLING;
   }
   pc_ap_tree_counts();

@@ -74,6 +74,7 @@ void pc_ap_treesanity_name(mActor_name_t item, char* out, int len);
 // (received or the town's). Slot 0 sells a random available fruit with checks left (pick: any
 // random number) while there is one, the other slots stay saplings; with none left, each slot is
 // roll (0-99) < PC_AP_TREE_SHOP_DONE_PERCENT a random available fruit (all sent), else a sapling.
+// With Treesanity off every fruit counts as all sent (Fruit Filler fruit and the town's sell too).
 mActor_name_t pc_ap_treesanity_shop_slot(const pc_ap_treesanity* s, int slot, int available, int roll, int pick);
 
 // A foreign fruit source (presents, villagers, letters): a random received non-town fruit (bits in
