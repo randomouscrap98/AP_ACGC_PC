@@ -287,7 +287,11 @@ static void mAGrw_SetAroundBlockInfo(mAGrw_GrowInfo_c* grow_info, int block_x, i
 
     if (block_z < FG_BLOCK_Z_NUM - 1) {
         /* @BUG - should be fg[block_z + 1][block_x] */
+#ifdef BUGFIXES
+        grow_info->around_block[mAGrw_AROUND_BOTTOM] = Save_GetPointer(fg[block_z + 1][block_x]);
+#else
         grow_info->around_block[mAGrw_AROUND_BOTTOM] = Save_GetPointer(fg[block_z + 1][block_z]);
+#endif
     }
 }
 
