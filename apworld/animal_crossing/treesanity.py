@@ -7,6 +7,7 @@ from BaseClasses import ItemClassification
 from worlds.generic.Rules import add_rule
 
 from .fruit_filler import FRUITS
+from .tools_in_pool import SHOVEL
 
 TREE_PER_FRUIT_MAX = 20  # Tree Checks per Fruit max
 TREE_BASE_ID = 0x60000  # fruit f (Town Fruit value: apple, cherry, pear, peach, orange), check k (1-based): base + f * 0x100 + k
@@ -43,13 +44,16 @@ def classify(world, name: str):
 
 
 def rules(world) -> None:
-    # A non-town fruit's trees only grow once it's received (and planted)
+    # A non-town fruit's trees only grow once it's received and planted (planting digs a hole: the shovel, when it's
+    # an item)
+    need_shovel = bool(world.options.tools_in_pool)
     for f in range(len(FRUITS)):
         if f == world.options.town_fruit.value:
             continue
         for k in range(1, per_fruit(world) + 1):
             add_rule(world.get_location(tree_location_name(f, k)),
-                     lambda state, name=FRUITS[f]: state.has(name, world.player))
+                     lambda state, name=FRUITS[f]: state.has(name, world.player)
+                     and (not need_shovel or state.has(SHOVEL, world.player)))
 
 
 def slot_data(world) -> dict:
