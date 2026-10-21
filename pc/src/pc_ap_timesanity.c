@@ -78,6 +78,16 @@ void pc_ap_timesanity_day_before(lbRTC_time_c* out, const lbRTC_time_c* date) {
   out->weekday = lbRTC_Week(out->year, out->month, out->day);
 }
 
+// Growth's last run: one day and one second before the new time. The game grows one stage per 6 AM from
+// the first 6 AM after this up to (not at) now (mAGrw_RenewalFgItem_ovl), so this passes exactly one at any
+// new hour, 6:00:00 too (midnight the day before passed two after 6 AM).
+static void pc_ap_timesanity_grow_before(lbRTC_time_c* out, const lbRTC_time_c* date) {
+  *out = *date;
+  lbRTC_Sub_DD(out, 1);
+  lbRTC_Sub_ss(out, 1);
+  out->weekday = lbRTC_Week(out->year, out->month, out->day);
+}
+
 // lbRTC_Sub_DD only steps back one month (the day wraps past that), so a day at a time
 static void pc_ap_timesanity_sub_days(lbRTC_time_c* t, int days) {
   int i;
@@ -218,14 +228,16 @@ static void pc_ap_timesanity_shift_memories(Animal_c* animal, const lbRTC_time_c
 int pc_ap_timesanity_normalize(pc_ap_timesanity* t, Save_t* save,
                                const lbRTC_time_c* old_time, const lbRTC_time_c* new_time) {
   lbRTC_time_c before;
+  lbRTC_time_c grow_before;
   int i;
 
   if(!t->normalized) {
     return 0;
   }
   pc_ap_timesanity_day_before(&before, new_time);
+  pc_ap_timesanity_grow_before(&grow_before, new_time);
 
-  pc_ap_timesanity_set_last(&save->all_grow_renew_time, &before); // growth, turnips, dump
+  pc_ap_timesanity_set_last(&save->all_grow_renew_time, &grow_before); // growth, turnips, dump
   pc_ap_timesanity_set_last(&save->last_grow_time, &before);      // villager move-in (24h)
   pc_ap_timesanity_shift_force_remove(&save->force_remove_date, old_time, new_time); // move-out
   pc_ap_timesanity_shift_renewal(save, old_time, new_time);                          // Nook's renovation

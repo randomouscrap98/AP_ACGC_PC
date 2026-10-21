@@ -5,9 +5,9 @@ static int mMsg_Check_CancelOrder(mMsg_Window_c* msg_p) {
     }
   }
 #ifdef TARGET_PC
-  // Instant text setting: A shows the rest of the page in any message (vanilla only where the text allows it)
+  // Instant text setting: A or B shows the rest of the page in any message (vanilla only where the text allows it)
   if (g_pc_settings.instant_text && msg_p->cancel_flag == FALSE && (msg_p->status_flags & mMsg_STATUS_FLAG_CURSOL_JUST) == 0 &&
-      chkTrigger(BUTTON_A)) {
+      (chkTrigger(BUTTON_A) || chkTrigger(BUTTON_B))) {
     return TRUE;
   }
 #endif

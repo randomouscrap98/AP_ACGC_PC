@@ -74,7 +74,7 @@ static const char* DEFAULT_SETTINGS =
     "# NES emulator aspect ratio: 0 = stretch to fullscreen, 1 = 4:3 pillarbox\n"
     "nes_aspect = 1\n"
     "\n"
-    "# Instant text: 0 = off, 1 = A shows the rest of a text page at once\n"
+    "# Instant text: 0 = off, 1 = A or B shows the rest of a text page at once\n"
     "instant_text = 0\n"
     "\n"
     "[Audio]\n"
@@ -303,7 +303,7 @@ void pc_settings_save(void) {
     fprintf(f, "# NES emulator aspect ratio: 0 = stretch to fullscreen, 1 = 4:3 pillarbox\n");
     fprintf(f, "nes_aspect = %d\n", g_pc_settings.nes_aspect);
     fprintf(f, "\n");
-    fprintf(f, "# Instant text: 0 = off, 1 = A shows the rest of a text page at once\n");
+    fprintf(f, "# Instant text: 0 = off, 1 = A or B shows the rest of a text page at once\n");
     fprintf(f, "instant_text = %d\n", g_pc_settings.instant_text);
     fprintf(f, "\n");
     fprintf(f, "[Audio]\n");

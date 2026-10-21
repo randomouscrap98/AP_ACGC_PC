@@ -348,6 +348,10 @@ static mActor_name_t aSD_UnitNum2ItemNo(int ux, int uz) {
         (item == RSV_FE1F) ||
         (item == ITM_HUKUBUKURO_BAG) ||
         (item == ITM_SIGNBOARD)
+#ifdef TARGET_PC
+        // AP: fruit sold from a sapling slot
+        || (item >= ITM_FOOD_APPLE && item <= ITM_FOOD_ORANGE)
+#endif
         // clang-format on
     ) {
         if (item == RSV_FE1F) {
