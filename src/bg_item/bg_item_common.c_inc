@@ -3,6 +3,7 @@
 #include "pc_ap_catalogsanity.h"
 #include "pc_ap_shellsanity.h"
 #include "pc_ap_qol.h"
+#include "pc_planting.h"
 /* AP Shellsanity / Treesanity: beach and tree items get the shells' random position offset */
 #define bIT_IS_SHELL(item) (((item) >= ITM_SHELL0 && (item) <= ITM_SHELL7) || pc_ap_ground_item(item))
 /* AP Treesanity: drop_fruit's AP items for fruit_set, dropped at the first spots */
@@ -2687,6 +2688,26 @@ static void bg_item_common_classifyitemDataTable(const GAME_PLAY* const play, bg
                         bg_item_common_outPutData(play, draw_pos, diff, type_data._00, &pos);
                     }
                 }
+#ifdef TARGET_PC
+                // Planting ground marks: an empty square where a sapling wouldn't grow gets a mark, on the
+                // ground in the middle of the square (the crack's spot)
+                else if (*fg_p == EMPTY_NO) {
+                    int mark = pc_planting_mark(base_ut_x + ut_x, base_ut_z + ut_z, col->data.unit_attribute);
+
+                    if (mark != PC_PLANTING_NONE) {
+                        bg_item_type_data_c* crack = type_data_table[bIT_TYPE_CAT_CRACK];
+                        int type = bIT_DRAW_TYPE_PC_PLANT_DIES + mark;
+                        int diff = start_idx_tbl[type] - idx;
+                        xyz_t pos;
+
+                        pos.x = bx_pos + crack->pos_x_tbl_p[ut_x];
+                        pos.z = bz_pos + crack->pos_z_tbl_p[ut_z];
+                        pos.y = (f32)*height_p * 10.0f + block_height;
+                        start_idx_tbl[type] = idx;
+                        bg_item_common_outPutData(play, draw_pos, diff, 0, &pos);
+                    }
+                }
+#endif
             }
 
             if (deposit != NULL) {
@@ -3063,6 +3084,12 @@ static void bg_item_common_move(GAME_PLAY* play, ACTOR* actorx, bg_item_common_c
     if (mFI_FGisUpDate() == TRUE) {
         flags |= 1;
     }
+#ifdef TARGET_PC
+    // Planting ground marks: the setting changed, rebuild the draw tables with (or without) them
+    if (pc_planting_tick()) {
+        flags |= 1;
+    }
+#endif
 
     if (flags != 0) {
         bg_item_common_renew_draw_and_crs_data_perfect(play, common, flags);

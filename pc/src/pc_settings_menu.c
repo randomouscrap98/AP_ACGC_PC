@@ -32,6 +32,7 @@ enum {
     ITEM_BORDERLESS_ACRES,
     ITEM_NES_ASPECT,
     ITEM_INSTANT_TEXT,
+    ITEM_PLANTING_MARKS,
     ITEM_MASTER_VOLUME,
     ITEM_STICK_DEADZONE,
     ITEM_CSTICK_DEADZONE,
@@ -66,6 +67,7 @@ static const Item tab_gameplay_items[] = {
     { "Borderless acres", ITEM_BORDERLESS_ACRES, 0 },
     { "NES aspect",       ITEM_NES_ASPECT,       0 },
     { "Instant text",     ITEM_INSTANT_TEXT,     0 },
+    { "Plant vision",     ITEM_PLANTING_MARKS,   0 },
 };
 
 static const Item tab_audio_items[] = {
@@ -327,6 +329,7 @@ static int pc_dirty(void) {
         (s_pending.borderless_acres != g_pc_settings.borderless_acres) ||
         (s_pending.nes_aspect       != g_pc_settings.nes_aspect) ||
         (s_pending.instant_text     != g_pc_settings.instant_text) ||
+        (s_pending.planting_marks   != g_pc_settings.planting_marks) ||
         (s_pending.master_volume    != g_pc_settings.master_volume) ||
         (s_pending.stick_deadzone   != g_pc_settings.stick_deadzone) ||
         (s_pending.cstick_deadzone  != g_pc_settings.cstick_deadzone) ||
@@ -409,6 +412,9 @@ static void item_cycle(int id, int dir) {
             break;
         case ITEM_INSTANT_TEXT:
             s_pending.instant_text = !s_pending.instant_text;
+            break;
+        case ITEM_PLANTING_MARKS:
+            s_pending.planting_marks = !s_pending.planting_marks;
             break;
         case ITEM_AP_TEXT_CLIENT:
             s_pending.ap_text_client = !s_pending.ap_text_client;
@@ -513,6 +519,9 @@ static void item_format(int id, char* buf, size_t n) {
         case ITEM_INSTANT_TEXT:
             snprintf(buf, n, "%s", s_pending.instant_text ? "< On >" : "< Off >");
             break;
+        case ITEM_PLANTING_MARKS:
+            snprintf(buf, n, "%s", s_pending.planting_marks ? "< Show >" : "< Off >");
+            break;
         case ITEM_AP_TEXT_CLIENT:
             snprintf(buf, n, "%s", s_pending.ap_text_client ? "< On >" : "< Off >");
             break;
@@ -553,6 +562,7 @@ static int item_changed(int id) {
         case ITEM_BORDERLESS_ACRES: return s_pending.borderless_acres != g_pc_settings.borderless_acres;
         case ITEM_NES_ASPECT:    return s_pending.nes_aspect    != g_pc_settings.nes_aspect;
         case ITEM_INSTANT_TEXT:  return s_pending.instant_text  != g_pc_settings.instant_text;
+        case ITEM_PLANTING_MARKS: return s_pending.planting_marks != g_pc_settings.planting_marks;
         case ITEM_AP_TEXT_CLIENT: return s_pending.ap_text_client != g_pc_settings.ap_text_client;
         case ITEM_MASTER_VOLUME: return s_pending.master_volume != g_pc_settings.master_volume;
         case ITEM_STICK_DEADZONE:  return s_pending.stick_deadzone  != g_pc_settings.stick_deadzone;

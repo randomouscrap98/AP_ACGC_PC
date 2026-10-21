@@ -321,6 +321,8 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_treesanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_settings.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_beach_logo.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_planting.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_planting_marks.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_state.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_mail.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_strings.c

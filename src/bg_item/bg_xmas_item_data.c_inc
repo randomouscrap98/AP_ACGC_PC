@@ -2181,6 +2181,7 @@ static bg_item_draw_part_c shell_c_part = {
 
 #ifdef TARGET_PC
 #include "pc_ap_beach_draw.c_inc"
+#include "pc_planting_draw.c_inc"
 #endif
 
 extern Gfx obj_shop_candy_mat_modelT[];
@@ -2760,6 +2761,8 @@ static bg_item_draw_part_table_c draw_part_table_a[] = {
     { &fish_part, 0 },               // bIT_DRAW_TYPE_FISH2
 #ifdef TARGET_PC
     { &ap_beach_part, 2 },           // bIT_DRAW_TYPE_AP_BEACH
+    { &pc_planting_dies_part, 0 },   // bIT_DRAW_TYPE_PC_PLANT_DIES
+    { &pc_planting_stunted_part, 0 }, // bIT_DRAW_TYPE_PC_PLANT_STUNTED
 #endif
     { NULL, 0 },                     // bIT_DRAW_TYPE_NONE
 };

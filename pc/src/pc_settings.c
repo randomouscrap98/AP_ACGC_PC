@@ -20,6 +20,7 @@ PCSettings g_pc_settings = {
     .borderless_acres = 0,
     .nes_aspect = 1,
     .instant_text = 0,
+    .planting_marks = 0,
     .master_volume = 100,
     .stick_deadzone = 12,
     .cstick_deadzone = 12,
@@ -76,6 +77,9 @@ static const char* DEFAULT_SETTINGS =
     "\n"
     "# Instant text: 0 = off, 1 = A or B shows the rest of a text page at once\n"
     "instant_text = 0\n"
+    "\n"
+    "# Plant vision: 0 = off, 1 = mark squares near you where a planted sapling dies (red X) or stays small (yellow !)\n"
+    "planting_marks = 0\n"
     "\n"
     "[Audio]\n"
     "# Master output volume as a percentage (0-100)\n"
@@ -149,6 +153,8 @@ static void apply_setting(const char* key, const char* value) {
         if (val == 0 || val == 1) g_pc_settings.nes_aspect = val;
     } else if (strcmp(key, "instant_text") == 0) {
         if (val == 0 || val == 1) g_pc_settings.instant_text = val;
+    } else if (strcmp(key, "planting_marks") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.planting_marks = val;
     } else if (strcmp(key, "master_volume") == 0) {
         if (val >= 0 && val <= 100) g_pc_settings.master_volume = val;
     } else if (strcmp(key, "stick_deadzone") == 0) {
@@ -305,6 +311,9 @@ void pc_settings_save(void) {
     fprintf(f, "\n");
     fprintf(f, "# Instant text: 0 = off, 1 = A or B shows the rest of a text page at once\n");
     fprintf(f, "instant_text = %d\n", g_pc_settings.instant_text);
+    fprintf(f, "\n");
+    fprintf(f, "# Plant vision: 0 = off, 1 = mark squares near you where a planted sapling dies (red X) or stays small (yellow !)\n");
+    fprintf(f, "planting_marks = %d\n", g_pc_settings.planting_marks);
     fprintf(f, "\n");
     fprintf(f, "[Audio]\n");
     fprintf(f, "# Master output volume as a percentage (0-100)\n");

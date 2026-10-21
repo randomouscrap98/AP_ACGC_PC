@@ -1,0 +1,41 @@
+// Planting ground marks (pc_planting.h): draw parts of the red X and the yellow !, included by each bg_item
+// variant's data table (bg_item, cherry, winter, xmas) after the AP beach part. Material + ground quad
+// (pc_planting_marks.c), drawn by pc_planting.c's loops (fade, per-mark colour).
+#include "pc_planting.h"
+
+extern Gfx pc_planting_x_mat[];
+extern Gfx pc_planting_warn_mat[];
+extern Gfx pc_planting_quad_model[];
+extern void pc_planting_draw_dies(GRAPH* graph, Gfx** gfx_pp, bg_item_draw_list_c* draw_list,
+                                  bg_item_draw_pos_c* draw_pos, Gfx** display_list_table);
+extern void pc_planting_draw_stunted(GRAPH* graph, Gfx** gfx_pp, bg_item_draw_list_c* draw_list,
+                                     bg_item_draw_pos_c* draw_pos, Gfx** display_list_table);
+
+static Gfx* pc_planting_dies_DL_table[] = {
+    pc_planting_x_mat,
+    pc_planting_quad_model,
+};
+
+static Gfx* pc_planting_stunted_DL_table[] = {
+    pc_planting_warn_mat,
+    pc_planting_quad_model,
+};
+
+static bg_item_draw_list_c pc_planting_dies_list = { &pc_planting_draw_dies, 0, 1 };
+static bg_item_draw_list_c pc_planting_stunted_list = { &pc_planting_draw_stunted, 0, 1 };
+
+static bg_item_draw_list_c* pc_planting_dies_list_table[] = {
+    &pc_planting_dies_list,
+};
+
+static bg_item_draw_list_c* pc_planting_stunted_list_table[] = {
+    &pc_planting_stunted_list,
+};
+
+static bg_item_draw_part_c pc_planting_dies_part = {
+    pc_planting_dies_DL_table, 1, pc_planting_dies_list_table, 0, NULL, 0.0f, NULL, NULL,
+};
+
+static bg_item_draw_part_c pc_planting_stunted_part = {
+    pc_planting_stunted_DL_table, 1, pc_planting_stunted_list_table, 0, NULL, 0.0f, NULL, NULL,
+};
