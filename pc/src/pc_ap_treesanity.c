@@ -26,21 +26,10 @@ int64_t pc_ap_treesanity_location(int fruit, int k) {
 }
 
 int pc_ap_treesanity_left(const pc_ap_treesanity* s, int fruit) {
-  int64_t ids[AP_TREE_PER_FRUIT_MAX];
-  uint8_t checked[AP_TREE_PER_FRUIT_MAX];
-  int left = 0;
-
   if (s->per_fruit <= 0 || fruit < 0 || fruit >= PC_AP_FRUITS) {
     return 0;
   }
-  for (int k = 1; k <= s->per_fruit; k++) {
-    ids[k - 1] = pc_ap_treesanity_location(fruit, k);
-  }
-  ap_locations_checked(ids, s->per_fruit, checked);
-  for (int i = 0; i < s->per_fruit; i++) {
-    left += !checked[i];
-  }
-  return left;
+  return ap_unchecked_count(pc_ap_treesanity_location(fruit, 1), pc_ap_treesanity_location(fruit, s->per_fruit));
 }
 
 int pc_ap_treesanity_tree_fruit(mActor_name_t fg) {
@@ -70,13 +59,7 @@ int64_t pc_ap_treesanity_pickup(const pc_ap_treesanity* s, mActor_name_t item) {
   if (!pc_ap_treesanity_is_item(item)) {
     return -1;
   }
-  for (int k = 1; k <= s->per_fruit; k++) {
-    int64_t id = pc_ap_treesanity_location(fruit, k);
-    if (!ap_location_checked(id)) {
-      return id;
-    }
-  }
-  return -1;
+  return ap_first_unchecked(pc_ap_treesanity_location(fruit, 1), pc_ap_treesanity_location(fruit, s->per_fruit));
 }
 
 void pc_ap_treesanity_name(mActor_name_t item, char* out, int len) {

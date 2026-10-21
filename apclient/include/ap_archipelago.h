@@ -87,6 +87,11 @@ AP_API void ap_send_location(int64_t id);
 // slot's checked list, kept across sessions) or sent by us this session.
 // first - 1 if none. For "N-th time" counters sent in order (favors).
 AP_API int64_t ap_highest_checked(int64_t first, int64_t last);
+// For "N checks per group, any order" (Shellsanity months, Treesanity fruit): how many ids in [first, last]
+// are not checked yet, and the lowest of them (-1 if none). Checked as in ap_location_checked; one copy of the
+// server's list per call. Empty range (last < first): 0 / -1.
+AP_API int ap_unchecked_count(int64_t first, int64_t last);
+AP_API int64_t ap_first_unchecked(int64_t first, int64_t last);
 // Nonzero if location id is checked: by the server (this slot's checked list,
 // kept across sessions) or sent by us this session.
 // Copies the server's list on every call: in loops use ap_locations_checked.

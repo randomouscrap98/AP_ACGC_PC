@@ -284,6 +284,31 @@ int64_t ap_highest_checked(int64_t first, int64_t last) {
   return best;
 }
 
+int ap_unchecked_count(int64_t first, int64_t last) {
+  std::set<int64_t> server;
+  if(g_ap) {
+    server = g_ap->get_checked_locations();
+  }
+  int count = 0;
+  for(int64_t id = first; id <= last; id++) {
+    count += !g_ap_checks.count(id) && !server.count(id);
+  }
+  return count;
+}
+
+int64_t ap_first_unchecked(int64_t first, int64_t last) {
+  std::set<int64_t> server;
+  if(g_ap) {
+    server = g_ap->get_checked_locations();
+  }
+  for(int64_t id = first; id <= last; id++) {
+    if(!g_ap_checks.count(id) && !server.count(id)) {
+      return id;
+    }
+  }
+  return -1;
+}
+
 int ap_location_checked(int64_t id) {
   if(g_ap_checks.count(id)) {
     return 1;

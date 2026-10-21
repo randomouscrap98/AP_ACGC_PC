@@ -770,24 +770,6 @@ mActor_name_t pc_ap_shell_item(mActor_name_t shell, int is_island) {
   return pc_ap_shells_pick(shell, is_island, g_ap.settings.value[PC_AP_SET_COCONUTS_WASH_UP], RANDOM(100));
 }
 
-int pc_ap_beach_pickup(mActor_name_t item) {
-  if(!pc_ap_shellsanity_is_item(item)) {
-    return 0;
-  }
-  int64_t id = pc_ap_shellsanity_pickup(&g_ap.shells, item);
-  if(id >= 0 && pc_ap_accepting()) {
-    ap_send_location(id);
-  }
-  return 1;
-}
-
-void pc_ap_beach_item_name(mActor_name_t item, u8* dst) {
-  char name[mIN_ITEM_NAME_LEN + 1];
-  pc_ap_shellsanity_name(item, name, mIN_ITEM_NAME_LEN);
-  pc_menu_fixtext(name);
-  memcpy(dst, name, mIN_ITEM_NAME_LEN);
-}
-
 int pc_ap_shells_per_month(void) {
   return g_ap.shells.per_month;
 }
@@ -874,13 +856,14 @@ int pc_ap_ground_item(mActor_name_t item) {
 }
 
 int pc_ap_ground_pickup(mActor_name_t item) {
+  int64_t id;
   if(pc_ap_shellsanity_is_item(item)) {
-    return pc_ap_beach_pickup(item);
-  }
-  if(!pc_ap_treesanity_is_item(item)) {
+    id = pc_ap_shellsanity_pickup(&g_ap.shells, item);
+  } else if(pc_ap_treesanity_is_item(item)) {
+    id = pc_ap_treesanity_pickup(&g_ap.trees, item);
+  } else {
     return 0;
   }
-  int64_t id = pc_ap_treesanity_pickup(&g_ap.trees, item);
   if(id >= 0 && pc_ap_accepting()) {
     ap_send_location(id);
   }
@@ -890,10 +873,10 @@ int pc_ap_ground_pickup(mActor_name_t item) {
 void pc_ap_ground_item_name(mActor_name_t item, u8* dst) {
   char name[mIN_ITEM_NAME_LEN + 1];
   if(pc_ap_shellsanity_is_item(item)) {
-    pc_ap_beach_item_name(item, dst);
-    return;
+    pc_ap_shellsanity_name(item, name, mIN_ITEM_NAME_LEN);
+  } else {
+    pc_ap_treesanity_name(item, name, mIN_ITEM_NAME_LEN);
   }
-  pc_ap_treesanity_name(item, name, mIN_ITEM_NAME_LEN);
   pc_menu_fixtext(name);
   memcpy(dst, name, mIN_ITEM_NAME_LEN);
 }

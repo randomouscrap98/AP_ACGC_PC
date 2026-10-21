@@ -255,11 +255,6 @@ int pc_ap_wisp_item(mActor_name_t* const* lists, int list_count, mActor_name_t* 
 // mFI_GetShell: what washes up instead of the game's shell (town and island). Shellsanity
 // beach item of the current month first, then Coconuts Wash Up, else shell.
 mActor_name_t pc_ap_shell_item(mActor_name_t shell, int is_island);
-// Player_actor_setup_main_Pickup: nonzero for a Shellsanity beach item, which never goes into the
-// pockets (the caller clears its tile); sends the next unsent check of its month, if any.
-int pc_ap_beach_pickup(mActor_name_t item);
-// mIN_copy_name_str: name of a Shellsanity beach item in the game charset (mIN_ITEM_NAME_LEN chars)
-void pc_ap_beach_item_name(mActor_name_t item, u8* dst);
 // Shells page: Shellsanity checks per month (0 = off), and checks of month (0-11) not sent yet
 int pc_ap_shells_per_month(void);
 int pc_ap_shells_left(int month);

@@ -18,21 +18,10 @@ int64_t pc_ap_shellsanity_location(int month, int k) {
 }
 
 int pc_ap_shellsanity_left(const pc_ap_shellsanity* s, int month) {
-  int64_t ids[AP_BEACH_PER_MONTH_MAX];
-  uint8_t checked[AP_BEACH_PER_MONTH_MAX];
-  int left = 0;
-
   if (s->per_month <= 0 || month < 0 || month >= PC_AP_MONTHS) {
     return 0;
   }
-  for (int k = 1; k <= s->per_month; k++) {
-    ids[k - 1] = pc_ap_shellsanity_location(month, k);
-  }
-  ap_locations_checked(ids, s->per_month, checked);
-  for (int i = 0; i < s->per_month; i++) {
-    left += !checked[i];
-  }
-  return left;
+  return ap_unchecked_count(pc_ap_shellsanity_location(month, 1), pc_ap_shellsanity_location(month, s->per_month));
 }
 
 mActor_name_t pc_ap_shellsanity_wash_up(const pc_ap_shellsanity* s, mActor_name_t shell, int month, int on_beach,
@@ -52,13 +41,7 @@ int64_t pc_ap_shellsanity_pickup(const pc_ap_shellsanity* s, mActor_name_t item)
   if (!pc_ap_shellsanity_is_item(item)) {
     return -1;
   }
-  for (int k = 1; k <= s->per_month; k++) {
-    int64_t id = pc_ap_shellsanity_location(month, k);
-    if (!ap_location_checked(id)) {
-      return id;
-    }
-  }
-  return -1;
+  return ap_first_unchecked(pc_ap_shellsanity_location(month, 1), pc_ap_shellsanity_location(month, s->per_month));
 }
 
 void pc_ap_shellsanity_name(mActor_name_t item, char* out, int len) {
