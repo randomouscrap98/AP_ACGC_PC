@@ -11,6 +11,7 @@
 #include "sys_matrix.h"
 #ifdef TARGET_PC
 #include "pc_bswap.h"
+#include "pc_settings.h"
 #endif
 
 static u32 Msg_table_rom_start = 0;
