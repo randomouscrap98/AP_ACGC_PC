@@ -21,8 +21,9 @@ enum {
 };
 
 #define PC_PLANTING_RANGE 2 // squares on each side of the player: a 5x5 area
-#define PC_PLANTING_FADE_FRAMES 6.0f // 100 ms fade in / out (60 fps frames)
-#define PC_PLANTING_ALPHA 77 // 30% of 255 when fully shown
+#define PC_PLANTING_FADE_FRAMES 12.0f // 200 ms fade in / out (60 fps frames)
+#define PC_PLANTING_ALPHA_DIES 140     // red X fully shown: 55% of 255
+#define PC_PLANTING_ALPHA_STUNTED 140  // yellow ! fully shown: 55%
 
 // Pure rule: the mark for an empty square of ground plant level `level` (mCoBG_Attribute2CheckPlant: -1 nothing
 // can be planted, 0 dies, 1-3 stays small, 4 grows), `odd` = ((ut_x ^ ut_z) & 1) (the neighbour rule's

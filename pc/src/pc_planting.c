@@ -11,6 +11,7 @@
 #include "m_field_make.h"
 #include "m_name_table.h"
 #include "m_player_lib.h"
+#include "m_rcp.h"
 #include "m_scene_table.h"
 #include "sys_matrix.h"
 
@@ -125,7 +126,7 @@ f32 pc_planting_fade(int ut_x, int ut_z, int shown, f32 dt) {
 // bg_item draw loop (bg_item_common_draw_loop_type1 + the fade): material, then the quad at each mark whose
 // fade isn't 0, in the mark's colour
 static void pc_planting_draw(GRAPH* graph, Gfx** gfx_pp, bg_item_draw_list_c* draw_list, bg_item_draw_pos_c* draw_pos,
-                             Gfx** display_list_table, u8 r, u8 g, u8 b) {
+                             Gfx** display_list_table, u8 r, u8 g, u8 b, u8 a) {
   f32 dt = (f32)gamePT->graph->dt_num_60fps_frames;
 
   gSPDisplayList((*gfx_pp)++, display_list_table[draw_list->gfx_idx]);
@@ -142,7 +143,7 @@ static void pc_planting_draw(GRAPH* graph, Gfx** gfx_pp, bg_item_draw_list_c* dr
       f32 alpha = pc_planting_fade(ut_x, ut_z, shown, dt);
 
       if (alpha > 0.0f && draw_pos->cull_flag == FALSE) {
-        gDPSetPrimColor((*gfx_pp)++, 0, 255, r, g, b, (u8)(alpha * PC_PLANTING_ALPHA));
+        gDPSetPrimColor((*gfx_pp)++, 0, 255, r, g, b, (u8)(alpha * a));
         Matrix_put(&draw_pos->mtxf);
         gSPMatrix((*gfx_pp)++, _Matrix_to_Mtx_new(graph), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList((*gfx_pp)++, display_list_table[draw_list->mat_idx + draw_pos->sub_idx]);
@@ -150,14 +151,18 @@ static void pc_planting_draw(GRAPH* graph, Gfx** gfx_pp, bg_item_draw_list_c* dr
     }
     draw_pos += draw_pos->next_add_cnt;
   }
+  // Back to bg_item's draw state (bg_item_common_draw's setup: modes, geometry with lighting, prim colour): the
+  // next items' materials rely on it (trees came out unlit and tinted)
+  gDPPipeSync((*gfx_pp)++);
+  *gfx_pp = texture_z_light_fog_prim_bb_pal_opa(*gfx_pp);
 }
 
 void pc_planting_draw_dies(GRAPH* graph, Gfx** gfx_pp, bg_item_draw_list_c* draw_list, bg_item_draw_pos_c* draw_pos,
                            Gfx** display_list_table) {
-  pc_planting_draw(graph, gfx_pp, draw_list, draw_pos, display_list_table, 255, 32, 32);
+  pc_planting_draw(graph, gfx_pp, draw_list, draw_pos, display_list_table, 255, 118, 118, PC_PLANTING_ALPHA_DIES);
 }
 
 void pc_planting_draw_stunted(GRAPH* graph, Gfx** gfx_pp, bg_item_draw_list_c* draw_list,
                               bg_item_draw_pos_c* draw_pos, Gfx** display_list_table) {
-  pc_planting_draw(graph, gfx_pp, draw_list, draw_pos, display_list_table, 255, 230, 0);
+  pc_planting_draw(graph, gfx_pp, draw_list, draw_pos, display_list_table, 185, 148, 50, PC_PLANTING_ALPHA_STUNTED);
 }
