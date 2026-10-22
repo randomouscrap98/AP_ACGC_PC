@@ -316,8 +316,9 @@ class Goal(OptionSet):
 
 class FurnitureSet(Choice):
     """
-    Furniture Set goal only: the furniture series (10 pieces each) to collect.
-    Wallpaper and flooring not included.
+    Furniture Set goal only: the set to collect. The furniture series have 10
+    pieces each (wallpaper and flooring not included); Instruments has 15
+    (guitars, pianos, strings, harp, lute, vibraphone and drums).
     """
     display_name = "Furniture Set"
     option_exotic = 0
@@ -331,6 +332,7 @@ class FurnitureSet(Choice):
     option_green = 8
     option_cabin = 9
     option_kiddie = 10
+    option_instruments = 11
     default = "random"
 
 
@@ -878,7 +880,8 @@ class CatalogPools(Range):
     """
     Catalog is split into pools, each one requiring a Progressive Catalog Pool
     unlock (none open at the start). Pools x Pool Size = total catalog checks,
-    at most 575 (furniture, clothes, carpets and wallpaper only)
+    at most 575 (furniture, clothes, carpets and wallpaper only; fewer with
+    the Furniture Set / Chess Set goals). Asking for more lowers the pool size.
     """
     display_name = "Catalog Pools"
     range_start = 1

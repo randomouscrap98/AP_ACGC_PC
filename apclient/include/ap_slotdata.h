@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 // slot_data format this client reads (apworld SLOT_DATA_VERSION). Bump rules: ignore/docs/reference.md "Versions"
-#define AP_SLOTDATA_VERSION 3
+#define AP_SLOTDATA_VERSION 4
 
 #define AP_LOAN_NUM     5 // starting, medium, basement, large, upper (upgrade order)
 #define AP_BELLCREDIT_NUM 3 // small, modest, large
@@ -21,7 +21,7 @@ extern "C" {
 #define AP_GOAL_FURNITURE_SET (1 << 4) // every furniture_set_items piece in the house
 #define AP_GOAL_CHESS_SET     (1 << 5) // a chess board's pieces in the house
 
-#define AP_FURNITURE_SET_MAX 10 // pieces in a Furniture Set (apworld FURNITURE_SETS)
+#define AP_FURNITURE_SET_MAX 15 // pieces in the largest Furniture Set (apworld FURNITURE_SETS: Instruments)
 
 // Museumsanity check modes (bits, per category). 0 = no checks for that category.
 #define AP_MUSEUM_FIND   (1 << 0) // bugs/fish: catching it (journal). Fossils: digging it up (pre-appraised)

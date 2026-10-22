@@ -35,7 +35,7 @@ GAME_NAME = "Animal Crossing"
 # slot_data format (the client's AP_SLOTDATA_VERSION). Bump on any change the client reads (new key, new ids,
 # removed/renamed key, changed meaning; new keys also get an upgrade step: slot_data_upgrades.json); not for
 # apworld-only changes. Rules: ignore/docs/reference.md "Versions"
-SLOT_DATA_VERSION = 3
+SLOT_DATA_VERSION = 4
 # Universal Tracker: slot_data keys named like an option but holding something else (villager indices, the pools,
 # a tool name), so they're not restored as options
 UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "starting_tool"}

@@ -1,8 +1,9 @@
 # Furniture Set and Chess Set goals: the pieces are AP items (mailed by the client), and nothing else hands out a
-# piece before its item arrives. They leave the Catalogsanity pool. Furniture Set: every piece of the chosen base
-# series (the HRA's 10-piece series, all orderable once in the catalog) somewhere in the house. Chess Set: a full
-# board's count of each piece (one item per kind; the rest are ordered from the catalog). Both need the basement
-# and an open shop (to order pieces again if one is lost).
+# piece before its item arrives. They leave the Catalogsanity pool. Furniture Set: every piece of the chosen set
+# somewhere in the house: one of the HRA's 10-piece base series, or Instruments (15, not an HRA series). Every piece
+# is in a shop list (A/B/C/Event/Lottery), so orderable once in the catalog. Chess Set: a full board's count of each
+# piece (one item per kind; the rest are ordered from the catalog). Both need the basement and an open shop (to
+# order pieces again if one is lost).
 # The pieces are the game's own items (game_items.py); the series come from mMkRm_ftr_info (m_mark_room_ovl.c).
 # Reads: nothing. catalogsanity.setup reads world.goal_pieces (run this setup first).
 from BaseClasses import ItemClassification
@@ -13,7 +14,7 @@ from .options import FurnitureSet
 
 FURNITURE_SET_GOAL, CHESS_SET_GOAL = "Furniture Set", "Chess Set"
 
-# Option value order (FurnitureSet), 10 pieces each
+# Option value order (FurnitureSet). The base series have 10 pieces each
 FURNITURE_SETS = {
     "Exotic": ["exotic wardrobe", "exotic bureau", "exotic bench", "exotic chair", "exotic chest", "exotic lamp",
                "exotic screen", "exotic table", "exotic bed", "exotic end table"],
@@ -37,6 +38,10 @@ FURNITURE_SETS = {
               "cabin bookcase", "cabin low table", "cabin chair", "cabin table"],
     "Kiddie": ["kiddie dresser", "kiddie bureau", "kiddie wardrobe", "kiddie clock", "kiddie bed", "kiddie table",
                "kiddie couch", "kiddie stereo", "kiddie chair", "kiddie bookcase"],
+    # Not an HRA series. No Jingle piano: Christmas list only, not orderable.
+    "Instruments": ["folk guitar", "country guitar", "rock guitar", "ivory piano", "ebony piano", "violin",
+                    "bass (instrument)", "cello", "harp", "biwa lute", "vibraphone", "taiko drum", "conga drum",
+                    "timpano drum", "djimbe drum"],
 }
 # WARN: the client mirrors this (pc_ap_furniture.c)! Pieces needed for a board, per kind
 CHESS_PIECES = {

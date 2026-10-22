@@ -62,8 +62,9 @@ Choose one or more (all chosen goals are required):
   items only exist with this goal).
 - **Froggy Chair:** get the froggy chair into your catalog, any way you can.
 - **Catalog:** get a percentage of the Catalogsanity items into your catalog.
-- **Furniture Set:** every piece of one furniture series (Classic, Cabin, Kiddie, ... 10 pieces; random by
-  default) placed somewhere in your house. Each piece is an item, mailed to you; nothing else gives one before
+- **Furniture Set:** every piece of one furniture series (Classic, Cabin, Kiddie, ... 10 pieces) or the
+  Instruments set (15: guitars, pianos, strings, harp, lute, vibraphone, drums; random by default) placed somewhere
+  in your house. Each piece is an item, mailed to you; nothing else gives one before
   that. Needs the basement.
 - **Chess Set:** a full chess board somewhere in your house: 8 pawns, 2 rooks, 2 knights, 2 bishops, a queen and a
   king per colour. One item per piece kind; order the rest from the catalog. Needs the basement.

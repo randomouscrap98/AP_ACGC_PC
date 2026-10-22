@@ -4,6 +4,7 @@
 # The eligible items are generated (catalog_data.py).
 # WARN: the client mirrors the ids and the item count (pc_ap_catalogsanity.h, AP_CATALOG_MAX)!
 # Reads: world.goal_pieces (furniture_sets.setup): the set goals' pieces are never pooled.
+import logging
 import math
 import re
 from random import Random
@@ -71,10 +72,13 @@ def setup(world) -> None:
         # The set goals' pieces aren't pooled
         excluded = furniture_sets.catalog_excluded(world)
         most = sum(len(ids) for ids in eligible(excluded).values())
+        # More than fit (e.g. a set goal took more items out): smaller pools, same pool count, so a yaml that
+        # fit once still generates
         if pools * size > most:
-            raise world.option_error(f"Catalog Pools x Catalog Pool Size is {pools * size}, at most "
-                                     f"{most} with these goals (with {pools} pools: size at most "
-                                     f"{most // pools}).")
+            logging.warning(f"[Animal Crossing - '{world.player_name}'] Catalog Pools x Catalog Pool Size is "
+                            f"{pools * size}, at most {most} with these goals: pool size {size} lowered to "
+                            f"{most // pools}.")
+            size = most // pools
         world.catalog_pools = make_pools(world.random, pools, size, excluded)
     if world.ut is not None and "catalog_pools" in world.ut:
         world.catalog_pools = world.ut["catalog_pools"]
