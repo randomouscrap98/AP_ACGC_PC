@@ -310,31 +310,49 @@ static int pc_parse_rain_intensity(const char* text) {
 }
 
 // Every data path (ROM, saves, settings, ap_config.ini, cacert.pem) is relative, so run
-// from the exe's folder no matter where the game was launched from
+// from the data folder: --data-dir DIR if given (the Flatpak), else the exe's folder,
+// no matter where the game was launched from
+static int pc_chdir(const char* dir) {
+#ifdef _WIN32
+    // Wide version so folders with non-ASCII names work
+    wchar_t wdir[MAX_PATH];
+    return MultiByteToWideChar(CP_UTF8, 0, dir, -1, wdir, MAX_PATH) != 0 && SetCurrentDirectoryW(wdir);
+#else
+    return chdir(dir) == 0;
+#endif
+}
+
 static void pc_chdir_to_exe(void) {
     char* base = SDL_GetBasePath(); // UTF-8, ends with a separator
     if (base == NULL) {
         fprintf(stderr, "Can't find the exe folder: %s\n", SDL_GetError());
         return;
     }
-#ifdef _WIN32
-    // Wide version so folders with non-ASCII names work
-    wchar_t wbase[MAX_PATH];
-    if (MultiByteToWideChar(CP_UTF8, 0, base, -1, wbase, MAX_PATH) == 0 || !SetCurrentDirectoryW(wbase)) {
+    if (!pc_chdir(base)) {
         fprintf(stderr, "Can't change to the exe folder: %s\n", base);
     }
-#else
-    if (chdir(base) != 0) {
-        fprintf(stderr, "Can't change to the exe folder: %s\n", base);
-    }
-#endif
     SDL_free(base);
+}
+
+// Before the other options, so everything after runs in the data folder
+static void pc_chdir_to_data(int argc, char* argv[]) {
+    for (int i = 1; i + 1 < argc; i++) {
+        if (strcmp(argv[i], "--data-dir") == 0) {
+            if (!pc_chdir(argv[i + 1])) {
+                // No fallback: saves would silently land somewhere else
+                fprintf(stderr, "Can't change to the data folder: %s\n", argv[i + 1]);
+                exit(1);
+            }
+            return;
+        }
+    }
+    pc_chdir_to_exe();
 }
 
 int main(int argc, char* argv[]) {
     int crash_test = 0;
     pc_crash_init();
-    pc_chdir_to_exe();
+    pc_chdir_to_data(argc, argv);
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             printf("Usage: AnimalCrossing [options]\n");
@@ -352,6 +370,7 @@ int main(int argc, char* argv[]) {
             printf("  --debug             Debug probes: actors that jump far in one frame (actor_probe.txt),\n");
             printf("                      butterflies stuck in place (butterfly_probe.txt); the log goes to\n");
             printf("                      debug_log.txt (unless --verbose); \"DEBUG\" next to the version\n");
+            printf("  --data-dir DIR      Keep saves, settings and the ROM in DIR instead of the game folder\n");
             printf("  --help, -h          Show this help message\n");
             return 0;
         } else if (strcmp(argv[i], "--framelimit") == 0) {
@@ -402,6 +421,8 @@ int main(int argc, char* argv[]) {
                 if (y >= 2000) g_pc_date_year = y;
             }
             i++;
+        } else if (strcmp(argv[i], "--data-dir") == 0 && i + 1 < argc) {
+            i++; // handled by pc_chdir_to_data
         } else if (strcmp(argv[i], "--crash-test") == 0) {
             crash_test = 1;
         } else if (strcmp(argv[i], "--debug") == 0) {
