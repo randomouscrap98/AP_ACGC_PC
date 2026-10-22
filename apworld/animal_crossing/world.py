@@ -50,6 +50,10 @@ def in_order(first: tuple) -> tuple:
     return first + tuple(f for f in FEATURES if f not in first)
 
 
+# Step orders below are legacy: how the single-file world.py called the features before the split, kept so the same
+# seed + yaml still generates the same game. Only three are real constraints: museumsanity before the availability
+# features and furniture_sets before catalogsanity (setup), treesanity before fruit_filler (classify).
+
 # The order of random rolls, and every feature after the ones it reads (museumsanity before the availability
 # features: museum_modes; furniture_sets before catalogsanity: goal_pieces). The rest keeps the order random choices
 # were made in before the per-feature split, so seeds didn't change with it.
