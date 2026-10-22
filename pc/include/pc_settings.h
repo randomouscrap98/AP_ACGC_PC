@@ -16,7 +16,7 @@ typedef struct {
     int texture_filtering; /* 0=force nearest-neighbor, 1=use the game's texture filtering */
     int preload_textures; /* 0=off (load on demand), 1=on (load all at startup), 2=on + cache file */
     int disable_resetti;  /* 0=normal (Resetti appears on reset), 1=disable reset penalty */
-    int disable_shop_visitor_req; /* 0=normal (Nookington's needs a foreign-town shopper), 1=skip requirement */
+    int disable_shop_visitor_req; /* 0=normal (Nookington's needs a foreign-town shopper), 1=skip requirement (default) */
     int borderless_acres; /* 0=original acre transitions (faster, draws less), 1=continuous camera/movement */
     int nes_aspect;       /* NES emulator aspect: 0=fullscreen stretch, 1=4:3 pillarbox (default) */
     int planting_marks;   // Planting ground marks around the player (pc_planting.h): 0 = off (default), 1 = shown

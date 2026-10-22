@@ -16,7 +16,7 @@ PCSettings g_pc_settings = {
     .texture_filtering = 1,
     .preload_textures = 0,
     .disable_resetti = 1,
-    .disable_shop_visitor_req = 0,
+    .disable_shop_visitor_req = 1,
     .borderless_acres = 0,
     .nes_aspect = 1,
     .instant_text = 0,
@@ -74,7 +74,7 @@ static const char* DEFAULT_SETTINGS =
     "disable_resetti = 1\n"
     "\n"
     "# Shop upgrade visitor requirement (Nookington's needs a shopper from another town): 0 = required, 1 = not required\n"
-    "disable_shop_visitor_req = 0\n"
+    "disable_shop_visitor_req = 1\n"
     "\n"
     "# Borderless acres: 0 = original acre transitions (faster, draws less), 1 = continuous movement/camera\n"
     "borderless_acres = 0\n"

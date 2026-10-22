@@ -551,7 +551,7 @@ static void item_format(int id, char* buf, size_t n) {
             snprintf(buf, n, "%s", s_pending.instant_text ? "< On >" : "< Off >");
             break;
         case ITEM_PLANTING_MARKS:
-            snprintf(buf, n, "%s", s_pending.planting_marks ? "< Show >" : "< Off >");
+            snprintf(buf, n, "%s", s_pending.planting_marks ? "< On >" : "< Off >");
             break;
         case ITEM_BITE_SOUND:
             snprintf(buf, n, "%s", s_pending.bite_sound ? "< On >" : "< Off >");
