@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.haloopdy.AnimalCrossingAP</id>
+  <name>Animal Crossing AP</name>
+  <summary>Animal Crossing PC port with Archipelago</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT AND CC0-1.0</project_license>
+  <description>
+    <p>PC port of the Animal Crossing (GameCube) decompilation with an Archipelago multiworld client.
+    Needs your own disc image: put it in ~/.var/app/io.github.haloopdy.AnimalCrossingAP/data/rom.
+    Saves, settings and ap_config.ini are in that data folder too.</p>
+  </description>
+  <launchable type="desktop-id">io.github.haloopdy.AnimalCrossingAP.desktop</launchable>
+  <content_rating type="oars-1.1"/>
+</component>

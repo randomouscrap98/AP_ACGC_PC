@@ -1,0 +1,67 @@
+# Flatpak of the native Linux (i686) build. Packages the prebuilt release/linux32/bin (clean build
+# from ignore/generate_release.sh: no saves, ROM or config), it doesn't build from source.
+# 32-bit glibc/libs and GL drivers come from the Compat.i386 / GL32 extensions, set up like the
+# Steam Flatpak (flathub/com.valvesoftware.Steam). Notes: ignore/docs/research/flatpak.md.
+#   flatpak-builder --user --install --force-clean build/flatpak flatpak/io.github.haloopdy.AnimalCrossingAP.yml
+id: io.github.haloopdy.AnimalCrossingAP
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
+command: animalcrossing-ap
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --share=network # Archipelago server
+  - --device=dri
+  - --device=all # gamepads; --device=input needs flatpak 1.15.6+
+  - --allow=multiarch # 32-bit binary (seccomp)
+  - --env=XDG_CONFIG_DIRS=/etc/xdg:/usr/lib/x86_64-linux-gnu/GL:/usr/lib/i386-linux-gnu/GL
+
+add-extensions:
+  org.freedesktop.Platform.Compat.i386:
+    directory: lib/i386-linux-gnu
+    version: '26.08'
+  org.freedesktop.Platform.GL32:
+    directory: lib/i386-linux-gnu/GL
+    version: '1.4'
+    versions: 26.08;26.08-extra;1.4
+    subdirectories: true
+    no-autodownload: true
+    autodelete: false
+    add-ld-path: lib
+    merge-dirs: vulkan/icd.d;glvnd/egl_vendor.d;egl/egl_external_platform.d;OpenCL/vendors;lib/dri;lib/d3d;lib/gbm;vulkan/explicit_layer.d;vulkan/implicit_layer.d;vdpau
+    download-if: active-gl-driver
+    enable-if: active-gl-driver
+    autoprune-unless: active-gl-driver
+
+modules:
+  - name: animalcrossing-ap
+    buildsystem: simple
+    build-options:
+      no-debuginfo: true # prebuilt i686 binary, leave it alone
+    build-commands:
+      # Extension mount points
+      - mkdir -p /app/lib/i386-linux-gnu/GL
+      - install -Dm644 ld.so.conf /app/etc/ld.so.conf
+      # The game folder, read-only; the launcher runs it with --data-dir
+      - install -Dm755 -t /app/lib/AnimalCrossingAP bin/AnimalCrossing bin/libap_client.so
+      - install -Dm644 -t /app/lib/AnimalCrossingAP bin/cacert.pem bin/icon.png bin/offline_example.json
+      - cp -r bin/shaders bin/licenses /app/lib/AnimalCrossingAP/
+      - install -Dm755 animalcrossing-ap.sh /app/bin/animalcrossing-ap
+      - install -Dm644 -t /app/share/applications ${FLATPAK_ID}.desktop
+      - install -Dm644 -t /app/share/metainfo ${FLATPAK_ID}.metainfo.xml
+      - install -Dm644 bin/icon.png /app/share/icons/hicolor/128x128/apps/${FLATPAK_ID}.png
+    sources:
+      - type: dir
+        path: ../release/linux32/bin
+        dest: bin
+      - type: file
+        path: animalcrossing-ap.sh
+      - type: file
+        path: ld.so.conf
+      - type: file
+        path: io.github.haloopdy.AnimalCrossingAP.desktop
+      - type: file
+        path: io.github.haloopdy.AnimalCrossingAP.metainfo.xml

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Animal Crossing AP
+Comment=Animal Crossing PC port with Archipelago
+Exec=animalcrossing-ap
+Icon=io.github.haloopdy.AnimalCrossingAP
+Terminal=false
+Categories=Game;
+StartupWMClass=io.github.haloopdy.AnimalCrossingAP
