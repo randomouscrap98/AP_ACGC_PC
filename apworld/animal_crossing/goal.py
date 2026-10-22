@@ -40,3 +40,24 @@ def rules(world) -> None:
 
 def slot_data(world) -> dict:
     return {"goal": sorted(world.options.goal.value)}
+
+
+# Unused hooks (world.py calls every hook of every feature)
+ITEMS: dict[str, int] = {}
+LOCATIONS: dict[str, int] = {}
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def items(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []
+
+
+def classify(world, name: str):
+    return None

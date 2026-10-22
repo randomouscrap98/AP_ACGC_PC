@@ -7,7 +7,7 @@ from BaseClasses import ItemClassification
 FRUITS = ("apple", "cherry", "pear", "peach", "orange")  # Town Fruit option values, in order
 
 
-def items(world, free: int) -> list[str]:
+def filler_items(world, free: int) -> list[str]:
     if not world.options.fruit_filler or world.options.treesanity:  # Treesanity puts them in the pool itself
         return []
     names = [name for value, name in enumerate(FRUITS) if value != world.options.town_fruit.value]
@@ -22,3 +22,28 @@ def classify(world, name: str):
 def slot_data(world) -> dict:
     # Universal Tracker only (the client mails whatever fruit it gets)
     return {"fruit_filler": world.options.fruit_filler.value}
+
+
+# Unused hooks (world.py calls every hook of every feature)
+ITEMS: dict[str, int] = {}
+LOCATIONS: dict[str, int] = {}
+
+
+def setup(world) -> None:
+    pass
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def items(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []
+
+
+def rules(world) -> None:
+    pass

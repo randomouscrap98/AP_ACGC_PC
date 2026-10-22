@@ -150,3 +150,8 @@ def slot_data(world) -> dict:
         # Museum donation items that are progression (Museum goal); for Universal Tracker
         "museum_progression": sorted(ITEMS[name] for name in world.museum_progression),
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+def precollected(world) -> list[str]:
+    return []

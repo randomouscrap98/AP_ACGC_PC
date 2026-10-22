@@ -4,7 +4,7 @@ TEN_K, THIRTY_K = "10,000 Bells", "30,000 Bells"
 THIRTY_K_CHANCE = 0.25  # 10,000 three times as likely
 
 
-def items(world, free: int) -> list[str]:
+def filler_items(world, free: int) -> list[str]:
     # Random 10k/30k bags adding up to exactly the option; 10k only once less than 30k is left
     units = world.options.extra_bells.value
     names = []
@@ -26,3 +26,32 @@ def items(world, free: int) -> list[str]:
 def slot_data(world) -> dict:
     # Universal Tracker only (the client mails whatever bags it gets): Fruit Filler takes the slots left after these
     return {"extra_bells": world.options.extra_bells.value}
+
+
+# Unused hooks (world.py calls every hook of every feature)
+ITEMS: dict[str, int] = {}
+LOCATIONS: dict[str, int] = {}
+
+
+def setup(world) -> None:
+    pass
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def items(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []
+
+
+def classify(world, name: str):
+    return None
+
+
+def rules(world) -> None:
+    pass

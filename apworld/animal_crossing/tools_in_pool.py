@@ -65,3 +65,12 @@ def slot_data(world) -> dict:
         # Resolved starting tool (item name, None for none); for Universal Tracker
         "starting_tool": world.starting_tool,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+ITEMS: dict[str, int] = {}
+LOCATIONS: dict[str, int] = {}
+
+
+def locations(world) -> list[str]:
+    return []

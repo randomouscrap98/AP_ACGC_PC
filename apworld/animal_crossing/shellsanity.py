@@ -41,3 +41,23 @@ def slot_data(world) -> dict:
         "beach_checks_per_month": world.options.beach_checks_per_month.value,
         "shellsanity_item_chance": world.options.shellsanity_item_chance.value,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+ITEMS: dict[str, int] = {}
+
+
+def setup(world) -> None:
+    pass
+
+
+def items(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []
+
+
+def classify(world, name: str):
+    return None

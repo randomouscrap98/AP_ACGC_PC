@@ -61,3 +61,15 @@ def slot_data(world) -> dict:
         "treesanity": world.options.treesanity.value,
         "tree_checks_per_fruit": world.options.tree_checks_per_fruit.value,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+ITEMS: dict[str, int] = {}
+
+
+def setup(world) -> None:
+    pass
+
+
+def precollected(world) -> list[str]:
+    return []

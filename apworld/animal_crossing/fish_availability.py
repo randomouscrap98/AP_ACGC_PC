@@ -50,3 +50,15 @@ def slot_data(world) -> dict:
         "fish_availability": world.options.fish_availability.value,
         "fish_passes": world.fish_pass_table,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+LOCATIONS: dict[str, int] = {}
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []

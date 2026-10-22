@@ -87,3 +87,15 @@ def slot_data(world) -> dict:
         "fossil_seasons": world.fossil_seasons,
         "fossil_series": world.fossil_series,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+LOCATIONS: dict[str, int] = {}
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []

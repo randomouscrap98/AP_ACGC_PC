@@ -1,12 +1,9 @@
-# The Archipelago world: calls each feature at each generation step, in a fixed order. Everything about a feature
-# (its items, locations, rules, slot_data, ids) is in its own file, named after its option:
-#   goal, intro, town_generation, loansanity, bell_credits, extra_bells, fruit_filler, timesanity, favor_pools,
-#   shellsanity, treesanity, museumsanity, fossil_availability, fish_availability, bug_availability, tools_in_pool, catalogsanity,
-#   nook_store_upgrades, furniture_sets, quality_of_life
+# The Archipelago world: calls each feature at each generation step. Everything about a feature (its items,
+# locations, rules, slot_data, ids) is in its own file, named after its option; FEATURES below lists them.
 # Generated data: game_items, museum_data, catalog_data, villager_data. Options: options.py.
 # Old seeds' slot_data: slot_data_upgrade (steps in slot_data_upgrades.json).
 #
-# A feature file has whichever of these it needs (plain functions taking the world):
+# Every feature file has all of these (plain functions taking the world; unused ones are stubs at the file's end):
 #   setup(world)           generate_early: check options, roll random choices, store decisions on the world
 #   locations(world)       its location names this seed
 #   items(world)           its non-filler pool item names this seed
@@ -15,8 +12,9 @@
 #   rules(world)           access rules (add_rule only, so the order of features doesn't matter)
 #   slot_data(world)       its slot_data keys
 #   ITEMS / LOCATIONS      name -> id, every possible one (static)
+# Filler is separate (create_items): fruit_filler / extra_bells filler_items, then bell_credits.
 # Features read each other's decisions from the world (e.g. world.museum_modes, set by museumsanity.setup): a file
-# says so at the top, and the setup order below runs the source first. timesanity.py holds the rule helpers for
+# says so at the top, and SETUP_ORDER runs the source first. timesanity.py holds the rule helpers for
 # "when can this be done" (shop hours, months, spawn times).
 import dataclasses
 from collections.abc import Mapping
@@ -42,23 +40,39 @@ SLOT_DATA_VERSION = 3
 # a tool name), so they're not restored as options
 UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "starting_tool"}
 
+FEATURES = (goal, intro, town_generation, loansanity, bell_credits, extra_bells, fruit_filler, timesanity,
+            favor_pools, shellsanity, treesanity, museumsanity, fossil_availability, fish_availability,
+            bug_availability, tools_in_pool, catalogsanity, nook_store_upgrades, furniture_sets, quality_of_life)
+
+
+def in_order(first: tuple) -> tuple:
+    # `first` in its order, then every other feature (for steps where the order matters)
+    return first + tuple(f for f in FEATURES if f not in first)
+
+
+# The order of random rolls, and every feature after the ones it reads (museumsanity before the availability
+# features: museum_modes; furniture_sets before catalogsanity: goal_pieces). The rest keeps the order random choices
+# were made in before the per-feature split, so seeds didn't change with it.
+SETUP_ORDER = in_order((goal, tools_in_pool, museumsanity, fossil_availability, fish_availability, bug_availability,
+                        intro, town_generation, loansanity, nook_store_upgrades, furniture_sets, catalogsanity,
+                        favor_pools))
+# Pool and location order feed the fill: changing them changes what a seed generates
+POOL_ORDER = in_order((loansanity, timesanity, museumsanity, tools_in_pool, fossil_availability, fish_availability,
+                       bug_availability, nook_store_upgrades, catalogsanity, favor_pools, furniture_sets, treesanity))
+LOCATION_ORDER = in_order((loansanity, favor_pools, museumsanity, catalogsanity, shellsanity, treesanity))
+PRECOLLECTED_ORDER = in_order((timesanity, tools_in_pool))
+# create_item's classification: first answer wins (treesanity before fruit_filler)
+CLASSIFY_ORDER = in_order((loansanity, timesanity, favor_pools, catalogsanity, fossil_availability,
+                           fish_availability, bug_availability, museumsanity, tools_in_pool, nook_store_upgrades,
+                           furniture_sets, treesanity, fruit_filler))
+
 # Every game item is an AP item name (AP item id == the game's item number); the AP-only items are 0x10000+, above
 # every game item number.
-ITEM_NAME_TO_ID = {**GAME_ITEMS, **loansanity.ITEMS, **bell_credits.ITEMS, **nook_store_upgrades.ITEMS,
-                   **catalogsanity.ITEMS, **favor_pools.ITEMS, **timesanity.ITEMS, **museumsanity.ITEMS,
-                   **fossil_availability.ITEMS, **fish_availability.ITEMS, **bug_availability.ITEMS}
-LOCATION_NAME_TO_ID = {**loansanity.LOCATIONS, **favor_pools.LOCATIONS, **shellsanity.LOCATIONS,
-                       **museumsanity.LOCATIONS, **catalogsanity.LOCATIONS, **treesanity.LOCATIONS}
+ITEM_NAME_TO_ID = {**GAME_ITEMS, **{name: item_id for f in FEATURES for name, item_id in f.ITEMS.items()}}
+LOCATION_NAME_TO_ID = {name: location_id for f in FEATURES for name, location_id in f.LOCATIONS.items()}
 # A name in two features would silently keep only one id
-assert len(ITEM_NAME_TO_ID) == len(GAME_ITEMS) + sum(len(f.ITEMS) for f in (
-    loansanity, bell_credits, nook_store_upgrades, catalogsanity, favor_pools, timesanity, museumsanity,
-    fossil_availability, fish_availability, bug_availability)), "item name in two features"
-assert len(LOCATION_NAME_TO_ID) == sum(len(f.LOCATIONS) for f in (
-    loansanity, favor_pools, shellsanity, museumsanity, catalogsanity, treesanity)), "location name in two features"
-# Features with items, for create_item's classification (first answer wins: treesanity before fruit_filler)
-ITEM_FEATURES = (loansanity, timesanity, favor_pools, catalogsanity, fossil_availability, fish_availability,
-                 bug_availability, museumsanity, tools_in_pool, nook_store_upgrades, furniture_sets, treesanity,
-                 fruit_filler)
+assert len(ITEM_NAME_TO_ID) == len(GAME_ITEMS) + sum(len(f.ITEMS) for f in FEATURES), "item name in two features"
+assert len(LOCATION_NAME_TO_ID) == sum(len(f.LOCATIONS) for f in FEATURES), "location name in two features"
 
 
 class AnimalCrossingItem(Item):
@@ -277,21 +291,8 @@ class AnimalCrossingWorld(World):
         self.ut = self.ut_slot_data()
         if self.ut is not None:
             self.ut_restore_options(self.ut)
-        # Order: museumsanity before the availability features (they read museum_modes). The rest keeps the order
-        # random choices were made in before the per-feature split, so seeds didn't change with it.
-        goal.setup(self)
-        tools_in_pool.setup(self)
-        museumsanity.setup(self)
-        fossil_availability.setup(self)
-        fish_availability.setup(self)
-        bug_availability.setup(self)
-        intro.setup(self)
-        town_generation.setup(self)
-        loansanity.setup(self)
-        nook_store_upgrades.setup(self)
-        furniture_sets.setup(self)  # before catalogsanity: it reads goal_pieces
-        catalogsanity.setup(self)
-        favor_pools.setup(self)
+        for feature in SETUP_ORDER:
+            feature.setup(self)
 
         locations, items = len(self.seed_locations()), len(self.seed_pool_items())
         if not locations:
@@ -302,15 +303,11 @@ class AnimalCrossingWorld(World):
                                     f"Raise optional checks such as Favor Pools.")
 
     def seed_locations(self) -> list[str]:
-        return (loansanity.locations(self) + favor_pools.locations(self) + museumsanity.locations(self)
-                + catalogsanity.locations(self) + shellsanity.locations(self) + treesanity.locations(self))
+        return [name for feature in LOCATION_ORDER for name in feature.locations(self)]
 
     def seed_pool_items(self) -> list[str]:
         # Non-filler items, in pool order
-        return (loansanity.items(self) + timesanity.items(self) + museumsanity.items(self) + tools_in_pool.items(self)
-                + fossil_availability.items(self) + fish_availability.items(self) + bug_availability.items(self)
-                + nook_store_upgrades.items(self) + catalogsanity.items(self) + favor_pools.items(self)
-                + furniture_sets.items(self) + treesanity.items(self))
+        return [name for feature in POOL_ORDER for name in feature.items(self)]
 
     def create_regions(self) -> None:
         menu = Region("Menu", self.player, self.multiworld)
@@ -319,16 +316,16 @@ class AnimalCrossingWorld(World):
         self.multiworld.regions.append(menu)
 
     def create_items(self) -> None:
-        for name in timesanity.precollected(self) + tools_in_pool.precollected(self):
+        for name in [name for feature in PRECOLLECTED_ORDER for name in feature.precollected(self)]:
             self.multiworld.push_precollected(self.create_item(name))
         pool = [self.create_item(name) for name in self.seed_pool_items()]
         # Everything else is filler. Bell credit amounts are set in fill_slot_data from what was actually placed,
         # so adding other items to the pool later doesn't break the total.
         free = len(self.multiworld.get_unfilled_locations(self.player)) - len(pool)
-        fruit = [self.create_item(name) for name in fruit_filler.items(self, free)]
+        fruit = [self.create_item(name) for name in fruit_filler.filler_items(self, free)]
         pool += fruit
         free -= len(fruit)
-        money = [self.create_item(name) for name in extra_bells.items(self, free)]
+        money = [self.create_item(name) for name in extra_bells.filler_items(self, free)]
         pool += money
         free -= len(money)
         self.filler_tiers = tuple(bell_credits.tiers(self, free))
@@ -337,7 +334,7 @@ class AnimalCrossingWorld(World):
 
     def create_item(self, name: str) -> AnimalCrossingItem:
         classification = ItemClassification.filler
-        for feature in ITEM_FEATURES:
+        for feature in CLASSIFY_ORDER:
             found = feature.classify(self, name)
             if found is not None:
                 classification = found
@@ -348,17 +345,8 @@ class AnimalCrossingWorld(World):
         return bell_credits.filler_name(self)
 
     def set_rules(self) -> None:
-        loansanity.rules(self)
-        favor_pools.rules(self)
-        catalogsanity.rules(self)
-        shellsanity.rules(self)
-        treesanity.rules(self)
-        museumsanity.rules(self)
-        fossil_availability.rules(self)
-        fish_availability.rules(self)
-        bug_availability.rules(self)
-        tools_in_pool.rules(self)
-        goal.rules(self)
+        for feature in FEATURES:
+            feature.rules(self)
 
         # Something must be reachable with only the start inventory, else the fill fails with a FillError
         # (e.g. only catalog checks, only museum checks behind a Progressive availability or a tool not given, only
@@ -373,27 +361,11 @@ class AnimalCrossingWorld(World):
 
     def fill_slot_data(self) -> Mapping[str, Any]:
         # Random choices are already resolved here, so the client gets plain numbers.
+        slot_data = {}
+        for feature in FEATURES:
+            slot_data.update(feature.slot_data(self))
         return {
-            **intro.slot_data(self),
-            **town_generation.slot_data(self),
-            **quality_of_life.slot_data(self),
-            **shellsanity.slot_data(self),
-            **treesanity.slot_data(self),
-            **goal.slot_data(self),
-            **loansanity.slot_data(self),
-            **favor_pools.slot_data(self),
-            **tools_in_pool.slot_data(self),
-            **nook_store_upgrades.slot_data(self),
-            **timesanity.slot_data(self),
-            **catalogsanity.slot_data(self),
-            **museumsanity.slot_data(self),
-            **bug_availability.slot_data(self),
-            **fish_availability.slot_data(self),
-            **fossil_availability.slot_data(self),
-            **bell_credits.slot_data(self),
-            **extra_bells.slot_data(self),
-            **fruit_filler.slot_data(self),
-            **furniture_sets.slot_data(self),
+            **slot_data,
             # From archipelago.json; the client compares it with its own build
             "world_version": ".".join(str(n) for n in self.world_version),
             "slot_data_version": SLOT_DATA_VERSION,

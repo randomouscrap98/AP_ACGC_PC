@@ -126,3 +126,8 @@ def slot_data(world) -> dict:
         "fossil_loans": world.options.fossil_loans.value,
         "loan_checks": world.loan_checks,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+def precollected(world) -> list[str]:
+    return []

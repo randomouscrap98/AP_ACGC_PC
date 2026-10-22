@@ -82,3 +82,19 @@ def spawn_rule(world, when: dict[int, tuple[int, ...]]):
     pairs = [(MONTHS[m], [TIME_SLOTS[s] for s in slots]) for m, slots in when.items()]
     return lambda state: any(state.has(month, world.player) and state.has_any(slots, world.player)
                              for month, slots in pairs)
+
+
+# Unused hooks (world.py calls every hook of every feature)
+LOCATIONS: dict[str, int] = {}
+
+
+def setup(world) -> None:
+    pass
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def rules(world) -> None:
+    pass

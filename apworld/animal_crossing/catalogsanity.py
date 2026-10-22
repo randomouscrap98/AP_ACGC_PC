@@ -133,3 +133,8 @@ def slot_data(world) -> dict:
         "catalog_sources": sorted(world.options.catalog_sources.value),
         "catalog_goal_count": world.catalog_goal_count,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+def precollected(world) -> list[str]:
+    return []

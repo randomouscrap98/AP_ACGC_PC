@@ -39,3 +39,19 @@ def slot_data(world) -> dict:
         # Bells (sales) or catalog entries (catalog) per upgrade; empty with progressive
         "nook_store_thresholds": world.store_thresholds,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+LOCATIONS: dict[str, int] = {}
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []
+
+
+def rules(world) -> None:
+    pass

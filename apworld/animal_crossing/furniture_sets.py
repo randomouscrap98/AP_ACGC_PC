@@ -98,3 +98,20 @@ def slot_data(world) -> dict:
         "furniture_set_items": [GAME_ITEMS[name] for name in FURNITURE_SETS[world.furniture_set]]
         if world.furniture_set else [],
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+ITEMS: dict[str, int] = {}
+LOCATIONS: dict[str, int] = {}
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []
+
+
+def rules(world) -> None:
+    pass

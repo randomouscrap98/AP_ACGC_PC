@@ -24,3 +24,32 @@ def slot_data(world) -> dict:
         "critter_odds": o.critter_odds.value,
         "fossil_odds": o.fossil_odds.value,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+ITEMS: dict[str, int] = {}
+LOCATIONS: dict[str, int] = {}
+
+
+def setup(world) -> None:
+    pass
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def items(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []
+
+
+def classify(world, name: str):
+    return None
+
+
+def rules(world) -> None:
+    pass

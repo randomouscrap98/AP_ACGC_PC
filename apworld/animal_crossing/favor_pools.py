@@ -52,3 +52,8 @@ def slot_data(world) -> dict:
         "favor_pools": world.options.favor_pools.value,
         "favors_per_pool": world.options.favors_per_pool.value,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+def precollected(world) -> list[str]:
+    return []

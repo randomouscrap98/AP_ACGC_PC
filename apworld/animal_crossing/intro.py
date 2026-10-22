@@ -28,3 +28,28 @@ def slot_data(world) -> dict:
         "starting_shirt": o.starting_shirt.value,
         "house": o.house.value,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+ITEMS: dict[str, int] = {}
+LOCATIONS: dict[str, int] = {}
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def items(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []
+
+
+def classify(world, name: str):
+    return None
+
+
+def rules(world) -> None:
+    pass

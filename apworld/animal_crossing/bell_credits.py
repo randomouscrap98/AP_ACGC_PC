@@ -65,3 +65,31 @@ def amounts(world) -> dict[str, int]:
 
 def slot_data(world) -> dict:
     return {"bell_credits": amounts(world)}
+
+
+# Unused hooks (world.py calls every hook of every feature)
+LOCATIONS: dict[str, int] = {}
+
+
+def setup(world) -> None:
+    pass
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def items(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []
+
+
+def classify(world, name: str):
+    return None
+
+
+def rules(world) -> None:
+    pass

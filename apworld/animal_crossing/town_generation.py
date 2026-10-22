@@ -54,3 +54,28 @@ def slot_data(world) -> dict:
         "letter_sender": world.ac_letter_sender,
         "loan_letter_text": world.ac_loan_letter_text,
     }
+
+
+# Unused hooks (world.py calls every hook of every feature)
+ITEMS: dict[str, int] = {}
+LOCATIONS: dict[str, int] = {}
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def items(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []
+
+
+def classify(world, name: str):
+    return None
+
+
+def rules(world) -> None:
+    pass

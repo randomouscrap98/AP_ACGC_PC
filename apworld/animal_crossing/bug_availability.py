@@ -43,3 +43,15 @@ def rules(world) -> None:
 
 def slot_data(world) -> dict:
     return {"bug_availability": world.options.bug_availability.value, "bug_passes": world.bug_passes}
+
+
+# Unused hooks (world.py calls every hook of every feature)
+LOCATIONS: dict[str, int] = {}
+
+
+def locations(world) -> list[str]:
+    return []
+
+
+def precollected(world) -> list[str]:
+    return []
