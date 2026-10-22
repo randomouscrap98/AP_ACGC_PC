@@ -9,6 +9,9 @@
 #include "m_player_lib.h"
 #include "sys_matrix.h"
 #include "m_actor_shadow.h"
+#ifdef TARGET_PC
+#include "pc_settings.h"
+#endif
 
 enum {
     aUKI_PROC_CARRY,

@@ -21,6 +21,7 @@ typedef struct {
     int nes_aspect;       /* NES emulator aspect: 0=fullscreen stretch, 1=4:3 pillarbox (default) */
     int planting_marks;   // Planting ground marks around the player (pc_planting.h): 0 = off (default), 1 = shown
     int instant_text;     // A or B fills the rest of a text page at once: 0 = off (default), 1 = on
+    int bite_sound;       // Fishing: sounds when a fish nibbles and when it pulls the bobber under: 0 = off (default), 1 = on
     int master_volume;    /* Applied at the PC audio output, 0-100 (default 100) */
     int stick_deadzone;   /* Gamepad main stick deadzone, percent 0-40 (default 12) */
     int cstick_deadzone;  /* Gamepad C-stick deadzone, percent 0-40 (default 12) */

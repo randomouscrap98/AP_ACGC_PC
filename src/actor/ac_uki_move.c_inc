@@ -431,6 +431,12 @@ static void aUKI_set_spd_relations_in_water(ACTOR* actorx, GAME* game) {
             uki->touch_timer = 2;
             aUKI_effect_hamon(actorx, game, 2);
             aUKI_touch_vib_proc(uki);
+#ifdef TARGET_PC
+            // Bite sound setting: a sound for each nibble too (vanilla: ripple and rumble only)
+            if (g_pc_settings.bite_sound) {
+                sAdo_OngenTrgStart(NA_SE_11A, &actorx->world.position);
+            }
+#endif
         }
 
         switch (uki->touch_timer) {
@@ -875,6 +881,12 @@ static void aUKI_set_proc_bite(ACTOR* actorx, GAME* game, int arg) {
 
     aUKI_clear_spd(actorx);
     aUKI_effect_sibuki(actorx, game, 0);
+#ifdef TARGET_PC
+    // Bite sound setting: a splash sound when the bobber goes under (vanilla: splash effect and rumble only)
+    if (g_pc_settings.bite_sound) {
+        sAdo_OngenTrgStart(NA_SE_TUMBLE_WAVE, &actorx->world.position);
+    }
+#endif
 
     switch (uki->gyo_type) {
         case aGYO_TYPE_EMPTY_CAN:
