@@ -55,47 +55,48 @@ typedef struct {
     const char* label;
     int         id;
     int         restart;
+    const char* help; // one line at the bottom while selected (game font: no '/', '+', ';'), NULL = none
 } Item;
 
 static const Item tab_video_items[] = {
-    { "Display",    ITEM_DISPLAY,  0 },
-    { "VSync",      ITEM_VSYNC,    0 },
-    { "Max FPS",    ITEM_MAX_FPS,  0 },
-    { "MSAA",       ITEM_MSAA,     0 },
-    { "Render scale", ITEM_RENDER_SCALE, 0 },
-    { "Texture filter", ITEM_TEXTURE_FILTERING, 0 },
-    { "Textures",   ITEM_TEXTURES, 1 },
-    { "AP text client", ITEM_AP_TEXT_CLIENT, 0 },
+    { "Display",    ITEM_DISPLAY,  0, NULL },
+    { "VSync",      ITEM_VSYNC,    0, NULL },
+    { "Max FPS",    ITEM_MAX_FPS,  0, NULL },
+    { "MSAA",       ITEM_MSAA,     0, NULL },
+    { "Render scale", ITEM_RENDER_SCALE, 0, NULL },
+    { "Texture filter", ITEM_TEXTURE_FILTERING, 0, NULL },
+    { "Textures",   ITEM_TEXTURES, 1, NULL },
+    { "AP text client", ITEM_AP_TEXT_CLIENT, 0, NULL },
 };
 
 static const Item tab_gameplay_items[] = {
-    { "Resetti",          ITEM_RESETTI,          0 },
-    { "Shop upgrade",     ITEM_SHOP_VISITOR,     0 },
-    { "Borderless acres", ITEM_BORDERLESS_ACRES, 0 },
-    { "NES aspect",       ITEM_NES_ASPECT,       0 },
-    { "Instant text",     ITEM_INSTANT_TEXT,     0 },
-    { "Plant vision",     ITEM_PLANTING_MARKS,   0 },
-    { "Bite sound",       ITEM_BITE_SOUND,       0 },
-    { "No cockroaches",   ITEM_NO_COCKROACHES, 0 },
-    { "No fishing trash", ITEM_NO_FISHING_TRASH, 0 },
-    { "Easier critters",  ITEM_EASIER_CRITTER_CATCH, 0 },
-    { "Hidden bug hints", ITEM_HIDDEN_BUG_HINTS, 0 },
-    { "Hidden item hints", ITEM_HIDDEN_ITEM_HINTS, 0 },
-    { "Short shop talk",  ITEM_SHORT_SHOP_TALK, 0 },
+    { "Resetti",          ITEM_RESETTI,          0, "Mr. Resetti after quitting without saving" },
+    { "Shop upgrade",     ITEM_SHOP_VISITOR,     0, "Nookington's without another town's shopper" },
+    { "Borderless acres", ITEM_BORDERLESS_ACRES, 0, "The camera moves smoothly between acres" },
+    { "NES aspect",       ITEM_NES_ASPECT,       0, "NES games in 4:3 or stretched" },
+    { "Instant text",     ITEM_INSTANT_TEXT,     0, "A or B shows the rest of a text page at once" },
+    { "Plant vision",     ITEM_PLANTING_MARKS,   0, "Shows where a sapling would die or stay small" },
+    { "Bite sound",       ITEM_BITE_SOUND,       0, "Sounds when a fish nibbles and bites" },
+    { "No cockroaches",   ITEM_NO_COCKROACHES,   0, "Removes cockroaches when you start playing" },
+    { "No fishing trash", ITEM_NO_FISHING_TRASH, 0, "No cans, boots or tires when fishing" },
+    { "Easier critters",  ITEM_EASIER_CRITTER_CATCH, 0, "Fish bite longer, bugs flee, bees chase slower" },
+    { "Hidden bug hints", ITEM_HIDDEN_BUG_HINTS, 0, "Dirt pops up, trees wiggle near hidden bugs" },
+    { "Hidden item hints", ITEM_HIDDEN_ITEM_HINTS, 0, "Sparkles over the money rock and item trees" },
+    { "Short shop talk",  ITEM_SHORT_SHOP_TALK,  0, "Nook keeps it short when you buy" },
 };
 
 static const Item tab_audio_items[] = {
-    { "Master volume", ITEM_MASTER_VOLUME, 0 },
+    { "Master volume", ITEM_MASTER_VOLUME, 0, NULL },
 };
 
 static const Item tab_controls_items[] = {
-    { "Stick deadzone",   ITEM_STICK_DEADZONE,  0 },
-    { "C-stick deadzone", ITEM_CSTICK_DEADZONE, 0 },
-    { "Keybindings",      ITEM_BINDINGS,        0 },
+    { "Stick deadzone",   ITEM_STICK_DEADZONE,  0, NULL },
+    { "C-stick deadzone", ITEM_CSTICK_DEADZONE, 0, NULL },
+    { "Keybindings",      ITEM_BINDINGS,        0, NULL },
 };
 
 /* Settings > AP: the per-save QoL settings (pc_ap_settings.h) */
-#define AP_ITEM(lbl, set) { lbl, ITEM_AP_FIRST + (set), 0 }
+#define AP_ITEM(lbl, set) { lbl, ITEM_AP_FIRST + (set), 0, NULL }
 static const Item tab_ap_items[] = {
     AP_ITEM("No weeds",          PC_AP_SET_NO_WEEDS),
     AP_ITEM("More favors",       PC_AP_SET_MORE_FAVORS),
@@ -1049,6 +1050,12 @@ static void draw_settings_page(struct game_s* game) {
         const char* help = "Saved for this town only";
         if (s_sel >= 0 && s_sel < tab->count) help = s_ap_help[tab->items[s_sel].id - ITEM_AP_FIRST];
         pc_menu_draw_centered(game, help, bky + line_h + 6.0f, 150, 150, 150, 220, 1.0f);
+        return;
+    }
+
+    // Other tabs: what the selected setting does, if it says
+    if (s_sel >= 0 && s_sel < tab->count && tab->items[s_sel].help != NULL) {
+        pc_menu_draw_centered(game, tab->items[s_sel].help, bky + line_h + 6.0f, 150, 150, 150, 220, 1.0f);
         return;
     }
 

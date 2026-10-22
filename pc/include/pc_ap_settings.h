@@ -15,22 +15,16 @@ extern "C" {
 
 struct ini_t;
 
-// One per setting; also the ini keys' order (keys = slot_data names). NO_COCKROACHES, NO_FISHING_TRASH,
-// EASIER_CRITTER_CATCH, HIDDEN_BUG_HINTS, HIDDEN_ITEM_HINTS and SHORT_SHOP_TALK are unused since 0.5.3 (now
-// Settings > Gameplay, pc_settings.h): kept so ap_settings.ini keeps its keys for older clients.
+// One per setting; also the ini keys' order (keys = slot_data names). No cockroaches, no fishing trash, easier
+// critter catch, hidden bug/item hints and short shop talk left in 0.5.3 (now Settings > Gameplay, pc_settings.h);
+// their keys in older files are ignored.
 enum {
-  PC_AP_SET_NO_COCKROACHES,
   PC_AP_SET_NO_WEEDS,
   PC_AP_SET_MORE_FAVORS,
   PC_AP_SET_VILLAGERS_DONT_LEAVE,
   PC_AP_SET_VILLAGERS_NEVER_SLEEP,
   PC_AP_SET_NO_FALLING_STALKS,
-  PC_AP_SET_NO_FISHING_TRASH,
-  PC_AP_SET_EASIER_CRITTER_CATCH,
-  PC_AP_SET_HIDDEN_BUG_HINTS,
-  PC_AP_SET_HIDDEN_ITEM_HINTS,
   PC_AP_SET_SKIP_HRA_TALK,
-  PC_AP_SET_SHORT_SHOP_TALK,
   PC_AP_SET_SHOP_NEVER_SELLS_OUT,
   PC_AP_SET_COCONUTS_WASH_UP,
   PC_AP_SET_NORMALIZED_TIME_TRAVEL,

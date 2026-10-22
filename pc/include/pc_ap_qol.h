@@ -1,5 +1,6 @@
-// Quality-of-life options: Settings > AP (pc_ap_settings.h) for the ones the player can
-// change, slot_data (apworld options.py) for the rest.
+// Quality-of-life options: Settings > AP (pc_ap_settings.h, per save) or Settings > Gameplay (pc_settings.h,
+// global: no fishing trash, short shop talk, easier critters, hidden bug/item hints, no cockroaches) for the ones
+// the player can change, slot_data (apworld options.py) for the rest.
 #ifndef PC_AP_QOL_H
 #define PC_AP_QOL_H
 

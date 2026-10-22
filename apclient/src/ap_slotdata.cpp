@@ -261,7 +261,6 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
       slot_data.value("loan_letter_text", "Your loan is ready for\npayoff at the post office!").c_str());
   read_npc_list(slot_data, "villager_blacklist", sd->villager_blacklist);
   read_npc_list(slot_data, "starting_villagers", sd->starting_villagers);
-  sd->no_cockroaches = read_bool(slot_data, "no_cockroaches", 1);
   sd->shops_always_open = read_bool(slot_data, "shops_always_open", 1);
   sd->no_weeds = read_bool(slot_data, "no_weeds", 1);
   sd->more_favors = read_bool(slot_data, "more_favors", 1);
@@ -269,12 +268,7 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
   sd->villagers_never_sleep = read_bool(slot_data, "villagers_never_sleep", 0);
   sd->turnips_never_spoil = read_bool(slot_data, "turnips_never_spoil", 1);
   sd->no_falling_stalks = read_bool(slot_data, "no_falling_stalks", 0);
-  sd->no_fishing_trash = read_bool(slot_data, "no_fishing_trash", 1);
-  sd->easier_critter_catch = read_bool(slot_data, "easier_critter_catch", 1);
-  sd->hidden_bug_hints = read_bool(slot_data, "hidden_bug_hints", 1);
-  sd->hidden_item_hints = read_bool(slot_data, "hidden_item_hints", 1);
   sd->skip_hra_talk = read_bool(slot_data, "skip_hra_talk", 1);
-  sd->short_shop_talk = read_bool(slot_data, "short_shop_talk", 0);
   sd->shop_never_sells_out = read_bool(slot_data, "shop_never_sells_out", 0);
   sd->coconuts_wash_up = read_bool(slot_data, "coconuts_wash_up", 1);
   sd->normalized_time_travel = read_bool(slot_data, "normalized_time_travel", 1);
