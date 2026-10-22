@@ -34,6 +34,12 @@ enum {
     ITEM_INSTANT_TEXT,
     ITEM_PLANTING_MARKS,
     ITEM_BITE_SOUND,
+    ITEM_NO_COCKROACHES,
+    ITEM_NO_FISHING_TRASH,
+    ITEM_EASIER_CRITTER_CATCH,
+    ITEM_HIDDEN_BUG_HINTS,
+    ITEM_HIDDEN_ITEM_HINTS,
+    ITEM_SHORT_SHOP_TALK,
     ITEM_MASTER_VOLUME,
     ITEM_STICK_DEADZONE,
     ITEM_CSTICK_DEADZONE,
@@ -70,6 +76,12 @@ static const Item tab_gameplay_items[] = {
     { "Instant text",     ITEM_INSTANT_TEXT,     0 },
     { "Plant vision",     ITEM_PLANTING_MARKS,   0 },
     { "Bite sound",       ITEM_BITE_SOUND,       0 },
+    { "No cockroaches",   ITEM_NO_COCKROACHES, 0 },
+    { "No fishing trash", ITEM_NO_FISHING_TRASH, 0 },
+    { "Easier critters",  ITEM_EASIER_CRITTER_CATCH, 0 },
+    { "Hidden bug hints", ITEM_HIDDEN_BUG_HINTS, 0 },
+    { "Hidden item hints", ITEM_HIDDEN_ITEM_HINTS, 0 },
+    { "Short shop talk",  ITEM_SHORT_SHOP_TALK, 0 },
 };
 
 static const Item tab_audio_items[] = {
@@ -85,18 +97,12 @@ static const Item tab_controls_items[] = {
 /* Settings > AP: the per-save QoL settings (pc_ap_settings.h) */
 #define AP_ITEM(lbl, set) { lbl, ITEM_AP_FIRST + (set), 0 }
 static const Item tab_ap_items[] = {
-    AP_ITEM("No cockroaches",    PC_AP_SET_NO_COCKROACHES),
     AP_ITEM("No weeds",          PC_AP_SET_NO_WEEDS),
     AP_ITEM("More favors",       PC_AP_SET_MORE_FAVORS),
     AP_ITEM("Villagers stay",    PC_AP_SET_VILLAGERS_DONT_LEAVE),
     AP_ITEM("Villagers awake",   PC_AP_SET_VILLAGERS_NEVER_SLEEP),
     AP_ITEM("No falling stalks", PC_AP_SET_NO_FALLING_STALKS),
-    AP_ITEM("No fishing trash",  PC_AP_SET_NO_FISHING_TRASH),
-    AP_ITEM("Easier critters",   PC_AP_SET_EASIER_CRITTER_CATCH),
-    AP_ITEM("Hidden bug hints",  PC_AP_SET_HIDDEN_BUG_HINTS),
-    AP_ITEM("Hidden item hints", PC_AP_SET_HIDDEN_ITEM_HINTS),
     AP_ITEM("Skip HRA talk",     PC_AP_SET_SKIP_HRA_TALK),
-    AP_ITEM("Short shop talk",   PC_AP_SET_SHORT_SHOP_TALK),
     AP_ITEM("Never sells out",   PC_AP_SET_SHOP_NEVER_SELLS_OUT),
     AP_ITEM("Coconuts wash up",  PC_AP_SET_COCONUTS_WASH_UP),
     AP_ITEM("Time travel",       PC_AP_SET_NORMALIZED_TIME_TRAVEL),
@@ -108,18 +114,12 @@ static const Item tab_ap_items[] = {
 
 /* One line under the AP tab for the selected setting (game font: no '/', '+', ';') */
 static const char* const s_ap_help[PC_AP_SET_NUM] = {
-    [PC_AP_SET_NO_COCKROACHES]         = "Removes cockroaches when you start playing",
     [PC_AP_SET_NO_WEEDS]               = "Weeds never grow",
     [PC_AP_SET_MORE_FAVORS]            = "Villagers almost always ask for a favor",
     [PC_AP_SET_VILLAGERS_DONT_LEAVE]   = "Villagers never move out",
     [PC_AP_SET_VILLAGERS_NEVER_SLEEP]  = "Villagers never go to sleep",
     [PC_AP_SET_NO_FALLING_STALKS]      = "Turnip prices never just fall all week",
-    [PC_AP_SET_NO_FISHING_TRASH]       = "No cans, boots or tires when fishing",
-    [PC_AP_SET_EASIER_CRITTER_CATCH]   = "Fish bite longer, bugs flee, bees chase slower",
-    [PC_AP_SET_HIDDEN_BUG_HINTS]       = "Dirt pops up, trees wiggle near hidden bugs",
-    [PC_AP_SET_HIDDEN_ITEM_HINTS]      = "Sparkles over the money rock and item trees",
     [PC_AP_SET_SKIP_HRA_TALK]          = "Skips Nook's Happy Room Academy talk",
-    [PC_AP_SET_SHORT_SHOP_TALK]        = "Nook keeps it short when you buy",
     [PC_AP_SET_SHOP_NEVER_SELLS_OUT]   = "Bought items stay in Nook's shop",
     [PC_AP_SET_COCONUTS_WASH_UP]       = "Coconuts sometimes wash up on the beach",
     [PC_AP_SET_NORMALIZED_TIME_TRAVEL] = "Normalized: a date change counts as 1 day",
@@ -333,6 +333,12 @@ static int pc_dirty(void) {
         (s_pending.instant_text     != g_pc_settings.instant_text) ||
         (s_pending.planting_marks   != g_pc_settings.planting_marks) ||
         (s_pending.bite_sound       != g_pc_settings.bite_sound) ||
+        (s_pending.no_cockroaches != g_pc_settings.no_cockroaches) ||
+        (s_pending.no_fishing_trash != g_pc_settings.no_fishing_trash) ||
+        (s_pending.easier_critter_catch != g_pc_settings.easier_critter_catch) ||
+        (s_pending.hidden_bug_hints != g_pc_settings.hidden_bug_hints) ||
+        (s_pending.hidden_item_hints != g_pc_settings.hidden_item_hints) ||
+        (s_pending.short_shop_talk != g_pc_settings.short_shop_talk) ||
         (s_pending.master_volume    != g_pc_settings.master_volume) ||
         (s_pending.stick_deadzone   != g_pc_settings.stick_deadzone) ||
         (s_pending.cstick_deadzone  != g_pc_settings.cstick_deadzone) ||
@@ -421,6 +427,24 @@ static void item_cycle(int id, int dir) {
             break;
         case ITEM_BITE_SOUND:
             s_pending.bite_sound = !s_pending.bite_sound;
+            break;
+        case ITEM_NO_COCKROACHES:
+            s_pending.no_cockroaches = !s_pending.no_cockroaches;
+            break;
+        case ITEM_NO_FISHING_TRASH:
+            s_pending.no_fishing_trash = !s_pending.no_fishing_trash;
+            break;
+        case ITEM_EASIER_CRITTER_CATCH:
+            s_pending.easier_critter_catch = !s_pending.easier_critter_catch;
+            break;
+        case ITEM_HIDDEN_BUG_HINTS:
+            s_pending.hidden_bug_hints = !s_pending.hidden_bug_hints;
+            break;
+        case ITEM_HIDDEN_ITEM_HINTS:
+            s_pending.hidden_item_hints = !s_pending.hidden_item_hints;
+            break;
+        case ITEM_SHORT_SHOP_TALK:
+            s_pending.short_shop_talk = !s_pending.short_shop_talk;
             break;
         case ITEM_AP_TEXT_CLIENT:
             s_pending.ap_text_client = !s_pending.ap_text_client;
@@ -531,6 +555,24 @@ static void item_format(int id, char* buf, size_t n) {
         case ITEM_BITE_SOUND:
             snprintf(buf, n, "%s", s_pending.bite_sound ? "< On >" : "< Off >");
             break;
+        case ITEM_NO_COCKROACHES:
+            snprintf(buf, n, "%s", s_pending.no_cockroaches ? "< On >" : "< Off >");
+            break;
+        case ITEM_NO_FISHING_TRASH:
+            snprintf(buf, n, "%s", s_pending.no_fishing_trash ? "< On >" : "< Off >");
+            break;
+        case ITEM_EASIER_CRITTER_CATCH:
+            snprintf(buf, n, "%s", s_pending.easier_critter_catch ? "< On >" : "< Off >");
+            break;
+        case ITEM_HIDDEN_BUG_HINTS:
+            snprintf(buf, n, "%s", s_pending.hidden_bug_hints ? "< On >" : "< Off >");
+            break;
+        case ITEM_HIDDEN_ITEM_HINTS:
+            snprintf(buf, n, "%s", s_pending.hidden_item_hints ? "< On >" : "< Off >");
+            break;
+        case ITEM_SHORT_SHOP_TALK:
+            snprintf(buf, n, "%s", s_pending.short_shop_talk ? "< On >" : "< Off >");
+            break;
         case ITEM_AP_TEXT_CLIENT:
             snprintf(buf, n, "%s", s_pending.ap_text_client ? "< On >" : "< Off >");
             break;
@@ -573,6 +615,12 @@ static int item_changed(int id) {
         case ITEM_INSTANT_TEXT:  return s_pending.instant_text  != g_pc_settings.instant_text;
         case ITEM_PLANTING_MARKS: return s_pending.planting_marks != g_pc_settings.planting_marks;
         case ITEM_BITE_SOUND:    return s_pending.bite_sound    != g_pc_settings.bite_sound;
+        case ITEM_NO_COCKROACHES: return s_pending.no_cockroaches != g_pc_settings.no_cockroaches;
+        case ITEM_NO_FISHING_TRASH: return s_pending.no_fishing_trash != g_pc_settings.no_fishing_trash;
+        case ITEM_EASIER_CRITTER_CATCH: return s_pending.easier_critter_catch != g_pc_settings.easier_critter_catch;
+        case ITEM_HIDDEN_BUG_HINTS: return s_pending.hidden_bug_hints != g_pc_settings.hidden_bug_hints;
+        case ITEM_HIDDEN_ITEM_HINTS: return s_pending.hidden_item_hints != g_pc_settings.hidden_item_hints;
+        case ITEM_SHORT_SHOP_TALK: return s_pending.short_shop_talk != g_pc_settings.short_shop_talk;
         case ITEM_AP_TEXT_CLIENT: return s_pending.ap_text_client != g_pc_settings.ap_text_client;
         case ITEM_MASTER_VOLUME: return s_pending.master_volume != g_pc_settings.master_volume;
         case ITEM_STICK_DEADZONE:  return s_pending.stick_deadzone  != g_pc_settings.stick_deadzone;

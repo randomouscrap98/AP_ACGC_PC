@@ -93,20 +93,20 @@ Quality-of-life options, mostly on by default:
 - Normalized time travel: changing the date always counts as one day passing, so no weeds or
   move-outs from jumping around.
 - Bugs, fish and fossils can spawn evenly, or favor ones you still need.
-- No cockroaches, no weeds, more favors from villagers, shops always open (off by default), turnips never spoil.
-- Easier critter catch (longer bite window, fish don't flee from running, sea fish face the beach, bugs
-  notice you half as fast, slower bees, purple butterflies fly low).
-- Hidden bug hints: buried mole crickets, pill bug rocks and bagworm/spider trees give small visual hints
-  when you're near.
-- Hidden item hints: a sparkle now and then over the money rock and over trees with furniture, a present or
-  the golden shovel in them.
+- No weeds, more favors from villagers, shops always open (off by default), turnips never spoil.
 - Coconuts sometimes wash up on the town beach.
 - Each date always has the same weather (vanilla odds), and the Date & Time page of the pause
   menu shows it for the date you pick. Event days and Nook's job can still override it. It always
   rains on the 13th from February to November, for the Coelacanth and the Snail.
-- Optional: villagers never leave, villagers never sleep, no falling stalk market, short shop talk,
+- Optional: villagers never leave, villagers never sleep, no falling stalk market,
   shop never sells out (bought items stay on the shelf; not grab bags).
 - Most of these can be changed in game later, under Settings > AP.
+- Game settings (Settings > Gameplay, for all your saves; not yaml options any more): no cockroaches, no
+  fishing trash, short shop talk (off by default), easier critter catch (longer bite window, fish don't flee
+  from running, sea fish face the beach, bugs notice you half as fast, slower bees, purple butterflies fly
+  low), hidden bug hints (buried mole crickets, pill bug rocks and bagworm/spider trees give small visual hints
+  when you're near), hidden item hints (a sparkle now and then over the money rock and over trees with
+  furniture, a present or the golden shovel in them), plant vision, bite sound.
 
 Cosmetic options: town fruit, grass shape, train station, Town Day, starting shirt, starting
 villagers and a villager blacklist, and the stationery, signature and text of letters from Archipelago.

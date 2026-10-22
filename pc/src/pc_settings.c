@@ -22,6 +22,12 @@ PCSettings g_pc_settings = {
     .instant_text = 0,
     .planting_marks = 0,
     .bite_sound = 0,
+    .no_cockroaches = 1,
+    .no_fishing_trash = 1,
+    .easier_critter_catch = 1,
+    .hidden_bug_hints = 1,
+    .hidden_item_hints = 1,
+    .short_shop_talk = 0,
     .master_volume = 100,
     .stick_deadzone = 12,
     .cstick_deadzone = 12,
@@ -84,6 +90,24 @@ static const char* DEFAULT_SETTINGS =
     "\n"
     "# Bite sound: 0 = off, 1 = sounds when a fish nibbles the bobber and when it pulls it under\n"
     "bite_sound = 0\n"
+    "\n"
+    "# No cockroaches: 0 = off, 1 = cockroaches never appear in your house\n"
+    "no_cockroaches = 1\n"
+    "\n"
+    "# No fishing trash: 0 = off, 1 = fishing never hooks a can, boot or tire\n"
+    "no_fishing_trash = 1\n"
+    "\n"
+    "# Easier critters: 0 = off, 1 = fish bite longer, bugs notice you slower, bees chase slower\n"
+    "easier_critter_catch = 1\n"
+    "\n"
+    "# Hidden bug hints: 0 = off, 1 = dirt pops up and trees wiggle near hidden bugs\n"
+    "hidden_bug_hints = 1\n"
+    "\n"
+    "# Hidden item hints: 0 = off, 1 = sparkles over the money rock, item trees (and catalog checks in Nook's)\n"
+    "hidden_item_hints = 1\n"
+    "\n"
+    "# Short shop talk: 0 = off, 1 = Nook keeps it short when you buy or order\n"
+    "short_shop_talk = 0\n"
     "\n"
     "[Audio]\n"
     "# Master output volume as a percentage (0-100)\n"
@@ -161,6 +185,18 @@ static void apply_setting(const char* key, const char* value) {
         if (val == 0 || val == 1) g_pc_settings.planting_marks = val;
     } else if (strcmp(key, "bite_sound") == 0) {
         if (val == 0 || val == 1) g_pc_settings.bite_sound = val;
+    } else if (strcmp(key, "no_cockroaches") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.no_cockroaches = val;
+    } else if (strcmp(key, "no_fishing_trash") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.no_fishing_trash = val;
+    } else if (strcmp(key, "easier_critter_catch") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.easier_critter_catch = val;
+    } else if (strcmp(key, "hidden_bug_hints") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.hidden_bug_hints = val;
+    } else if (strcmp(key, "hidden_item_hints") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.hidden_item_hints = val;
+    } else if (strcmp(key, "short_shop_talk") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.short_shop_talk = val;
     } else if (strcmp(key, "master_volume") == 0) {
         if (val >= 0 && val <= 100) g_pc_settings.master_volume = val;
     } else if (strcmp(key, "stick_deadzone") == 0) {
@@ -323,6 +359,24 @@ void pc_settings_save(void) {
     fprintf(f, "\n");
     fprintf(f, "# Bite sound: 0 = off, 1 = sounds when a fish nibbles the bobber and when it pulls it under\n");
     fprintf(f, "bite_sound = %d\n", g_pc_settings.bite_sound);
+    fprintf(f, "\n");
+    fprintf(f, "# No cockroaches: 0 = off, 1 = cockroaches never appear in your house\n");
+    fprintf(f, "no_cockroaches = %d\n", g_pc_settings.no_cockroaches);
+    fprintf(f, "\n");
+    fprintf(f, "# No fishing trash: 0 = off, 1 = fishing never hooks a can, boot or tire\n");
+    fprintf(f, "no_fishing_trash = %d\n", g_pc_settings.no_fishing_trash);
+    fprintf(f, "\n");
+    fprintf(f, "# Easier critters: 0 = off, 1 = fish bite longer, bugs notice you slower, bees chase slower\n");
+    fprintf(f, "easier_critter_catch = %d\n", g_pc_settings.easier_critter_catch);
+    fprintf(f, "\n");
+    fprintf(f, "# Hidden bug hints: 0 = off, 1 = dirt pops up and trees wiggle near hidden bugs\n");
+    fprintf(f, "hidden_bug_hints = %d\n", g_pc_settings.hidden_bug_hints);
+    fprintf(f, "\n");
+    fprintf(f, "# Hidden item hints: 0 = off, 1 = sparkles over the money rock, item trees (and catalog checks in Nook's)\n");
+    fprintf(f, "hidden_item_hints = %d\n", g_pc_settings.hidden_item_hints);
+    fprintf(f, "\n");
+    fprintf(f, "# Short shop talk: 0 = off, 1 = Nook keeps it short when you buy or order\n");
+    fprintf(f, "short_shop_talk = %d\n", g_pc_settings.short_shop_talk);
     fprintf(f, "\n");
     fprintf(f, "[Audio]\n");
     fprintf(f, "# Master output volume as a percentage (0-100)\n");

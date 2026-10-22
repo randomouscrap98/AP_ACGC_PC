@@ -178,18 +178,12 @@ class AnimalCrossingWeb(WebWorld):
         ]),
         # Only starting values: the game keeps them per save and they can be changed there (Settings > AP)
         OptionGroup("Quality of Life", [
-            options.NoCockroaches,
             options.NoWeeds,
             options.MoreFavors,
             options.VillagersDontLeave,
             options.VillagersNeverSleep,
             options.NoFallingStalks,
-            options.NoFishingTrash,
-            options.EasierCritterCatch,
-            options.HiddenBugHints,
-            options.HiddenItemHints,
             options.SkipHRATalk,
-            options.ShortShopTalk,
             options.ShopNeverSellsOut,
             options.CoconutsWashUp,
             options.NormalizedTimeTravel,
@@ -198,6 +192,15 @@ class AnimalCrossingWeb(WebWorld):
             options.NewItemChance,
             options.ShellsanityItemChance,
         ]),
+        # No longer used (game settings since 0.5.3, Settings > Gameplay): still accepted so older yamls load
+        OptionGroup("Deprecated", [
+            options.NoCockroaches,
+            options.NoFishingTrash,
+            options.EasierCritterCatch,
+            options.HiddenBugHints,
+            options.HiddenItemHints,
+            options.ShortShopTalk,
+        ], start_collapsed=True),
     ]
 
 

@@ -2,6 +2,7 @@
 #include "ap_slotdata.h"
 #include "pc_ap_logic.h"
 #include "pc_ap_settings.h"
+#include "pc_settings.h"
 
 #include "m_common_data.h"
 #include "m_home.h"
@@ -40,7 +41,7 @@ int pc_ap_qol_no_falling_stalks(void) {
 }
 
 int pc_ap_qol_no_fishing_trash(void) {
-  return pc_ap_setting(PC_AP_SET_NO_FISHING_TRASH);
+  return g_pc_settings.no_fishing_trash;
 }
 
 int pc_ap_qol_skip_hra_talk(void) {
@@ -48,15 +49,15 @@ int pc_ap_qol_skip_hra_talk(void) {
 }
 
 int pc_ap_qol_hidden_bug_hints(void) {
-  return pc_ap_setting(PC_AP_SET_HIDDEN_BUG_HINTS);
+  return g_pc_settings.hidden_bug_hints;
 }
 
 int pc_ap_qol_hidden_item_hints(void) {
-  return pc_ap_setting(PC_AP_SET_HIDDEN_ITEM_HINTS);
+  return g_pc_settings.hidden_item_hints;
 }
 
 int pc_ap_qol_short_shop_talk(void) {
-  return pc_ap_setting(PC_AP_SET_SHORT_SHOP_TALK);
+  return g_pc_settings.short_shop_talk;
 }
 
 int pc_ap_qol_shop_never_sells_out(void) {
@@ -82,7 +83,7 @@ int pc_ap_qol_take_shop_follow_up(void) {
 #define PC_AP_QOL_BEE_SPEED_SCALE 0.5f
 
 static int pc_ap_qol_easier_critter_catch(void) {
-  return pc_ap_setting(PC_AP_SET_EASIER_CRITTER_CATCH);
+  return g_pc_settings.easier_critter_catch;
 }
 
 int pc_ap_qol_bite_window_bonus(void) {
@@ -117,7 +118,7 @@ int pc_ap_qol_shops_always_open(void) {
 void pc_ap_qol_cockroaches(void) {
   int i;
 
-  if (!pc_ap_setting(PC_AP_SET_NO_COCKROACHES)) {
+  if (!g_pc_settings.no_cockroaches) {
     return;
   }
 

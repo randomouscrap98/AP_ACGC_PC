@@ -15,7 +15,9 @@ extern "C" {
 
 struct ini_t;
 
-// One per setting; also the ini keys' order (keys = slot_data names)
+// One per setting; also the ini keys' order (keys = slot_data names). NO_COCKROACHES, NO_FISHING_TRASH,
+// EASIER_CRITTER_CATCH, HIDDEN_BUG_HINTS, HIDDEN_ITEM_HINTS and SHORT_SHOP_TALK are unused since 0.5.3 (now
+// Settings > Gameplay, pc_settings.h): kept so ap_settings.ini keeps its keys for older clients.
 enum {
   PC_AP_SET_NO_COCKROACHES,
   PC_AP_SET_NO_WEEDS,

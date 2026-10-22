@@ -662,10 +662,10 @@ class StartingVillagers(OptionSet):
     default = frozenset()
 
 
-class NoCockroaches(DefaultOnToggle):
+class NoCockroaches(Toggle):
     """
-    Cockroaches never appear in your house, even if you're away for a while.
-    This can later be changed in-game under Settings > AP.
+    No longer used: since 0.5.3 this is a game setting (Settings > Gameplay in
+    the game, for all your saves). Kept so older yamls still load.
     """
     display_name = "No Cockroaches"
 
@@ -730,29 +730,26 @@ class FruitFiller(DefaultOnToggle):
     display_name = "Fruit Filler"
 
 
-class NoFishingTrash(DefaultOnToggle):
+class NoFishingTrash(Toggle):
     """
-    Fishing never hooks an empty can, boot or old tire.
-    This can later be changed in-game under Settings > AP.
+    No longer used: since 0.5.3 this is a game setting (Settings > Gameplay in
+    the game, for all your saves). Kept so older yamls still load.
     """
     display_name = "No Fishing Trash"
 
 
-class HiddenBugHints(DefaultOnToggle):
+class HiddenBugHints(Toggle):
     """
-    Normally hidden bugs now show a visible sign for where they are.
-    Dirt pops up near rocks with pill bugs or mole crickets underground,
-    and trees with spiders or bagworms shake.
-    This can later be changed in-game under Settings > AP.
+    No longer used: since 0.5.3 this is a game setting (Settings > Gameplay in
+    the game, for all your saves). Kept so older yamls still load.
     """
     display_name = "Hidden Bug Hints"
 
 
-class HiddenItemHints(DefaultOnToggle):
+class HiddenItemHints(Toggle):
     """
-    Money rocks and trees with furniture, a present, or the golden shovel now sparkle.
-    With Catalogsanity, goods in Nook's shop that would send a catalog check sparkle too.
-    This can later be changed in-game under Settings > AP.
+    No longer used: since 0.5.3 this is a game setting (Settings > Gameplay in
+    the game, for all your saves). Kept so older yamls still load.
     """
     display_name = "Hidden Item Hints"
 
@@ -768,10 +765,8 @@ class SkipHRATalk(DefaultOnToggle):
 
 class ShortShopTalk(Toggle):
     """
-    Tom Nook keeps it short when you buy something in his shop: just the item, the
-    price and "would you like it?". He still gives you raffle tickets, he just
-    doesn't talk about them. Catalog orders skip the small talk too.
-    This can later be changed in-game under Settings > AP.
+    No longer used: since 0.5.3 this is a game setting (Settings > Gameplay in
+    the game, for all your saves). Kept so older yamls still load.
     """
     display_name = "Short Shop Talk"
 
@@ -785,14 +780,10 @@ class ShopNeverSellsOut(Toggle):
     display_name = "Shop Never Sells Out"
 
 
-class EasierCritterCatch(DefaultOnToggle):
+class EasierCritterCatch(Toggle):
     """
-    Fish can't get scared from running, and give you one whole additional second
-    when biting the bobber. Tools can still be used to manually scare fish. Sea
-    fish (attempt to) face the beach like in newer games. Bugs take longer to
-    flee with walking or running (but still can). Bees chase at half speed,
-    and Purple butterflies fly low to the ground.
-    This can later be changed in-game under Settings > AP.
+    No longer used: since 0.5.3 this is a game setting (Settings > Gameplay in
+    the game, for all your saves). Kept so older yamls still load.
     """
     display_name = "Easier Critter Catch"
 
