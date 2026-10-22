@@ -9,7 +9,10 @@
 #define STICK_MAGNITUDE     80
 #define RUMBLE_DURATION_MS  200
 
-static SDL_GameController* g_controller = NULL;
+// every connected controller is open and read; inputs are combined (adapters like the Mayflash
+// GameCube one show up as 4 controllers, one per port, empty ports included)
+#define PC_PAD_MAX 8
+static SDL_GameController* s_pads[PC_PAD_MAX];
 
 /* deadzone percent (0-40) -> raw SDL axis threshold */
 static int deadzone_threshold(int percent) {
@@ -19,35 +22,62 @@ static int deadzone_threshold(int percent) {
 }
 
 /* is a remappable pad binding currently held? */
-static int pad_code_pressed(PCPadCode code) {
+static int pad_code_pressed(SDL_GameController* c, PCPadCode code) {
     if (code < 0) return 0;
     if (code & PC_PAD_AXIS_BIT) {
-        return SDL_GameControllerGetAxis(g_controller,
+        return SDL_GameControllerGetAxis(c,
             (SDL_GameControllerAxis)(code & 0xFF)) > PC_PAD_AXIS_PRESS;
     }
-    return SDL_GameControllerGetButton(g_controller, (SDL_GameControllerButton)code);
+    return SDL_GameControllerGetButton(c, (SDL_GameControllerButton)code);
 }
 
 /* analog trigger value for the L/R binding (digital bindings read as full press) */
-static u8 pad_trigger_value(PCPadCode code) {
+static u8 pad_trigger_value(SDL_GameController* c, PCPadCode code) {
     if (code < 0) return 0;
     if (code & PC_PAD_AXIS_BIT) {
-        s16 v = SDL_GameControllerGetAxis(g_controller, (SDL_GameControllerAxis)(code & 0xFF));
+        s16 v = SDL_GameControllerGetAxis(c, (SDL_GameControllerAxis)(code & 0xFF));
         if (v < 0) v = 0;
         return (u8)(v >> 7);
     }
-    return SDL_GameControllerGetButton(g_controller, (SDL_GameControllerButton)code) ? 255 : 0;
+    return SDL_GameControllerGetButton(c, (SDL_GameControllerButton)code) ? 255 : 0;
+}
+
+// close unplugged controllers, open new ones (hotplug; a few lookups per frame)
+static void pads_refresh(void) {
+    for (int p = 0; p < PC_PAD_MAX; p++) {
+        if (s_pads[p] && !SDL_GameControllerGetAttached(s_pads[p])) {
+            printf("[PAD] closed: %s\n", SDL_GameControllerName(s_pads[p]));
+            SDL_GameControllerClose(s_pads[p]);
+            s_pads[p] = NULL;
+        }
+    }
+    for (int i = 0; i < SDL_NumJoysticks(); i++) {
+        if (!SDL_IsGameController(i)) continue;
+        SDL_JoystickID id = SDL_JoystickGetDeviceInstanceID(i);
+        int open = 0;
+        int free_slot = -1;
+        for (int p = 0; p < PC_PAD_MAX; p++) {
+            if (!s_pads[p]) {
+                if (free_slot < 0) free_slot = p;
+                continue;
+            }
+            if (SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(s_pads[p])) == id) open = 1;
+        }
+        if (open || free_slot < 0) continue;
+        s_pads[free_slot] = SDL_GameControllerOpen(i);
+        if (s_pads[free_slot]) {
+            printf("[PAD] opened %d: %s\n", free_slot, SDL_GameControllerName(s_pads[free_slot]));
+        }
+    }
+}
+
+// keep whichever value is pushed further from the center
+static s16 axis_max(s16 a, s16 b) {
+    return abs(b) > abs(a) ? b : a;
 }
 
 BOOL PADInit(void) {
-    for (int i = 0; i < SDL_NumJoysticks(); i++) {
-        if (SDL_IsGameController(i)) {
-            g_controller = SDL_GameControllerOpen(i);
-            if (g_controller) {
-                break;
-            }
-        }
-    }
+    pads_refresh();
     return TRUE;
 }
 
@@ -100,42 +130,45 @@ u32 PADRead(PADStatus* status) {
         #undef INPUT_PRESSED
     }
 
-    /* hotplug */
-    if (!g_controller) {
-        for (int i = 0; i < SDL_NumJoysticks(); i++) {
-            if (SDL_IsGameController(i)) {
-                g_controller = SDL_GameControllerOpen(i);
-                if (g_controller) break;
-            }
-        }
+    pads_refresh();
+
+    // all open controllers combined: buttons ORed, each axis/trigger from the one pushed furthest
+    int any_pad = 0;
+    s16 lx = 0, ly = 0, rx = 0, ry = 0;
+    u8 trig_l = 0, trig_r = 0;
+    PCPadBindings* pb = &g_pc_padbindings;
+    for (int p = 0; p < PC_PAD_MAX; p++) {
+        SDL_GameController* c = s_pads[p];
+        if (!c) continue;
+        any_pad = 1;
+        if (pad_code_pressed(c, pb->a))     buttons |= PAD_BUTTON_A;
+        if (pad_code_pressed(c, pb->b))     buttons |= PAD_BUTTON_B;
+        if (pad_code_pressed(c, pb->x))     buttons |= PAD_BUTTON_X;
+        if (pad_code_pressed(c, pb->y))     buttons |= PAD_BUTTON_Y;
+        if (pad_code_pressed(c, pb->start)) buttons |= PAD_BUTTON_START;
+        if (pad_code_pressed(c, pb->z))     buttons |= PAD_TRIGGER_Z;
+        if (pad_code_pressed(c, pb->l))     buttons |= PAD_TRIGGER_L;
+        if (pad_code_pressed(c, pb->r))     buttons |= PAD_TRIGGER_R;
+        if (pad_code_pressed(c, pb->dpad_up))    buttons |= PAD_BUTTON_UP;
+        if (pad_code_pressed(c, pb->dpad_down))  buttons |= PAD_BUTTON_DOWN;
+        if (pad_code_pressed(c, pb->dpad_left))  buttons |= PAD_BUTTON_LEFT;
+        if (pad_code_pressed(c, pb->dpad_right)) buttons |= PAD_BUTTON_RIGHT;
+
+        lx = axis_max(lx, SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_LEFTX));
+        ly = axis_max(ly, SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_LEFTY));
+        rx = axis_max(rx, SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_RIGHTX));
+        ry = axis_max(ry, SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_RIGHTY));
+
+        u8 tl = pad_trigger_value(c, pb->l);
+        u8 tr = pad_trigger_value(c, pb->r);
+        if (tl > trig_l) trig_l = tl;
+        if (tr > trig_r) trig_r = tr;
     }
 
-    if (g_controller) {
-        if (!SDL_GameControllerGetAttached(g_controller)) {
-            SDL_GameControllerClose(g_controller);
-            g_controller = NULL;
-        }
-    }
-    if (g_controller) {
-        PCPadBindings* pb = &g_pc_padbindings;
-        if (pad_code_pressed(pb->a))     buttons |= PAD_BUTTON_A;
-        if (pad_code_pressed(pb->b))     buttons |= PAD_BUTTON_B;
-        if (pad_code_pressed(pb->x))     buttons |= PAD_BUTTON_X;
-        if (pad_code_pressed(pb->y))     buttons |= PAD_BUTTON_Y;
-        if (pad_code_pressed(pb->start)) buttons |= PAD_BUTTON_START;
-        if (pad_code_pressed(pb->z))     buttons |= PAD_TRIGGER_Z;
-        if (pad_code_pressed(pb->l))     buttons |= PAD_TRIGGER_L;
-        if (pad_code_pressed(pb->r))     buttons |= PAD_TRIGGER_R;
-        if (pad_code_pressed(pb->dpad_up))    buttons |= PAD_BUTTON_UP;
-        if (pad_code_pressed(pb->dpad_down))  buttons |= PAD_BUTTON_DOWN;
-        if (pad_code_pressed(pb->dpad_left))  buttons |= PAD_BUTTON_LEFT;
-        if (pad_code_pressed(pb->dpad_right)) buttons |= PAD_BUTTON_RIGHT;
-
+    if (any_pad) {
         int stick_dz  = deadzone_threshold(g_pc_settings.stick_deadzone);
         int cstick_dz = deadzone_threshold(g_pc_settings.cstick_deadzone);
 
-        s16 lx = SDL_GameControllerGetAxis(g_controller, SDL_CONTROLLER_AXIS_LEFTX);
-        s16 ly = SDL_GameControllerGetAxis(g_controller, SDL_CONTROLLER_AXIS_LEFTY);
         if (abs(lx) > stick_dz) {
             int sx = lx >> 8;
             if (sx > 127) sx = 127; else if (sx < -128) sx = -128;
@@ -147,8 +180,6 @@ u32 PADRead(PADStatus* status) {
             stickY = (s8)sy;
         }
 
-        s16 rx = SDL_GameControllerGetAxis(g_controller, SDL_CONTROLLER_AXIS_RIGHTX);
-        s16 ry = SDL_GameControllerGetAxis(g_controller, SDL_CONTROLLER_AXIS_RIGHTY);
         if (abs(rx) > cstick_dz) {
             int srx = rx >> 8;
             if (srx > 127) srx = 127; else if (srx < -128) srx = -128;
@@ -160,8 +191,8 @@ u32 PADRead(PADStatus* status) {
             cstickY = (s8)sry;
         }
 
-        status[0].triggerLeft  = pad_trigger_value(pb->l);
-        status[0].triggerRight = pad_trigger_value(pb->r);
+        status[0].triggerLeft  = trig_l;
+        status[0].triggerRight = trig_r;
     }
 
     status[0].button = buttons;
@@ -175,9 +206,10 @@ u32 PADRead(PADStatus* status) {
 }
 
 void PADControlMotor(s32 chan, u32 command) {
-    if (g_controller && chan == 0) {
-        u16 intensity = (command == 1) ? 0xFFFF : 0;
-        SDL_GameControllerRumble(g_controller, intensity, intensity, RUMBLE_DURATION_MS);
+    if (chan != 0) return;
+    u16 intensity = (command == 1) ? 0xFFFF : 0;
+    for (int p = 0; p < PC_PAD_MAX; p++) {
+        if (s_pads[p]) SDL_GameControllerRumble(s_pads[p], intensity, intensity, RUMBLE_DURATION_MS);
     }
 }
 
@@ -186,9 +218,11 @@ void PADControlAllMotors(const u32* commands) {
 }
 
 void PADCleanup(void) {
-    if (g_controller) {
-        SDL_GameControllerClose(g_controller);
-        g_controller = NULL;
+    for (int p = 0; p < PC_PAD_MAX; p++) {
+        if (s_pads[p]) {
+            SDL_GameControllerClose(s_pads[p]);
+            s_pads[p] = NULL;
+        }
     }
 }
 
