@@ -196,14 +196,57 @@ class AnimalCrossingWorld(World):
     item_name_to_id = ITEM_NAME_TO_ID
     location_name_to_id = LOCATION_NAME_TO_ID
 
-    # Set in generate_early. Item link groups (create_group) never run it but still call create_item: "nothing
-    # chosen" is right for them, as link_items ORs in the linked players' own classifications.
-    museum_progression: frozenset[str] | set[str] = frozenset()
+    # Universal Tracker: the real seed's slot_data, else None (generate_early)
+    ut: dict[str, Any] | None
+
+    # Decisions shared between features, set by each feature's setup() in generate_early, grouped by that feature.
+    # A feature reading another's runs after it (order in generate_early). Only the ones with a default are read
+    # for item link groups (create_group), which never run generate_early but still call create_item.
+
+    # intro
+    ac_player_name: str
+    ac_town_name: str
+    # town_generation
+    ac_letter_sender: str
+    ac_loan_letter_text: str
+    villager_blacklist: list[int]
+    starting_villagers: list[int]
+    # tools_in_pool
+    starting_tool: str | None
+    # loansanity
+    loans: list[int]
+    loan_checks: list[int]
+    # museumsanity. Item link groups: "nothing chosen" is right for them, as link_items ORs in the linked players'
+    # own classifications.
     museum_modes: dict[int, int] = {}
+    museum_progression: frozenset[str] | set[str] = frozenset()
+    museum_item_names: list[str]
+    museum_locations: list[str]
+    museum_goal_count: int
+    # fossil_availability, fish_availability, bug_availability (read museum_modes)
+    fossil_seasons: list[int]
+    fossil_series: list[int]
+    fossil_series_items: list[str]
+    fish_pass_table: list[list[list[int | str]]]
+    fish_passes: list[list[int]]
+    fish_pass_items: list[str]
+    bug_passes: list[int]
+    bug_pass_items: list[str]
+    # nook_store_upgrades
+    store_items: int
+    store_thresholds: list[int]
+    # furniture_sets. Goal pieces: empty for item link groups
+    furniture_set: str | None
+    goal_pieces: list[str] | tuple[str, ...] = ()
+    # catalogsanity (reads goal_pieces)
+    catalog_pools: list[list[int]]
+    catalog_goal_count: int
+    catalog_goal_pools: int
+    # favor_pools
+    favor_pools: int
+    favor_count: int
     # Bell Credit tiers get_filler_item_name draws from (create_items may drop the big ones)
     filler_tiers: tuple[str, ...] = tuple(bell_credits.BELL_CREDITS)
-    # Set goal pieces (furniture_sets.setup); empty for item link groups, which skip generate_early
-    goal_pieces: tuple[str, ...] = ()
 
     # Universal Tracker regenerates the world from slot_data (no yaml needed): see ut_restore_options
     ut_can_gen_without_yaml = True
