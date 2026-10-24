@@ -261,7 +261,7 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
       slot_data.value("loan_letter_text", "Your loan is ready for\npayoff at the post office!").c_str());
   read_npc_list(slot_data, "villager_blacklist", sd->villager_blacklist);
   read_npc_list(slot_data, "starting_villagers", sd->starting_villagers);
-  sd->shops_always_open = read_bool(slot_data, "shops_always_open", 1);
+  sd->shops_always_open = read_bool(slot_data, "shops_always_open", 0);
   sd->no_weeds = read_bool(slot_data, "no_weeds", 1);
   sd->more_favors = read_bool(slot_data, "more_favors", 1);
   sd->villagers_dont_leave = read_bool(slot_data, "villagers_dont_leave", 0);
