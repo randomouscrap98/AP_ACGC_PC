@@ -57,6 +57,9 @@ void pc_menu_draw_left(struct game_s* game, const char* s, f32 x, f32 y,
 void pc_menu_draw_two_choice(struct game_s* game, const char* left,
                              const char* right, int sel, f32 y);
 
+// Three choices in a row, centred as a group; sel = 0..2
+void pc_menu_draw_three_choice(struct game_s* game, const char* choices[3], int sel, f32 y);
+
 void pc_menu_fixtext(char * text);
 
 #ifdef __cplusplus

@@ -161,3 +161,17 @@ void pc_menu_draw_two_choice(struct game_s* game, const char* left,
     pc_menu_draw_left(game, right, right_x, y, r, g, b, a,
                       sel == 1 ? PC_MENU_SCALE_SELECTED : 1.0f);
 }
+
+// Three choices in a row, centred as a group; sel = 0..2
+void pc_menu_draw_three_choice(struct game_s* game, const char* choices[3], int sel, f32 y) {
+    f32 gap = 40.0f;
+    f32 x = SCREEN_WIDTH_F * 0.5f - (pc_text_width(choices[0]) + pc_text_width(choices[1]) +
+                                     pc_text_width(choices[2]) + 2.0f * gap) * 0.5f;
+    int r, g, b, a;
+
+    for (int i = 0; i < 3; i++) {
+        pc_menu_row_colors(sel == i, &r, &g, &b, &a);
+        pc_menu_draw_left(game, choices[i], x, y, r, g, b, a, sel == i ? PC_MENU_SCALE_SELECTED : 1.0f);
+        x += pc_text_width(choices[i]) + gap;
+    }
+}

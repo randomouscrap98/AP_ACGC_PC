@@ -179,8 +179,9 @@ static int s_ap_snapshot_available;
 /* The current tab's rows (scrolls when it has more than SETTINGS_VISIBLE) */
 static pc_menu_list s_list;
 
-/* Back-confirm state (Discard vs Keep editing when Back hit while dirty). */
-static int    s_back_sel = 0; /* 0 = Keep editing (safe default), 1 = Discard */
+// Back-confirm state (Back hit while dirty): one of BACK_CHOICE_*
+enum { BACK_CHOICE_APPLY, BACK_CHOICE_DISCARD, BACK_CHOICE_KEEP_EDITING, BACK_CHOICE_COUNT };
+static int    s_back_sel = BACK_CHOICE_APPLY;
 
 /* --- Bindings editor (SUB_BINDINGS) state --- */
 typedef struct {
@@ -767,7 +768,7 @@ static int nav_horizontal(int dir) {
         return 1;
     }
     if (s_sub == SUB_CONFIRM_BACK) {
-        s_back_sel = (s_back_sel + 1) % 2;
+        s_back_sel = (s_back_sel + dir + BACK_CHOICE_COUNT) % BACK_CHOICE_COUNT;
         return 1;
     }
     if (s_sel == -1) {
@@ -805,13 +806,16 @@ int pc_settings_menu_confirm(void) {
         return 1;
     }
     if (s_sub == SUB_CONFIRM_BACK) {
-        if (s_back_sel == 1) {
-            /* Discard - close the menu; pending edits drop on the floor. */
-            s_active = 0;
-            return 0;
+        if (s_back_sel == BACK_CHOICE_KEEP_EDITING) {
+            s_sub = SUB_SETTINGS;
+            return 1;
         }
-        s_sub = SUB_SETTINGS;
-        return 1;
+        // Apply, or Discard (pending edits drop on the floor); either way the menu closes
+        if (s_back_sel == BACK_CHOICE_APPLY) {
+            apply_pending();
+        }
+        s_active = 0;
+        return 0;
     }
     if (s_sel == -1) {
         /* Confirm on the tab row - just hop into the first item. */
@@ -826,7 +830,7 @@ int pc_settings_menu_confirm(void) {
     } else if (s_sel == idx_back()) {
         if (s_pending_dirty) {
             s_sub = SUB_CONFIRM_BACK;
-            s_back_sel = 0;
+            s_back_sel = BACK_CHOICE_APPLY;
             return 1;
         }
         s_active = 0;
@@ -849,7 +853,7 @@ int pc_settings_menu_cancel(void) {
     }
     if (s_pending_dirty) {
         s_sub = SUB_CONFIRM_BACK;
-        s_back_sel = 0;
+        s_back_sel = BACK_CHOICE_APPLY;
         return 1;
     }
     s_active = 0;
@@ -1067,13 +1071,15 @@ static void draw_settings_page(struct game_s* game) {
     }
 }
 
-/* Discard-changes confirmation shown when the user tries to Back out
- * while s_pending_dirty. No auto-timer (the user must pick). */
+/* Confirmation shown when the user tries to Back out while s_pending_dirty.
+ * No auto-timer (the user must pick). */
 static void draw_back_confirm_page(struct game_s* game) {
-    pc_menu_draw_centered(game, "- Discard changes? -", 80.0f, 255, 255, 255, 255, 1.0f);
+    static const char* choices[BACK_CHOICE_COUNT] = { "Apply", "Discard", "Keep editing" };
+
+    pc_menu_draw_centered(game, "- Apply changes? -", 80.0f, 255, 255, 255, 255, 1.0f);
     pc_menu_draw_centered(game, "You have unapplied changes.",
                           115.0f, 230, 230, 230, 255, 1.0f);
-    pc_menu_draw_two_choice(game, "Keep editing", "Discard", s_back_sel, 160.0f);
+    pc_menu_draw_three_choice(game, choices, s_back_sel, 160.0f);
 }
 
 /* Keyboard/gamepad columns for every remappable action, with scrolling.
