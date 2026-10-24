@@ -471,7 +471,8 @@ static void aSG_pc_catalog_hints(SHOP_GOODS_ACTOR* shop_goods, GAME* game) {
             }
 
             // Anywhere between the box's first and last unit centers, plus a little; it drifts down and is
-            // gone at the ground. Height as aSG_DrawGoods.
+            // gone at the ground. Height as aSG_DrawGoods, started 55-70 above it so it clears tall goods
+            // (stove, clothes).
             mFI_BkandUtNum2CenterWpos(&pos, shop_goods->bx, shop_goods->bz, x0, z0);
             pos.x += RANDOM_F((x1 - x0) * mFI_UT_WORLDSIZE_X_F) + RANDOM2_F(15.0f);
             pos.z += RANDOM_F((z1 - z0) * mFI_UT_WORLDSIZE_Z_F) + RANDOM2_F(15.0f);
@@ -480,7 +481,7 @@ static void aSG_pc_catalog_hints(SHOP_GOODS_ACTOR* shop_goods, GAME* game) {
             } else {
                 pos.y = mCoBG_GetBgY_AngleS_FromWpos(NULL, pos, 0.0f);
             }
-            pos.y += 25.0f + RANDOM_F(15.0f);
+            pos.y += 55.0f + RANDOM_F(15.0f);
             eEC_CLIP->effect_make_proc(eEC_EFFECT_MAKE_HEM_KIRA, pos, 2, 0, game, RSV_NO, 0, 0);
         }
     }

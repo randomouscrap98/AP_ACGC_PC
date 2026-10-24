@@ -166,7 +166,12 @@ static void mSP_SetSeasonFTR(mActor_name_t* item_table, int count) {
 
     if (count > 0 && month == lbRTC_DECEMBER) {
 
+#ifdef TARGET_PC
+        // Christmas trees only the week before Christmas: they take up to every furniture slot of the smaller shops
+        if (day >= 18 && day <= 24) {
+#else
         if (day <= 24) {
+#endif
             mSP_SetSeasonFTR_local_december(item_table, count, FTR_START(FTR_NOG_XTREE), FTR_START(FTR_KON_XTREE02));
         } else if (day >= 26) {
             mSP_SetSeasonFTR_local_december(item_table, count, FTR_START(FTR_YAZ_CANDLE), FTR_START(FTR_YOS_KFLAG));
