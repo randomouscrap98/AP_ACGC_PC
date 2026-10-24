@@ -273,7 +273,7 @@ static void Actor_draw(GAME_PLAY* play, ACTOR* actor) {
 
     /* Draw actor */
 #ifdef TARGET_PC
-    if (g_pc_actor_probe) pc_actor_probe_begin(actor, play);
+    if (g_pc_debug.actor_probe) pc_actor_probe_begin(actor, play);
 #endif
     Actor_draw_ta_set(actor, play);
     (*actor->dw_proc)(actor, &play->game);
@@ -284,7 +284,7 @@ static void Actor_draw(GAME_PLAY* play, ACTOR* actor) {
         (*actor->shape_info.shadow_proc)(actor, lights, play);
     }
 #ifdef TARGET_PC
-    if (g_pc_actor_probe) pc_actor_probe_end();
+    if (g_pc_debug.actor_probe) pc_actor_probe_end();
 #endif
 }
 

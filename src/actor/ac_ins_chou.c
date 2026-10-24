@@ -8,6 +8,7 @@
 #ifdef TARGET_PC
 #include "pc_ap_qol.h"
 #include "pc_platform.h"
+#include "pc_debug.h"
 #endif
 
 enum {
@@ -636,36 +637,25 @@ static void aICH_setupAction(aINS_INSECT_ACTOR* insect, int action, GAME* game) 
 
 #ifdef TARGET_PC
 // TEMP butterfly probe (2026-10-17, remove by hand): a flying/avoiding butterfly that stays within 15 units (xz)
-// for 5 s is logged to butterfly_probe.txt next to the exe, then traced for 90 frames. Re-armed once it moves.
+// for 5 s is logged to logs/butterfly_probe.txt, then traced for 90 frames. Re-armed once it moves.
 // Only with --debug.
 #include <stdio.h>
 
-#define aICH_PROBE_SLOTS 16
-typedef struct {
-    ACTOR* actor;
-    f32 anchor_x, anchor_z;
-    f32 still_frames;
-    int trace_left;
-    int reported;
-} aICH_probe_slot;
-
-static aICH_probe_slot l_aICH_probe[aICH_PROBE_SLOTS];
-static FILE* l_aICH_probe_file = NULL;
-
-static aICH_probe_slot* aICH_probe_get(ACTOR* actor) {
+static PcButterflySlot* aICH_probe_get(ACTOR* actor) {
+    PcButterflySlot* slots = g_pc_debug.butterfly.slots;
     int i;
-    aICH_probe_slot* free_slot = NULL;
+    PcButterflySlot* free_slot = NULL;
 
-    for (i = 0; i < aICH_PROBE_SLOTS; i++) {
-        if (l_aICH_probe[i].actor == actor) {
-            return &l_aICH_probe[i];
+    for (i = 0; i < PC_DEBUG_BUTTERFLY_SLOTS; i++) {
+        if (slots[i].actor == actor) {
+            return &slots[i];
         }
-        if (free_slot == NULL && l_aICH_probe[i].actor == NULL) {
-            free_slot = &l_aICH_probe[i];
+        if (free_slot == NULL && slots[i].actor == NULL) {
+            free_slot = &slots[i];
         }
     }
     if (free_slot == NULL) { // full (dead actors never free theirs): reuse one by address
-        free_slot = &l_aICH_probe[((uintptr_t)actor >> 4) % aICH_PROBE_SLOTS];
+        free_slot = &slots[((uintptr_t)actor >> 4) % PC_DEBUG_BUTTERFLY_SLOTS];
     }
     free_slot->actor = actor;
     free_slot->anchor_x = actor->world.position.x;
@@ -688,7 +678,7 @@ static void aICH_probe_line(aINS_INSECT_ACTOR* insect, GAME* game, const char* t
     f32 plain = mCoBG_GetBgY_OnlyCenter_FromWpos(actor->world.position, 0.0f);
 
     mFI_Wpos2BlockNum(&pos_bx, &pos_bz, actor->world.position);
-    fprintf(l_aICH_probe_file,
+    fprintf(g_pc_debug.butterfly.file,
             "%s f=%u a=%p type=%d act=%d idx=%d latch=%d unit=%d,%d home=%.1f,%.1f wp=%.1f,%.1f "
             "pos=%.1f,%.1f,%.1f y-ground=%.1f y-plain=%.1f spd=%.2f tgt=%.2f step=%.2f vy=%.2f rotY=%04x angY=%04x "
             "patience=%.1f blk=%d,%d posblk=%d,%d dt=%.3f wall=%x work2=%.1f work3=%.1f\n",
@@ -704,22 +694,23 @@ static void aICH_probe_line(aINS_INSECT_ACTOR* insect, GAME* game, const char* t
 
 static void aICH_probe(aINS_INSECT_ACTOR* insect, GAME* game) {
     ACTOR* actor = &insect->tools_actor.actor_class;
-    aICH_probe_slot* slot;
+    FILE** file = &g_pc_debug.butterfly.file;
+    PcButterflySlot* slot;
     f32 dx;
     f32 dz;
 
-    if (l_aICH_probe_file == NULL) {
-        l_aICH_probe_file = fopen("butterfly_probe.txt", "w");
-        if (l_aICH_probe_file == NULL) {
+    if (*file == NULL) {
+        *file = pc_debug_open("butterfly_probe.txt");
+        if (*file == NULL) {
             return;
         }
-        fprintf(l_aICH_probe_file, "== probe start\n");
+        fprintf(*file, "== probe start\n");
     }
     slot = aICH_probe_get(actor);
     if (slot->trace_left > 0) {
         aICH_probe_line(insect, game, "  trace");
         if (--slot->trace_left == 0) {
-            fflush(l_aICH_probe_file);
+            fflush(*file);
         }
     }
     if (insect->action != aICH_ACTION_FLY && insect->action != aICH_ACTION_AVOID) {
@@ -733,7 +724,7 @@ static void aICH_probe(aINS_INSECT_ACTOR* insect, GAME* game) {
     if (dx * dx + dz * dz > 15.0f * 15.0f) {
         if (slot->reported) {
             aICH_probe_line(insect, game, "MOVED");
-            fflush(l_aICH_probe_file);
+            fflush(*file);
         }
         slot->anchor_x = actor->world.position.x;
         slot->anchor_z = actor->world.position.z;
@@ -768,7 +759,7 @@ static void aICH_actor_move(ACTOR* actor, GAME* game) {
         insect->action_proc(actor,game);
     }
 #ifdef TARGET_PC
-    if (g_pc_debug) {
+    if (g_pc_debug.enabled) {
         aICH_probe(insect, game); // TEMP butterfly probe
     }
 #endif

@@ -17,6 +17,8 @@
 #include "pc_ap_logic.h"
 #include "pc_crash.h"
 #include "pc_actor_probe.h"
+#include "pc_debug.h"
+#include "pc_dirs.h"
 #include "pc_sound_test.h"
 #include "pc_window_icon.h"
 
@@ -41,7 +43,6 @@ int           g_pc_running = 1;
 int           g_pc_frame_limit_override = -1;
 int           g_pc_speedhack_enabled = 0;
 int           g_pc_verbose = 0;
-int           g_pc_debug = 0; // --debug: every debug probe (actor_probe.txt, butterfly_probe.txt)
 int           g_pc_time_override = -1; /* -1=system clock, 0-23=override hour */
 int           g_pc_min_override = -1; /* -1=system clock, 0-59=override minute */
 int           g_pc_sec_override = -1; /* -1=system clock, 0-59=override second */
@@ -349,9 +350,10 @@ int main(int argc, char* argv[]) {
             printf("  --rain [intensity]  Force rainy weather; intensity is light, normal, or heavy\n");
             printf("  --uber-shader       Disable shader specialization (single uber shader)\n");
             printf("  --crash-test        Crash on purpose after startup, to check the crash report\n");
-            printf("  --debug             Debug probes: actors that jump far in one frame (actor_probe.txt),\n");
-            printf("                      butterflies stuck in place (butterfly_probe.txt); the log goes to\n");
-            printf("                      debug_log.txt (unless --verbose); \"DEBUG\" next to the version\n");
+            printf("  --debug             Debug probes in logs/: actors that jump far in one frame (actor_probe.txt),\n");
+            printf("                      butterflies stuck in place (butterfly_probe.txt), fog (fog_probe.txt);\n");
+            printf("                      the log goes to logs/debug_log.txt (unless --verbose); \"DEBUG\" next to\n");
+            printf("                      the version\n");
             printf("  --help, -h          Show this help message\n");
             return 0;
         } else if (strcmp(argv[i], "--framelimit") == 0) {
@@ -405,8 +407,8 @@ int main(int argc, char* argv[]) {
         } else if (strcmp(argv[i], "--crash-test") == 0) {
             crash_test = 1;
         } else if (strcmp(argv[i], "--debug") == 0) {
-            g_pc_debug = 1;
-            g_pc_actor_probe = 1;
+            g_pc_debug.enabled = 1;
+            g_pc_debug.actor_probe = 1;
         } else if (strcmp(argv[i], "--rain") == 0) {
             g_pc_weather_override = mEnv_WEATHER_RAIN;
             g_pc_weather_intensity_override = mEnv_WEATHER_INTENSITY_HEAVY;
@@ -422,10 +424,13 @@ int main(int argc, char* argv[]) {
 
     /* Redirect stdout/stderr to NUL unless verbose — unbuffered terminal writes
      * are extremely slow on Windows and tank FPS. */
-    if (g_pc_debug && !g_pc_verbose && !g_pc_profile_enabled) {
-        // --debug without a console: both into debug_log.txt next to the exe, buffered (no frame rate cost;
+    if (g_pc_debug.enabled) {
+        pc_mkdir_p("logs"); // every --debug file goes in here
+    }
+    if (g_pc_debug.enabled && !g_pc_verbose && !g_pc_profile_enabled) {
+        // --debug without a console: both into logs/debug_log.txt, buffered (no frame rate cost;
         // the last lines before a crash can be missing)
-        if (freopen("debug_log.txt", "w", stdout) != NULL) {
+        if (freopen("logs/debug_log.txt", "w", stdout) != NULL) {
             dup2(fileno(stdout), fileno(stderr));
             setvbuf(stderr, NULL, _IOFBF, 4096);
         }
@@ -441,8 +446,8 @@ int main(int argc, char* argv[]) {
         setvbuf(stdout, NULL, _IONBF, 0);
         setvbuf(stderr, NULL, _IONBF, 0);
     }
-    if (g_pc_debug) {
-        printf("[PC] debug mode (--debug): actor_probe.txt, butterfly_probe.txt%s\n",
+    if (g_pc_debug.enabled) {
+        printf("[PC] debug mode (--debug): logs/ actor_probe.txt, butterfly_probe.txt, fog_probe.txt%s\n",
                g_pc_verbose || g_pc_profile_enabled ? "" : ", this log (debug_log.txt)");
     }
     pc_actor_probe_init();

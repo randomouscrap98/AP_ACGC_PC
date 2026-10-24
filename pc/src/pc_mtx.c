@@ -302,7 +302,7 @@ void guMtxF2L(float mf[4][4], Mtx* m) {
             *(af++) = ((e1 << 16) & 0xffff0000) | (e2 & 0xffff);
         }
 
-    if (g_pc_actor_probe) pc_actor_probe_mtx(mf, m);
+    if (g_pc_debug.actor_probe) pc_actor_probe_mtx(mf, m);
 }
 
 void guMtxIdent(Mtx* m) {

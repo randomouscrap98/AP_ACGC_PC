@@ -4559,7 +4559,7 @@ void emu64::dl_G_MTX() {
             }
         } else { /* Modelview */
 #ifdef TARGET_PC
-            if (g_pc_actor_probe) pc_actor_probe_gpu_mtx(mtx);
+            if (g_pc_debug.actor_probe) pc_actor_probe_gpu_mtx(mtx);
 #endif
             GC_Mtx& concat_src = this->model_view_mtx_stack[this->mtx_stack_size];
 

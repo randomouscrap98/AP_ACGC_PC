@@ -279,6 +279,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_crash.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_actor_probe.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_debug.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gx.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gx_tev.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gx_texture.c

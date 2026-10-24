@@ -561,7 +561,7 @@ Mtx* _MtxF_to_Mtx(MtxF* src, Mtx* dest) {
     }
 
 #ifdef TARGET_PC
-    if (g_pc_actor_probe) pc_actor_probe_mtx(src->mf, dest);
+    if (g_pc_debug.actor_probe) pc_actor_probe_mtx(src->mf, dest);
 #endif
     return dest;
 }

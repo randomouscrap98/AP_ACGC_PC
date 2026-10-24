@@ -2,6 +2,7 @@
 #include "pc_gx_internal.h"
 #include "pc_profiler.h"
 #include "pc_render_target.h"
+#include "pc_debug.h"
 #include <stddef.h>
 static GLushort quad_index_buf[(PC_GX_MAX_VERTS / 4) * 6];
 #include <math.h>
@@ -390,8 +391,11 @@ void pc_gx_clear_black(void) {
     DIRTY(PC_GX_DIRTY_DEPTH | PC_GX_DIRTY_COLOR_MASK);
 }
 
+static void pc_gx_fog_probe_new_frame(void);
+
 void pc_gx_begin_frame(void) {
     g_pc_gx_frame_begun = 1;
+    pc_gx_fog_probe_new_frame();
     /* Profiler frame opens in graph_main so game_main is captured */
     Uint64 prof_start = pc_profiler_begin_timer();
     pc_emu64_frame_cmds = 0;
@@ -1698,8 +1702,53 @@ void GXSetCullMode(u32 mode) {
 void GXSetCoPlanar(GXBool enable) { (void)enable; }
 
 /* --- Fog --- */
+// --debug fog probe (logs/fog_probe.txt), for the bright flash on camera moves: every perspective fog with
+// start >= end or a non-finite value is logged as REVERSED (the shader then draws no fog at all); the first
+// perspective fog of each frame (the scene's) as "scene" when its distances changed.
+#define PC_FOG_PROBE_MAX_LINES 20000
+
+static void pc_gx_fog_probe_new_frame(void) {
+    g_pc_debug.fog.frame++;
+    g_pc_debug.fog.scene_seen = 0;
+}
+
+static void pc_gx_fog_probe(u32 type, f32 startz, f32 endz, f32 nearz, f32 farz, GXColor color) {
+    PcFogProbe* p = &g_pc_debug.fog;
+    float dist[4] = { startz, endz, nearz, farz };
+    int reversed;
+
+    if (!g_pc_debug.enabled || type != GX_FOG_PERSP_LIN || p->lines >= PC_FOG_PROBE_MAX_LINES) {
+        return;
+    }
+    if (p->file == NULL) {
+        p->file = pc_debug_open("fog_probe.txt");
+        if (p->file == NULL) {
+            p->lines = PC_FOG_PROBE_MAX_LINES;
+            return;
+        }
+    }
+
+    reversed = !(startz < endz) || !isfinite(startz) || !isfinite(endz) || !isfinite(nearz) || !isfinite(farz);
+    if (!reversed) {
+        if (p->scene_seen) {
+            return;
+        }
+        p->scene_seen = 1;
+        if (memcmp(dist, p->last, sizeof(dist)) == 0) {
+            return;
+        }
+        memcpy(p->last, dist, sizeof(dist));
+    }
+
+    fprintf(p->file, "frame %u %s start %.2f end %.2f near %.2f far %.2f color %d %d %d\n", p->frame,
+            reversed ? "REVERSED" : "scene", startz, endz, nearz, farz, color.r, color.g, color.b);
+    fflush(p->file);
+    p->lines++;
+}
+
 void GXSetFog(u32 type, f32 startz, f32 endz, f32 nearz, f32 farz, GXColor color) {
     pc_gx_flush_if_begin_complete();
+    pc_gx_fog_probe(type, startz, endz, nearz, farz, color);
     float c[4] = { color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f };
     if (g_gx.fog_type == (int)type && g_gx.fog_start == startz &&
         g_gx.fog_end == endz && g_gx.fog_near == nearz && g_gx.fog_far == farz &&

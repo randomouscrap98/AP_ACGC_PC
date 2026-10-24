@@ -2,7 +2,7 @@
 #define PC_ACTOR_PROBE_H
 
 // Debug probe for actors that jump across the screen for a few frames (--debug).
-// Writes actor_probe.txt next to the exe. Every hook is behind g_pc_actor_probe, so it costs
+// Writes logs/actor_probe.txt. Every hook is behind g_pc_debug.actor_probe, so it costs
 // nothing when off. Checks:
 //   pos    actor's world.position moved far in one frame
 //   draw   actor's first draw matrix moved far in one frame (render side, incl. skeleton root)
@@ -11,14 +11,14 @@
 //   gpu    a draw matrix changed between the game building it and emu64 using it
 //   camera camera eye/center moved far in one frame
 
+#include "pc_debug.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct actor_s;
 struct game_play_s;
-
-extern int g_pc_actor_probe;
 
 // Opens the log. From main after argument parsing.
 void pc_actor_probe_init(void);
