@@ -16,6 +16,7 @@
 #ifdef TARGET_PC
 #include "pc_platform.h"
 #include "pc_actor_probe.h"
+#include <string.h>
 #endif
 
 // this pragma may be unnecessary
@@ -3952,10 +3953,18 @@ void emu64::dl_G_SETCOMBINE_NOTEV() {
 
     /* Update combiner settings only if it changed */
     ((Gsetcombine_new*)combine)->cmd = G_SETCOMBINE;
+#ifdef TARGET_PC
+    // Gfx is only 4-aligned on i386: no u64 access (UBSan)
+    if (memcmp(&this->combine_gfx, &this->gfx, sizeof(Gfx)) != 0) {
+        memcpy(&this->combine_gfx, &this->gfx, sizeof(Gfx));
+        this->dirty_flags[EMU64_DIRTY_FLAG_COMBINE] = true;
+    }
+#else
     if (*(u64*)&this->combine_gfx != *combine) {
         *(u64*)&this->combine_gfx = *combine;
         this->dirty_flags[EMU64_DIRTY_FLAG_COMBINE] = true;
     }
+#endif
 }
 
 void emu64::dl_G_SETCOMBINE() {
@@ -3967,10 +3976,18 @@ void emu64::dl_G_SETCOMBINE() {
     }
 
     /* Update combiner settings only if it changed */
+#ifdef TARGET_PC
+    // Gfx is only 4-aligned on i386: no u64 access (UBSan)
+    if (memcmp(&this->combine_gfx, &this->gfx, sizeof(Gfx)) != 0) {
+        memcpy(&this->combine_gfx, &this->gfx, sizeof(Gfx));
+        this->dirty_flags[EMU64_DIRTY_FLAG_COMBINE] = true;
+    }
+#else
     if (*(u64*)&this->combine_gfx != *combine) {
         *(u64*)&this->combine_gfx = *combine;
         this->dirty_flags[EMU64_DIRTY_FLAG_COMBINE] = true;
     }
+#endif
 
     /* N64 Combiner -> GC TEV */
     if (this->gfx_cmd != G_SETCOMBINE_NOTEV && aflags[AFLAGS_SKIP_COMBINE_TEV] == 0) {
@@ -5346,8 +5363,14 @@ void emu64::dl_G_TEXTURE() {
 #endif
 
     Gfx* t = (Gfx*)&this->texture_gfx;
+#ifdef TARGET_PC
+    // Gtexture_internal is only 4-aligned on i386: no u64 access (UBSan)
+    if (memcmp(t, &this->gfx, sizeof(Gfx)) != 0) {
+        memcpy(&this->texture_gfx, texture, sizeof(Gfx));
+#else
     if ((*(u64*)t) != (*(u64*)&this->gfx)) {
         *(u64*)&this->texture_gfx = *(u64*)texture;
+#endif
         this->dirty_flags[EMU64_DIRTY_FLAG_TEX] = true;
 
         if (this->texture_gfx.s == 0) {

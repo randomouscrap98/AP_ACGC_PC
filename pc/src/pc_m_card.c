@@ -130,7 +130,10 @@ void mCD_save_data_aram_malloc(void) {
     int i;
     for (i = 0; i < mCD_ARAM_DATA_NUM; i++) {
         if (l_aram_block_p_table[i] == NULL) {
-            l_aram_block_p_table[i] = malloc(l_aram_alloc_size_table[i]);
+            // The keep structs are ATTRIBUTE_ALIGN(32), malloc only gives 8/16: round up inside a bigger block.
+            // Never freed, so the raw pointer isn't kept
+            u8* raw = (u8*)malloc(l_aram_alloc_size_table[i] + 31);
+            l_aram_block_p_table[i] = raw ? (void*)(((uintptr_t)raw + 31) & ~(uintptr_t)31) : NULL;
             if (l_aram_block_p_table[i]) {
                 memset(l_aram_block_p_table[i], 0, l_aram_alloc_size_table[i]);
                 if (i == mCD_ARAM_DATA_DIARY) {

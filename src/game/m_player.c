@@ -528,8 +528,14 @@ static void Player_actor_init_value(ACTOR* actorx, GAME* game) {
     player->part_table_idx = -1;
     player->item_shape_type[0] = -1;
     player->item_shape_type[1] = -1;
+#ifdef TARGET_PC
+    // Same stores without indexing past item_shape_type[2] (UBSan)
+    player->item_animation_idx[0] = -1;
+    player->item_animation_idx[1] = -1;
+#else
     player->item_shape_type[2] = -1;
     player->item_shape_type[3] = -1;
+#endif
 
     Player_actor_ct_forCorect(actorx, game);
     Player_actor_set_eye_pattern(actorx, 0);

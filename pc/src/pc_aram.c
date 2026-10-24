@@ -39,7 +39,8 @@ void ARFree(u32* addr) {
 
 /* type 0 = MRAM→ARAM, type 1 = ARAM→MRAM. params are always (type, mram, aram). */
 void ARStartDMA(u32 type, u32 mram_addr, u32 aram_addr, u32 length) {
-    if (!aram_base) return;
+    // length 0 comes with a NULL source at audio init (memcpy(dst, NULL, 0) is UB)
+    if (!aram_base || length == 0) return;
 
     /* some code passes (aram_base + offset) instead of just the offset */
     u32 base = (u32)(uintptr_t)aram_base;
