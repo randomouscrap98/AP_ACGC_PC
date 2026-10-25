@@ -47,7 +47,8 @@ typedef struct {
   xyz_t from;  // ROTATE / SLIDE: the model's position before the move
   xyz_t pivot; // ROTATE: the point it turns around
   xyz_t move;  // SLIDE: from -> the new position
-  f32 slide;   // SLIDE: frame of the room's furniture_push keyframes (1-25)
+  f32 slide;   // SLIDE: frame of the room's furniture_push / _pull keyframes (1-25)
+  u8 pull;     // SLIDE: a pull (its own curve)
 } pc_outdoor_ftr_anim;
 
 typedef struct {
@@ -84,9 +85,12 @@ int pc_outdoor_ftr_switch(int ux, int uz);
 int pc_outdoor_ftr_hold_begin(int ux, int uz, const xyz_t* player_pos, int player_direct, xyz_t* nice_pos);
 // The outdoor stand-in for the room's judge_player_action_proc while holding, same state codes: 0 let go (the player
 // goes back to waiting; a tap under 14 frames flips the piece's switch), 1 keep holding, 2 push (once per move: the
-// stick full away from the player for 17 frames, straining = 9 meanwhile), 4 / 5 turning right / left (a full
-// sideways stick, once per flick: aMR_DecideKurukuruDirect). Blocked = the BUBU puff. Pull later
+// stick full away from the player for 17 frames, straining = 9 meanwhile), 3 pull (the same toward the player,
+// straining = 10; the player walks back to pc_outdoor_ftr_pull_target), 4 / 5 turning right / left (a full
+// sideways stick, once per flick: aMR_DecideKurukuruDirect). Blocked = the BUBU puff
 int pc_outdoor_ftr_hold_judge(struct game_s* game, int a_held);
+// Where the last pull (judge 3) takes the player: one unit back from where they held it
+void pc_outdoor_ftr_pull_target(xyz_t* pos);
 // The player picked up the item at global unit ux, uz (FG already emptied): a piece anchored there goes, with its
 // placeholders
 void pc_outdoor_ftr_picked_up(int ux, int uz);
@@ -125,8 +129,8 @@ int pc_outdoor_ftr_turn_units(int shape, int rot, int ux, int uz, int pivot_ux, 
                               int* new_uz, int* new_rot, int* need_x, int* need_z);
 // One frame of the turn (aMR_GetEllipseSpeed: 5.6 deg a frame at first, slowing): the new `turned`, 90 = done
 f32 pc_outdoor_ftr_turn_step(f32 turned, f32 dt);
-// How far a push has gone at keyframe `frame` (1-25) of the room's furniture_push: 0-1, eased
-f32 pc_outdoor_ftr_push_curve(f32 frame);
+// How far a push / pull has gone at keyframe `frame` (1-25) of the room's furniture_push / _pull: 0-1, eased
+f32 pc_outdoor_ftr_slide_curve(f32 frame, int pull);
 int pc_outdoor_ftr_format(const pc_outdoor_ftr_piece* p, int count, char* buf, int size);
 
 // Allow-listed unique-code furniture (pc_outdoor_ftr_allow.c)

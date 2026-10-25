@@ -156,7 +156,7 @@ static void Player_actor_request_proc_index_fromHold(ACTOR* actor, GAME* game) {
     }
 #if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
     /* Outdoors there's no room to ask: the outdoor furniture's judge, same state codes as the room's above
-       (0, 1, 2 push, 4 / 5 turn, 9 straining so far) */
+       (0, 1, 2 push, 3 pull, 4 / 5 turn, 9 / 10 straining) */
     else {
         int state = pc_outdoor_ftr_hold_judge(game, chkButton(BUTTON_A));
 
@@ -165,6 +165,14 @@ static void Player_actor_request_proc_index_fromHold(ACTOR* actor, GAME* game) {
         } else if (state == 2) {
             Player_actor_request_main_push(game, player->main_data.hold.ftr_no, player->main_data.hold.angle_y,
                                            &player->main_data.hold.player_pos, mPlayer_REQUEST_PRIORITY_21);
+        } else if (state == 3) {
+            xyz_t target;
+            xyz_t no_ofs = { 0.0f, 0.0f, 0.0f }; /* the room's pull_target_pos0 == pos1 */
+
+            pc_outdoor_ftr_pull_target(&target);
+            Player_actor_request_main_pull(game, player->main_data.hold.ftr_no, player->main_data.hold.angle_y,
+                                           &player->main_data.hold.player_pos, &target, &no_ofs,
+                                           mPlayer_REQUEST_PRIORITY_21);
         } else if (state == 4 || state == 5) {
             Player_actor_request_main_rotate_furniture(game, player->main_data.hold.ftr_no,
                                                        player->main_data.hold.angle_y,
@@ -173,6 +181,11 @@ static void Player_actor_request_proc_index_fromHold(ACTOR* actor, GAME* game) {
         } else if (state == 9) {
             if (player->animation0_idx != mPlayer_ANIM_HOLD_WAIT_O1) {
                 Player_actor_InitAnimation_Base1(actor, game, mPlayer_ANIM_HOLD_WAIT_O1, mPlayer_ANIM_HOLD_WAIT_O1,
+                                                 1.0f, 1.0f, 0.5f, -4.0f, 0);
+            }
+        } else if (state == 10) {
+            if (player->animation0_idx != mPlayer_ANIM_HOLD_WAIT_H1) {
+                Player_actor_InitAnimation_Base1(actor, game, mPlayer_ANIM_HOLD_WAIT_H1, mPlayer_ANIM_HOLD_WAIT_H1,
                                                  1.0f, 1.0f, 0.5f, -4.0f, 0);
             }
         } else if (state == 1) {
