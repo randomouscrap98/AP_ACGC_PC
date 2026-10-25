@@ -7325,6 +7325,31 @@ static mActor_name_t* Player_actor_pc_outdoor_ftr(mActor_name_t* fg_p, xyz_t* ta
 }
 #endif
 
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
+/* Outdoor furniture: A (no tool in hand, as for shaking a tree) facing a placed piece flips its switch (TV, train
+   set...), like the room's generic switch; the piece's own code plays its switch sound */
+static void Player_actor_pc_outdoor_ftr_switch(GAME* game) {
+    ACTOR* actorx = GET_PLAYER_ACTOR_GAME_ACTOR(game);
+    xyz_t pos;
+    xyz_t target_pos;
+    xyz_t item_pos;
+    int ux;
+    int uz;
+
+    if (Common_Get(field_type) != mFI_FIELDTYPE2_FG || mEv_IsTitleDemo() ||
+        !Player_actor_CheckController_forShake_tree(game) ||
+        Player_actor_check_request_main_priority(game, mPlayer_REQUEST_PRIORITY_5) <= 0) {
+        return;
+    }
+    Player_actor_Get_PickupHandPosition(actorx, &pos, 35.0f);
+    if (Player_actor_pc_outdoor_ftr(Player_actor_CheckItem_fromPosition(&pos, SQ(15.0f), 15.0f, &target_pos, &item_pos),
+                                    &target_pos, &item_pos) != NULL &&
+        mFI_Wpos2UtNum(&ux, &uz, target_pos)) {
+        pc_outdoor_ftr_switch(ux, uz);
+    }
+}
+#endif
+
 static mActor_name_t* Player_actor_Search_putin_item(ACTOR* actorx, xyz_t* target_pos_p, xyz_t* item_pos_p) {
     xyz_t pos;
     mActor_name_t* fg_p;

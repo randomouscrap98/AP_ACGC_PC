@@ -61,6 +61,7 @@ typedef struct {
 static pc_outdoor_ftr_bye s_byes[PC_OUTDOOR_FTR_BYES];
 
 static void pc_outdoor_ftr_model_pos(const pc_outdoor_ftr_piece* p, xyz_t* pos);
+static pc_outdoor_ftr_rig* pc_outdoor_ftr_rig_find(const pc_outdoor_ftr_piece* p);
 
 // --- Pure helpers ---
 
@@ -139,21 +140,25 @@ int pc_outdoor_ftr_birth_step(pc_outdoor_ftr_anim* a, f32 dt) {
   return puffs;
 }
 
-// "ux:uz:rot:item,..." (decimal, decimal, 0-3, hex). Bad entries are skipped
+// "ux:uz:rot:item[:sw],..." (decimal, decimal, 0-3, hex, 0-1 if ever switched). Bad entries are skipped
 int pc_outdoor_ftr_parse(const char* s, pc_outdoor_ftr_piece* out, int max) {
   int count = 0;
 
   while(s != NULL && *s != '\0' && count < max) {
-    int ux, uz, rot, used = 0;
+    int ux, uz, rot, sw = -1, used = 0, used_sw = 0;
     unsigned int item;
 
     if(sscanf(s, "%d:%d:%d:%x%n", &ux, &uz, &rot, &item, &used) == 4 && ux >= 0 && ux < 0x7FFF && uz >= 0 &&
        uz < 0x7FFF && rot >= 0 && rot <= 3 && item <= 0xFFFF) {
+      if(s[used] == ':' && (sscanf(s + used, ":%d%n", &sw, &used_sw) != 1 || sw < 0 || sw > 1)) {
+        sw = -1; // a bad switch field: the default
+      }
       memset(&out[count], 0, sizeof(out[count]));
       out[count].ux = (s16)ux;
       out[count].uz = (s16)uz;
       out[count].rot = (u8)rot;
       out[count].item = (u16)item;
+      out[count].sw = (s8)sw;
       count++;
     }
     s = strchr(s, ',');
@@ -171,6 +176,9 @@ int pc_outdoor_ftr_format(const pc_outdoor_ftr_piece* p, int count, char* buf, i
   for(int i = 0; i < count && len < size; i++) {
     len += snprintf(buf + len, size - len, i == 0 ? "%d:%d:%d:%04x" : ",%d:%d:%d:%04x", p[i].ux, p[i].uz, p[i].rot,
                     p[i].item);
+    if(p[i].sw >= 0 && len < size) {
+      len += snprintf(buf + len, size - len, ":%d", p[i].sw);
+    }
   }
   return len < size;
 }
@@ -391,6 +399,7 @@ int pc_outdoor_ftr_place(GAME_PLAY* play, u16 item) {
         mFI_SetFG_common(PC_OUTDOOR_FTR_PLACEHOLDER, pos, TRUE);
       }
       memset(&s_pieces[s_count], 0, sizeof(s_pieces[s_count]));
+      s_pieces[s_count].sw = -1;
       s_pieces[s_count].anim.state = PC_OUTDOOR_FTR_ANIM_LANDING; // pops once the leaf lands
       s_pieces[s_count].ux = (s16)xs[0];
       s_pieces[s_count].uz = (s16)zs[0];
@@ -416,6 +425,35 @@ int pc_outdoor_ftr_quiet_landing(u16 item, const xyz_t* target) {
   }
   i = pc_outdoor_ftr_town_anchor(ux, uz);
   return i >= 0 && s_pieces[i].item == item && s_pieces[i].anim.state == PC_OUTDOOR_FTR_ANIM_LANDING;
+}
+
+int pc_outdoor_ftr_switch(int ux, int uz) {
+  int ftr;
+  int i;
+
+  if(s_count == 0 || !pc_outdoor_ftr_own_town()) {
+    return FALSE;
+  }
+  i = pc_outdoor_ftr_find_covering(ux, uz);
+  if(i < 0 || !pc_outdoor_ftr_intact(&s_pieces[i])) {
+    return FALSE;
+  }
+  ftr = mRmTp_FtrItemNo2FtrIdx(s_pieces[i].item);
+  if(!pc_outdoor_ftr_allowed(ftr)) {
+    return FALSE; // plain / skeleton pieces have no switch
+  }
+  {
+    pc_outdoor_ftr_piece* p = &s_pieces[i];
+    pc_outdoor_ftr_rig* r = pc_outdoor_ftr_rig_find(p);
+    int on = p->sw >= 0 ? p->sw : aMR_pc_DefaultSwitch(ftr);
+
+    p->sw = (s8)!on;
+    if(r != NULL) { // the room's aMR_OperateSwitchBit + switch_changed_flag (cleared after the next move)
+      r->actor.switch_bit = p->sw;
+      r->actor.switch_changed_flag = TRUE;
+    }
+  }
+  return TRUE;
 }
 
 void pc_outdoor_ftr_dropped(u16 item, int ux, int uz) {
@@ -508,7 +546,7 @@ static void pc_outdoor_ftr_rig_update(const pc_outdoor_ftr_piece* p, GAME* game)
       aMR_pc_ActorDt(&r->actor);
     }
     pc_outdoor_ftr_model_pos(p, &pos);
-    aMR_pc_ActorCt(&r->actor, ftr, &pos, p->rot);
+    aMR_pc_ActorCt(&r->actor, ftr, &pos, p->rot, p->sw);
     r->ux = p->ux;
     r->uz = p->uz;
     r->item = p->item;

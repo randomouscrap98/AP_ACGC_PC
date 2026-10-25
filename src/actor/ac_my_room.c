@@ -2386,13 +2386,22 @@ const aFTR_PROFILE* aMR_pc_GetProfile(u16 ftr_no) {
     return aMR_pc_Valid(ftr_no) ? furniture_quality[ftr_no] : NULL;
 }
 
+// On as just placed, unless it starts off (aMR_GetSwitchBit's placed branch)
+int aMR_pc_DefaultSwitch(u16 ftr_no) {
+    aFTR_PROFILE* profile = aMR_GetFurnitureProfile(ftr_no);
+
+    return !(aFTR_CHECK_INTERACTION(profile->interaction_type, aFTR_INTERACTION_TYPE_TOGGLE) ||
+             aFTR_CHECK_INTERACTION(profile->interaction_type, aFTR_INTERACTION_TYPE_START_DISABLED));
+}
+
 int aMR_pc_NeedsActor(u16 ftr_no) {
     aFTR_PROFILE* profile = aMR_GetFurnitureProfile(ftr_no);
     return profile->rig != NULL || profile->vtable != NULL;
 }
 
-// A placed piece's state: as aMR_FurnitureCt (placed, standing) + aMR_SystemAnimeCt_UniqueCt. rot: 0-3
-void aMR_pc_ActorCt(FTR_ACTOR* ftr_actor, u16 ftr_no, const xyz_t* pos, int rot) {
+// A placed piece's state: as aMR_FurnitureCt (placed, standing) + aMR_SystemAnimeCt_UniqueCt. rot: 0-3.
+// switch_bit: 0 / 1, or -1 for the default
+void aMR_pc_ActorCt(FTR_ACTOR* ftr_actor, u16 ftr_no, const xyz_t* pos, int rot, int switch_bit) {
     aFTR_PROFILE* profile = aMR_GetFurnitureProfile(ftr_no);
 
     bzero(ftr_actor, sizeof(FTR_ACTOR));
@@ -2409,10 +2418,8 @@ void aMR_pc_ActorCt(FTR_ACTOR* ftr_actor, u16 ftr_no, const xyz_t* pos, int rot)
     ftr_actor->collision_scale = 1.0f;
     ftr_actor->move_bg_idx = -1;
     aMR_SetFurnitureType(ftr_actor, rot & 3);
-    // Switch: on as just placed, unless it starts off (aMR_GetSwitchBit's placed branch)
     ftr_actor->haniwa_step = -1;
-    ftr_actor->switch_bit = !(aFTR_CHECK_INTERACTION(profile->interaction_type, aFTR_INTERACTION_TYPE_TOGGLE) ||
-                              aFTR_CHECK_INTERACTION(profile->interaction_type, aFTR_INTERACTION_TYPE_START_DISABLED));
+    ftr_actor->switch_bit = switch_bit >= 0 ? switch_bit : aMR_pc_DefaultSwitch(ftr_no);
     if (profile->rig != NULL) {
         cKF_SkeletonInfo_R_c* keyframe = &ftr_actor->keyframe;
 

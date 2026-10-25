@@ -41,6 +41,7 @@ typedef struct {
   s16 uz;
   u8 rot; // 0 south, 1 east, 2 north, 3 west (mRmTp_DIRECT_*)
   u16 item; // the furniture item in the save's FG on the anchor
+  s8 sw;    // switch (unique-code pieces: TV, train set...): 0 off, 1 on, -1 never switched (the piece's default)
   pc_outdoor_ftr_anim anim; // runtime only
 } pc_outdoor_ftr_piece;
 
@@ -61,6 +62,8 @@ int pc_outdoor_ftr_place(struct game_play_s* play, u16 item);
 void pc_outdoor_ftr_dropped(u16 item, int ux, int uz);
 // bg_item: a dropped item about to land at target is a placed piece's leaf (its landing sound is skipped)
 int pc_outdoor_ftr_quiet_landing(u16 item, const xyz_t* target);
+// Player: A facing global unit ux, uz. Flips the switch of the intact unique-code piece there (TRUE), else FALSE
+int pc_outdoor_ftr_switch(int ux, int uz);
 // The player picked up the item at global unit ux, uz (FG already emptied): a piece anchored there goes, with its
 // placeholders
 void pc_outdoor_ftr_picked_up(int ux, int uz);
@@ -97,7 +100,8 @@ int aMR_pc_CanDrawPlain(u16 ftr_no); // plain or skeleton model, no unique code
 const struct ftr_profile_s* aMR_pc_GetProfile(u16 ftr_no); // NULL: no furniture there
 int aMR_pc_GetShape(u16 ftr_no);
 int aMR_pc_NeedsActor(u16 ftr_no); // skeleton or unique code: needs an FTR_ACTOR
-void aMR_pc_ActorCt(struct furniture_actor_s* ftr_actor, u16 ftr_no, const xyz_t* pos, int rot);
+void aMR_pc_ActorCt(struct furniture_actor_s* ftr_actor, u16 ftr_no, const xyz_t* pos, int rot, int switch_bit);
+int aMR_pc_DefaultSwitch(u16 ftr_no); // on as just placed, unless it starts off
 void aMR_pc_ActorMove(struct furniture_actor_s* ftr_actor, struct game_s* game);
 void aMR_pc_ActorDt(struct furniture_actor_s* ftr_actor);
 void aMR_pc_DrawPlain(struct game_s* game, u16 ftr_no, const xyz_t* pos, s16 angle, const xyz_t* scale,
