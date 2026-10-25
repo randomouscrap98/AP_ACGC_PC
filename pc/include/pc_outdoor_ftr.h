@@ -4,7 +4,8 @@
 // sheet of paper) so the game sees them as taken. The sidecar (ap_state.ini, written with the save) lists the
 // pieces: anchor unit, rotation, item. A piece is a model only while intact (its item on the anchor, the placeholder
 // on the rest); pickup from any of its units takes the piece and clears its placeholders.
-// For now only furniture with a plain or skeleton-animated model (not unique draw code: drawers, clocks...).
+// Furniture with a plain or skeleton-animated model, and unique-code furniture on the allow-list
+// (pc_outdoor_ftr_allow.c: checked to work without a room); the rest (drawers, stereos, NES...) only drops as a leaf.
 // Decomp hooks are behind PC_OUTDOOR_FTR (pc/CMakeLists.txt). Research + decisions:
 // ignore/docs/research/outdoor_furniture.md.
 #ifndef PC_OUTDOOR_FTR_H
@@ -24,11 +25,22 @@ struct ini_t;
 #define PC_OUTDOOR_FTR_MAX 512
 #define PC_OUTDOOR_FTR_PLACEHOLDER 0x2000 // ITM_PAPER00: one sheet of the first stationery
 
+// The room's appear animation (aMR_FtrBirth), not saved
+enum { PC_OUTDOOR_FTR_ANIM_NONE, PC_OUTDOOR_FTR_ANIM_LANDING, PC_OUTDOOR_FTR_ANIM_BIRTH };
+typedef struct {
+  u8 state; // PC_OUTDOOR_FTR_ANIM_*: LANDING = placed, its leaf still falling
+  f32 counter; // sine phase (s16 angle units)
+  f32 step;    // phase speed per frame
+  f32 amount;  // squash amount, shrinks each half swing
+  f32 dust;    // frames since the pop (dust puffs at 2 and 6)
+} pc_outdoor_ftr_anim;
+
 typedef struct {
   s16 ux; // anchor: global unit (mFI_Wpos2UtNum)
   s16 uz;
   u8 rot; // 0 south, 1 east, 2 north, 3 west (mRmTp_DIRECT_*)
   u16 item; // the furniture item in the save's FG on the anchor
+  pc_outdoor_ftr_anim anim; // runtime only
 } pc_outdoor_ftr_piece;
 
 // Sidecar
@@ -56,6 +68,9 @@ int pc_outdoor_ftr_anchor(int ux, int uz, int* anchor_ux, int* anchor_uz);
 void pc_outdoor_ftr_draw(struct game_s* game);
 
 // Pure helpers (unit tests)
+// One frame (dt in 60 fps frames) of the appear animation; fills scale; returns the dust puffs due (0, 1 = the first
+// pair, 2 = the second). The animation ends (state NONE, scale 1) once the wobble is small
+int pc_outdoor_ftr_birth_step(pc_outdoor_ftr_anim* a, f32 dt, xyz_t* scale);
 int pc_outdoor_ftr_rot_from_angle(s16 player_angle); // the room's rule (aMR_JudgeBreedNewFurniture)
 // The room's look-at units (aMR_GetPlayerLookAtUnit): try 0..4, each a unit next to the player's
 void pc_outdoor_ftr_look_at(int* ux, int* uz, s16 player_angle, int try_no);
@@ -65,14 +80,21 @@ int pc_outdoor_ftr_units(int shape, int rot, int ux, int uz, int* out_x, int* ou
 int pc_outdoor_ftr_parse(const char* s, pc_outdoor_ftr_piece* out, int max);
 int pc_outdoor_ftr_format(const pc_outdoor_ftr_piece* p, int count, char* buf, int size);
 
+// Allow-listed unique-code furniture (pc_outdoor_ftr_allow.c)
+int pc_outdoor_ftr_allowed(u16 ftr_no);
+
 // ac_my_room.c (TARGET_PC): furniture without a my_room actor
 struct furniture_actor_s;
+struct ftr_profile_s;
 int aMR_pc_CanDrawPlain(u16 ftr_no); // plain or skeleton model, no unique code
+const struct ftr_profile_s* aMR_pc_GetProfile(u16 ftr_no); // NULL: no furniture there
 int aMR_pc_GetShape(u16 ftr_no);
-int aMR_pc_HasRig(u16 ftr_no);
-void aMR_pc_RigCt(struct furniture_actor_s* ftr_actor, u16 ftr_no);
-void aMR_pc_RigPlay(struct furniture_actor_s* ftr_actor);
-void aMR_pc_DrawPlain(struct game_s* game, u16 ftr_no, const xyz_t* pos, s16 angle, struct furniture_actor_s* rig);
+int aMR_pc_NeedsActor(u16 ftr_no); // skeleton or unique code: needs an FTR_ACTOR
+void aMR_pc_ActorCt(struct furniture_actor_s* ftr_actor, u16 ftr_no, const xyz_t* pos, int rot);
+void aMR_pc_ActorMove(struct furniture_actor_s* ftr_actor, struct game_s* game);
+void aMR_pc_ActorDt(struct furniture_actor_s* ftr_actor);
+void aMR_pc_DrawPlain(struct game_s* game, u16 ftr_no, const xyz_t* pos, s16 angle, const xyz_t* scale,
+                      struct furniture_actor_s* actor);
 
 #ifdef __cplusplus
 }

@@ -2370,31 +2370,49 @@ extern void aMR_SameFurnitureSwitchOFF(u16 ftr_name) {
 }
 
 #ifdef TARGET_PC
-// Outdoor furniture (pc_outdoor_ftr.c): furniture drawn without a my_room actor. Plain models and skeleton (rig)
-// ones (the caller keeps an FTR_ACTOR per piece for the animation); not yet unique draw/move procs (vtable), which
-// expect the room
-int aMR_pc_CanDrawPlain(u16 ftr_no) {
-    aFTR_PROFILE* profile;
-
+// Outdoor furniture (pc_outdoor_ftr.c): furniture drawn without a my_room actor. Plain models need nothing; skeleton
+// (rig) and unique-code (vtable) ones get an FTR_ACTOR from the caller, run here like the room runs them but with no
+// room actor and no bank (pc_outdoor_ftr.c only allows vtable furniture checked to cope with that)
+static int aMR_pc_Valid(u16 ftr_no) {
     // iam_dummy: unused index, drawn as a "dummy" sign
-    if (ftr_no >= FTR_NUM || furniture_quality[ftr_no] == NULL || furniture_quality[ftr_no] == &iam_dummy) {
-        return FALSE;
-    }
-
-    profile = furniture_quality[ftr_no];
-    return profile->vtable == NULL;
+    return ftr_no < FTR_NUM && furniture_quality[ftr_no] != NULL && furniture_quality[ftr_no] != &iam_dummy;
 }
 
-int aMR_pc_HasRig(u16 ftr_no) {
-    return aMR_GetFurnitureProfile(ftr_no)->rig != NULL;
+int aMR_pc_CanDrawPlain(u16 ftr_no) {
+    return aMR_pc_Valid(ftr_no) && furniture_quality[ftr_no]->vtable == NULL;
 }
 
-// A skeleton piece's animation state, as aMR_SystemAnimeCt_UniqueCt (rig part)
-void aMR_pc_RigCt(FTR_ACTOR* ftr_actor, u16 ftr_no) {
+const aFTR_PROFILE* aMR_pc_GetProfile(u16 ftr_no) {
+    return aMR_pc_Valid(ftr_no) ? furniture_quality[ftr_no] : NULL;
+}
+
+int aMR_pc_NeedsActor(u16 ftr_no) {
+    aFTR_PROFILE* profile = aMR_GetFurnitureProfile(ftr_no);
+    return profile->rig != NULL || profile->vtable != NULL;
+}
+
+// A placed piece's state: as aMR_FurnitureCt (placed, standing) + aMR_SystemAnimeCt_UniqueCt. rot: 0-3
+void aMR_pc_ActorCt(FTR_ACTOR* ftr_actor, u16 ftr_no, const xyz_t* pos, int rot) {
     aFTR_PROFILE* profile = aMR_GetFurnitureProfile(ftr_no);
 
     bzero(ftr_actor, sizeof(FTR_ACTOR));
     ftr_actor->name = ftr_no;
+    ftr_actor->ctr_type = aFTR_CTR_TYPE_GAME_PLAY;
+    ftr_actor->state = aFTR_STATE_STOP;
+    ftr_actor->layer = mCoBG_LAYER0;
+    ftr_actor->angle_y = aMR_angle_table[rot & 3];
+    ftr_actor->angle_y_target = ftr_actor->angle_y;
+    ftr_actor->s_angle_y = RAD2SHORT_ANGLE2(DEG2RAD(ftr_actor->angle_y));
+    ftr_actor->position = *pos;
+    ftr_actor->last_position = *pos;
+    ftr_actor->scale.x = ftr_actor->scale.y = ftr_actor->scale.z = 1.0f;
+    ftr_actor->collision_scale = 1.0f;
+    ftr_actor->move_bg_idx = -1;
+    aMR_SetFurnitureType(ftr_actor, rot & 3);
+    // Switch: on as just placed, unless it starts off (aMR_GetSwitchBit's placed branch)
+    ftr_actor->haniwa_step = -1;
+    ftr_actor->switch_bit = !(aFTR_CHECK_INTERACTION(profile->interaction_type, aFTR_INTERACTION_TYPE_TOGGLE) ||
+                              aFTR_CHECK_INTERACTION(profile->interaction_type, aFTR_INTERACTION_TYPE_START_DISABLED));
     if (profile->rig != NULL) {
         cKF_SkeletonInfo_R_c* keyframe = &ftr_actor->keyframe;
 
@@ -2404,13 +2422,33 @@ void aMR_pc_RigCt(FTR_ACTOR* ftr_actor, u16 ftr_no) {
         cKF_SkeletonInfo_R_play(keyframe);
         keyframe->frame_control.speed = 0.5f;
     }
+    if (profile->vtable != NULL && profile->vtable->ct_proc != NULL) {
+        profile->vtable->ct_proc(ftr_actor, NULL);
+    }
 }
 
-// One frame of it, as the room's move (aMR_MoveFurniture)
-void aMR_pc_RigPlay(FTR_ACTOR* ftr_actor) {
-    if (aMR_GetFurnitureProfile(ftr_actor->name)->rig != NULL) {
+// One frame of it, as the room's move (aMR_MoveFurniture, standing piece)
+void aMR_pc_ActorMove(FTR_ACTOR* ftr_actor, GAME* game) {
+    aFTR_PROFILE* profile = aMR_GetFurnitureProfile(ftr_actor->name);
+
+    ftr_actor->texture_scroll_frame += (f32)game->graph->dt_num_60fps_frames;
+    if (profile->rig != NULL) {
         cKF_SkeletonInfo_R_play(&ftr_actor->keyframe);
         ftr_actor->keyframe.frame_control.speed = 0.5f;
+    }
+    if (profile->vtable != NULL && profile->vtable->move_proc != NULL) {
+        profile->vtable->move_proc(ftr_actor, NULL, game, NULL);
+    }
+    ftr_actor->switch_changed_flag = FALSE;
+    ftr_actor->last_position = ftr_actor->position;
+}
+
+// Its state is dropped (slot reused, piece gone)
+void aMR_pc_ActorDt(FTR_ACTOR* ftr_actor) {
+    aFTR_PROFILE* profile = aMR_GetFurnitureProfile(ftr_actor->name);
+
+    if (profile->vtable != NULL && profile->vtable->dt_proc != NULL) {
+        profile->vtable->dt_proc(ftr_actor, NULL);
     }
 }
 
@@ -2418,9 +2456,10 @@ int aMR_pc_GetShape(u16 ftr_no) {
     return aMR_GetFurnitureProfile(ftr_no)->shape;
 }
 
-// Like aMR_DrawFurniture + aMR_DrawOneFurniture for one placed, unscaled piece (base_position 0, scale 1).
-// rig: its aMR_pc_RigCt state (NULL: the skeleton isn't drawn)
-void aMR_pc_DrawPlain(GAME* game, u16 ftr_no, const xyz_t* pos, s16 angle, FTR_ACTOR* rig) {
+// Like aMR_DrawFurniture + aMR_DrawOneFurniture for one placed piece (base_position 0). scale: the birth / bye
+// animation's (NULL: 1), around the middle of a 1x2 piece like the room's birth. actor: its aMR_pc_ActorCt state
+// (NULL: skeleton / unique draw skipped)
+void aMR_pc_DrawPlain(GAME* game, u16 ftr_no, const xyz_t* pos, s16 angle, const xyz_t* scale, FTR_ACTOR* actor) {
     GAME_PLAY* play = (GAME_PLAY*)game;
     aFTR_PROFILE* profile = aMR_GetFurnitureProfile(ftr_no);
     LightsN* lights;
@@ -2455,6 +2494,17 @@ void aMR_pc_DrawPlain(GAME* game, u16 ftr_no, const xyz_t* pos, s16 angle, FTR_A
 
     Matrix_translate(p.x, p.y, p.z, MTX_LOAD);
     Matrix_RotateY(angle, MTX_MULT);
+    if (scale != NULL) {
+        int half = profile->shape <= aFTR_SHAPE_TYPEB_0;
+
+        if (half) {
+            Matrix_translate(mFI_UT_WORLDSIZE_HALF_X_F, 0.0f, 0.0f, MTX_MULT);
+        }
+        Matrix_scale(scale->x, scale->y, scale->z, MTX_MULT);
+        if (half) {
+            Matrix_translate(-mFI_UT_WORLDSIZE_HALF_X_F, 0.0f, 0.0f, MTX_MULT);
+        }
+    }
     Matrix_scale(profile->scale, profile->scale, profile->scale, MTX_MULT);
 
     // Texture animation: first frame only (segment 8 must point somewhere)
@@ -2465,8 +2515,15 @@ void aMR_pc_DrawPlain(GAME* game, u16 ftr_no, const xyz_t* pos, s16 angle, FTR_A
         CLOSE_DISP(game->graph);
     }
     aMR_DrawRegistModel(profile, game);
-    if (rig != NULL) {
-        aMR_DrawSkelShape(rig, profile, game);
+    if (actor != NULL) {
+        aMR_DrawSkelShape(actor, profile, game);
+        if (profile->vtable != NULL && profile->vtable->draw_proc != NULL) {
+            OPEN_DISP(game->graph);
+            gSPMatrix(NEXT_POLY_OPA_DISP, _Matrix_to_Mtx_new(game->graph), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+            gSPMatrix(NEXT_POLY_XLU_DISP, _Matrix_to_Mtx_new(game->graph), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+            CLOSE_DISP(game->graph);
+            profile->vtable->draw_proc(actor, NULL, game, NULL);
+        }
     }
 
     OPEN_DISP(game->graph);

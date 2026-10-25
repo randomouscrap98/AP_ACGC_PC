@@ -2,7 +2,10 @@
 #include "pc_outdoor_ftr.h"
 #include "pc_ap_state.h"
 #include "ac_furniture.h"
+#include "audio.h"
+#include "audio_defs.h"
 #include "bg_item.h"
+#include "ef_effect_control.h"
 #include "game.h"
 #include "m_collision_bg.h"
 #include "m_common_data.h"
@@ -19,6 +22,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define PC_OUTDOOR_FTR_SECTION "outdoor_ftr"
 #define PC_OUTDOOR_FTR_KEY "pieces"
@@ -33,8 +37,8 @@
 static pc_outdoor_ftr_piece s_pieces[PC_OUTDOOR_FTR_MAX];
 static int s_count;
 
-// Animation state of skeleton pieces near the player (an FTR_ACTOR each: keyframe, joints, matrices), handed out
-// as they're drawn; the least recently drawn slot is reused
+// State of skeleton / unique-code pieces near the player (an FTR_ACTOR each), handed out as they're drawn; the least
+// recently drawn slot is reused
 #define PC_OUTDOOR_FTR_RIGS 24
 typedef struct {
   FTR_ACTOR actor;
@@ -44,6 +48,19 @@ typedef struct {
   int used;
 } pc_outdoor_ftr_rig;
 static pc_outdoor_ftr_rig s_rigs[PC_OUTDOOR_FTR_RIGS];
+
+// Picked-up pieces still shrinking away (the room's aMR_FtrBye), drawn for a few frames after their unit emptied
+#define PC_OUTDOOR_FTR_BYES 8
+typedef struct {
+  int used;
+  pc_outdoor_ftr_piece piece; // as it was (its rig slot, if any, is found by anchor + item)
+  xyz_t pos;
+  f32 scale;
+} pc_outdoor_ftr_bye;
+static pc_outdoor_ftr_bye s_byes[PC_OUTDOOR_FTR_BYES];
+static u32 s_anim_frame; // last frame the animations stepped (draw can run twice a frame)
+
+static void pc_outdoor_ftr_model_pos(const pc_outdoor_ftr_piece* p, xyz_t* pos);
 
 // --- Pure helpers ---
 
@@ -102,6 +119,43 @@ int pc_outdoor_ftr_units(int shape, int rot, int ux, int uz, int* out_x, int* ou
   return 1;
 }
 
+int pc_outdoor_ftr_birth_step(pc_outdoor_ftr_anim* a, f32 dt, xyz_t* scale) {
+  f32 prev_dust = a->dust;
+  s16 prev = (s16)a->counter;
+  s16 now;
+  f32 y;
+  int puffs = 0;
+
+  a->counter += a->step * dt;
+  while(a->counter >= 32768.0f) {
+    a->counter -= 65536.0f;
+  }
+  while(a->counter < -32768.0f) {
+    a->counter += 65536.0f;
+  }
+  now = (s16)a->counter;
+  y = sinf_table(SHORT2RAD_ANGLE2(now)) * a->amount;
+  scale->x = 1.0f - y;
+  scale->y = 1.0f + y;
+  scale->z = 1.0f - y;
+
+  a->dust += dt;
+  if(prev_dust < 2.0f && a->dust >= 2.0f) {
+    puffs = 1;
+  } else if(prev_dust < 6.0f && a->dust >= 6.0f) {
+    puffs = 2;
+  }
+  if(prev < 0 && now >= 0) { // each full swing: smaller, faster
+    a->amount *= 0.4f;
+    a->step += 1500.0f;
+  }
+  if(ABS(a->amount) < 0.02f) {
+    a->state = PC_OUTDOOR_FTR_ANIM_NONE;
+    scale->x = scale->y = scale->z = 1.0f;
+  }
+  return puffs;
+}
+
 // "ux:uz:rot:item,..." (decimal, decimal, 0-3, hex). Bad entries are skipped
 int pc_outdoor_ftr_parse(const char* s, pc_outdoor_ftr_piece* out, int max) {
   int count = 0;
@@ -112,6 +166,7 @@ int pc_outdoor_ftr_parse(const char* s, pc_outdoor_ftr_piece* out, int max) {
 
     if(sscanf(s, "%d:%d:%d:%x%n", &ux, &uz, &rot, &item, &used) == 4 && ux >= 0 && ux < 0x7FFF && uz >= 0 &&
        uz < 0x7FFF && rot >= 0 && rot <= 3 && item <= 0xFFFF) {
+      memset(&out[count], 0, sizeof(out[count]));
       out[count].ux = (s16)ux;
       out[count].uz = (s16)uz;
       out[count].rot = (u8)rot;
@@ -270,7 +325,7 @@ int pc_outdoor_ftr_can_place(u16 item) {
   }
   ftr = mRmTp_FtrItemNo2FtrIdx(item);
   shape = aMR_pc_GetShape(ftr);
-  return aMR_pc_CanDrawPlain(ftr) &&
+  return (aMR_pc_CanDrawPlain(ftr) || pc_outdoor_ftr_allowed(ftr)) &&
          (shape == aFTR_SHAPE_TYPEA || shape == aFTR_SHAPE_TYPEB_0 || shape == aFTR_SHAPE_TYPEC);
 }
 
@@ -352,6 +407,8 @@ int pc_outdoor_ftr_place(GAME_PLAY* play, u16 item) {
         mFI_UtNum2CenterWpos(&pos, xs[u], zs[u]);
         mFI_SetFG_common(PC_OUTDOOR_FTR_PLACEHOLDER, pos, TRUE);
       }
+      memset(&s_pieces[s_count], 0, sizeof(s_pieces[s_count]));
+      s_pieces[s_count].anim.state = PC_OUTDOOR_FTR_ANIM_LANDING; // pops once the leaf lands
       s_pieces[s_count].ux = (s16)xs[0];
       s_pieces[s_count].uz = (s16)zs[0];
       s_pieces[s_count].rot = (u8)rot;
@@ -382,9 +439,29 @@ void pc_outdoor_ftr_picked_up(int ux, int uz) {
     return;
   }
   i = pc_outdoor_ftr_find_anchor(ux, uz);
-  if(i >= 0) {
-    pc_outdoor_ftr_remove(i, TRUE);
+  if(i < 0) {
+    return;
   }
+  // Shrinks away where it stood (only if it was showing as a model: the other units still hold the placeholders)
+  for(int b = 0; b < PC_OUTDOOR_FTR_BYES; b++) {
+    if(!s_byes[b].used) {
+      int xs[4], zs[4];
+      int n = pc_outdoor_ftr_piece_units(&s_pieces[i], xs, zs);
+      int intact = TRUE;
+
+      for(int u = 1; u < n; u++) {
+        intact = intact && pc_outdoor_ftr_fg(xs[u], zs[u]) == PC_OUTDOOR_FTR_PLACEHOLDER;
+      }
+      if(intact) {
+        s_byes[b].used = TRUE;
+        s_byes[b].piece = s_pieces[i];
+        s_byes[b].scale = 1.0f;
+        pc_outdoor_ftr_model_pos(&s_pieces[i], &s_byes[b].pos);
+      }
+      break;
+    }
+  }
+  pc_outdoor_ftr_remove(i, TRUE);
 }
 
 int pc_outdoor_ftr_at(u16 item, int ux, int uz) {
@@ -412,8 +489,9 @@ int pc_outdoor_ftr_anchor(int ux, int uz, int* anchor_ux, int* anchor_uz) {
   return TRUE;
 }
 
-// The animation state for piece p, played once per frame
-static FTR_ACTOR* pc_outdoor_ftr_rig_for(const pc_outdoor_ftr_piece* p, u32 frame) {
+// The FTR_ACTOR for piece p, moved once per frame
+static FTR_ACTOR* pc_outdoor_ftr_rig_for(const pc_outdoor_ftr_piece* p, GAME* game) {
+  u32 frame = game->frame_counter;
   pc_outdoor_ftr_rig* r = NULL;
   int ftr = mRmTp_FtrItemNo2FtrIdx(p->item);
 
@@ -428,23 +506,84 @@ static FTR_ACTOR* pc_outdoor_ftr_rig_for(const pc_outdoor_ftr_piece* p, u32 fram
     }
   }
   if(!r->used || r->ux != p->ux || r->uz != p->uz || r->item != p->item) {
-    aMR_pc_RigCt(&r->actor, ftr);
+    xyz_t pos;
+
+    if(r->used) {
+      aMR_pc_ActorDt(&r->actor);
+    }
+    pc_outdoor_ftr_model_pos(p, &pos);
+    aMR_pc_ActorCt(&r->actor, ftr, &pos, p->rot);
     r->ux = p->ux;
     r->uz = p->uz;
     r->item = p->item;
     r->used = TRUE;
   } else if(r->frame != frame) {
-    aMR_pc_RigPlay(&r->actor);
+    aMR_pc_ActorMove(&r->actor, game);
   }
   r->frame = frame;
   return &r->actor;
 }
 
+// Where the model stands: the anchor's centre, a 2x2's centre of its 4 units; on the ground
+static void pc_outdoor_ftr_model_pos(const pc_outdoor_ftr_piece* p, xyz_t* pos) {
+  pos->x = p->ux * mFI_UT_WORLDSIZE_X_F + mFI_UT_WORLDSIZE_HALF_X_F;
+  pos->z = p->uz * mFI_UT_WORLDSIZE_Z_F + mFI_UT_WORLDSIZE_HALF_Z_F;
+  if(pc_outdoor_ftr_shape(p->item) == aFTR_SHAPE_TYPEC) {
+    pos->x += mFI_UT_WORLDSIZE_HALF_X_F;
+    pos->z += mFI_UT_WORLDSIZE_HALF_Z_F;
+  }
+  pos->y = 0.0f;
+  pos->y = mCoBG_GetBgY_OnlyCenter_FromWpos2(*pos, 0.0f);
+}
+
+// The room's dust puff toward a footprint corner (aMR_GetDustAngle)
+static s16 pc_outdoor_ftr_dust_angle(f32 dx, f32 dz) {
+  if(dx > 0.0f) {
+    return dz > 0.0f ? DEG2SHORT_ANGLE(45.0f) : DEG2SHORT_ANGLE(135.0f);
+  }
+  return dz > 0.0f ? DEG2SHORT_ANGLE(-90.0f) : DEG2SHORT_ANGLE(-135.0f);
+}
+
+// Dust at two opposite corners of piece p's footprint (pair 1: front left + back right, 2: the others), like
+// aMR_GetDust4Position (60% of the way out in x, 3.5 toward the camera)
+static void pc_outdoor_ftr_dust(GAME* game, const pc_outdoor_ftr_piece* p, const xyz_t* center, int pair) {
+  static const s8 corners[2][2][2] = { { { -1, 1 }, { 1, -1 } }, { { 1, 1 }, { -1, -1 } } };
+  int xs[4], zs[4];
+  int n = pc_outdoor_ftr_piece_units(p, xs, zs);
+  f32 min_x = 1e9f, max_x = -1e9f, min_z = 1e9f, max_z = -1e9f;
+
+  if(eEC_CLIP == NULL) {
+    return;
+  }
+  for(int u = 0; u < n; u++) {
+    min_x = MIN(min_x, xs[u] * mFI_UT_WORLDSIZE_X_F);
+    max_x = MAX(max_x, (xs[u] + 1) * mFI_UT_WORLDSIZE_X_F);
+    min_z = MIN(min_z, zs[u] * mFI_UT_WORLDSIZE_Z_F);
+    max_z = MAX(max_z, (zs[u] + 1) * mFI_UT_WORLDSIZE_Z_F);
+  }
+  for(int c = 0; c < 2; c++) {
+    f32 dx = corners[pair - 1][c][0] * (max_x - min_x) * 0.5f;
+    f32 dz = corners[pair - 1][c][1] * (max_z - min_z) * 0.5f;
+    xyz_t pos;
+
+    pos.x = (min_x + max_x) * 0.5f + dx * 0.6f;
+    pos.y = center->y;
+    pos.z = (min_z + max_z) * 0.5f + dz + 3.5f;
+    eEC_CLIP->effect_make_proc(eEC_EFFECT_DUST, pos, 2, pc_outdoor_ftr_dust_angle(dx, dz), game, RSV_NO, 0, 4);
+  }
+}
+
+static FTR_ACTOR* pc_outdoor_ftr_rig_of(const pc_outdoor_ftr_piece* p, GAME* game) {
+  return aMR_pc_NeedsActor(mRmTp_FtrItemNo2FtrIdx(p->item)) ? pc_outdoor_ftr_rig_for(p, game) : NULL;
+}
+
 void pc_outdoor_ftr_draw(GAME* game) {
   PLAYER_ACTOR* player;
   xyz_t ppos;
+  int step;
+  f32 dt;
 
-  if(s_count == 0 || !pc_outdoor_ftr_own_town()) {
+  if(!pc_outdoor_ftr_own_town()) {
     return;
   }
   player = GET_PLAYER_ACTOR((GAME_PLAY*)game);
@@ -452,25 +591,66 @@ void pc_outdoor_ftr_draw(GAME* game) {
     return;
   }
   ppos = player->actor_class.world.position;
+  step = game->frame_counter != s_anim_frame;
+  s_anim_frame = game->frame_counter;
+  dt = game->graph != NULL ? (f32)game->graph->dt_num_60fps_frames : 1.0f;
 
   for(int i = 0; i < s_count; i++) {
-    const pc_outdoor_ftr_piece* p = &s_pieces[i];
+    pc_outdoor_ftr_piece* p = &s_pieces[i];
     xyz_t pos;
+    xyz_t scale = { 1.0f, 1.0f, 1.0f };
 
-    pos.x = p->ux * mFI_UT_WORLDSIZE_X_F + mFI_UT_WORLDSIZE_HALF_X_F;
-    pos.z = p->uz * mFI_UT_WORLDSIZE_Z_F + mFI_UT_WORLDSIZE_HALF_Z_F;
-    if(pc_outdoor_ftr_shape(p->item) == aFTR_SHAPE_TYPEC) { // drawn at the centre of its 4 units
-      pos.x += mFI_UT_WORLDSIZE_HALF_X_F;
-      pos.z += mFI_UT_WORLDSIZE_HALF_Z_F;
-    }
+    pc_outdoor_ftr_model_pos(p, &pos);
     if(ABS(pos.x - ppos.x) > PC_OUTDOOR_FTR_DRAW_DIST || ABS(pos.z - ppos.z) > PC_OUTDOOR_FTR_DRAW_DIST ||
        pc_outdoor_ftr_fg(p->ux, p->uz) != p->item || !pc_outdoor_ftr_intact(p)) {
       continue; // far away, still falling as a leaf, or not intact (its leaf / papers show)
     }
-    pos.y = 0.0f;
-    pos.y = mCoBG_GetBgY_OnlyCenter_FromWpos2(pos, 0.0f);
+    if(p->anim.state == PC_OUTDOOR_FTR_ANIM_LANDING) { // the leaf just landed: pop
+      p->anim.state = PC_OUTDOOR_FTR_ANIM_BIRTH;
+      p->anim.counter = 0.0f;
+      p->anim.step = 6000.0f;
+      p->anim.amount = 0.5f;
+      p->anim.dust = 0.0f;
+      sAdo_OngenTrgStart(NA_SE_ITEM_HORIDASHI, &pos);
+    }
+    if(p->anim.state == PC_OUTDOOR_FTR_ANIM_BIRTH) {
+      if(step) {
+        int puffs = pc_outdoor_ftr_birth_step(&p->anim, dt, &scale);
+        if(puffs != 0) {
+          pc_outdoor_ftr_dust(game, p, &pos, puffs);
+        }
+      } else { // drawn again this frame: same scale
+        f32 y = sinf_table(SHORT2RAD_ANGLE2((s16)p->anim.counter)) * p->anim.amount;
+        scale.x = scale.z = 1.0f - y;
+        scale.y = 1.0f + y;
+      }
+    }
     aMR_pc_DrawPlain(game, mRmTp_FtrItemNo2FtrIdx(p->item), &pos, (s16)(p->rot * DEG2SHORT_ANGLE(90.0f)),
-                     aMR_pc_HasRig(mRmTp_FtrItemNo2FtrIdx(p->item)) ? pc_outdoor_ftr_rig_for(p, game->frame_counter)
-                                                                    : NULL);
+                     p->anim.state == PC_OUTDOOR_FTR_ANIM_BIRTH ? &scale : NULL,
+                     pc_outdoor_ftr_rig_of(p, game));
+  }
+
+  // Picked up: shrink 1/12 a frame, dust at the start, gone below a quarter
+  for(int b = 0; b < PC_OUTDOOR_FTR_BYES; b++) {
+    pc_outdoor_ftr_bye* bye = &s_byes[b];
+    xyz_t scale;
+
+    if(!bye->used) {
+      continue;
+    }
+    if(step) {
+      if(bye->scale == 1.0f) {
+        pc_outdoor_ftr_dust(game, &bye->piece, &bye->pos, 1);
+      }
+      bye->scale -= dt / 12.0f;
+      if(bye->scale < 0.25f) {
+        bye->used = FALSE;
+        continue;
+      }
+    }
+    scale.x = scale.y = scale.z = bye->scale;
+    aMR_pc_DrawPlain(game, mRmTp_FtrItemNo2FtrIdx(bye->piece.item), &bye->pos,
+                     (s16)(bye->piece.rot * DEG2SHORT_ANGLE(90.0f)), &scale,
+                     pc_outdoor_ftr_rig_of(&bye->piece, game));
   }
 }
