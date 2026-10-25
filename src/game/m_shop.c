@@ -1148,6 +1148,13 @@ extern void mSP_NewExchangeDay() {
 extern void mSP_ShopItsumoChirashi(int house_no, int shop_level, mActor_name_t item, int type, int send_proc) {
     static int rare_chirashi_bunmen[mSP_SHOP_TYPE_NUM][2] = { { 18, 18 }, { 19, 19 }, { 21, 20 }, { 23, 22 } };
 
+#ifdef TARGET_PC
+    // Less Mail: no rare item ad
+    if (g_pc_settings.less_mail) {
+        return;
+    }
+#endif
+
     if (Save_Get(homes[house_no]).ownerID.land_id != 0xFFFF) {
         int free_mail_idx = mMl_chk_mail_free_space(Save_Get(homes[house_no]).mailbox, HOME_MAILBOX_SIZE);
 
@@ -1292,6 +1299,12 @@ extern void mSP_SetRenewalChiraswhi_AppoDay() {
             int player_no = mHS_get_pl_no(i) & 3;
             int free_mail_idx = mMl_chk_mail_free_space(Save_Get(homes[i]).mailbox, HOME_MAILBOX_SIZE);
 
+#ifdef TARGET_PC
+            // Less Mail: no "new store" leaflet (upgrading_today is still cleared below)
+            if (g_pc_settings.less_mail) {
+                continue;
+            }
+#endif
             if (free_mail_idx >= 0 && Save_Get(homes[i]).ownerID.land_id != 0xFFFF &&
                 mEv_ArbeitPlayer(player_no) == FALSE) {
 

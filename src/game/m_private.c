@@ -18,6 +18,7 @@
 #include "m_room_type.h"
 #include "m_common_data.h"
 #ifdef TARGET_PC
+#include "pc_settings.h"
 #include "pc_ap_newgame.h"
 #include "pc_ap_logic.h"
 #include "pc_ap_catalogsanity.h"
@@ -881,6 +882,13 @@ static int mPr_SendMotherMailPost(PersonalID_c* pid, int player_no, mActor_name_
     mail = &l_mpr_mail;
     home = Save_GetPointer(homes[mHS_get_arrange_idx(player_no)]);
 
+#ifdef TARGET_PC
+    // Less Mail: no letter from Mom without a present (counts as sent, like vanilla's bookkeeping expects)
+    if (g_pc_settings.less_mail && present == EMPTY_NO) {
+        return TRUE;
+    }
+#endif
+
     if (mPr_CheckCmpPersonalID(pid, &home->ownerID) == TRUE) {
         int mailbox_idx = mMl_chk_mail_free_space(home->mailbox, HOME_MAILBOX_SIZE);
         if (mailbox_idx != -1) {
@@ -1268,6 +1276,13 @@ extern void mPr_SendForeingerAnimalMail(Private_c* priv) {
     if (mLd_PlayerManKindCheck() == FALSE) {
         if (anm_mem->npc_id != RSV_NO && ITEM_NAME_GET_TYPE(anm_mem->npc_id) == NAME_TYPE_NPC &&
             mPO_get_keep_mail_sum() < mPO_MAIL_STORAGE_SIZE) {
+#ifdef TARGET_PC
+            // Less Mail: no letter from a villager who moved to another town; still forget them
+            if (g_pc_settings.less_mail) {
+                mPr_ClearAnimalMemory(anm_mem);
+                return;
+            }
+#endif
             mMl_clear_mail(mail);
             mPr_GetForeingerAnimalMail(mail, priv, anm_mem);
             mPO_receipt_proc(mail, mPO_SENDTYPE_MAIL);

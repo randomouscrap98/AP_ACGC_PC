@@ -40,6 +40,7 @@ enum {
     ITEM_HIDDEN_BUG_HINTS,
     ITEM_HIDDEN_ITEM_HINTS,
     ITEM_SHORT_SHOP_TALK,
+    ITEM_LESS_MAIL,
     ITEM_MASTER_VOLUME,
     ITEM_STICK_DEADZONE,
     ITEM_CSTICK_DEADZONE,
@@ -83,6 +84,7 @@ static const Item tab_gameplay_items[] = {
     { "Hidden bug hints", ITEM_HIDDEN_BUG_HINTS, 0, "Dirt pops up, trees wiggle near hidden bugs" },
     { "Hidden item hints", ITEM_HIDDEN_ITEM_HINTS, 0, "Sparkles over the money rock and item trees" },
     { "Short shop talk",  ITEM_SHORT_SHOP_TALK,  0, "Nook keeps it short when you buy" },
+    { "Less mail",        ITEM_LESS_MAIL,        0, "Remove HRA ads, letters from home, etc" },
 };
 
 static const Item tab_audio_items[] = {
@@ -341,6 +343,7 @@ static int pc_dirty(void) {
         (s_pending.hidden_bug_hints != g_pc_settings.hidden_bug_hints) ||
         (s_pending.hidden_item_hints != g_pc_settings.hidden_item_hints) ||
         (s_pending.short_shop_talk != g_pc_settings.short_shop_talk) ||
+        (s_pending.less_mail != g_pc_settings.less_mail) ||
         (s_pending.master_volume    != g_pc_settings.master_volume) ||
         (s_pending.stick_deadzone   != g_pc_settings.stick_deadzone) ||
         (s_pending.cstick_deadzone  != g_pc_settings.cstick_deadzone) ||
@@ -448,6 +451,9 @@ static void item_cycle(int id, int dir) {
             break;
         case ITEM_SHORT_SHOP_TALK:
             s_pending.short_shop_talk = !s_pending.short_shop_talk;
+            break;
+        case ITEM_LESS_MAIL:
+            s_pending.less_mail = !s_pending.less_mail;
             break;
         case ITEM_AP_TEXT_CLIENT:
             s_pending.ap_text_client = !s_pending.ap_text_client;
@@ -577,6 +583,9 @@ static void item_format(int id, char* buf, size_t n) {
         case ITEM_SHORT_SHOP_TALK:
             snprintf(buf, n, "%s", s_pending.short_shop_talk ? "< On >" : "< Off >");
             break;
+        case ITEM_LESS_MAIL:
+            snprintf(buf, n, "%s", s_pending.less_mail ? "< On >" : "< Off >");
+            break;
         case ITEM_AP_TEXT_CLIENT:
             snprintf(buf, n, "%s", s_pending.ap_text_client ? "< On >" : "< Off >");
             break;
@@ -625,6 +634,7 @@ static int item_changed(int id) {
         case ITEM_HIDDEN_BUG_HINTS: return s_pending.hidden_bug_hints != g_pc_settings.hidden_bug_hints;
         case ITEM_HIDDEN_ITEM_HINTS: return s_pending.hidden_item_hints != g_pc_settings.hidden_item_hints;
         case ITEM_SHORT_SHOP_TALK: return s_pending.short_shop_talk != g_pc_settings.short_shop_talk;
+        case ITEM_LESS_MAIL:     return s_pending.less_mail     != g_pc_settings.less_mail;
         case ITEM_AP_TEXT_CLIENT: return s_pending.ap_text_client != g_pc_settings.ap_text_client;
         case ITEM_MASTER_VOLUME: return s_pending.master_volume != g_pc_settings.master_volume;
         case ITEM_STICK_DEADZONE:  return s_pending.stick_deadzone  != g_pc_settings.stick_deadzone;

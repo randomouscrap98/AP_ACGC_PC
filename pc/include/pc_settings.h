@@ -27,6 +27,7 @@ typedef struct {
     int hidden_bug_hints;  // Hidden bug hints (was a per-seed QoL option): 0 = off, 1 = on (default 1)
     int hidden_item_hints; // Hidden item hints (was a per-seed QoL option): 0 = off, 1 = on (default 1)
     int short_shop_talk;   // Short shop talk (was a per-seed QoL option): 0 = off, 1 = on (default 0)
+    int less_mail;         // Less Mail: no letters from Mom without a present, HRA hints, Nook's ads (pc_less_mail): 0 = off (default), 1 = on
     int bite_sound;       // Fishing: sounds when a fish nibbles and when it pulls the bobber under: 0 = off (default), 1 = on
     int master_volume;    /* Applied at the PC audio output, 0-100 (default 100) */
     int stick_deadzone;   /* Gamepad main stick deadzone, percent 0-40 (default 12) */

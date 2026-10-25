@@ -4,6 +4,9 @@
 #include "m_common_data.h"
 #include "m_scene_table.h"
 #include "m_handbill.h"
+#ifdef TARGET_PC
+#include "pc_settings.h"
+#endif
 
 static int mMkRm_GetMarkOrder(int player_no) {
   if (mEv_CheckArbeit() == FALSE && player_no < PLAYER_NUM) {
@@ -87,6 +90,13 @@ static void mMkRm_NoMarkLetter_Hint(int arrange_idx, int player_no) {
   u32* hint_info_bitfield = &Save_Get(homes[arrange_idx]).hra_mark_info;
   int free_hint_num = 0;
   int i;
+
+  #ifdef TARGET_PC
+  // Less Mail: no HRA hint letters
+  if (g_pc_settings.less_mail) {
+    return;
+  }
+  #endif
 
   #ifndef IMPROVEMENTS
   u32 all_mark = 0;

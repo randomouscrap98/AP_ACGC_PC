@@ -28,6 +28,7 @@ PCSettings g_pc_settings = {
     .hidden_bug_hints = 1,
     .hidden_item_hints = 1,
     .short_shop_talk = 0,
+    .less_mail = 0,
     .master_volume = 100,
     .stick_deadzone = 12,
     .cstick_deadzone = 12,
@@ -111,6 +112,9 @@ static const char* DEFAULT_SETTINGS =
     "\n"
     "# Short shop talk: 0 = off, 1 = Nook keeps it short when you buy or order\n"
     "short_shop_talk = 0\n"
+    "\n"
+    "# Less mail: 0 = off, 1 = no letters from Mom without a present, HRA hint letters, Nook's ads, letters from villagers in other towns\n"
+    "less_mail = 0\n"
     "\n"
     "[Audio]\n"
     "# Master output volume as a percentage (0-100)\n"
@@ -203,6 +207,8 @@ static void apply_setting(const char* key, const char* value) {
         if (val == 0 || val == 1) g_pc_settings.hidden_item_hints = val;
     } else if (strcmp(key, "short_shop_talk") == 0) {
         if (val == 0 || val == 1) g_pc_settings.short_shop_talk = val;
+    } else if (strcmp(key, "less_mail") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.less_mail = val;
     } else if (strcmp(key, "master_volume") == 0) {
         if (val >= 0 && val <= 100) g_pc_settings.master_volume = val;
     } else if (strcmp(key, "stick_deadzone") == 0) {
@@ -388,6 +394,9 @@ void pc_settings_save(void) {
     fprintf(f, "\n");
     fprintf(f, "# Short shop talk: 0 = off, 1 = Nook keeps it short when you buy or order\n");
     fprintf(f, "short_shop_talk = %d\n", g_pc_settings.short_shop_talk);
+    fprintf(f, "\n");
+    fprintf(f, "# Less mail: 0 = off, 1 = no letters from Mom without a present, HRA hint letters, Nook's ads, letters from villagers in other towns\n");
+    fprintf(f, "less_mail = %d\n", g_pc_settings.less_mail);
     fprintf(f, "\n");
     fprintf(f, "[Audio]\n");
     fprintf(f, "# Master output volume as a percentage (0-100)\n");
