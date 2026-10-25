@@ -284,8 +284,8 @@ static int mCoBG_MakeOneColumnCollisionData(mCoBG_column_c* col, mCoBG_UnitInfo_
         }
 
 #if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
-        /* Outdoor furniture shown as a model (pc_outdoor_ftr.c): blocks like a signboard */
-        if (pc_outdoor_ftr_at(ut_info->item, ut_info->ut_x, ut_info->ut_z)) {
+        /* Outdoor furniture shown as a model, or still falling as its leaf (pc_outdoor_ftr.c): blocks like a signboard */
+        if (pc_outdoor_ftr_blocks(ut_info->item, ut_info->ut_x, ut_info->ut_z)) {
             col->pos.x = mFI_UT_WORLDSIZE_HALF_X_F + mFI_UT_WORLDSIZE_X_F * ut_info->ut_x;
             col->pos.z = mFI_UT_WORLDSIZE_HALF_Z_F + mFI_UT_WORLDSIZE_Z_F * ut_info->ut_z;
             col->pos.y = mCoBG_GetBgY_OnlyCenter_FromWpos2(col->pos, 0.0f);

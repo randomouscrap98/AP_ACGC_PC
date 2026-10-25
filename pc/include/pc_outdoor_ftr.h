@@ -74,10 +74,17 @@ int pc_outdoor_ftr_hold_judge(struct game_s* game, int a_held);
 // The player picked up the item at global unit ux, uz (FG already emptied): a piece anchored there goes, with its
 // placeholders
 void pc_outdoor_ftr_picked_up(int ux, int uz);
+// The game is about to clear global unit ux, uz (Nook's renovation, aSL_GroundClean, which keeps furniture and
+// ITEM1 items in the Lost & Found): a piece covering it is forgotten and its placeholders emptied, so only its
+// furniture item (if the anchor is cleared) is kept; an anchor left outside stays as a plain leaf
+void pc_outdoor_ftr_ground_cleared(int ux, int uz);
 
 // Whether `item` at global unit ux, uz is part of an intact piece (bg_item skips its leaf / paper, collision adds a
 // column per unit)
 int pc_outdoor_ftr_at(u16 item, int ux, int uz);
+// Collision (column per unit): pc_outdoor_ftr_at, plus the anchor of a piece whose leaf is still falling (RSV_NO
+// there), so nobody walks in before it appears
+int pc_outdoor_ftr_blocks(u16 item, int ux, int uz);
 // The anchor of the intact piece covering global unit ux, uz (pickup and the item name go there). FALSE: none
 int pc_outdoor_ftr_anchor(int ux, int uz, int* anchor_ux, int* anchor_uz);
 

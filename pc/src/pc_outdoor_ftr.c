@@ -33,6 +33,9 @@
 
 // Units of one piece may differ this much in ground height (world units; a cliff step is 40)
 #define PC_OUTDOOR_FTR_MAX_DY 4.0f
+// No villager this close (xz) to a unit's centre when placing: column radius 19 + villager BG radius 18
+// (ac_npc_ct.c_inc), else the column appears under them and they end up on top
+#define PC_OUTDOOR_FTR_NPC_CLEAR 37.0f
 
 static pc_outdoor_ftr_piece s_pieces[PC_OUTDOOR_FTR_MAX];
 static int s_count;
@@ -329,7 +332,21 @@ int pc_outdoor_ftr_can_place(u16 item) {
 
 // Whether a piece fits with these units: all empty, placeable, in the town, not the player's unit, level with the
 // player's ground
-static int pc_outdoor_ftr_fits(const int* xs, const int* zs, int n, int player_ux, int player_uz, f32 player_y) {
+// A villager (NPC actor) near the centre of unit ux, uz
+static int pc_outdoor_ftr_npc_near(GAME_PLAY* play, const xyz_t* center) {
+  for(ACTOR* a = play->actor_info.list[ACTOR_PART_NPC].actor; a != NULL; a = a->next_actor) {
+    f32 dx = a->world.position.x - center->x;
+    f32 dz = a->world.position.z - center->z;
+
+    if(dx * dx + dz * dz < PC_OUTDOOR_FTR_NPC_CLEAR * PC_OUTDOOR_FTR_NPC_CLEAR) {
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+static int pc_outdoor_ftr_fits(GAME_PLAY* play, const int* xs, const int* zs, int n, int player_ux, int player_uz,
+                               f32 player_y) {
   for(int u = 0; u < n; u++) {
     xyz_t pos;
 
@@ -341,7 +358,7 @@ static int pc_outdoor_ftr_fits(const int* xs, const int* zs, int n, int player_u
       return FALSE;
     }
     pos.y = mCoBG_GetBgY_OnlyCenter_FromWpos2(pos, 0.0f);
-    if(!mCoBG_CheckPlace(pos) || ABS(pos.y - player_y) > PC_OUTDOOR_FTR_MAX_DY) {
+    if(!mCoBG_CheckPlace(pos) || ABS(pos.y - player_y) > PC_OUTDOOR_FTR_MAX_DY || pc_outdoor_ftr_npc_near(play, &pos)) {
       return FALSE;
     }
   }
@@ -393,7 +410,7 @@ int pc_outdoor_ftr_place(GAME_PLAY* play, u16 item) {
       int xs[4], zs[4];
       int n = pc_outdoor_ftr_units(shape, rot, tx + square_ofs[s][0], tz + square_ofs[s][1], xs, zs);
 
-      if(!pc_outdoor_ftr_fits(xs, zs, n, player_ux, player_uz, ppos.y)) {
+      if(!pc_outdoor_ftr_fits(play, xs, zs, n, player_ux, player_uz, ppos.y)) {
         continue;
       }
       // The item falls on the anchor like a drop; the placeholders go straight in
@@ -511,6 +528,18 @@ void pc_outdoor_ftr_dropped(u16 item, int ux, int uz) {
   }
 }
 
+void pc_outdoor_ftr_ground_cleared(int ux, int uz) {
+  int i;
+
+  if(s_count == 0 || !pc_outdoor_ftr_own_town()) {
+    return;
+  }
+  i = pc_outdoor_ftr_find_covering(ux, uz);
+  if(i >= 0) {
+    pc_outdoor_ftr_remove(i, TRUE); // empties every unit still holding its placeholder, this one too
+  }
+}
+
 void pc_outdoor_ftr_picked_up(int ux, int uz) {
   int i = pc_outdoor_ftr_town_anchor(ux, uz);
 
@@ -542,6 +571,20 @@ int pc_outdoor_ftr_at(u16 item, int ux, int uz) {
   }
   i = pc_outdoor_ftr_find_covering(ux, uz);
   return i >= 0 && pc_outdoor_ftr_intact(&s_pieces[i]) && pc_outdoor_ftr_fg(ux, uz) == item;
+}
+
+int pc_outdoor_ftr_blocks(u16 item, int ux, int uz) {
+  int i;
+
+  if(pc_outdoor_ftr_at(item, ux, uz)) {
+    return TRUE;
+  }
+  // Still falling as a leaf: the anchor holds the drop's RSV_NO (the placeholders already count above)
+  if(item != RSV_NO || s_count == 0 || !pc_outdoor_ftr_own_town()) {
+    return FALSE;
+  }
+  i = pc_outdoor_ftr_find_anchor(ux, uz);
+  return i >= 0 && s_pieces[i].anim.state == PC_OUTDOOR_FTR_ANIM_LANDING && pc_outdoor_ftr_intact(&s_pieces[i]);
 }
 
 int pc_outdoor_ftr_anchor(int ux, int uz, int* anchor_ux, int* anchor_uz) {

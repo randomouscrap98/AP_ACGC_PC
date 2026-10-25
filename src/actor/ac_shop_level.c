@@ -5,6 +5,9 @@
 #include "m_house.h"
 #include "m_handbill.h"
 #include "m_string.h"
+#ifdef TARGET_PC
+#include "pc_outdoor_ftr.h"
+#endif
 
 static void Shop_Level_Actor_ct(ACTOR* actorx, GAME* game);
 static void Shop_Level_Actor_dt(ACTOR* actorx, GAME* game);
@@ -182,6 +185,10 @@ static void aSL_GroundClean(s16 level, s16 next_level, mActor_name_t* fg_p, int 
         int rewrite_uz = (uz + rewrite_ofs_p[i].ofs_uz) & 0xF;
         int rewrite_unit = rewrite_uz * UT_X_NUM + rewrite_ux;
 
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
+        /* Placed outdoor furniture here: forgotten, its placeholders emptied first (only the item itself is kept) */
+        pc_outdoor_ftr_ground_cleared(bx * UT_X_NUM + rewrite_ux, bz * UT_Z_NUM + rewrite_uz);
+#endif
         mPB_keep_item(fg_p[rewrite_unit]);
         mFI_BlockDepositOFF(deposit_p, rewrite_ux, rewrite_uz);
         fg_p[rewrite_unit] = RSV_NO;
