@@ -80,10 +80,7 @@ int pc_ap_storage_put(pc_ap_storage* s, int player, Private_c* priv, int pocket)
   if(s->count[player] >= PC_AP_STORAGE_SLOTS) {
     return PC_AP_STORAGE_FULL;
   }
-  // Newest first: just-stored items are at the top of the list
-  memmove(&s->items[player][1], &s->items[player][0], s->count[player] * sizeof(mActor_name_t));
-  s->items[player][0] = item;
-  s->count[player]++;
+  s->items[player][s->count[player]++] = item;
   priv->inventory.pockets[pocket] = EMPTY_NO;
   return PC_AP_STORAGE_OK;
 }
