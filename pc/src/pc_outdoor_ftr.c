@@ -60,6 +60,13 @@ typedef struct {
 } pc_outdoor_ftr_bye;
 static pc_outdoor_ftr_bye s_byes[PC_OUTDOOR_FTR_BYES];
 
+// The piece the player is holding (A), and for how long (60 fps frames)
+static struct {
+  int active;
+  s16 ux, uz; // a unit of it
+  f32 frames;
+} s_hold;
+
 static void pc_outdoor_ftr_model_pos(const pc_outdoor_ftr_piece* p, xyz_t* pos);
 static pc_outdoor_ftr_rig* pc_outdoor_ftr_rig_find(const pc_outdoor_ftr_piece* p);
 
@@ -454,6 +461,46 @@ int pc_outdoor_ftr_switch(int ux, int uz) {
     }
   }
   return TRUE;
+}
+
+int pc_outdoor_ftr_hold_begin(int ux, int uz) {
+  int i;
+
+  if(s_count == 0 || !pc_outdoor_ftr_own_town()) {
+    return FALSE;
+  }
+  i = pc_outdoor_ftr_find_covering(ux, uz);
+  if(i < 0 || !pc_outdoor_ftr_intact(&s_pieces[i])) {
+    return FALSE;
+  }
+  s_hold.active = TRUE;
+  s_hold.ux = (s16)ux;
+  s_hold.uz = (s16)uz;
+  s_hold.frames = 0.0f;
+  return TRUE;
+}
+
+int pc_outdoor_ftr_hold_judge(GAME* game, int a_held) {
+  int i;
+
+  if(!s_hold.active) {
+    return 0;
+  }
+  i = pc_outdoor_ftr_find_covering(s_hold.ux, s_hold.uz);
+  if(i < 0 || !pc_outdoor_ftr_intact(&s_pieces[i])) {
+    s_hold.active = FALSE; // gone meanwhile
+    return 0;
+  }
+  if(a_held) {
+    s_hold.frames += game->graph != NULL ? (f32)game->graph->dt_num_60fps_frames : 1.0f;
+    return 1;
+  }
+  // Let go: a tap (the room's switch_timer < 14) flips the switch
+  if(s_hold.frames < 14.0f) {
+    pc_outdoor_ftr_switch(s_hold.ux, s_hold.uz);
+  }
+  s_hold.active = FALSE;
+  return 0;
 }
 
 void pc_outdoor_ftr_dropped(u16 item, int ux, int uz) {

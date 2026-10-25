@@ -94,7 +94,7 @@ static void Player_actor_request_proc_index_fromWait(ACTOR* actor, GAME* game) {
     Player_actor_CheckAndRequest_main_fan_all(game, 1, 1, mPlayer_REQUEST_PRIORITY_4);
     Player_actor_CheckAndRequest_main_shake_tree_all(game);
 #if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
-    Player_actor_pc_outdoor_ftr_switch(game);
+    Player_actor_pc_outdoor_ftr_hold(game);
 #endif
 
     if ((Player_actor_GetController_move_percentX()) || (Player_actor_GetController_move_percentY())) {

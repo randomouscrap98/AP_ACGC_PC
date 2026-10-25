@@ -154,6 +154,12 @@ static void Player_actor_request_proc_index_fromHold(ACTOR* actor, GAME* game) {
                 break;
         }
     }
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
+    /* Outdoors there's no room to ask: the outdoor furniture's judge, same state codes (only 0 and 1 so far) */
+    else if (pc_outdoor_ftr_hold_judge(game, chkButton(BUTTON_A)) == 0) {
+        Player_actor_request_main_wait_all(game, -5.0f, 0.0f, 0, mPlayer_REQUEST_PRIORITY_34);
+    }
+#endif
 }
 
 static void Player_actor_main_Hold(ACTOR* actor, GAME* game) {

@@ -62,8 +62,15 @@ int pc_outdoor_ftr_place(struct game_play_s* play, u16 item);
 void pc_outdoor_ftr_dropped(u16 item, int ux, int uz);
 // bg_item: a dropped item about to land at target is a placed piece's leaf (its landing sound is skipped)
 int pc_outdoor_ftr_quiet_landing(u16 item, const xyz_t* target);
-// Player: A facing global unit ux, uz. Flips the switch of the intact unique-code piece there (TRUE), else FALSE
+// Flips the switch of the intact unique-code piece covering global unit ux, uz (TRUE), else FALSE
 int pc_outdoor_ftr_switch(int ux, int uz);
+// Player: A facing global unit ux, uz. TRUE if an intact piece is there: the player then holds it (the room's hold
+// state) and pc_outdoor_ftr_hold_judge decides each frame
+int pc_outdoor_ftr_hold_begin(int ux, int uz);
+// The outdoor stand-in for the room's judge_player_action_proc while holding, same state codes: 0 let go (the player
+// goes back to waiting; a tap under 14 frames flips the piece's switch), 1 keep holding. Push / pull / rotate
+// (the room's 2-5) are for later
+int pc_outdoor_ftr_hold_judge(struct game_s* game, int a_held);
 // The player picked up the item at global unit ux, uz (FG already emptied): a piece anchored there goes, with its
 // placeholders
 void pc_outdoor_ftr_picked_up(int ux, int uz);
