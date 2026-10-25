@@ -7326,7 +7326,7 @@ static mActor_name_t* Player_actor_pc_outdoor_ftr(mActor_name_t* fg_p, xyz_t* ta
 #endif
 
 #if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
-/* Outdoor furniture: A (no tool in hand, as for shaking a tree) facing a placed piece grabs it like in the room
+/* Outdoor furniture: A with nothing in hand (standing or walking) facing a placed piece grabs it like in the room
    (the hold pose; fromHold asks pc_outdoor_ftr_hold_judge: a quick tap flips its switch) */
 static void Player_actor_pc_outdoor_ftr_hold(GAME* game) {
     /* The player's facing as a hold direction (aMR_DIRECT_*: up = north, left, down = south, right) */
@@ -7338,8 +7338,10 @@ static void Player_actor_pc_outdoor_ftr_hold(GAME* game) {
     int ux;
     int uz;
 
-    if (Common_Get(field_type) != mFI_FIELDTYPE2_FG || mEv_IsTitleDemo() ||
-        !Player_actor_CheckController_forShake_tree(game) ||
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+
+    if (Common_Get(field_type) != mFI_FIELDTYPE2_FG || mEv_IsTitleDemo() || !chkTrigger(BUTTON_A) ||
+        mPlayer_ITEM_KIND_VALID(Player_actor_Get_ItemKind(actorx, player->now_main_index)) ||
         Player_actor_check_request_main_priority(game, mPlayer_REQUEST_PRIORITY_5) <= 0) {
         return;
     }
