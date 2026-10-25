@@ -8,6 +8,7 @@
 #include "bg_item.h"
 #include "ef_effect_control.h"
 #include "game.h"
+#include "m_camera2.h"
 #include "m_collision_bg.h"
 #include "m_common_data.h"
 #include "m_field_info.h"
@@ -589,10 +590,27 @@ int pc_outdoor_ftr_switch(int ux, int uz) {
   return TRUE;
 }
 
-int pc_outdoor_ftr_hold_begin(int ux, int uz, const xyz_t* player_pos, int player_direct, xyz_t* nice_pos) {
-  int i, along_x;
+// aMR_SetNicePos (types 1 / 2): where the player stands at piece p's edge on aMR_DIRECT_* side: the same distance
+// from it; along the edge the middle of a 1-unit edge, else kept within its middle half
+static void pc_outdoor_ftr_edge_pos(const pc_outdoor_ftr_piece* p, int side, const xyz_t* player_pos, xyz_t* out) {
   f32 min_x, max_x, min_z, max_z, lo, hi;
+  int along_x = side == aMR_DIRECT_UP || side == aMR_DIRECT_DOWN; // a north / south edge runs along x
   f32* along;
+
+  pc_outdoor_ftr_bounds(p, &min_x, &max_x, &min_z, &max_z);
+  lo = along_x ? min_x : min_z;
+  hi = along_x ? max_x : max_z;
+  *out = *player_pos;
+  along = along_x ? &out->x : &out->z;
+  if(hi - lo > mFI_UT_WORLDSIZE_X_F + 1.0f) {
+    *along = CLAMP(*along, lo + (hi - lo) * 0.25f, lo + (hi - lo) * 0.75f);
+  } else {
+    *along = (lo + hi) * 0.5f;
+  }
+}
+
+int pc_outdoor_ftr_hold_begin(int ux, int uz, const xyz_t* player_pos, int player_direct, xyz_t* nice_pos) {
+  int i;
 
   if(s_count == 0 || !pc_outdoor_ftr_own_town()) {
     return FALSE;
@@ -610,19 +628,7 @@ int pc_outdoor_ftr_hold_begin(int ux, int uz, const xyz_t* player_pos, int playe
   memset(&s_hold.push, 0, sizeof(s_hold.push));
   memset(&s_hold.pull, 0, sizeof(s_hold.pull));
 
-  // aMR_SetNicePos: the same distance from the piece; along the edge the middle of a 1-unit edge, else kept within
-  // its middle half
-  pc_outdoor_ftr_bounds(&s_pieces[i], &min_x, &max_x, &min_z, &max_z);
-  along_x = s_hold.side == aMR_DIRECT_UP || s_hold.side == aMR_DIRECT_DOWN; // a north / south edge runs along x
-  lo = along_x ? min_x : min_z;
-  hi = along_x ? max_x : max_z;
-  *nice_pos = *player_pos;
-  along = along_x ? &nice_pos->x : &nice_pos->z;
-  if(hi - lo > mFI_UT_WORLDSIZE_X_F + 1.0f) {
-    *along = CLAMP(*along, lo + (hi - lo) * 0.25f, lo + (hi - lo) * 0.75f);
-  } else {
-    *along = (lo + hi) * 0.5f;
-  }
+  pc_outdoor_ftr_edge_pos(&s_pieces[i], s_hold.side, player_pos, nice_pos);
   s_hold.nice = *nice_pos;
   return TRUE;
 }
@@ -1107,6 +1113,83 @@ static PLAYER_ACTOR* pc_outdoor_ftr_player(GAME* game) {
   return pc_outdoor_ftr_own_town() ? GET_PLAYER_ACTOR((GAME_PLAY*)game) : NULL;
 }
 
+int pc_outdoor_ftr_can_sit(int contact_action, int rot, int side) {
+  static const u8 facing[4] = { aMR_DIRECT_DOWN, aMR_DIRECT_RIGHT, aMR_DIRECT_UP, aMR_DIRECT_LEFT }; // by rot
+
+  if(contact_action & aFTR_CONTACT_ACTION_CHAIR_MULTIDIRECTIONAL) {
+    return TRUE;
+  }
+  return (contact_action & (aFTR_CONTACT_ACTION_CHAIR_UNIDIRECTIONAL | aFTR_CONTACT_ACTION_CHAIR_SOFA)) != 0 &&
+         side == facing[rot & 3];
+}
+
+// aMR_SitDownFurniture outdoors: walking into a seat's sitting side (facing it and the stick toward it, within 15
+// deg, touching its edge) for 15 frames sits the player down on it
+static void pc_outdoor_ftr_sit_check(GAME* game, PLAYER_ACTOR* player, f32 dt) {
+  static const u16 direct_angle[4] = { 0x8000, 0xC000, 0x0000, 0x4000 }; // aMR_DIRECT_*: the facing's yaw
+  static const u8 bucket_direct[4] = { aMR_DIRECT_DOWN, aMR_DIRECT_RIGHT, aMR_DIRECT_UP, aMR_DIRECT_LEFT }; // by yaw
+  static f32 timer;
+  const xyz_t* ppos = &player->actor_class.world.position;
+  s16 facing = player->actor_class.shape_info.rotation.y;
+  int dir = bucket_direct[((u16)(facing + 0x2000) >> 14) & 3]; // the way the player faces
+  int player_ux, player_uz, i, side, ftr;
+  s16 stick;
+  f32 min_x, max_x, min_z, max_z, dist, along, lo, hi;
+  const aFTR_PROFILE* profile;
+  pc_outdoor_ftr_piece* p;
+  xyz_t pos;
+
+  stick = (s16)(DEG2SHORT_ANGLE2(270.0f) + game->mcon.move_angle + getCamera2AngleY((GAME_PLAY*)game));
+  if(s_hold.active || game->mcon.move_pR <= 0.6f || ABS((s16)(facing - direct_angle[dir])) >= DEG2SHORT_ANGLE(15.0f) ||
+     ABS((s16)(stick - direct_angle[dir])) >= DEG2SHORT_ANGLE(15.0f) ||
+     (player->now_main_index != mPlayer_INDEX_WAIT && player->now_main_index != mPlayer_INDEX_WALK &&
+      player->now_main_index != mPlayer_INDEX_RUN && player->now_main_index != mPlayer_INDEX_DASH) ||
+     !mFI_Wpos2UtNum(&player_ux, &player_uz, *ppos)) {
+    timer = 0.0f;
+    return;
+  }
+  // The piece in front, if the player is at its edge (the room's 20.5) and within its length
+  i = pc_outdoor_ftr_find_covering(player_ux + pc_outdoor_ftr_direct_step[dir][0],
+                                   player_uz + pc_outdoor_ftr_direct_step[dir][1]);
+  if(i < 0 || !pc_outdoor_ftr_intact(&s_pieces[i]) || s_pieces[i].anim.state != PC_OUTDOOR_FTR_ANIM_NONE) {
+    timer = 0.0f;
+    return;
+  }
+  p = &s_pieces[i];
+  side = (dir + 2) & 3; // the side the player is on
+  ftr = mRmTp_FtrItemNo2FtrIdx(p->item);
+  profile = aMR_pc_GetProfile(ftr);
+  pc_outdoor_ftr_bounds(p, &min_x, &max_x, &min_z, &max_z);
+  switch(side) {
+    case aMR_DIRECT_UP:
+      dist = min_z - ppos->z;
+      break;
+    case aMR_DIRECT_DOWN:
+      dist = ppos->z - max_z;
+      break;
+    case aMR_DIRECT_LEFT:
+      dist = min_x - ppos->x;
+      break;
+    default:
+      dist = ppos->x - max_x;
+      break;
+  }
+  along = side == aMR_DIRECT_UP || side == aMR_DIRECT_DOWN ? ppos->x : ppos->z;
+  lo = side == aMR_DIRECT_UP || side == aMR_DIRECT_DOWN ? min_x : min_z;
+  hi = side == aMR_DIRECT_UP || side == aMR_DIRECT_DOWN ? max_x : max_z;
+  if(profile == NULL || !pc_outdoor_ftr_can_sit(profile->contact_action, p->rot, side) || dist > 20.5f ||
+     along < lo || along > hi) {
+    timer = 0.0f;
+    return;
+  }
+  timer += dt;
+  if(timer > 14.0f) {
+    timer = 0.0f;
+    pc_outdoor_ftr_edge_pos(p, side, ppos, &pos);
+    mPlib_request_main_sitdown_type1(game, dir, &pos, ftr); // the furniture number picks the sit / stand sounds
+  }
+}
+
 void pc_outdoor_ftr_update(GAME* game) {
   PLAYER_ACTOR* player = pc_outdoor_ftr_player(game);
   f32 dt;
@@ -1115,6 +1198,9 @@ void pc_outdoor_ftr_update(GAME* game) {
     return;
   }
   dt = game->graph != NULL ? (f32)game->graph->dt_num_60fps_frames : 1.0f;
+  if(s_count > 0) {
+    pc_outdoor_ftr_sit_check(game, player, dt);
+  }
 
   for(int i = 0; i < s_count; i++) {
     pc_outdoor_ftr_piece* p = &s_pieces[i];

@@ -129,6 +129,9 @@ int pc_outdoor_ftr_parse(const char* s, pc_outdoor_ftr_piece* out, int max);
 // that must be free for it (a 1x2: the swept corner and where its other end lands). Returns that count (0 or 2)
 int pc_outdoor_ftr_turn_units(int shape, int rot, int ux, int uz, int pivot_ux, int pivot_uz, int dir, int* new_ux,
                               int* new_uz, int* new_rot, int* need_x, int* need_z);
+// Whether a seat (profile contact_action, aFTR_CONTACT_ACTION_*) turned rot can be sat on from aMR_DIRECT_* side:
+// stools from any side, chairs and sofas only from the front (the side they face)
+int pc_outdoor_ftr_can_sit(int contact_action, int rot, int side);
 // One frame of the turn (aMR_GetEllipseSpeed: 5.6 deg a frame at first, slowing): the new `turned`, 90 = done
 f32 pc_outdoor_ftr_turn_step(f32 turned, f32 dt);
 // How far a push / pull has gone at keyframe `frame` (1-25) of the room's furniture_push / _pull: 0-1, eased
