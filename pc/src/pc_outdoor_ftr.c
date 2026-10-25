@@ -64,6 +64,16 @@ typedef struct {
 } pc_outdoor_ftr_bye;
 static pc_outdoor_ftr_bye s_byes[PC_OUTDOOR_FTR_BYES];
 
+// Straining toward a push or pull: frames so far, and whether the last try was refused (no new try until the stick
+// leaves that direction)
+typedef struct {
+  f32 timer;
+  int blocked;
+} pc_outdoor_ftr_strain;
+
+// aMR_DIRECT_* (up = north) as a unit step; the stick's x, y along it is x, -z
+static const s8 pc_outdoor_ftr_direct_step[4][2] = { { 0, -1 }, { -1, 0 }, { 0, 1 }, { 1, 0 } };
+
 // The piece the player is holding (A), and for how long (60 fps frames)
 static struct {
   int active;
@@ -72,10 +82,7 @@ static struct {
   int side;       // aMR_DIRECT_* of the side the player holds it from (the room's contact direction)
   xyz_t nice;     // where the player stands while holding (moves wait until they're there)
   int allow_turn; // the stick went back to neutral since the last turn (aMR_CheckControllerNeutral)
-  f32 push_timer;  // frames the stick has been full toward the push (aMR_MngPushDirectTimer)
-  int push_blocked; // the last push was refused: no new try until the stick leaves that direction
-  f32 pull_timer;  // the same for pulls (aMR_MngPullDirectTimer)
-  int pull_blocked;
+  pc_outdoor_ftr_strain push, pull; // aMR_MngPushDirectTimer / aMR_MngPullDirectTimer
   xyz_t pull_target; // where the last pull takes the player
 } s_hold;
 
@@ -312,6 +319,21 @@ static int pc_outdoor_ftr_piece_units(const pc_outdoor_ftr_piece* p, int* xs, in
 }
 
 // The placeholder still on every unit but the anchor
+// World xz rectangle of piece p's units
+static void pc_outdoor_ftr_bounds(const pc_outdoor_ftr_piece* p, f32* min_x, f32* max_x, f32* min_z, f32* max_z) {
+  int xs[4], zs[4];
+  int n = pc_outdoor_ftr_piece_units(p, xs, zs);
+
+  *min_x = *min_z = 1e9f;
+  *max_x = *max_z = -1e9f;
+  for(int u = 0; u < n; u++) {
+    *min_x = MIN(*min_x, xs[u] * mFI_UT_WORLDSIZE_X_F);
+    *max_x = MAX(*max_x, (xs[u] + 1) * mFI_UT_WORLDSIZE_X_F);
+    *min_z = MIN(*min_z, zs[u] * mFI_UT_WORLDSIZE_Z_F);
+    *max_z = MAX(*max_z, (zs[u] + 1) * mFI_UT_WORLDSIZE_Z_F);
+  }
+}
+
 static int pc_outdoor_ftr_placeholders_there(const pc_outdoor_ftr_piece* p) {
   int xs[4], zs[4];
   int n = pc_outdoor_ftr_piece_units(p, xs, zs);
@@ -568,10 +590,9 @@ int pc_outdoor_ftr_switch(int ux, int uz) {
 }
 
 int pc_outdoor_ftr_hold_begin(int ux, int uz, const xyz_t* player_pos, int player_direct, xyz_t* nice_pos) {
-  int i, n;
-  int xs[4], zs[4];
-  f32 min_x = 1e9f, max_x = -1e9f, min_z = 1e9f, max_z = -1e9f;
-  f32 lo, hi, mid;
+  int i, along_x;
+  f32 min_x, max_x, min_z, max_z, lo, hi;
+  f32* along;
 
   if(s_count == 0 || !pc_outdoor_ftr_own_town()) {
     return FALSE;
@@ -586,60 +607,49 @@ int pc_outdoor_ftr_hold_begin(int ux, int uz, const xyz_t* player_pos, int playe
   s_hold.frames = 0.0f;
   s_hold.side = (player_direct + 2) & 3; // facing the piece: standing on the opposite side
   s_hold.allow_turn = FALSE;
-  s_hold.push_timer = 0.0f;
-  s_hold.push_blocked = FALSE;
-  s_hold.pull_timer = 0.0f;
-  s_hold.pull_blocked = FALSE;
+  memset(&s_hold.push, 0, sizeof(s_hold.push));
+  memset(&s_hold.pull, 0, sizeof(s_hold.pull));
 
-  // aMR_SetNicePos: the same distance from the piece, along the edge the middle of a 1-unit edge, else kept within
+  // aMR_SetNicePos: the same distance from the piece; along the edge the middle of a 1-unit edge, else kept within
   // its middle half
-  n = pc_outdoor_ftr_piece_units(&s_pieces[i], xs, zs);
-  for(int u = 0; u < n; u++) {
-    min_x = MIN(min_x, xs[u] * mFI_UT_WORLDSIZE_X_F);
-    max_x = MAX(max_x, (xs[u] + 1) * mFI_UT_WORLDSIZE_X_F);
-    min_z = MIN(min_z, zs[u] * mFI_UT_WORLDSIZE_Z_F);
-    max_z = MAX(max_z, (zs[u] + 1) * mFI_UT_WORLDSIZE_Z_F);
-  }
+  pc_outdoor_ftr_bounds(&s_pieces[i], &min_x, &max_x, &min_z, &max_z);
+  along_x = s_hold.side == aMR_DIRECT_UP || s_hold.side == aMR_DIRECT_DOWN; // a north / south edge runs along x
+  lo = along_x ? min_x : min_z;
+  hi = along_x ? max_x : max_z;
   *nice_pos = *player_pos;
-  if(s_hold.side == aMR_DIRECT_UP || s_hold.side == aMR_DIRECT_DOWN) {
-    lo = min_x;
-    hi = max_x;
-  } else {
-    lo = min_z;
-    hi = max_z;
-  }
-  mid = (lo + hi) * 0.5f;
+  along = along_x ? &nice_pos->x : &nice_pos->z;
   if(hi - lo > mFI_UT_WORLDSIZE_X_F + 1.0f) {
-    f32* along = (s_hold.side == aMR_DIRECT_UP || s_hold.side == aMR_DIRECT_DOWN) ? &nice_pos->x : &nice_pos->z;
     *along = CLAMP(*along, lo + (hi - lo) * 0.25f, lo + (hi - lo) * 0.75f);
-  } else if(s_hold.side == aMR_DIRECT_UP || s_hold.side == aMR_DIRECT_DOWN) {
-    nice_pos->x = mid;
   } else {
-    nice_pos->z = mid;
+    *along = (lo + hi) * 0.5f;
   }
   s_hold.nice = *nice_pos;
   return TRUE;
 }
 
-// The room's aMR_JudgeStickFull: the stick pushed fully toward aMR_DIRECT_* direct (up = north)
-static int pc_outdoor_ftr_stick_full(GAME* game, int direct) {
-  f32 x = game->mcon.move_pX;
-  f32 y = game->mcon.move_pY;
+// How far the stick points toward aMR_DIRECT_* direct (-1..1; the stick's up is north)
+static f32 pc_outdoor_ftr_stick_along(GAME* game, int direct) {
+  return game->mcon.move_pX * pc_outdoor_ftr_direct_step[direct & 3][0] -
+         game->mcon.move_pY * pc_outdoor_ftr_direct_step[direct & 3][1];
+}
 
-  if(game->mcon.move_pR < 0.8f) {
-    return FALSE;
+// The room's aMR_JudgeStickFull: the stick pushed fully toward direct
+static int pc_outdoor_ftr_stick_full(GAME* game, int direct) {
+  return game->mcon.move_pR >= 0.8f && pc_outdoor_ftr_stick_along(game, direct) > 0.8f;
+}
+
+// The room's aMR_Get3dDirectStatus: the stick at least 0.8 toward direct (within ~37 deg of it)
+static int pc_outdoor_ftr_stick_toward(GAME* game, int direct) {
+  return pc_outdoor_ftr_stick_along(game, direct) >= 0.8f;
+}
+
+// aMR_SetBubu: the "can't" puff at the player
+static void pc_outdoor_ftr_bubu(GAME* game) {
+  PLAYER_ACTOR* player = GET_PLAYER_ACTOR((GAME_PLAY*)game);
+
+  if(eEC_CLIP != NULL && player != NULL) {
+    eEC_CLIP->effect_make_proc(eEC_EFFECT_BUBU, player->actor_class.world.position, 2, 0, game, RSV_NO, 0, 0);
   }
-  switch(direct) {
-    case aMR_DIRECT_UP:
-      return y > 0.8f;
-    case aMR_DIRECT_LEFT:
-      return x < -0.8f;
-    case aMR_DIRECT_DOWN:
-      return y < -0.8f;
-    case aMR_DIRECT_RIGHT:
-      return x > 0.8f;
-  }
-  return FALSE;
 }
 
 // Moves piece p to anchor ux, uz turned rot, at once: its old units not kept are emptied, the new anchor gets the
@@ -710,15 +720,14 @@ static int pc_outdoor_ftr_walkable(GAME_PLAY* play, int ux, int uz, f32 player_y
 // back), if every unit it moves onto is free (Place's rules) and, pulling, the player has room behind. Like
 // aMR_PlacePushFurniture / aMR_PlacePullFurniture: units at once, the model slides over the next frames
 static int pc_outdoor_ftr_slide(GAME* game, int i, int dir, int pull) {
-  static const s8 step[4][2] = { { 0, -1 }, { -1, 0 }, { 0, 1 }, { 1, 0 } }; // aMR_DIRECT_*: up = north
   pc_outdoor_ftr_piece* p = &s_pieces[i];
   PLAYER_ACTOR* player = GET_PLAYER_ACTOR((GAME_PLAY*)game);
   const xyz_t* ppos = &player->actor_class.world.position;
   int xs[4], zs[4], need_x[4], need_z[4];
   int n = pc_outdoor_ftr_piece_units(p, xs, zs);
   int need = 0;
-  int dx = step[dir & 3][0];
-  int dz = step[dir & 3][1];
+  int dx = pc_outdoor_ftr_direct_step[dir & 3][0];
+  int dz = pc_outdoor_ftr_direct_step[dir & 3][1];
   int player_ux, player_uz;
   xyz_t from;
 
@@ -769,11 +778,29 @@ void pc_outdoor_ftr_pull_target(xyz_t* pos) {
   *pos = s_hold.pull_target;
 }
 
-// The room's aMR_Get3dDirectStatus: the stick pushed (>= 0.8 along it) toward aMR_DIRECT_* direct, within ~37 deg
-static int pc_outdoor_ftr_stick_toward(GAME* game, int direct) {
-  static const s8 vec[4][2] = { { 0, 1 }, { -1, 0 }, { 0, -1 }, { 1, 0 } }; // stick x, y (up = north)
-
-  return game->mcon.move_pX * vec[direct & 3][0] + game->mcon.move_pY * vec[direct & 3][1] >= 0.8f;
+// One held frame toward a push or pull in direct: the room times a pull while the stick is near its direction, a
+// push only while it's full; after 17 frames a full stick moves it. The judge's code: 0 not this way (or refused
+// until the stick leaves), 9 / 10 straining, 2 / 3 moved, 1 refused now (the puff)
+static int pc_outdoor_ftr_strain_step(GAME* game, int i, int direct, int pull, pc_outdoor_ftr_strain* s, f32 dt) {
+  if(!(pull ? pc_outdoor_ftr_stick_toward(game, direct) : pc_outdoor_ftr_stick_full(game, direct))) {
+    s->timer = 0.0f;
+    s->blocked = FALSE;
+    return 0;
+  }
+  if(s->blocked) {
+    return 0;
+  }
+  s->timer += dt;
+  if(s->timer <= 16.0f || !pc_outdoor_ftr_stick_full(game, direct)) {
+    return pull ? 10 : 9;
+  }
+  s->timer = 0.0f;
+  if(pc_outdoor_ftr_slide(game, i, direct, pull)) {
+    return pull ? 3 : 2;
+  }
+  s->blocked = TRUE;
+  pc_outdoor_ftr_bubu(game);
+  return 1;
 }
 
 // Starts a quarter turn of piece i (dir +1 left, -1 right) if there's room; its units change at once (like the room),
@@ -851,7 +878,7 @@ int pc_outdoor_ftr_hold_judge(GAME* game, int a_held) {
   }
   if(a_held) {
     f32 dt = game->graph != NULL ? (f32)game->graph->dt_num_60fps_frames : 1.0f;
-    int push_dir = (s_hold.side + 2) & 3; // away from the player
+    int code;
 
     s_hold.frames += dt;
     if(ABS(game->mcon.move_pX) <= 0.086f && ABS(game->mcon.move_pY) <= 0.086f) {
@@ -861,47 +888,17 @@ int pc_outdoor_ftr_hold_judge(GAME* game, int a_held) {
     if(p->anim.state == PC_OUTDOOR_FTR_ANIM_SLIDE || player == NULL ||
        ABS(player->actor_class.world.position.x - s_hold.nice.x) >= 1.0f ||
        ABS(player->actor_class.world.position.z - s_hold.nice.z) >= 1.0f) {
-      s_hold.push_timer = 0.0f;
-      s_hold.pull_timer = 0.0f;
+      s_hold.push.timer = 0.0f;
+      s_hold.pull.timer = 0.0f;
       return 1; // still moving, or the player isn't where they hold it yet
     }
-    // Pull: the stick toward the player for 17 frames (straining), then full toward them
-    if(!pc_outdoor_ftr_stick_toward(game, s_hold.side)) {
-      s_hold.pull_timer = 0.0f;
-      s_hold.pull_blocked = FALSE;
-    } else if(!s_hold.pull_blocked) {
-      s_hold.pull_timer += dt;
-      if(s_hold.pull_timer <= 16.0f || !pc_outdoor_ftr_stick_full(game, s_hold.side)) {
-        return 10; // straining
-      }
-      s_hold.pull_timer = 0.0f;
-      if(pc_outdoor_ftr_slide(game, i, s_hold.side, TRUE)) {
-        return 3;
-      }
-      s_hold.pull_blocked = TRUE;
-      if(eEC_CLIP != NULL) { // aMR_SetBubu
-        eEC_CLIP->effect_make_proc(eEC_EFFECT_BUBU, player->actor_class.world.position, 2, 0, game, RSV_NO, 0, 0);
-      }
-      return 1;
+    // Pull toward the player, push away from them
+    code = pc_outdoor_ftr_strain_step(game, i, s_hold.side, TRUE, &s_hold.pull, dt);
+    if(code == 0) {
+      code = pc_outdoor_ftr_strain_step(game, i, (s_hold.side + 2) & 3, FALSE, &s_hold.push, dt);
     }
-    // Push: the stick full away from the player, straining for 17 frames first
-    if(!pc_outdoor_ftr_stick_full(game, push_dir)) {
-      s_hold.push_timer = 0.0f;
-      s_hold.push_blocked = FALSE;
-    } else if(!s_hold.push_blocked) {
-      s_hold.push_timer += dt;
-      if(s_hold.push_timer <= 16.0f) {
-        return 9; // straining
-      }
-      s_hold.push_timer = 0.0f;
-      if(pc_outdoor_ftr_slide(game, i, push_dir, FALSE)) {
-        return 2;
-      }
-      s_hold.push_blocked = TRUE;
-      if(eEC_CLIP != NULL) { // aMR_SetBubu
-        eEC_CLIP->effect_make_proc(eEC_EFFECT_BUBU, player->actor_class.world.position, 2, 0, game, RSV_NO, 0, 0);
-      }
-      return 1;
+    if(code != 0) {
+      return code;
     }
     // A full sideways stick turns it, once per flick
     if(s_hold.allow_turn) {
@@ -917,9 +914,7 @@ int pc_outdoor_ftr_hold_judge(GAME* game, int a_held) {
         if(pc_outdoor_ftr_turn(game, i, dir)) {
           return dir > 0 ? 5 : 4;
         }
-        if(eEC_CLIP != NULL) { // aMR_SetBubu
-          eEC_CLIP->effect_make_proc(eEC_EFFECT_BUBU, player->actor_class.world.position, 2, 0, game, RSV_NO, 0, 0);
-        }
+        pc_outdoor_ftr_bubu(game);
       }
     }
     return 1;
@@ -1077,19 +1072,12 @@ static void pc_outdoor_ftr_model_pos(const pc_outdoor_ftr_piece* p, xyz_t* pos) 
 // aMR_GetDust4Position (60% of the way out in x, 3.5 toward the camera)
 static void pc_outdoor_ftr_dust(GAME* game, const pc_outdoor_ftr_piece* p, const xyz_t* center, int pair) {
   static const s8 corners[2][2][2] = { { { -1, 1 }, { 1, -1 } }, { { 1, 1 }, { -1, -1 } } };
-  int xs[4], zs[4];
-  int n = pc_outdoor_ftr_piece_units(p, xs, zs);
-  f32 min_x = 1e9f, max_x = -1e9f, min_z = 1e9f, max_z = -1e9f;
+  f32 min_x, max_x, min_z, max_z;
 
   if(eEC_CLIP == NULL) {
     return;
   }
-  for(int u = 0; u < n; u++) {
-    min_x = MIN(min_x, xs[u] * mFI_UT_WORLDSIZE_X_F);
-    max_x = MAX(max_x, (xs[u] + 1) * mFI_UT_WORLDSIZE_X_F);
-    min_z = MIN(min_z, zs[u] * mFI_UT_WORLDSIZE_Z_F);
-    max_z = MAX(max_z, (zs[u] + 1) * mFI_UT_WORLDSIZE_Z_F);
-  }
+  pc_outdoor_ftr_bounds(p, &min_x, &max_x, &min_z, &max_z);
   for(int c = 0; c < 2; c++) {
     f32 dx = corners[pair - 1][c][0] * (max_x - min_x) * 0.5f;
     f32 dz = corners[pair - 1][c][1] * (max_z - min_z) * 0.5f;

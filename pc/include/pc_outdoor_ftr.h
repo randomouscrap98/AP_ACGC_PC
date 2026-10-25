@@ -83,11 +83,13 @@ int pc_outdoor_ftr_switch(int ux, int uz);
 // piece is there: the player then holds it (the room's hold state, walking to *nice_pos: the middle of the edge
 // they face, like aMR_SetNicePos) and pc_outdoor_ftr_hold_judge decides each frame
 int pc_outdoor_ftr_hold_begin(int ux, int uz, const xyz_t* player_pos, int player_direct, xyz_t* nice_pos);
-// The outdoor stand-in for the room's judge_player_action_proc while holding, same state codes: 0 let go (the player
-// goes back to waiting; a tap under 14 frames flips the piece's switch), 1 keep holding, 2 push (once per move: the
-// stick full away from the player for 17 frames, straining = 9 meanwhile), 3 pull (the same toward the player,
-// straining = 10; the player walks back to pc_outdoor_ftr_pull_target), 4 / 5 turning right / left (a full
-// sideways stick, once per flick: aMR_DecideKurukuruDirect). Blocked = the BUBU puff
+// The outdoor stand-in for the room's judge_player_action_proc while holding, once a frame, with its state codes:
+//   0  let go: back to waiting (a tap under 14 frames flips the piece's switch)
+//   1  keep holding (also while the piece still moves, or the player walks to where they hold it)
+//   2  push: the stick full away from the player for 17 frames (9 = straining meanwhile); once per move
+//   3  pull: the same toward the player (10 = straining); the player steps back to pc_outdoor_ftr_pull_target
+//   4 / 5  turning right / left: a full sideways stick, once per flick; returned until the turn is done
+// A move that doesn't fit shows the BUBU puff (and isn't tried again until the stick leaves that direction)
 int pc_outdoor_ftr_hold_judge(struct game_s* game, int a_held);
 // Where the last pull (judge 3) takes the player: one unit back from where they held it
 void pc_outdoor_ftr_pull_target(xyz_t* pos);
