@@ -1760,7 +1760,12 @@ static void bIT_actor_drop_move_fly(bg_item_drop_c* drop) {
                 sAdo_OngenTrgStart(0x127, &drop->position);
             } else if (drop->fg_item >= ITM_MONEY_START && drop->fg_item <= (ITM_MONEY_END + 1)) {
                 sAdo_OngenTrgStart(0x444, &drop->position);
-            } else if ((drop->flags & 0x200) == 0) {
+            } else if ((drop->flags & 0x200) == 0
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
+                       /* Outdoor furniture: its leaf lands silently, like indoors (the pop has its own sound) */
+                       && !pc_outdoor_ftr_quiet_landing(drop->fg_item, &drop->target_position)
+#endif
+            ) {
                 sAdo_OngenTrgStart(0x128, &drop->position);
             }
         }

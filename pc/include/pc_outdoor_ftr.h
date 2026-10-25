@@ -59,6 +59,8 @@ int pc_outdoor_ftr_can_place(u16 item);
 int pc_outdoor_ftr_place(struct game_play_s* play, u16 item);
 // A normal field drop at global unit ux, uz: forgets a piece anchored there
 void pc_outdoor_ftr_dropped(u16 item, int ux, int uz);
+// bg_item: a dropped item about to land at target is a placed piece's leaf (its landing sound is skipped)
+int pc_outdoor_ftr_quiet_landing(u16 item, const xyz_t* target);
 // The player picked up the item at global unit ux, uz (FG already emptied): a piece anchored there goes, with its
 // placeholders
 void pc_outdoor_ftr_picked_up(int ux, int uz);

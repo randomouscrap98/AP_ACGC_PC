@@ -408,6 +408,16 @@ static int pc_outdoor_ftr_town_anchor(int ux, int uz) {
   return pc_outdoor_ftr_own_town() ? pc_outdoor_ftr_find_anchor(ux, uz) : -1;
 }
 
+int pc_outdoor_ftr_quiet_landing(u16 item, const xyz_t* target) {
+  int ux, uz, i;
+
+  if(!mFI_Wpos2UtNum(&ux, &uz, *target)) {
+    return FALSE;
+  }
+  i = pc_outdoor_ftr_town_anchor(ux, uz);
+  return i >= 0 && s_pieces[i].item == item && s_pieces[i].anim.state == PC_OUTDOOR_FTR_ANIM_LANDING;
+}
+
 void pc_outdoor_ftr_dropped(u16 item, int ux, int uz) {
   int i = pc_outdoor_ftr_town_anchor(ux, uz);
 
@@ -431,6 +441,7 @@ void pc_outdoor_ftr_picked_up(int ux, int uz) {
         s_byes[b].scale = 1.0f;
         s_byes[b].dust = TRUE;
         pc_outdoor_ftr_model_pos(&s_pieces[i], &s_byes[b].pos);
+        sAdo_OngenTrgStart(NA_SE_CLEAN_UP_FTR, &s_byes[b].pos); // the room's pickup sound (aMR_SetCleanUpFtrSE)
         break;
       }
     }
