@@ -15,6 +15,9 @@
 #include "libultra/libultra.h"
 #include "m_common_data.h"
 #include "m_scene_table.h"
+#ifdef TARGET_PC
+#include "pc_settings.h"
+#endif
 
 static int mPO_keep_contents(Mail_c* mail) {
     int res = FALSE;
@@ -340,6 +343,12 @@ static void mPO_delivery_one_address_event_leaflet(int house_no) {
             break;
     }
 
+#ifdef TARGET_PC
+    /* Less Mail: no event leaflets (Nook's sale day, Crazy Redd's) */
+    if (g_pc_settings.less_mail) {
+        return;
+    }
+#endif
     if (leaflet_event_type == special_type) {
         mPO_delivery_one_address_leaflet(&Save_Get(post_office).leaflet_recipient_flags.event_flags, ev_leaflet,
                                          house_no);
