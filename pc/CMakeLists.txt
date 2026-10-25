@@ -47,6 +47,8 @@ add_compile_definitions(
     _LANGUAGE_C    # Required for N64 GBI/ultratypes headers
     PC_ENHANCEMENTS   # Optional visual improvements (MSAA, etc). Remove to get pure PC port.
     KEYBOARD_TYPING   # Physical keyboard typing in text editor. Remove for platforms without keyboards.
+    PC_OUTDOOR_FTR    # Outdoor furniture (item menu "Place", pc_outdoor_ftr.c). Remove to turn it off: the decomp
+                      # hooks go, outdoor furniture is leaves again; the sidecar keeps the placed list for later.
 )
 
 # Common compiler flags (applied to all sources). GCC is required:

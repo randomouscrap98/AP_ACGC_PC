@@ -2637,10 +2637,12 @@ static void bg_item_common_classifyitemDataTable(const GAME_PLAY* const play, bg
                         if (*fg_p != EMPTY_NO) {
 #ifdef TARGET_PC
                             fg_no2fg_type(pc_ap_tree_draw_fg(*fg_p), &type_data, col, type_data_table);
+#ifdef PC_OUTDOOR_FTR
                             /* Outdoor furniture: drawn as its model (pc_outdoor_ftr_draw), no leaf */
                             if (pc_outdoor_ftr_at(*fg_p, base_ut_x + ut_x, base_ut_z + ut_z)) {
                                 flag = FALSE;
                             }
+#endif
 #else
                             fg_no2fg_type(*fg_p, &type_data, col, type_data_table);
 #endif
@@ -3448,7 +3450,7 @@ static void bg_item_common_draw(GAME_PLAY* play, bg_item_common_c* common, bg_it
     bIT_actor_fade_draw(game, &common->common_info, common->fade);
 
     bit_draw_ta_clr(game);
-#ifdef TARGET_PC
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
     pc_outdoor_ftr_draw(game);
 #endif
 }

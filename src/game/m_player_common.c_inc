@@ -7303,7 +7303,7 @@ static mActor_name_t* Player_actor_Search_putin_item(ACTOR* actorx, xyz_t* targe
     if (fg_p != NULL && ITEM_IS_SIGNBOARD(*fg_p) != FALSE) {
         return fg_p;
     }
-#ifdef TARGET_PC
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
     /* Outdoor furniture shown as a model blocks like a signboard, so it's reached from as far */
     if (fg_p != NULL) {
         int ux;

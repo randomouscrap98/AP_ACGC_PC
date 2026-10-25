@@ -294,7 +294,7 @@ static mTG_tag_word_c mTG_tag_word_korewoireru = {
     &mTG_putin_proc,
 };
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
 static void mTG_pc_field_place_proc(Submenu*, mSM_MenuInfo_c*);
 
 /* Outdoor furniture (pc_outdoor_ftr.c): drop shown as the model, facing the player */
@@ -642,7 +642,7 @@ static mTG_tag_word_c* mTG_field_default_bury[] = {
     &mTG_tag_word_yameru,
 };
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
 static mTG_tag_word_c* mTG_pc_field_ftr[] = {
     &mTG_tag_word_tukamu,
     &mTG_tag_word_zimennioku,
@@ -1178,7 +1178,7 @@ static mTG_tag_data_c mTG_label_table[] = {
     { mTG_tag_nw_select_put, ARRAY_COUNT(mTG_tag_nw_select_put) },           /* mTG_TYPE_TAG_NW_SELECT_PUT */
     { NULL, 0 },                                                             /* mTG_TYPE_76 */
     { mTG_tag_password_item, ARRAY_COUNT(mTG_tag_password_item) },           /* mTG_TYPE_TAG_PASSWORD_ITEM */
-#ifdef TARGET_PC
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
     { mTG_pc_field_ftr, ARRAY_COUNT(mTG_pc_field_ftr) },                     /* mTG_TYPE_PC_FIELD_FTR */
     { mTG_pc_field_ftr_bury, ARRAY_COUNT(mTG_pc_field_ftr_bury) },           /* mTG_TYPE_PC_FIELD_FTR_BURY */
 #endif
@@ -2928,7 +2928,7 @@ static int mTG_common_throw_put_field(GAME_PLAY* play, mActor_name_t item, xyz_t
         if (mFI_Wpos2UtNum(&ux, &uz, *pos_p) && Common_Get(clip).bg_item_clip != NULL &&
             Common_Get(clip).bg_item_clip->player_drop_entry_proc != NULL) {
             res = Common_Get(clip).bg_item_clip->player_drop_entry_proc(&play->game, item, ux, uz, layer);
-#ifdef TARGET_PC
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
             if (res) {
                 pc_outdoor_ftr_dropped(item, ux, uz, GET_PLAYER_ACTOR(play)->actor_class.shape_info.rotation.y);
             }
@@ -4051,7 +4051,7 @@ static void mTG_field_put_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
     }
 }
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
 /* "Place": the normal field drop, remembered as a model (pc_outdoor_ftr_dropped) */
 static void mTG_pc_field_place_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
     pc_outdoor_ftr_set_placing(TRUE);
@@ -6851,7 +6851,7 @@ static int mTG_select_tag_decide_item_normal(Submenu* submenu, mActor_name_t ite
         }
     }
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
     /* Outdoor furniture: "Place" next to "Drop" */
     if ((ret_tag_type == mTG_TYPE_FIELD_DEFAULT || ret_tag_type == mTG_TYPE_FIELD_DEFAULT_BURY) &&
         pc_outdoor_ftr_can_place(item)) {

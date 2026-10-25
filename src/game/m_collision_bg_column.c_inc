@@ -283,7 +283,7 @@ static int mCoBG_MakeOneColumnCollisionData(mCoBG_column_c* col, mCoBG_UnitInfo_
             return TRUE;
         }
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
         /* Outdoor furniture shown as a model (pc_outdoor_ftr.c): blocks like a signboard */
         if (pc_outdoor_ftr_at(ut_info->item, ut_info->ut_x, ut_info->ut_z)) {
             col->pos.x = mFI_UT_WORLDSIZE_HALF_X_F + mFI_UT_WORLDSIZE_X_F * ut_info->ut_x;
