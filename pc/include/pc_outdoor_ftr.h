@@ -26,14 +26,20 @@ struct ini_t;
 #define PC_OUTDOOR_FTR_PLACEHOLDER 0x2000 // ITM_PAPER00: one sheet of the first stationery
 
 // The room's appear animation (aMR_FtrBirth), not saved
-enum { PC_OUTDOOR_FTR_ANIM_NONE, PC_OUTDOOR_FTR_ANIM_LANDING, PC_OUTDOOR_FTR_ANIM_BIRTH };
+// ROTATE: the room's quarter turn (aMR_FtrRotate), around `pivot`
+enum { PC_OUTDOOR_FTR_ANIM_NONE, PC_OUTDOOR_FTR_ANIM_LANDING, PC_OUTDOOR_FTR_ANIM_BIRTH, PC_OUTDOOR_FTR_ANIM_ROTATE };
 typedef struct {
   u8 state; // PC_OUTDOOR_FTR_ANIM_*: LANDING = placed, its leaf still falling
-  f32 counter; // sine phase (s16 angle units)
+  f32 counter; // BIRTH: sine phase (s16 angle units); ROTATE: frames of delay left before turning
   f32 step;    // phase speed per frame
   f32 amount;  // squash amount, shrinks each half swing
   f32 dust;    // frames since the pop (dust puffs at 2 and 6)
   xyz_t scale; // this frame's squash (drawn while BIRTH)
+  f32 turned;  // ROTATE: degrees turned so far (0-90)
+  s8 turn_dir; // ROTATE: +1 left (rot + 1), -1 right
+  s16 from_angle; // ROTATE: the model's angle before the turn
+  xyz_t from;  // ROTATE: the model's position before the turn
+  xyz_t pivot; // ROTATE: the point it turns around
 } pc_outdoor_ftr_anim;
 
 typedef struct {
@@ -64,12 +70,13 @@ void pc_outdoor_ftr_dropped(u16 item, int ux, int uz);
 int pc_outdoor_ftr_quiet_landing(u16 item, const xyz_t* target);
 // Flips the switch of the intact unique-code piece covering global unit ux, uz (TRUE), else FALSE
 int pc_outdoor_ftr_switch(int ux, int uz);
-// Player: A facing global unit ux, uz. TRUE if an intact piece is there: the player then holds it (the room's hold
-// state) and pc_outdoor_ftr_hold_judge decides each frame
-int pc_outdoor_ftr_hold_begin(int ux, int uz);
+// Player: A facing global unit ux, uz, standing at player_pos facing player_direct (aMR_DIRECT_*). TRUE if an intact
+// piece is there: the player then holds it (the room's hold state, walking to *nice_pos: the middle of the edge
+// they face, like aMR_SetNicePos) and pc_outdoor_ftr_hold_judge decides each frame
+int pc_outdoor_ftr_hold_begin(int ux, int uz, const xyz_t* player_pos, int player_direct, xyz_t* nice_pos);
 // The outdoor stand-in for the room's judge_player_action_proc while holding, same state codes: 0 let go (the player
-// goes back to waiting; a tap under 14 frames flips the piece's switch), 1 keep holding. Push / pull / rotate
-// (the room's 2-5) are for later
+// goes back to waiting; a tap under 14 frames flips the piece's switch), 1 keep holding, 4 / 5 turning right / left
+// (a full sideways stick, once per flick: aMR_DecideKurukuruDirect; blocked = the BUBU puff). Push / pull later
 int pc_outdoor_ftr_hold_judge(struct game_s* game, int a_held);
 // The player picked up the item at global unit ux, uz (FG already emptied): a piece anchored there goes, with its
 // placeholders
@@ -102,6 +109,13 @@ int pc_outdoor_ftr_rot_from_angle(s16 player_angle); // the room's rule (aMR_Jud
 // (aMR_SetInfoFurnitureTable). Returns the count (1, 2 or 4)
 int pc_outdoor_ftr_units(int shape, int rot, int ux, int uz, int* out_x, int* out_z);
 int pc_outdoor_ftr_parse(const char* s, pc_outdoor_ftr_piece* out, int max);
+// A quarter turn (dir +1 left, -1 right) of a piece of `shape` at anchor ux, uz turned `rot`, around unit pivot_ux,
+// pivot_uz (a 1x2's end nearest the player; 1x1 / 2x2 turn in place). Sets the new anchor and rot, and the units
+// that must be free for it (a 1x2: the swept corner and where its other end lands). Returns that count (0 or 2)
+int pc_outdoor_ftr_turn_units(int shape, int rot, int ux, int uz, int pivot_ux, int pivot_uz, int dir, int* new_ux,
+                              int* new_uz, int* new_rot, int* need_x, int* need_z);
+// One frame of the turn (aMR_GetEllipseSpeed: 5.6 deg a frame at first, slowing): the new `turned`, 90 = done
+f32 pc_outdoor_ftr_turn_step(f32 turned, f32 dt);
 int pc_outdoor_ftr_format(const pc_outdoor_ftr_piece* p, int count, char* buf, int size);
 
 // Allow-listed unique-code furniture (pc_outdoor_ftr_allow.c)

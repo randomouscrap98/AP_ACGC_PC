@@ -7335,8 +7335,10 @@ static void Player_actor_pc_outdoor_ftr_hold(GAME* game) {
     xyz_t pos;
     xyz_t target_pos;
     xyz_t item_pos;
+    xyz_t nice_pos;
     int ux;
     int uz;
+    int player_direct = direct[((u16)(actorx->shape_info.rotation.y + 0x2000) >> 14) & 3];
 
     PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
 
@@ -7348,9 +7350,9 @@ static void Player_actor_pc_outdoor_ftr_hold(GAME* game) {
     Player_actor_Get_PickupHandPosition(actorx, &pos, 35.0f);
     if (Player_actor_pc_outdoor_ftr(Player_actor_CheckItem_fromPosition(&pos, SQ(15.0f), 15.0f, &target_pos, &item_pos),
                                     &target_pos, &item_pos) != NULL &&
-        mFI_Wpos2UtNum(&ux, &uz, target_pos) && pc_outdoor_ftr_hold_begin(ux, uz)) {
-        mPlib_request_main_hold_type1(game, 0, direct[((u16)(actorx->shape_info.rotation.y + 0x2000) >> 14) & 3],
-                                      &actorx->world.position);
+        mFI_Wpos2UtNum(&ux, &uz, target_pos) &&
+        pc_outdoor_ftr_hold_begin(ux, uz, &actorx->world.position, player_direct, &nice_pos)) {
+        mPlib_request_main_hold_type1(game, 0, player_direct, &nice_pos); /* walks to the middle of the edge */
     }
 }
 #endif

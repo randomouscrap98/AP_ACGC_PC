@@ -155,9 +155,18 @@ static void Player_actor_request_proc_index_fromHold(ACTOR* actor, GAME* game) {
         }
     }
 #if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
-    /* Outdoors there's no room to ask: the outdoor furniture's judge, same state codes (only 0 and 1 so far) */
-    else if (pc_outdoor_ftr_hold_judge(game, chkButton(BUTTON_A)) == 0) {
-        Player_actor_request_main_wait_all(game, -5.0f, 0.0f, 0, mPlayer_REQUEST_PRIORITY_34);
+    /* Outdoors there's no room to ask: the outdoor furniture's judge, same state codes (0, 1, 4 / 5 so far) */
+    else {
+        int state = pc_outdoor_ftr_hold_judge(game, chkButton(BUTTON_A));
+
+        if (state == 0) {
+            Player_actor_request_main_wait_all(game, -5.0f, 0.0f, 0, mPlayer_REQUEST_PRIORITY_34);
+        } else if (state == 4 || state == 5) {
+            Player_actor_request_main_rotate_furniture(game, player->main_data.hold.ftr_no,
+                                                       player->main_data.hold.angle_y,
+                                                       &player->main_data.hold.player_pos, state,
+                                                       mPlayer_REQUEST_PRIORITY_21);
+        }
     }
 #endif
 }

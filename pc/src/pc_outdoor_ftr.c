@@ -2,6 +2,7 @@
 #include "pc_outdoor_ftr.h"
 #include "pc_ap_state.h"
 #include "ac_furniture.h"
+#include "ac_my_room.h"
 #include "audio.h"
 #include "audio_defs.h"
 #include "bg_item.h"
@@ -68,6 +69,9 @@ static struct {
   int active;
   s16 ux, uz; // a unit of it
   f32 frames;
+  int side;       // aMR_DIRECT_* of the side the player holds it from (the room's contact direction)
+  xyz_t nice;     // where the player stands while holding (moves wait until they're there)
+  int allow_turn; // the stick went back to neutral since the last turn (aMR_CheckControllerNeutral)
 } s_hold;
 
 static void pc_outdoor_ftr_model_pos(const pc_outdoor_ftr_piece* p, xyz_t* pos);
@@ -110,6 +114,55 @@ int pc_outdoor_ftr_units(int shape, int rot, int ux, int uz, int* out_x, int* ou
     return 4;
   }
   return 1;
+}
+
+int pc_outdoor_ftr_turn_units(int shape, int rot, int ux, int uz, int pivot_ux, int pivot_uz, int dir, int* new_ux,
+                              int* new_uz, int* new_rot, int* need_x, int* need_z) {
+  int xs[4], zs[4];
+  int n = pc_outdoor_ftr_units(shape, rot, ux, uz, xs, zs);
+  int ox, oz, dx, dz, ndx, ndz;
+
+  *new_ux = ux;
+  *new_uz = uz;
+  *new_rot = (rot + dir) & 3;
+  if(n != 2) {
+    return 0; // 1x1 / 2x2: the same units
+  }
+  // 1x2: the other end swings around the pivot end, a quarter turn (left: x, z -> z, -x, the model's +90)
+  if(xs[1] == pivot_ux && zs[1] == pivot_uz) {
+    ox = xs[0];
+    oz = zs[0];
+  } else {
+    pivot_ux = xs[0]; // the anchor, also when the pivot isn't part of the piece
+    pivot_uz = zs[0];
+    ox = xs[1];
+    oz = zs[1];
+  }
+  dx = ox - pivot_ux;
+  dz = oz - pivot_uz;
+  ndx = dir > 0 ? dz : -dz;
+  ndz = dir > 0 ? -dx : dx;
+  need_x[0] = pivot_ux + dx + ndx; // the corner it sweeps over
+  need_z[0] = pivot_uz + dz + ndz;
+  need_x[1] = pivot_ux + ndx; // where the swinging end lands
+  need_z[1] = pivot_uz + ndz;
+  if(pivot_ux != ux || pivot_uz != uz) {
+    *new_ux = need_x[1]; // the anchor swung: it's the landing unit now
+    *new_uz = need_z[1];
+  }
+  return 2;
+}
+
+f32 pc_outdoor_ftr_turn_step(f32 turned, f32 dt) {
+  f32 left = 90.0f - turned;
+  f32 d = left - 90.0f;
+  f32 r = 1.0f - (d * d) / (90.0f * 90.0f);
+  f32 speed = r > 0.0f ? 5.6f * sqrtf(r) * dt : 0.0f;
+
+  if(left <= speed + 1.0f) {
+    return 90.0f;
+  }
+  return turned + speed;
 }
 
 int pc_outdoor_ftr_birth_step(pc_outdoor_ftr_anim* a, f32 dt) {
@@ -480,8 +533,11 @@ int pc_outdoor_ftr_switch(int ux, int uz) {
   return TRUE;
 }
 
-int pc_outdoor_ftr_hold_begin(int ux, int uz) {
-  int i;
+int pc_outdoor_ftr_hold_begin(int ux, int uz, const xyz_t* player_pos, int player_direct, xyz_t* nice_pos) {
+  int i, n;
+  int xs[4], zs[4];
+  f32 min_x = 1e9f, max_x = -1e9f, min_z = 1e9f, max_z = -1e9f;
+  f32 lo, hi, mid;
 
   if(s_count == 0 || !pc_outdoor_ftr_own_town()) {
     return FALSE;
@@ -494,10 +550,149 @@ int pc_outdoor_ftr_hold_begin(int ux, int uz) {
   s_hold.ux = (s16)ux;
   s_hold.uz = (s16)uz;
   s_hold.frames = 0.0f;
+  s_hold.side = (player_direct + 2) & 3; // facing the piece: standing on the opposite side
+  s_hold.allow_turn = FALSE;
+
+  // aMR_SetNicePos: the same distance from the piece, along the edge the middle of a 1-unit edge, else kept within
+  // its middle half
+  n = pc_outdoor_ftr_piece_units(&s_pieces[i], xs, zs);
+  for(int u = 0; u < n; u++) {
+    min_x = MIN(min_x, xs[u] * mFI_UT_WORLDSIZE_X_F);
+    max_x = MAX(max_x, (xs[u] + 1) * mFI_UT_WORLDSIZE_X_F);
+    min_z = MIN(min_z, zs[u] * mFI_UT_WORLDSIZE_Z_F);
+    max_z = MAX(max_z, (zs[u] + 1) * mFI_UT_WORLDSIZE_Z_F);
+  }
+  *nice_pos = *player_pos;
+  if(s_hold.side == aMR_DIRECT_UP || s_hold.side == aMR_DIRECT_DOWN) {
+    lo = min_x;
+    hi = max_x;
+  } else {
+    lo = min_z;
+    hi = max_z;
+  }
+  mid = (lo + hi) * 0.5f;
+  if(hi - lo > mFI_UT_WORLDSIZE_X_F + 1.0f) {
+    f32* along = (s_hold.side == aMR_DIRECT_UP || s_hold.side == aMR_DIRECT_DOWN) ? &nice_pos->x : &nice_pos->z;
+    *along = CLAMP(*along, lo + (hi - lo) * 0.25f, lo + (hi - lo) * 0.75f);
+  } else if(s_hold.side == aMR_DIRECT_UP || s_hold.side == aMR_DIRECT_DOWN) {
+    nice_pos->x = mid;
+  } else {
+    nice_pos->z = mid;
+  }
+  s_hold.nice = *nice_pos;
+  return TRUE;
+}
+
+// The room's aMR_JudgeStickFull: the stick pushed fully toward aMR_DIRECT_* direct (up = north)
+static int pc_outdoor_ftr_stick_full(GAME* game, int direct) {
+  f32 x = game->mcon.move_pX;
+  f32 y = game->mcon.move_pY;
+
+  if(game->mcon.move_pR < 0.8f) {
+    return FALSE;
+  }
+  switch(direct) {
+    case aMR_DIRECT_UP:
+      return y > 0.8f;
+    case aMR_DIRECT_LEFT:
+      return x < -0.8f;
+    case aMR_DIRECT_DOWN:
+      return y < -0.8f;
+    case aMR_DIRECT_RIGHT:
+      return x > 0.8f;
+  }
+  return FALSE;
+}
+
+// Starts a quarter turn of piece i (dir +1 left, -1 right) if there's room; its units change at once (like the room),
+// the model turns over the next frames
+static int pc_outdoor_ftr_turn(GAME* game, int i, int dir) {
+  pc_outdoor_ftr_piece* p = &s_pieces[i];
+  PLAYER_ACTOR* player = GET_PLAYER_ACTOR((GAME_PLAY*)game);
+  const xyz_t* ppos = &player->actor_class.world.position;
+  int shape = pc_outdoor_ftr_shape(p->item);
+  int xs[4], zs[4], nxs[4], nzs[4], need_x[2], need_z[2];
+  int n = pc_outdoor_ftr_piece_units(p, xs, zs);
+  int pivot = 0;
+  int new_ux, new_uz, new_rot, need, nn, player_ux, player_uz;
+  pc_outdoor_ftr_rig* rig;
+  xyz_t from;
+
+  // A 1x2 turns like a lever around the end nearest the player
+  if(n == 2) {
+    f32 best = 1e9f;
+    for(int u = 0; u < n; u++) {
+      f32 dx = xs[u] * mFI_UT_WORLDSIZE_X_F + mFI_UT_WORLDSIZE_HALF_X_F - ppos->x;
+      f32 dz = zs[u] * mFI_UT_WORLDSIZE_Z_F + mFI_UT_WORLDSIZE_HALF_Z_F - ppos->z;
+      if(dx * dx + dz * dz < best) {
+        best = dx * dx + dz * dz;
+        pivot = u;
+      }
+    }
+  }
+  need = pc_outdoor_ftr_turn_units(shape, p->rot, p->ux, p->uz, xs[pivot], zs[pivot], dir, &new_ux, &new_uz, &new_rot,
+                                   need_x, need_z);
+  if(need > 0 && (!mFI_Wpos2UtNum(&player_ux, &player_uz, *ppos) ||
+                  !pc_outdoor_ftr_fits((GAME_PLAY*)game, need_x, need_z, need, player_ux, player_uz, ppos->y))) {
+    return FALSE;
+  }
+
+  pc_outdoor_ftr_model_pos(p, &from);
+  p->anim.from = from;
+  p->anim.pivot = from; // 1x1 / 2x2: around the model's centre
+  if(n == 2) {
+    p->anim.pivot.x = xs[pivot] * mFI_UT_WORLDSIZE_X_F + mFI_UT_WORLDSIZE_HALF_X_F;
+    p->anim.pivot.z = zs[pivot] * mFI_UT_WORLDSIZE_Z_F + mFI_UT_WORLDSIZE_HALF_Z_F;
+  }
+  p->anim.from_angle = (s16)(p->rot * DEG2SHORT_ANGLE(90.0f));
+
+  // The units: the old ones not kept are emptied, the new anchor gets the item, the rest the placeholder
+  nn = pc_outdoor_ftr_units(shape, new_rot, new_ux, new_uz, nxs, nzs);
+  for(int u = 0; u < n; u++) {
+    int kept = FALSE;
+    xyz_t pos;
+
+    for(int v = 0; v < nn; v++) {
+      kept |= xs[u] == nxs[v] && zs[u] == nzs[v];
+    }
+    if(!kept && mFI_UtNum2CenterWpos(&pos, xs[u], zs[u])) {
+      mFI_SetFG_common(EMPTY_NO, pos, TRUE);
+    }
+  }
+  for(int v = 0; v < nn; v++) {
+    u16 want = v == 0 ? p->item : PC_OUTDOOR_FTR_PLACEHOLDER;
+    xyz_t pos;
+
+    if(pc_outdoor_ftr_fg(nxs[v], nzs[v]) != want && mFI_UtNum2CenterWpos(&pos, nxs[v], nzs[v])) {
+      mFI_SetFG_common(want, pos, TRUE);
+    }
+  }
+  // Its FTR_ACTOR is set up again where it ends
+  rig = pc_outdoor_ftr_rig_find(p);
+  if(rig != NULL) {
+    aMR_pc_ActorDt(&rig->actor);
+    rig->used = FALSE;
+  }
+  p->ux = (s16)new_ux;
+  p->uz = (s16)new_uz;
+  p->rot = (u8)new_rot;
+  p->anim.state = PC_OUTDOOR_FTR_ANIM_ROTATE;
+  p->anim.counter = 3.0f; // the room's rotation_delay_timer
+  p->anim.turned = 0.0f;
+  p->anim.turn_dir = (s8)dir;
+  sAdo_OngenTrgStart(NA_SE_ROTATE, &from);
+
+  // Still holding it by the pivot, from where the player stands now
+  s_hold.ux = (s16)xs[pivot];
+  s_hold.uz = (s16)zs[pivot];
+  s_hold.nice = *ppos;
   return TRUE;
 }
 
 int pc_outdoor_ftr_hold_judge(GAME* game, int a_held) {
+  static const int turn_stick[4][2] = { { 1, 3 }, { 2, 0 }, { 3, 1 }, { 0, 2 } }; // rotateDt: {left, right} per side
+  pc_outdoor_ftr_piece* p;
+  PLAYER_ACTOR* player;
   int i;
 
   if(!s_hold.active) {
@@ -508,8 +703,36 @@ int pc_outdoor_ftr_hold_judge(GAME* game, int a_held) {
     s_hold.active = FALSE; // gone meanwhile
     return 0;
   }
+  p = &s_pieces[i];
+  if(p->anim.state == PC_OUTDOOR_FTR_ANIM_ROTATE) {
+    return p->anim.turn_dir > 0 ? 5 : 4; // the player's rotate state waits for this to change
+  }
   if(a_held) {
     s_hold.frames += game->graph != NULL ? (f32)game->graph->dt_num_60fps_frames : 1.0f;
+    if(ABS(game->mcon.move_pX) <= 0.086f && ABS(game->mcon.move_pY) <= 0.086f) {
+      s_hold.allow_turn = TRUE;
+    }
+    player = GET_PLAYER_ACTOR((GAME_PLAY*)game);
+    // Once the player stands where they hold it: a full sideways stick turns it, once per flick
+    if(s_hold.allow_turn && player != NULL && ABS(player->actor_class.world.position.x - s_hold.nice.x) < 1.0f &&
+       ABS(player->actor_class.world.position.z - s_hold.nice.z) < 1.0f) {
+      int dir = 0;
+
+      if(pc_outdoor_ftr_stick_full(game, turn_stick[s_hold.side][0])) {
+        dir = 1;
+      } else if(pc_outdoor_ftr_stick_full(game, turn_stick[s_hold.side][1])) {
+        dir = -1;
+      }
+      if(dir != 0) {
+        s_hold.allow_turn = FALSE;
+        if(pc_outdoor_ftr_turn(game, i, dir)) {
+          return dir > 0 ? 5 : 4;
+        }
+        if(eEC_CLIP != NULL) { // aMR_SetBubu
+          eEC_CLIP->effect_make_proc(eEC_EFFECT_BUBU, player->actor_class.world.position, 2, 0, game, RSV_NO, 0, 0);
+        }
+      }
+    }
     return 1;
   }
   // Let go: a tap (the room's switch_timer < 14) flips the switch
@@ -735,6 +958,16 @@ void pc_outdoor_ftr_update(GAME* game) {
         pc_outdoor_ftr_dust(game, p, &pos, puffs);
       }
     }
+    if(p->anim.state == PC_OUTDOOR_FTR_ANIM_ROTATE) {
+      if(p->anim.counter > 0.0f) {
+        p->anim.counter -= dt;
+      } else {
+        p->anim.turned = pc_outdoor_ftr_turn_step(p->anim.turned, dt);
+        if(p->anim.turned >= 90.0f) {
+          p->anim.state = PC_OUTDOOR_FTR_ANIM_NONE;
+        }
+      }
+    }
     if(aMR_pc_NeedsActor(mRmTp_FtrItemNo2FtrIdx(p->item))) {
       pc_outdoor_ftr_rig_update(p, game);
     }
@@ -767,11 +1000,22 @@ void pc_outdoor_ftr_draw(GAME* game) {
   for(int i = 0; i < s_count; i++) {
     pc_outdoor_ftr_piece* p = &s_pieces[i];
     xyz_t pos;
+    s16 angle = (s16)(p->rot * DEG2SHORT_ANGLE(90.0f));
 
     if(!pc_outdoor_ftr_shown(p, &player->actor_class.world.position, &pos)) {
       continue; // far away, still falling as a leaf, or not intact (its leaf / papers show)
     }
-    aMR_pc_DrawPlain(game, mRmTp_FtrItemNo2FtrIdx(p->item), &pos, (s16)(p->rot * DEG2SHORT_ANGLE(90.0f)),
+    if(p->anim.state == PC_OUTDOOR_FTR_ANIM_ROTATE) {
+      // Turned so far around the pivot (the game's yaw: +90 takes +x to -z)
+      f32 t = DEG2RAD(p->anim.turn_dir * p->anim.turned);
+      f32 dx = p->anim.from.x - p->anim.pivot.x;
+      f32 dz = p->anim.from.z - p->anim.pivot.z;
+
+      pos.x = p->anim.pivot.x + dx * cosf(t) + dz * sinf(t);
+      pos.z = p->anim.pivot.z - dx * sinf(t) + dz * cosf(t);
+      angle = (s16)(p->anim.from_angle + DEG2SHORT_ANGLE(p->anim.turn_dir * p->anim.turned));
+    }
+    aMR_pc_DrawPlain(game, mRmTp_FtrItemNo2FtrIdx(p->item), &pos, angle,
                      p->anim.state == PC_OUTDOOR_FTR_ANIM_BIRTH ? &p->anim.scale : NULL, pc_outdoor_ftr_actor_of(p));
   }
   for(int b = 0; b < PC_OUTDOOR_FTR_BYES; b++) {

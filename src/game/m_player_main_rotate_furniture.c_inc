@@ -107,6 +107,20 @@ static void Player_actor_request_proc_index_fromRotate_furniture(ACTOR* actor, G
                                            mPlayer_REQUEST_PRIORITY_22);
         }
     }
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
+    /* Outdoors: the outdoor furniture's judge says the turn type until the piece has turned, then back to holding */
+    else if (pc_outdoor_ftr_hold_judge(game, chkButton(BUTTON_A)) != player->main_data.rotate_furniture.rotate_type) {
+        int index = Player_actor_Get_Index_fromAngle(actor->world.angle.y);
+        int flags = 0;
+
+        if (!player->main_data.rotate_furniture._10) {
+            flags |= 1;
+        }
+
+        Player_actor_request_main_hold(game, player->main_data.rotate_furniture.ftr_no, index,
+                                       &actor->world.position, -12.0f, flags, mPlayer_REQUEST_PRIORITY_22);
+    }
+#endif
 }
 
 static void Player_actor_main_Rotate_furniture(ACTOR* actor, GAME* game) {
