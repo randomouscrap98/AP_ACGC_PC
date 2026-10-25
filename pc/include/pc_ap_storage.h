@@ -18,9 +18,14 @@ struct private_s;
 
 #define PC_AP_STORAGE_SLOTS 200
 
+// Where the page opens (slot_data global_storage)
+#define PC_AP_STORAGE_OFF 0
+#define PC_AP_STORAGE_INDOORS 1  // inside the town's buildings only
+#define PC_AP_STORAGE_ANYWHERE 2 // also outdoors in the town
+
 typedef struct {
   // Config (slot_data)
-  int enabled;
+  int mode; // PC_AP_STORAGE_OFF / _INDOORS / _ANYWHERE (slot_data global_storage)
   int turnips_ok; // Turnips Never Spoil: turnips may be stored (else storage would stop their spoiling)
   // Persisted, per player: items[p][0 .. count[p] - 1], no gaps, newest first
   mActor_name_t items[PLAYER_NUM][PC_AP_STORAGE_SLOTS];

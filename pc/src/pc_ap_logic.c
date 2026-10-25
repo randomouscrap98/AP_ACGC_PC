@@ -1140,8 +1140,8 @@ void pc_ap_time_step_hour(lbRTC_time_c* t, int dir) {
   pc_ap_timesanity_step_hour(&g_ap.time, t, dir);
 }
 
-// Date & Time without the outdoors rule: Global Storage also opens indoors (houses, shops)
-int pc_ap_storage_open_allowed(GAME_PLAY* play) {
+// The own-town menu gate shared by Date & Time and Global Storage (each adds where: outdoors / its mode)
+static int pc_ap_own_town_menu_allowed(GAME_PLAY* play) {
   return pc_ap_in_game(play) &&
          !mFI_CheckInIsland() &&
          !mLd_PlayerManKindCheck() && // foreigner
@@ -1152,7 +1152,14 @@ int pc_ap_storage_open_allowed(GAME_PLAY* play) {
 }
 
 int pc_ap_time_change_allowed(GAME_PLAY* play) {
-  return Save_Get(scene_no) == SCENE_FG && pc_ap_storage_open_allowed(play);
+  return Save_Get(scene_no) == SCENE_FG && pc_ap_own_town_menu_allowed(play);
+}
+
+// Global Storage: indoors (houses, shops) in any mode, outdoors only with "anywhere"
+int pc_ap_storage_open_allowed(GAME_PLAY* play) {
+  return g_ap.storage.mode != PC_AP_STORAGE_OFF &&
+         (Save_Get(scene_no) != SCENE_FG || g_ap.storage.mode == PC_AP_STORAGE_ANYWHERE) &&
+         pc_ap_own_town_menu_allowed(play);
 }
 
 int pc_ap_time_change_allowed_now(void) {
@@ -1160,7 +1167,7 @@ int pc_ap_time_change_allowed_now(void) {
 }
 
 int pc_ap_storage_on(void) {
-  return g_ap.storage.enabled;
+  return g_ap.storage.mode != PC_AP_STORAGE_OFF;
 }
 
 int pc_ap_storage_open_allowed_now(void) {

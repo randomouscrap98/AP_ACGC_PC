@@ -678,12 +678,19 @@ class ShopsAlwaysOpen(Toggle):
     display_name = "Shops Always Open"
 
 
-class GlobalStorage(Toggle):
+class GlobalStorage(Choice):
     """
     Get access to an additional 200 item slots. Available in the PC pause menu.
     Storage doesn't carry over with vanilla save.
+    - off: no storage
+    - indoors_only: the pause menu's Storage opens only inside buildings in your town (houses, shops...)
+    - anywhere: also outdoors in your town
     """
     display_name = "Global Storage"
+    option_off = 0
+    option_indoors_only = 1
+    option_anywhere = 2
+    default = option_indoors_only
 
 
 class NoWeeds(DefaultOnToggle):

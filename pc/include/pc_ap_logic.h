@@ -327,7 +327,7 @@ int pc_ap_time_change_allowed_now(void);
 
 // Global Storage (pc_ap_storage.h): on for this seed
 int pc_ap_storage_on(void);
-// Its gate: the Date & Time gate without "outdoors" (also in houses and shops)
+// Its gate: the Date & Time gate without "outdoors": in houses and shops, outdoors too with "anywhere"
 int pc_ap_storage_open_allowed(struct game_play_s* play);
 // The gate on the last play frame, for the pause menu; 0 during a reload
 int pc_ap_storage_open_allowed_now(void);

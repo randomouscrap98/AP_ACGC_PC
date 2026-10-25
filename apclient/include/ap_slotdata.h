@@ -102,7 +102,7 @@ typedef struct {
   // QOL
   int skip_intro;
   int shops_always_open;
-  int global_storage;         // Global Storage: 200 extra item slots in the pause menu (per seed only)
+  int global_storage;         // Global Storage: 200 extra item slots in the pause menu: 0 off, 1 indoors only, 2 anywhere
   int no_weeds;
   int more_favors;            // villagers (almost) always offer a favor
   int villagers_dont_leave;   // no move-outs, no "thinking of moving" talk

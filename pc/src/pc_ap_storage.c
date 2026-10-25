@@ -16,7 +16,7 @@ static void pc_ap_storage_key(char* buf, size_t len, int player) {
 
 void pc_ap_storage_init(pc_ap_storage* s, const ap_slotdata* sd) {
   memset(s, 0, sizeof(*s));
-  s->enabled = sd->global_storage;
+  s->mode = sd->global_storage;
   s->turnips_ok = sd->turnips_never_spoil;
 }
 
