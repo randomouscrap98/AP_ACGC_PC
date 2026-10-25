@@ -210,7 +210,7 @@ static int apo_version_compatible(const char* v) {
 // Apworld version, bottom right: green if the seed's apworld version matches this build; white with the seed's
 // version in gray if it's another compatible one ("v0.5.1 (0.5.0)"); red if the seed is from before 0.5.0;
 // white until slot_data arrives.
-static void pc_ap_draw_version(struct game_s* game) {
+static f32 pc_ap_draw_version(struct game_s* game) {
   const ap_slotdata* sd = ap_getslotdata();
   char output[_APO_MAXSTRING];
   const char* seed = sd->world_version[0] ? sd->world_version : "?";
@@ -229,7 +229,20 @@ static void pc_ap_draw_version(struct game_s* game) {
     size_t len = strlen(output);
     snprintf(output + len, sizeof(output) - len, AP_CTRL_YELLOW " DEBUG");
   }
-  pc_span_boxtext(game, output, _APO_RIGHT(output), _APO_BOTTOM(output), _APO_SCALE);
+  f32 y = _APO_BOTTOM(output);
+  pc_span_boxtext(game, output, _APO_RIGHT(output), y, _APO_SCALE);
+  return y;
+}
+
+// Runtime this session (pause menu only), in its own box just above the version (version_y = its text's y)
+static void pc_ap_draw_session(struct game_s* game, f32 version_y) {
+  int secs = pc_ap_session_seconds();
+  char output[_APO_MAXSTRING];
+  if(secs < 0) {
+    return;
+  }
+  snprintf(output, sizeof(output), "Runtime %d:%02d:%02d", secs / 3600, secs / 60 % 60, secs % 60);
+  pc_span_boxtext(game, output, _APO_RIGHT(output), version_y - PC_SPAN_LINE(_APO_SCALE) - PC_SPAN_PAD, _APO_SCALE);
 }
 
 // Append to the tracker text; stops quietly when full
@@ -387,7 +400,10 @@ void pc_ap_overlay_draw(struct game_s* game) {
     }
   }
   if(menu_screen && !submenu) {
-    pc_ap_draw_version(game);
+    f32 version_y = pc_ap_draw_version(game);
+    if(g_pc_paused) {
+      pc_ap_draw_session(game, version_y);
+    }
   }
   if(show_tracker) {
     pc_ap_draw_tracker(game);

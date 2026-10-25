@@ -120,10 +120,10 @@ static void lists_update(void) {
     list_add(&main_list, MAIN_RESUME);
     list_add(&main_list, MAIN_AP);
     list_add(&main_list, MAIN_TIME);
-    list_add(&main_list, MAIN_SAVE);
     if (pc_ap_storage_on()) {
         list_add(&main_list, MAIN_STORAGE);
     }
+    list_add(&main_list, MAIN_SAVE);
     list_add(&main_list, MAIN_SETTINGS);
     list_add(&main_list, MAIN_QUIT);
     main_list.sel = list_find(&main_list, prev_main);

@@ -307,6 +307,9 @@ int pc_ap_clock_day_seconds(void);
 int pc_ap_clock_day(void);
 // Its minute (0-59)
 int pc_ap_clock_minute(void);
+// Real seconds since the first play frame after launch (pause time included; loading another save doesn't
+// reset it), for the pause menu's session timer; -1 before that frame
+int pc_ap_session_seconds(void);
 // Tracker: received months (bit m = month m, 0 = January) and time slots (bit s, 0 = Morning)
 int pc_ap_time_owned_months(void);
 int pc_ap_time_owned_slots(void);

@@ -167,8 +167,9 @@ static void mSP_SetSeasonFTR(mActor_name_t* item_table, int count) {
     if (count > 0 && month == lbRTC_DECEMBER) {
 
 #ifdef TARGET_PC
-        // Christmas trees only the week before Christmas: they take up to every furniture slot of the smaller shops
-        if (day >= 18 && day <= 24) {
+        // Christmas trees only the week before Christmas under Timesanity: a frozen month means every visit is in
+        // December, and they'd take up to every furniture slot of the smaller shops
+        if (pc_ap_time_frozen() ? (day >= 18 && day <= 24) : day <= 24) {
 #else
         if (day <= 24) {
 #endif

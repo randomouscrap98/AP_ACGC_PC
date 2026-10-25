@@ -55,6 +55,11 @@ static void pc_ap_storage_menu_move(pc_ap_storage_menu* m) {
   int result;
   if(m->side == 0) {
     result = pc_ap_storage_put_pocket(m->sel[0]);
+    if(result == PC_AP_STORAGE_OK) {
+      // The stored item is now first: show it (the storage cursor follows, clamp keeps it in view)
+      m->sel[1] = 0;
+      m->list[1].scroll = 0;
+    }
     if(result == PC_AP_STORAGE_FULL)             m->message = "Storage is full";
     else if(result == PC_AP_STORAGE_NOT_ALLOWED) m->message = "Can't store that";
   } else {

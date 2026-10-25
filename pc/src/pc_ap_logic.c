@@ -59,6 +59,7 @@
 #include "libc64/qrand.h"
 #include "ac_set_manager.h"
 
+#include <SDL.h>
 #include <ini.h>
 #include <stdio.h>
 
@@ -140,6 +141,8 @@ typedef struct {
   int time_change_allowed; // Date & Time gate on the last play frame (pause menu reads it)
   int storage_allowed;     // Global Storage gate on the last play frame (pause menu reads it)
   unsigned play_frames;    // 60 Hz frames in play (pc_ap_tick), for pc_ap_clock_minute
+  int session_started;     // a play frame ran since launch
+  Uint32 session_start;    // SDL_GetTicks() at that first play frame
   pc_ap_request request;
   int initialized;    // module config set from slot_data
 } pc_ap;
@@ -1039,6 +1042,13 @@ int pc_ap_clock_minute(void) {
   return pc_ap_clock_day_seconds() / 60 % 60;
 }
 
+int pc_ap_session_seconds(void) {
+  if(!g_ap.session_started) {
+    return -1;
+  }
+  return (int)((SDL_GetTicks() - g_ap.session_start) / 1000);
+}
+
 int pc_ap_time_owned_months(void) {
   return pc_ap_timesanity_owned_months(&g_ap.time);
 }
@@ -1333,6 +1343,10 @@ void pc_ap_tick(GAME_PLAY* play) {
     return;
   }
   g_ap.play_frames++; // one play frame (60 Hz)
+  if(!g_ap.session_started) {
+    g_ap.session_started = 1;
+    g_ap.session_start = SDL_GetTicks();
+  }
   // Checks: every check of every paid-off loan (the DLL drops repeats)
   int paid = pc_ap_loans_paid();
   int it = 0;
