@@ -279,6 +279,7 @@ void pc_ap_load(const char* filename) {
   pc_ap_furniture_load(&g_ap.furniture, ini);
   pc_ap_storage_load(&g_ap.storage, ini);
   pc_outdoor_ftr_load(ini);
+  g_ap.catalog.synced_player = NULL; // a new save: sync its catalog once
   g_ap.goal_letter_sent = pc_ap_ini_get_int(ini, NULL, PC_AP_KEY_GOAL_LETTER_SENT, 0);
   if(ini != NULL) {
     ini_destroy(ini);
@@ -1345,7 +1346,9 @@ void pc_ap_tick(GAME_PLAY* play) {
   while((id = pc_ap_favorsanity_next_check(&g_ap.favors, &it)) >= 0) {
     ap_send_location(id);
   }
-  // Open-pool items in the catalog: also sends the ones already there when a pool opens
+  // Checks collected by other players into the catalog, then open-pool items in the catalog: also sends
+  // the ones already there when a pool opens
+  pc_ap_catalogsanity_sync(&g_ap.catalog, Common_Get(now_private));
   if(pc_ap_accepting()) {
     int open = pc_ap_catalogsanity_open_pools(&g_ap.catalog);
     it = 0;

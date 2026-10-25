@@ -2,6 +2,7 @@
 #include "pc_ap_logic.h" // pc_ap_ftr_blocked
 #include "ap_archipelago.h"
 #include "m_shop.h"
+#include "m_private.h" // mPr_SetItemCollectBit
 #include "m_name_table.h"
 #include "sys_math.h"
 #include "libc64/qrand.h"
@@ -92,6 +93,27 @@ int64_t pc_ap_catalogsanity_next_check(const pc_ap_catalogsanity* c, int open, i
     }
   }
   return -1;
+}
+
+void pc_ap_catalogsanity_sync(pc_ap_catalogsanity* c, const void* player) {
+  static int64_t ids[AP_CATALOG_MAX];
+  static uint8_t checked[AP_CATALOG_MAX];
+  unsigned generation = ap_checked_generation();
+
+  if(c->count == 0 || player == NULL || (player == c->synced_player && generation == c->synced_generation)) {
+    return;
+  }
+  c->synced_player = player;
+  c->synced_generation = generation;
+  for(int i = 0; i < c->count; i++) {
+    ids[i] = PC_AP_LOC_CATALOG_BASE + c->items[i];
+  }
+  ap_locations_checked(ids, c->count, checked);
+  for(int i = 0; i < c->count; i++) {
+    if(checked[i] && !mSP_CollectCheck(c->items[i])) {
+      mPr_SetItemCollectBit(c->items[i]);
+    }
+  }
 }
 
 int pc_ap_catalogsanity_registered(const pc_ap_catalogsanity* c, int open) {

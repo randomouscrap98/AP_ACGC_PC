@@ -99,6 +99,9 @@ AP_API int ap_location_checked(int64_t id);
 // ap_location_checked for n ids at once (one copy of the server's list):
 // out[i] = 1 if ids[i] is checked, else 0
 AP_API void ap_locations_checked(const int64_t * ids, size_t n, uint8_t * out);
+// Goes up whenever the server's checked list changes (connect, other players' collects/releases, our
+// checks confirmed). Compare with the last value seen to skip work when nothing changed.
+AP_API unsigned ap_checked_generation(void);
 // Tell the server the goal is done (once per session; resent on every reconnect)
 AP_API void ap_send_goal(void);
 // Pop specifically a toast message (might later depend on user settings?).

@@ -36,6 +36,9 @@ typedef struct {
   int new_item_chance;                 // percent (Settings > AP)
   int sources;                         // AP_CATALOG_SOURCE_* bits on
   int goal_count;                      // Catalog goal: items to have (only used when it's a goal)
+  // State: what pc_ap_catalogsanity_sync last ran for (synced_player NULL = never)
+  unsigned synced_generation;          // ap_checked_generation
+  const void* synced_player;           // Private_c of the player
 } pc_ap_catalogsanity;
 
 // One mSP_SelectRandomItem_New request, as the picker needs it
@@ -63,6 +66,11 @@ int pc_ap_catalogsanity_first_unfinished(const pc_ap_catalogsanity* c, int open)
 // current player's catalog (mSP_CollectCheck), -1 when done. Start *it at 0.
 // Includes ones already sent: the DLL drops repeats.
 int64_t pc_ap_catalogsanity_next_check(const pc_ap_catalogsanity* c, int open, int* it);
+// Checked "Catalog: X" ids (other players' collects/releases, or sent by another player of the town) into
+// the current player's catalog: each pool item, open pool or not, whose check is checked but isn't in the
+// catalog gets its catalog bit (mPr_SetItemCollectBit). Only runs when the DLL's checked list or the player
+// changed since the last run; clear synced_player to force one (save loaded).
+void pc_ap_catalogsanity_sync(pc_ap_catalogsanity* c, const void* player);
 // Items of the first `open` pools in the current player's catalog (the checks sent)
 int pc_ap_catalogsanity_registered(const pc_ap_catalogsanity* c, int open);
 

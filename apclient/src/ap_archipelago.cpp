@@ -59,6 +59,7 @@ static std::vector<unsigned> g_ap_item_flags;    // ... AP_ITEM_*
 static std::vector<ap_hint> g_ap_hints;          // hints involving this slot (data storage _read_hints_<team>_<slot>)
 static uint64_t g_ap_hint_version = 0;
 static std::set<int64_t> g_ap_checks;
+static unsigned g_ap_checked_generation = 0; // +1 when the server's checked list changes
 static int g_ap_goal = 0;
 // Connected to a different room than the first one (server restarted with a
 // new seed): the game's save belongs to the old room, so ap_poll stops the client
@@ -314,6 +315,10 @@ int ap_location_checked(int64_t id) {
     return 1;
   }
   return g_ap && g_ap->get_checked_locations().count(id);
+}
+
+unsigned ap_checked_generation(void) {
+  return g_ap_checked_generation;
 }
 
 void ap_locations_checked(const int64_t * ids, size_t n, uint8_t * out) {
@@ -638,6 +643,11 @@ void ap_start(void) {
     g_ap_connectstate.state = AP_CSTATE_JOINING;
     APLOG_INFO("CONNECTED - WAITING ON SLOT: %s", g_ap_config.slotname);
     g_ap->ConnectSlot(name, pw, 0b111 /* items_handling */);
+  });
+
+  // Also runs for the full list on every connect
+  g_ap->set_location_checked_handler([](const std::list<int64_t>&) {
+    g_ap_checked_generation++;
   });
 
   g_ap->set_items_received_handler([](const std::list<APClient::NetworkItem>& items) {
