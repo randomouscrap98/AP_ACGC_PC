@@ -26,11 +26,17 @@ struct ini_t;
 #define PC_OUTDOOR_FTR_PLACEHOLDER 0x2000 // ITM_PAPER00: one sheet of the first stationery
 
 // The room's appear animation (aMR_FtrBirth), not saved
-// ROTATE: the room's quarter turn (aMR_FtrRotate), around `pivot`
-enum { PC_OUTDOOR_FTR_ANIM_NONE, PC_OUTDOOR_FTR_ANIM_LANDING, PC_OUTDOOR_FTR_ANIM_BIRTH, PC_OUTDOOR_FTR_ANIM_ROTATE };
+// ROTATE: the room's quarter turn (aMR_FtrRotate), around `pivot`; SLIDE: a push / pull by one unit (`move`)
+enum {
+  PC_OUTDOOR_FTR_ANIM_NONE,
+  PC_OUTDOOR_FTR_ANIM_LANDING,
+  PC_OUTDOOR_FTR_ANIM_BIRTH,
+  PC_OUTDOOR_FTR_ANIM_ROTATE,
+  PC_OUTDOOR_FTR_ANIM_SLIDE
+};
 typedef struct {
   u8 state; // PC_OUTDOOR_FTR_ANIM_*: LANDING = placed, its leaf still falling
-  f32 counter; // BIRTH: sine phase (s16 angle units); ROTATE: frames of delay left before turning
+  f32 counter; // BIRTH: sine phase (s16 angle units); ROTATE / SLIDE: frames of delay left before moving
   f32 step;    // phase speed per frame
   f32 amount;  // squash amount, shrinks each half swing
   f32 dust;    // frames since the pop (dust puffs at 2 and 6)
@@ -38,8 +44,10 @@ typedef struct {
   f32 turned;  // ROTATE: degrees turned so far (0-90)
   s8 turn_dir; // ROTATE: +1 left (rot + 1), -1 right
   s16 from_angle; // ROTATE: the model's angle before the turn
-  xyz_t from;  // ROTATE: the model's position before the turn
+  xyz_t from;  // ROTATE / SLIDE: the model's position before the move
   xyz_t pivot; // ROTATE: the point it turns around
+  xyz_t move;  // SLIDE: from -> the new position
+  f32 slide;   // SLIDE: frame of the room's furniture_push keyframes (1-25)
 } pc_outdoor_ftr_anim;
 
 typedef struct {
@@ -75,8 +83,9 @@ int pc_outdoor_ftr_switch(int ux, int uz);
 // they face, like aMR_SetNicePos) and pc_outdoor_ftr_hold_judge decides each frame
 int pc_outdoor_ftr_hold_begin(int ux, int uz, const xyz_t* player_pos, int player_direct, xyz_t* nice_pos);
 // The outdoor stand-in for the room's judge_player_action_proc while holding, same state codes: 0 let go (the player
-// goes back to waiting; a tap under 14 frames flips the piece's switch), 1 keep holding, 4 / 5 turning right / left
-// (a full sideways stick, once per flick: aMR_DecideKurukuruDirect; blocked = the BUBU puff). Push / pull later
+// goes back to waiting; a tap under 14 frames flips the piece's switch), 1 keep holding, 2 push (once per move: the
+// stick full away from the player for 17 frames, straining = 9 meanwhile), 4 / 5 turning right / left (a full
+// sideways stick, once per flick: aMR_DecideKurukuruDirect). Blocked = the BUBU puff. Pull later
 int pc_outdoor_ftr_hold_judge(struct game_s* game, int a_held);
 // The player picked up the item at global unit ux, uz (FG already emptied): a piece anchored there goes, with its
 // placeholders
@@ -116,6 +125,8 @@ int pc_outdoor_ftr_turn_units(int shape, int rot, int ux, int uz, int pivot_ux, 
                               int* new_uz, int* new_rot, int* need_x, int* need_z);
 // One frame of the turn (aMR_GetEllipseSpeed: 5.6 deg a frame at first, slowing): the new `turned`, 90 = done
 f32 pc_outdoor_ftr_turn_step(f32 turned, f32 dt);
+// How far a push has gone at keyframe `frame` (1-25) of the room's furniture_push: 0-1, eased
+f32 pc_outdoor_ftr_push_curve(f32 frame);
 int pc_outdoor_ftr_format(const pc_outdoor_ftr_piece* p, int count, char* buf, int size);
 
 // Allow-listed unique-code furniture (pc_outdoor_ftr_allow.c)

@@ -72,6 +72,8 @@ static struct {
   int side;       // aMR_DIRECT_* of the side the player holds it from (the room's contact direction)
   xyz_t nice;     // where the player stands while holding (moves wait until they're there)
   int allow_turn; // the stick went back to neutral since the last turn (aMR_CheckControllerNeutral)
+  f32 push_timer;  // frames the stick has been full toward the push (aMR_MngPushDirectTimer)
+  int push_blocked; // the last push was refused: no new try until the stick leaves that direction
 } s_hold;
 
 static void pc_outdoor_ftr_model_pos(const pc_outdoor_ftr_piece* p, xyz_t* pos);
@@ -163,6 +165,28 @@ f32 pc_outdoor_ftr_turn_step(f32 turned, f32 dt) {
     return 90.0f;
   }
   return turned + speed;
+}
+
+f32 pc_outdoor_ftr_push_curve(f32 frame) {
+  // furniture_push.c's keys (frame, value; 4000 = one unit), linear between them
+  static const s16 keys[][2] = {
+    { 1, 0 },     { 3, 19 },    { 5, 126 },   { 6, 238 },   { 7, 400 },   { 8, 602 },   { 9, 822 },
+    { 10, 1057 }, { 11, 1304 }, { 12, 1559 }, { 14, 2082 }, { 15, 2342 }, { 16, 2598 }, { 17, 2845 },
+    { 18, 3080 }, { 19, 3300 }, { 20, 3499 }, { 21, 3669 }, { 22, 3808 }, { 23, 3912 }, { 24, 3977 },
+    { 25, 4000 },
+  };
+  int n = (int)(sizeof(keys) / sizeof(keys[0]));
+
+  if(frame <= keys[0][0]) {
+    return 0.0f;
+  }
+  for(int k = 1; k < n; k++) {
+    if(frame <= keys[k][0]) {
+      f32 t = (frame - keys[k - 1][0]) / (f32)(keys[k][0] - keys[k - 1][0]);
+      return (keys[k - 1][1] + (keys[k][1] - keys[k - 1][1]) * t) / 4000.0f;
+    }
+  }
+  return 1.0f;
 }
 
 int pc_outdoor_ftr_birth_step(pc_outdoor_ftr_anim* a, f32 dt) {
@@ -552,6 +576,8 @@ int pc_outdoor_ftr_hold_begin(int ux, int uz, const xyz_t* player_pos, int playe
   s_hold.frames = 0.0f;
   s_hold.side = (player_direct + 2) & 3; // facing the piece: standing on the opposite side
   s_hold.allow_turn = FALSE;
+  s_hold.push_timer = 0.0f;
+  s_hold.push_blocked = FALSE;
 
   // aMR_SetNicePos: the same distance from the piece, along the edge the middle of a 1-unit edge, else kept within
   // its middle half
@@ -604,6 +630,100 @@ static int pc_outdoor_ftr_stick_full(GAME* game, int direct) {
   return FALSE;
 }
 
+// Moves piece p to anchor ux, uz turned rot, at once: its old units not kept are emptied, the new anchor gets the
+// item, the rest the placeholder (live, so collision and bg_item see it). Its FTR_ACTOR is set up again where it ends
+// right away: a frame without it would skip its own draw (flame, mirror...)
+static void pc_outdoor_ftr_relocate(pc_outdoor_ftr_piece* p, int ux, int uz, int rot) {
+  int shape = pc_outdoor_ftr_shape(p->item);
+  int xs[4], zs[4], nxs[4], nzs[4];
+  int n = pc_outdoor_ftr_piece_units(p, xs, zs);
+  int nn = pc_outdoor_ftr_units(shape, rot, ux, uz, nxs, nzs);
+  pc_outdoor_ftr_rig* rig = pc_outdoor_ftr_rig_find(p);
+
+  for(int u = 0; u < n; u++) {
+    int kept = FALSE;
+    xyz_t pos;
+
+    for(int v = 0; v < nn; v++) {
+      kept |= xs[u] == nxs[v] && zs[u] == nzs[v];
+    }
+    if(!kept && mFI_UtNum2CenterWpos(&pos, xs[u], zs[u])) {
+      mFI_SetFG_common(EMPTY_NO, pos, TRUE);
+    }
+  }
+  for(int v = 0; v < nn; v++) {
+    u16 want = v == 0 ? p->item : PC_OUTDOOR_FTR_PLACEHOLDER;
+    xyz_t pos;
+
+    if(pc_outdoor_ftr_fg(nxs[v], nzs[v]) != want && mFI_UtNum2CenterWpos(&pos, nxs[v], nzs[v])) {
+      mFI_SetFG_common(want, pos, TRUE);
+    }
+  }
+  p->ux = (s16)ux;
+  p->uz = (s16)uz;
+  p->rot = (u8)rot;
+  if(rig != NULL) {
+    xyz_t to;
+
+    aMR_pc_ActorDt(&rig->actor);
+    pc_outdoor_ftr_model_pos(p, &to);
+    aMR_pc_ActorCt(&rig->actor, mRmTp_FtrItemNo2FtrIdx(p->item), &to, p->rot, p->sw);
+    rig->ux = p->ux;
+    rig->uz = p->uz;
+  }
+}
+
+// Pushes piece i one unit in aMR_DIRECT_* dir if every unit it moves onto is free (Place's rules), like
+// aMR_PlacePushFurniture: units at once, the model slides over the next frames (aMR_FtrPush)
+static int pc_outdoor_ftr_push(GAME* game, int i, int dir) {
+  static const s8 step[4][2] = { { 0, -1 }, { -1, 0 }, { 0, 1 }, { 1, 0 } }; // aMR_DIRECT_*: up = north
+  pc_outdoor_ftr_piece* p = &s_pieces[i];
+  PLAYER_ACTOR* player = GET_PLAYER_ACTOR((GAME_PLAY*)game);
+  const xyz_t* ppos = &player->actor_class.world.position;
+  int xs[4], zs[4], need_x[4], need_z[4];
+  int n = pc_outdoor_ftr_piece_units(p, xs, zs);
+  int need = 0;
+  int dx = step[dir & 3][0];
+  int dz = step[dir & 3][1];
+  int player_ux, player_uz;
+  xyz_t from;
+
+  // The units it moves onto that it doesn't already cover
+  for(int u = 0; u < n; u++) {
+    int own = FALSE;
+
+    for(int v = 0; v < n; v++) {
+      own |= xs[u] + dx == xs[v] && zs[u] + dz == zs[v];
+    }
+    if(!own) {
+      need_x[need] = xs[u] + dx;
+      need_z[need] = zs[u] + dz;
+      need++;
+    }
+  }
+  if(!mFI_Wpos2UtNum(&player_ux, &player_uz, *ppos) ||
+     !pc_outdoor_ftr_fits((GAME_PLAY*)game, need_x, need_z, need, player_ux, player_uz, ppos->y)) {
+    return FALSE;
+  }
+  pc_outdoor_ftr_model_pos(p, &from);
+  pc_outdoor_ftr_relocate(p, p->ux + dx, p->uz + dz, p->rot);
+  p->anim.state = PC_OUTDOOR_FTR_ANIM_SLIDE;
+  p->anim.counter = 3.0f; // the room's WAIT_PUSH -> PUSH delay
+  p->anim.slide = 1.0f;
+  p->anim.from = from;
+  p->anim.move.x = dx * mFI_UT_WORLDSIZE_X_F;
+  p->anim.move.y = 0.0f;
+  p->anim.move.z = dz * mFI_UT_WORLDSIZE_Z_F;
+  sAdo_FloorTrgStart(FLOOR_NPC000, &from); // aMR_SetMoveSE on the plush carpet (the carpet sound class)
+
+  // Still holding it, from one unit further on (where the push animation takes the player)
+  s_hold.ux += (s16)dx;
+  s_hold.uz += (s16)dz;
+  s_hold.nice.x += p->anim.move.x;
+  s_hold.nice.z += p->anim.move.z;
+  return TRUE;
+}
+
 // Starts a quarter turn of piece i (dir +1 left, -1 right) if there's room; its units change at once (like the room),
 // the model turns over the next frames
 static int pc_outdoor_ftr_turn(GAME* game, int i, int dir) {
@@ -611,11 +731,10 @@ static int pc_outdoor_ftr_turn(GAME* game, int i, int dir) {
   PLAYER_ACTOR* player = GET_PLAYER_ACTOR((GAME_PLAY*)game);
   const xyz_t* ppos = &player->actor_class.world.position;
   int shape = pc_outdoor_ftr_shape(p->item);
-  int xs[4], zs[4], nxs[4], nzs[4], need_x[2], need_z[2];
+  int xs[4], zs[4], need_x[2], need_z[2];
   int n = pc_outdoor_ftr_piece_units(p, xs, zs);
   int pivot = 0;
-  int new_ux, new_uz, new_rot, need, nn, player_ux, player_uz;
-  pc_outdoor_ftr_rig* rig;
+  int new_ux, new_uz, new_rot, need, player_ux, player_uz;
   xyz_t from;
 
   // A 1x2 turns like a lever around the end nearest the player
@@ -646,36 +765,7 @@ static int pc_outdoor_ftr_turn(GAME* game, int i, int dir) {
   }
   p->anim.from_angle = (s16)(p->rot * DEG2SHORT_ANGLE(90.0f));
 
-  // The units: the old ones not kept are emptied, the new anchor gets the item, the rest the placeholder
-  nn = pc_outdoor_ftr_units(shape, new_rot, new_ux, new_uz, nxs, nzs);
-  for(int u = 0; u < n; u++) {
-    int kept = FALSE;
-    xyz_t pos;
-
-    for(int v = 0; v < nn; v++) {
-      kept |= xs[u] == nxs[v] && zs[u] == nzs[v];
-    }
-    if(!kept && mFI_UtNum2CenterWpos(&pos, xs[u], zs[u])) {
-      mFI_SetFG_common(EMPTY_NO, pos, TRUE);
-    }
-  }
-  for(int v = 0; v < nn; v++) {
-    u16 want = v == 0 ? p->item : PC_OUTDOOR_FTR_PLACEHOLDER;
-    xyz_t pos;
-
-    if(pc_outdoor_ftr_fg(nxs[v], nzs[v]) != want && mFI_UtNum2CenterWpos(&pos, nxs[v], nzs[v])) {
-      mFI_SetFG_common(want, pos, TRUE);
-    }
-  }
-  // Its FTR_ACTOR is set up again where it ends
-  rig = pc_outdoor_ftr_rig_find(p);
-  if(rig != NULL) {
-    aMR_pc_ActorDt(&rig->actor);
-    rig->used = FALSE;
-  }
-  p->ux = (s16)new_ux;
-  p->uz = (s16)new_uz;
-  p->rot = (u8)new_rot;
+  pc_outdoor_ftr_relocate(p, new_ux, new_uz, new_rot);
   p->anim.state = PC_OUTDOOR_FTR_ANIM_ROTATE;
   p->anim.counter = 3.0f; // the room's rotation_delay_timer
   p->anim.turned = 0.0f;
@@ -708,14 +798,41 @@ int pc_outdoor_ftr_hold_judge(GAME* game, int a_held) {
     return p->anim.turn_dir > 0 ? 5 : 4; // the player's rotate state waits for this to change
   }
   if(a_held) {
-    s_hold.frames += game->graph != NULL ? (f32)game->graph->dt_num_60fps_frames : 1.0f;
+    f32 dt = game->graph != NULL ? (f32)game->graph->dt_num_60fps_frames : 1.0f;
+    int push_dir = (s_hold.side + 2) & 3; // away from the player
+
+    s_hold.frames += dt;
     if(ABS(game->mcon.move_pX) <= 0.086f && ABS(game->mcon.move_pY) <= 0.086f) {
       s_hold.allow_turn = TRUE;
     }
     player = GET_PLAYER_ACTOR((GAME_PLAY*)game);
-    // Once the player stands where they hold it: a full sideways stick turns it, once per flick
-    if(s_hold.allow_turn && player != NULL && ABS(player->actor_class.world.position.x - s_hold.nice.x) < 1.0f &&
-       ABS(player->actor_class.world.position.z - s_hold.nice.z) < 1.0f) {
+    if(p->anim.state == PC_OUTDOOR_FTR_ANIM_SLIDE || player == NULL ||
+       ABS(player->actor_class.world.position.x - s_hold.nice.x) >= 1.0f ||
+       ABS(player->actor_class.world.position.z - s_hold.nice.z) >= 1.0f) {
+      s_hold.push_timer = 0.0f;
+      return 1; // still moving, or the player isn't where they hold it yet
+    }
+    // Push: the stick full away from the player, straining for 17 frames first
+    if(!pc_outdoor_ftr_stick_full(game, push_dir)) {
+      s_hold.push_timer = 0.0f;
+      s_hold.push_blocked = FALSE;
+    } else if(!s_hold.push_blocked) {
+      s_hold.push_timer += dt;
+      if(s_hold.push_timer <= 16.0f) {
+        return 9; // straining
+      }
+      s_hold.push_timer = 0.0f;
+      if(pc_outdoor_ftr_push(game, i, push_dir)) {
+        return 2;
+      }
+      s_hold.push_blocked = TRUE;
+      if(eEC_CLIP != NULL) { // aMR_SetBubu
+        eEC_CLIP->effect_make_proc(eEC_EFFECT_BUBU, player->actor_class.world.position, 2, 0, game, RSV_NO, 0, 0);
+      }
+      return 1;
+    }
+    // A full sideways stick turns it, once per flick
+    if(s_hold.allow_turn) {
       int dir = 0;
 
       if(pc_outdoor_ftr_stick_full(game, turn_stick[s_hold.side][0])) {
@@ -958,6 +1075,16 @@ void pc_outdoor_ftr_update(GAME* game) {
         pc_outdoor_ftr_dust(game, p, &pos, puffs);
       }
     }
+    if(p->anim.state == PC_OUTDOOR_FTR_ANIM_SLIDE) {
+      if(p->anim.counter > 0.0f) {
+        p->anim.counter -= dt;
+      } else {
+        p->anim.slide += dt;
+        if(p->anim.slide >= 25.0f) {
+          p->anim.state = PC_OUTDOOR_FTR_ANIM_NONE;
+        }
+      }
+    }
     if(p->anim.state == PC_OUTDOOR_FTR_ANIM_ROTATE) {
       if(p->anim.counter > 0.0f) {
         p->anim.counter -= dt;
@@ -1014,6 +1141,11 @@ void pc_outdoor_ftr_draw(GAME* game) {
       pos.x = p->anim.pivot.x + dx * cosf(t) + dz * sinf(t);
       pos.z = p->anim.pivot.z - dx * sinf(t) + dz * cosf(t);
       angle = (s16)(p->anim.from_angle + DEG2SHORT_ANGLE(p->anim.turn_dir * p->anim.turned));
+    } else if(p->anim.state == PC_OUTDOOR_FTR_ANIM_SLIDE) {
+      f32 t = pc_outdoor_ftr_push_curve(p->anim.slide);
+
+      pos.x = p->anim.from.x + p->anim.move.x * t;
+      pos.z = p->anim.from.z + p->anim.move.z * t;
     }
     aMR_pc_DrawPlain(game, mRmTp_FtrItemNo2FtrIdx(p->item), &pos, angle,
                      p->anim.state == PC_OUTDOOR_FTR_ANIM_BIRTH ? &p->anim.scale : NULL, pc_outdoor_ftr_actor_of(p));
