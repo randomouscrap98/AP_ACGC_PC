@@ -2368,3 +2368,80 @@ extern void aMR_SameFurnitureSwitchOFF(u16 ftr_name) {
         used++;
     }
 }
+
+#ifdef TARGET_PC
+// Outdoor furniture (pc_outdoor_ftr.c): furniture drawn without a my_room actor. Only plain models for now: no
+// skeleton (rig) and no unique draw/move procs (vtable), which need an FTR_ACTOR and the room's banks
+int aMR_pc_CanDrawPlain(u16 ftr_no) {
+    aFTR_PROFILE* profile;
+
+    // iam_dummy: unused index, drawn as a "dummy" sign
+    if (ftr_no >= FTR_NUM || furniture_quality[ftr_no] == NULL || furniture_quality[ftr_no] == &iam_dummy) {
+        return FALSE;
+    }
+
+    profile = furniture_quality[ftr_no];
+    return profile->rig == NULL && profile->vtable == NULL;
+}
+
+int aMR_pc_GetShape(u16 ftr_no) {
+    return aMR_GetFurnitureProfile(ftr_no)->shape;
+}
+
+// Like aMR_DrawFurniture + aMR_DrawOneFurniture for one placed, unscaled piece (base_position 0, scale 1)
+void aMR_pc_DrawPlain(GAME* game, u16 ftr_no, const xyz_t* pos, s16 angle) {
+    GAME_PLAY* play = (GAME_PLAY*)game;
+    aFTR_PROFILE* profile = aMR_GetFurnitureProfile(ftr_no);
+    LightsN* lights;
+    xyz_t p = *pos;
+    int alpha_edge = aMR_GetAlphaEdge(ftr_no);
+    int dolphin = aMR_DrawDolphinMode(ftr_no);
+
+    OPEN_DISP(game->graph);
+    gDPSetTexEdgeAlpha(NEXT_POLY_OPA_DISP, alpha_edge);
+    gDPSetTexEdgeAlpha(NEXT_POLY_XLU_DISP, alpha_edge);
+    if (dolphin) {
+        gDPSetTextureAdjustMode(NEXT_POLY_OPA_DISP, G_TA_DOLPHIN);
+        gDPSetTextureAdjustMode(NEXT_POLY_XLU_DISP, G_TA_DOLPHIN);
+    }
+    CLOSE_DISP(game->graph);
+
+    _texture_z_light_fog_prim_xlu(game->graph);
+    _texture_z_light_fog_prim(game->graph);
+    lights = Global_light_read(&play->global_light, game->graph);
+    LightsN_list_check(lights, play->global_light.list, &p);
+    LightsN_disp(lights, game->graph);
+    aMR_LoadTexture(profile, game);
+    aMR_LoadPallet(profile, game);
+    switch (profile->kankyo_map) {
+        case aFTR_KANKYO_MAP_OPA:
+            Setpos_HiliteReflect_init(&p, play);
+            break;
+        case aFTR_KANKYO_MAP_XLU:
+            Setpos_HiliteReflect_xlu_init(&p, play);
+            break;
+    }
+
+    Matrix_translate(p.x, p.y, p.z, MTX_LOAD);
+    Matrix_RotateY(angle, MTX_MULT);
+    Matrix_scale(profile->scale, profile->scale, profile->scale, MTX_MULT);
+
+    // Texture animation: first frame only (segment 8 must point somewhere)
+    if (profile->tex_anim != NULL) {
+        OPEN_DISP(game->graph);
+        gSPSegment(NEXT_POLY_OPA_DISP, G_MWO_SEGMENT_8, profile->tex_anim->animation[0]);
+        gSPSegment(NEXT_POLY_XLU_DISP, G_MWO_SEGMENT_8, profile->tex_anim->animation[0]);
+        CLOSE_DISP(game->graph);
+    }
+    aMR_DrawRegistModel(profile, game);
+
+    OPEN_DISP(game->graph);
+    if (dolphin) {
+        gDPSetTextureAdjustMode(NEXT_POLY_OPA_DISP, G_TA_N64);
+        gDPSetTextureAdjustMode(NEXT_POLY_XLU_DISP, G_TA_N64);
+    }
+    gDPSetTexEdgeAlpha(NEXT_POLY_OPA_DISP, 144);
+    gDPSetTexEdgeAlpha(NEXT_POLY_XLU_DISP, 144);
+    CLOSE_DISP(game->graph);
+}
+#endif

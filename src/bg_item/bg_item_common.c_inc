@@ -4,6 +4,7 @@
 #include "pc_ap_shellsanity.h"
 #include "pc_ap_qol.h"
 #include "pc_planting.h"
+#include "pc_outdoor_ftr.h"
 /* AP Shellsanity / Treesanity: beach and tree items get the shells' random position offset */
 #define bIT_IS_SHELL(item) (((item) >= ITM_SHELL0 && (item) <= ITM_SHELL7) || pc_ap_ground_item(item))
 /* AP Treesanity: drop_fruit's AP items for fruit_set, dropped at the first spots */
@@ -3443,6 +3444,9 @@ static void bg_item_common_draw(GAME_PLAY* play, bg_item_common_c* common, bg_it
     bIT_actor_fade_draw(game, &common->common_info, common->fade);
 
     bit_draw_ta_clr(game);
+#ifdef TARGET_PC
+    pc_outdoor_ftr_draw(game);
+#endif
 }
 
 static void bg_item_common_construct(GAME* game, bg_item_common_c* common) {
