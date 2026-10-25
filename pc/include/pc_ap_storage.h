@@ -22,7 +22,7 @@ typedef struct {
   // Config (slot_data)
   int enabled;
   int turnips_ok; // Turnips Never Spoil: turnips may be stored (else storage would stop their spoiling)
-  // Persisted, per player: items[p][0 .. count[p] - 1], no gaps, newest last
+  // Persisted, per player: items[p][0 .. count[p] - 1], no gaps, newest first
   mActor_name_t items[PLAYER_NUM][PC_AP_STORAGE_SLOTS];
   int count[PLAYER_NUM];
 } pc_ap_storage;
