@@ -297,6 +297,14 @@ int pc_ap_trees_fruit_owned(int fruit);
 
 // Nonzero when the clock is frozen (timesanity on in slot_data)
 int pc_ap_time_frozen(void);
+// The clock for things that wait for time to pass within the day (beach shells every 10 minutes, balloons at
+// :x3 / :x8, the train at :14:50): seconds into the day. While frozen (the clock never leaves HH:00:16): the
+// frozen hour plus time played, wrapping after a day; else the real time
+int pc_ap_clock_day_seconds(void);
+// Its day: changes when pc_ap_clock_day_seconds wraps (only compare it, not a calendar day; 0-255)
+int pc_ap_clock_day(void);
+// Its minute (0-59)
+int pc_ap_clock_minute(void);
 // Tracker: received months (bit m = month m, 0 = January) and time slots (bit s, 0 = Morning)
 int pc_ap_time_owned_months(void);
 int pc_ap_time_owned_slots(void);

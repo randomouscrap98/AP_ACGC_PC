@@ -393,7 +393,8 @@ static void item_cycle(int id, int dir) {
             s_pending.msaa = steps[idx];
         } break;
         case ITEM_RENDER_SCALE: {
-            static const int steps[] = { PC_RENDER_SCALE_AUTO, 1, 2, 3, 4, 5, 6, PC_RENDER_SCALE_WINDOW };
+            static const int steps[] = { PC_RENDER_SCALE_AUTO, PC_RENDER_SCALE_INTEGER, 1, 2, 3, 4, 5, 6,
+                                         PC_RENDER_SCALE_WINDOW };
             int idx = 0;
             int count = sizeof(steps) / sizeof(steps[0]);
             for (int i = 0; i < count; i++) if (s_pending.render_scale == steps[i]) { idx = i; break; }
@@ -523,6 +524,7 @@ static void item_format(int id, char* buf, size_t n) {
         case ITEM_RENDER_SCALE:
             if (s_pending.render_scale == PC_RENDER_SCALE_AUTO)        snprintf(buf, n, "< Auto >");
             else if (s_pending.render_scale == PC_RENDER_SCALE_WINDOW) snprintf(buf, n, "< Window >");
+            else if (s_pending.render_scale == PC_RENDER_SCALE_INTEGER) snprintf(buf, n, "< Integer >");
             else snprintf(buf, n, "< %dx >", s_pending.render_scale);
             break;
         case ITEM_TEXTURE_FILTERING:

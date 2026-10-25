@@ -253,6 +253,13 @@ int pc_platform_poll_events(void) {
                 }
                 pc_typing_handle_event(&event);
                 break;
+            case SDL_KEYUP:
+            case SDL_CONTROLLERBUTTONUP:
+                /* Releases end a held menu direction (pc_menu_repeat) */
+                if (g_pc_paused && !pc_settings_menu_capture_active()) {
+                    pc_pause_menu_handle_event(&event);
+                }
+                break;
             case SDL_MOUSEBUTTONDOWN:
                 if (pc_settings_menu_capture_active()) {
                     pc_settings_menu_handle_capture_event(&event);

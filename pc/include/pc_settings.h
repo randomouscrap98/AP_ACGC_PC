@@ -31,6 +31,8 @@ typedef struct {
     int master_volume;    /* Applied at the PC audio output, 0-100 (default 100) */
     int stick_deadzone;   /* Gamepad main stick deadzone, percent 0-40 (default 12) */
     int cstick_deadzone;  /* Gamepad C-stick deadzone, percent 0-40 (default 12) */
+    int menu_repeat_delay; // PC menus: ms a held direction waits before repeating (pc_menu_repeat.h; not in the menu)
+    int menu_repeat_rate;  // PC menus: ms between repeats while held
 
     // Archipelago settings (new)
     int ap_status_always;   // AP connection status: 0 = title screen + pause menu only (default), 1 = always

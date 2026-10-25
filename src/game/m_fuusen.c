@@ -6,6 +6,9 @@
 #include "m_private.h"
 #include "m_event.h"
 #include "m_common_data.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
 int fuusen_DEBUG_mode_flag;
 
@@ -72,7 +75,11 @@ extern void Balloon_move(GAME_PLAY* play) {
       return;
   }
 
+#ifdef TARGET_PC
+  min = pc_ap_clock_minute(); // minutes of play while the clock is frozen
+#else
   min = Common_Get(time.rtc_time.min);
+#endif
   if ((min % 5) == 3 && min != Common_Get(balloon_last_spawn_min)) {
     Common_Set(balloon_last_spawn_min, min);
     

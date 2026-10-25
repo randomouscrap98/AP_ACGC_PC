@@ -3000,7 +3000,11 @@ static int mFI_CheckSetShell() {
     int res = FALSE;
 
     /* Refresh shells every 10th minute */
+#ifdef TARGET_PC
+    if (pc_ap_clock_minute() % 10 == 0) { // minutes of play while the clock is frozen
+#else
     if (Common_Get(time.rtc_time.min) % 10 == 0) {
+#endif
         res = TRUE;
     }
 

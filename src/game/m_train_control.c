@@ -13,9 +13,20 @@
 #include "m_name_table.h"
 #include "m_collision_bg.h"
 #include "m_random_field.h"
+#ifdef TARGET_PC
+#include "pc_ap_logic.h"
+#endif
 
+#ifdef TARGET_PC
+// Every use is the common clock: time played while the clock is frozen, so the train still runs.
+// Its day too, so the train's midnight wrap (train_day) happens when that clock wraps
+#define mTRC_RTC_TIME_SECONDS(rtc_time) ((void)(rtc_time), (u32)pc_ap_clock_day_seconds())
+#define mTRC_DAY() ((u8)pc_ap_clock_day())
+#else
+#define mTRC_DAY() (Common_Get(time.rtc_time.day))
 #define mTRC_RTC_TIME_SECONDS(rtc_time) \
     (rtc_time->sec + (rtc_time->min + rtc_time->hour * mTM_MINUTES_IN_HOUR) * mTM_SECONDS_IN_MINUTE)
+#endif
 
 static void mTRC_SetMicPos(GAME_PLAY* play, xyz_t* mic_pos) {
     xyz_t pos;
@@ -133,7 +144,7 @@ static u32 mTRC_get_depart_time() {
         i++;
     }
 
-    Common_Set(train_day, rtc_time->day);
+    Common_Set(train_day, mTRC_DAY());
     return depart_time;
 }
 
@@ -169,7 +180,7 @@ static void mTRC_demo_init() {
     Common_Set(train_speed, mTRC_SLOW_SPEED);
     Common_Set(train_flag, TRUE);
     Common_Set(train_start_timer, mTRC_RTC_TIME_SECONDS(rtc_time) - HOUR_MIN_SEC_TO_SECS(0, 4, 50));
-    Common_Set(train_day, Common_Get(time.rtc_time.day));
+    Common_Set(train_day, mTRC_DAY());
     Common_Set(train_control_state, 0);
     Common_Set(train_last_control_state, 0);
 
@@ -295,12 +306,12 @@ static void mTRC_trainControl(GAME_PLAY* play, int state) {
     int timer_ticks = graph_dt_60hz_ticks(&play->game, &train_timer_accum);
     f32 dt = play->game.graph->dt_num_60fps_frames;
 
-    if (Common_Get(train_day) != rtc_time->day) {
+    if (Common_Get(train_day) != mTRC_DAY()) {
         if (start_timer >= mTM_SECONDS_IN_DAY) {
             start_timer -= mTM_SECONDS_IN_DAY;
         }
 
-        Common_Set(train_day, rtc_time->day);
+        Common_Set(train_day, mTRC_DAY());
     }
 
     switch (action) {

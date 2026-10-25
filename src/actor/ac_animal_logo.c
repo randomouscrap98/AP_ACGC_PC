@@ -27,6 +27,7 @@
 #include "pc_settings.h"
 #include "pc_settings_menu.h"
 #include "pc_menu_util.h"
+#include "pc_menu_repeat.h"
 #include "pc_text_draw.h"
 #include "main.h"
 #include <stdio.h>
@@ -347,11 +348,26 @@ static void aAL_fade_out_start_wait_init(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
 // 0 = not seen yet, 1 = seen waiting on AP, 2 = ready. Per boot, not per title visit
 static int aAL_pc_ap_ready_state = 0;
 
+// Main menu and Settings: held directions repeat like in the pause menu (pc_menu_repeat.h)
+static pc_menu_repeat aAL_pc_repeat;
+
+// Direction held on pad 0 (stick or d-pad; keyboard WASD is the stick), PC_MENU_NONE = none
+static pc_menu_action aAL_pc_held_dir(int horizontal) {
+  u16 btn = gamePT->pads[PAD0].now.button;
+  s8 stick_x = gamePT->pads[PAD0].now.stick_x;
+  s8 stick_y = gamePT->pads[PAD0].now.stick_y;
+
+  if (stick_y > 30 || (btn & BUTTON_DUP)) return PC_MENU_UP;
+  if (stick_y < -30 || (btn & BUTTON_DDOWN)) return PC_MENU_DOWN;
+  if (horizontal && (stick_x > 30 || (btn & BUTTON_DRIGHT))) return PC_MENU_RIGHT;
+  if (horizontal && (stick_x < -30 || (btn & BUTTON_DLEFT))) return PC_MENU_LEFT;
+  return PC_MENU_NONE;
+}
+
 static void aAL_pc_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
   GAME_PLAY* play = (GAME_PLAY*)game;
   f32 dt = (f32)game->graph->dt_num_60fps_frames;
   u16 on_btn = gamePT->pads[PAD0].on.button;
-  s8 stick_y = gamePT->pads[PAD0].now.stick_y;
 
   /* No blinking — full opacity for menu */
   actor->press_start_opacity = 255.0f;
@@ -391,8 +407,6 @@ static void aAL_pc_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
   }
 
   if (actor->pc_options_open) {
-    s8 stick_x = gamePT->pads[PAD0].now.stick_x;
-
     /* Keybinding capture is fed raw SDL events by pc_main; pad-derived nav
      * must stand down until the just-pressed input is released. */
     if (pc_settings_menu_capture_blocking()) {
@@ -401,39 +415,34 @@ static void aAL_pc_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
 
     /* Drive the shared settings menu. It returns 0 when the user picks
      * Back from the main settings page, which we treat as "close". */
-    if (actor->pc_cursor_cooldown <= 0.0f) {
-      if (on_btn & BUTTON_A || on_btn & BUTTON_START) {
-        if (!pc_settings_menu_confirm()) actor->pc_options_open = 0;
-        actor->pc_cursor_cooldown = 10.0f;
-      } else if (on_btn & BUTTON_B) {
-        if (!pc_settings_menu_cancel()) actor->pc_options_open = 0;
-        actor->pc_cursor_cooldown = 10.0f;
-      } else if (stick_y > 30 || (on_btn & BUTTON_DUP)) {
-        pc_settings_menu_nav_up();   actor->pc_cursor_cooldown = 8.0f;
-      } else if (stick_y < -30 || (on_btn & BUTTON_DDOWN)) {
-        pc_settings_menu_nav_down(); actor->pc_cursor_cooldown = 8.0f;
-      } else if (stick_x > 30 || (on_btn & BUTTON_DRIGHT)) {
-        pc_settings_menu_nav_right(); actor->pc_cursor_cooldown = 8.0f;
-      } else if (stick_x < -30 || (on_btn & BUTTON_DLEFT)) {
-        pc_settings_menu_nav_left(); actor->pc_cursor_cooldown = 8.0f;
+    if (actor->pc_cursor_cooldown <= 0.0f && (on_btn & (BUTTON_A | BUTTON_START))) {
+      if (!pc_settings_menu_confirm()) actor->pc_options_open = 0;
+      actor->pc_cursor_cooldown = 10.0f;
+    } else if (actor->pc_cursor_cooldown <= 0.0f && (on_btn & BUTTON_B)) {
+      if (!pc_settings_menu_cancel()) actor->pc_options_open = 0;
+      actor->pc_cursor_cooldown = 10.0f;
+    } else {
+      switch (pc_menu_repeat_tick(&aAL_pc_repeat, aAL_pc_held_dir(TRUE))) {
+        case PC_MENU_UP:    pc_settings_menu_nav_up();    break;
+        case PC_MENU_DOWN:  pc_settings_menu_nav_down();  break;
+        case PC_MENU_RIGHT: pc_settings_menu_nav_right(); break;
+        case PC_MENU_LEFT:  pc_settings_menu_nav_left();  break;
+        default: break;
       }
     }
     return;
   }
 
   /* Main menu navigation (3 items: Start / Settings / Quit) */
-  if (actor->pc_cursor_cooldown <= 0.0f) {
-    if (stick_y > 30 || (on_btn & BUTTON_DUP)) {
-      if (actor->pc_menu_sel > 0) {
-        actor->pc_menu_sel--;
-        actor->pc_cursor_cooldown = 10.0f;
-      }
-    } else if (stick_y < -30 || (on_btn & BUTTON_DDOWN)) {
-      if (actor->pc_menu_sel < 2) {
-        actor->pc_menu_sel++;
-        actor->pc_cursor_cooldown = 10.0f;
-      }
-    }
+  switch (pc_menu_repeat_tick(&aAL_pc_repeat, aAL_pc_held_dir(FALSE))) {
+    case PC_MENU_UP:
+      if (actor->pc_menu_sel > 0) actor->pc_menu_sel--;
+      break;
+    case PC_MENU_DOWN:
+      if (actor->pc_menu_sel < 2) actor->pc_menu_sel++;
+      break;
+    default:
+      break;
   }
 
   /* Select */

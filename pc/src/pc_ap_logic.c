@@ -138,6 +138,7 @@ typedef struct {
   pc_ap_reload reload;
   int time_change_allowed; // Date & Time gate on the last play frame (pause menu reads it)
   int storage_allowed;     // Global Storage gate on the last play frame (pause menu reads it)
+  unsigned play_frames;    // 60 Hz frames in play (pc_ap_tick), for pc_ap_clock_minute
   pc_ap_request request;
   int initialized;    // module config set from slot_data
 } pc_ap;
@@ -1010,6 +1011,26 @@ int pc_ap_time_frozen(void) {
   return g_ap.time.frozen;
 }
 
+int pc_ap_clock_day_seconds(void) {
+  const lbRTC_time_c* t = Common_GetPointer(time.rtc_time);
+  if(g_ap.time.frozen) {
+    return (int)((t->hour * 3600u + g_ap.play_frames / 60) % (24 * 3600));
+  }
+  return t->hour * 3600 + t->min * 60 + t->sec;
+}
+
+int pc_ap_clock_day(void) {
+  const lbRTC_time_c* t = Common_GetPointer(time.rtc_time);
+  if(g_ap.time.frozen) {
+    return (int)((t->day + (t->hour * 3600u + g_ap.play_frames / 60) / (24 * 3600)) & 0xFF);
+  }
+  return t->day;
+}
+
+int pc_ap_clock_minute(void) {
+  return pc_ap_clock_day_seconds() / 60 % 60;
+}
+
 int pc_ap_time_owned_months(void) {
   return pc_ap_timesanity_owned_months(&g_ap.time);
 }
@@ -1303,6 +1324,7 @@ void pc_ap_tick(GAME_PLAY* play) {
   if(!pc_ap_in_game(play)) {
     return;
   }
+  g_ap.play_frames++; // one play frame (60 Hz)
   // Checks: every check of every paid-off loan (the DLL drops repeats)
   int paid = pc_ap_loans_paid();
   int it = 0;

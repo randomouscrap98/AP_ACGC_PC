@@ -7,7 +7,10 @@ extern "C" {
 
 // The game draws into an offscreen buffer (render size), presented to the window once per frame.
 // render_scale setting: Auto = smallest whole multiple of 480 lines >= the window (then scaled down),
-// 1..6 = that multiple, Window = exactly the window size (presented 1:1).
+// 1..6 = that multiple, Window = exactly the window size (presented 1:1), Integer = largest whole multiple
+// of 480 lines that fits, window wide, presented 1:1 with black bars above and below (window under 480
+// lines: like Auto).
+#define PC_RENDER_SCALE_INTEGER (-2)
 #define PC_RENDER_SCALE_WINDOW (-1)
 #define PC_RENDER_SCALE_AUTO   0
 #define PC_RENDER_SCALE_MAX    6

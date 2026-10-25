@@ -2,6 +2,7 @@
 #include "pc_pause_menu.h"
 #include "pc_settings_menu.h"
 #include "pc_menu_util.h"
+#include "pc_menu_repeat.h"
 #include "pc_text_draw.h"
 #include "pc_ap_time_menu.h"
 #include "pc_ap_catalog_menu.h"
@@ -79,6 +80,14 @@ static PauseMenuPage cur_page = PAGE_MAIN;
 static MenuList main_list;
 static MenuList ap_list;
 static int confirm_sel = 0; /* 0=No (default), 1=Yes */
+
+// Held direction (keys, d-pad, stick), fired by pause_tick through the repeat. held_src = what set it:
+// an SDL key code, HELD_PAD + button or HELD_AXIS + axis, so only releasing that clears it.
+#define HELD_PAD  0x40000000
+#define HELD_AXIS 0x50000000
+static pc_menu_repeat s_repeat;
+static pc_menu_action s_held = PC_MENU_NONE;
+static int s_held_src;
 
 // Page state
 static pc_ap_time_menu time_menu;
@@ -182,6 +191,9 @@ void pc_pause_menu_toggle(void) {
     if (!g_pc_paused && (g_pc_title_main_menu_visible || g_pc_nes_active)) return;
 
     g_pc_paused = !g_pc_paused;
+    // Releases while unpaused never reach us
+    s_held = PC_MENU_NONE;
+    memset(&s_repeat, 0, sizeof(s_repeat));
     if (g_pc_paused) {
         cur_page = PAGE_MAIN;
         main_list.sel = 0;
@@ -414,22 +426,52 @@ static pc_menu_action translate_pad_button(int button) {
 #define STICK_NAV_PRESS   18000
 #define STICK_NAV_RELEASE 12000
 
-static pc_menu_action translate_pad_axis(int axis, int value) {
+// Updates the axis latch; returns 1 when it changed, with the direction now pushed (PC_MENU_NONE = centred)
+static int translate_pad_axis(int axis, int value, pc_menu_action* dir) {
     static int latch_x = 0, latch_y = 0;
     int* latch;
+    int old;
     pc_menu_action neg, pos;
 
     if (axis == SDL_CONTROLLER_AXIS_LEFTX)      { latch = &latch_x; neg = PC_MENU_LEFT; pos = PC_MENU_RIGHT; }
     else if (axis == SDL_CONTROLLER_AXIS_LEFTY) { latch = &latch_y; neg = PC_MENU_UP;   pos = PC_MENU_DOWN; }
-    else return PC_MENU_NONE;
+    else return 0;
 
+    old = *latch;
     if (*latch != 0) {
         if (value > -STICK_NAV_RELEASE && value < STICK_NAV_RELEASE) *latch = 0;
-        return PC_MENU_NONE;
+    } else if (value <= -STICK_NAV_PRESS) {
+        *latch = -1;
+    } else if (value >= STICK_NAV_PRESS) {
+        *latch = 1;
     }
-    if (value <= -STICK_NAV_PRESS) { *latch = -1; return neg; }
-    if (value >=  STICK_NAV_PRESS) { *latch =  1; return pos; }
-    return PC_MENU_NONE;
+    *dir = *latch < 0 ? neg : *latch > 0 ? pos : PC_MENU_NONE;
+    return *latch != old;
+}
+
+static int is_direction(pc_menu_action act) {
+    return act == PC_MENU_UP || act == PC_MENU_DOWN || act == PC_MENU_LEFT || act == PC_MENU_RIGHT;
+}
+
+// A press or release from src: directions only change the held state (pause_tick fires them),
+// confirm / cancel act once per press
+static void input(pc_menu_action act, int src, int down) {
+    if (is_direction(act)) {
+        if (down) {
+            s_held = act;
+            s_held_src = src;
+        } else if (src == s_held_src) {
+            s_held = PC_MENU_NONE;
+        }
+    } else if (down && act != PC_MENU_NONE) {
+        handle_action(act);
+    }
+}
+
+// Once per drawn frame: the held direction through the repeat
+static void pause_tick(void) {
+    pc_menu_action act = pc_menu_repeat_tick(&s_repeat, s_held);
+    if (act != PC_MENU_NONE) handle_action(act);
 }
 
 int pc_pause_menu_handle_event(const SDL_Event* e) {
@@ -437,15 +479,23 @@ int pc_pause_menu_handle_event(const SDL_Event* e) {
 
     switch (e->type) {
         case SDL_KEYDOWN:
-            if (e->key.repeat) return 1;
-            handle_action(translate_key(e->key.keysym.sym));
+        case SDL_KEYUP:
+            if (e->key.repeat) return 1; /* our own repeat (pc_menu_repeat) */
+            input(translate_key(e->key.keysym.sym), e->key.keysym.sym, e->type == SDL_KEYDOWN);
             return 1; /* swallow all keys while paused */
         case SDL_CONTROLLERBUTTONDOWN:
-            handle_action(translate_pad_button(e->cbutton.button));
+        case SDL_CONTROLLERBUTTONUP:
+            input(translate_pad_button(e->cbutton.button), HELD_PAD + e->cbutton.button,
+                  e->type == SDL_CONTROLLERBUTTONDOWN);
             return 1;
-        case SDL_CONTROLLERAXISMOTION:
-            handle_action(translate_pad_axis(e->caxis.axis, e->caxis.value));
+        case SDL_CONTROLLERAXISMOTION: {
+            pc_menu_action dir;
+            if (translate_pad_axis(e->caxis.axis, e->caxis.value, &dir)) {
+                if (dir != PC_MENU_NONE) input(dir, HELD_AXIS + e->caxis.axis, 1);
+                else if (s_held_src == HELD_AXIS + e->caxis.axis) s_held = PC_MENU_NONE;
+            }
             return 1;
+        }
     }
     return 0;
 }
@@ -492,6 +542,7 @@ void pc_pause_menu_draw(struct game_s* game) {
      * inherit whatever projection the scene ended its frame with. Not mFont_SetMatrix:
      * its CPU matrix stack doesn't exist in boot scenes (pc_menu_set_font_matrix). */
     pc_menu_set_font_matrix(game->graph);
+    pause_tick();
     pc_settings_menu_tick();
 
     if (cur_page == PAGE_SETTINGS) {

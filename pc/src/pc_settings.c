@@ -31,6 +31,8 @@ PCSettings g_pc_settings = {
     .master_volume = 100,
     .stick_deadzone = 12,
     .cstick_deadzone = 12,
+    .menu_repeat_delay = 400,
+    .menu_repeat_rate = 70,
     .ap_status_always = 0,
     .ap_tracker_always = 0,
     .ap_toast_seconds = 10,
@@ -59,7 +61,8 @@ static const char* DEFAULT_SETTINGS =
     "msaa = 0\n"
     "\n"
     "# Render scale: 0 = auto (smallest multiple of 480 lines at least the window height, scaled down),\n"
-    "# 1-6 = 480 lines times that, -1 = exactly the window size\n"
+    "# 1-6 = 480 lines times that, -1 = exactly the window size,\n"
+    "# -2 = integer (largest multiple of 480 lines that fits, not scaled, black bars)\n"
     "render_scale = 0\n"
     "\n"
     "# Texture filtering: 0 = nearest-neighbor, 1 = use the game's filtering\n"
@@ -117,6 +120,9 @@ static const char* DEFAULT_SETTINGS =
     "# Gamepad stick deadzones as a percentage (0-40)\n"
     "stick_deadzone = 12\n"
     "cstick_deadzone = 12\n"
+    "# PC menus: a held direction repeats after this many ms (50-2000), then every this many ms (20-1000)\n"
+    "menu_repeat_delay = 400\n"
+    "menu_repeat_rate = 70\n"
     "\n"
     "[Archipelago]\n"
     "# AP connection status: 0 = title screen and pause menu only, 1 = always\n"
@@ -166,7 +172,7 @@ static void apply_setting(const char* key, const char* value) {
         if (val == 0 || val == 2 || val == 4 || val == 8)
             g_pc_settings.msaa = val;
     } else if (strcmp(key, "render_scale") == 0) {
-        if (val >= PC_RENDER_SCALE_WINDOW && val <= PC_RENDER_SCALE_MAX) g_pc_settings.render_scale = val;
+        if (val >= PC_RENDER_SCALE_INTEGER && val <= PC_RENDER_SCALE_MAX) g_pc_settings.render_scale = val;
     } else if (strcmp(key, "texture_filtering") == 0) {
         if (val == 0 || val == 1) g_pc_settings.texture_filtering = val;
     } else if (strcmp(key, "preload_textures") == 0) {
@@ -203,6 +209,10 @@ static void apply_setting(const char* key, const char* value) {
         if (val >= 0 && val <= 40) g_pc_settings.stick_deadzone = val;
     } else if (strcmp(key, "cstick_deadzone") == 0) {
         if (val >= 0 && val <= 40) g_pc_settings.cstick_deadzone = val;
+    } else if (strcmp(key, "menu_repeat_delay") == 0) {
+        if (val >= 50 && val <= 2000) g_pc_settings.menu_repeat_delay = val;
+    } else if (strcmp(key, "menu_repeat_rate") == 0) {
+        if (val >= 20 && val <= 1000) g_pc_settings.menu_repeat_rate = val;
     } else if (strcmp(key, "ap_status_always") == 0) {
         if (val == 0 || val == 1) g_pc_settings.ap_status_always = val;
     } else if (strcmp(key, "ap_tracker_always") == 0) {
@@ -328,7 +338,8 @@ void pc_settings_save(void) {
     fprintf(f, "msaa = %d\n", g_pc_settings.msaa);
     fprintf(f, "\n");
     fprintf(f, "# Render scale: 0 = auto (smallest multiple of 480 lines at least the window height, scaled down),\n");
-    fprintf(f, "# 1-6 = 480 lines times that, -1 = exactly the window size\n");
+    fprintf(f, "# 1-6 = 480 lines times that, -1 = exactly the window size,\n");
+    fprintf(f, "# -2 = integer (largest multiple of 480 lines that fits, not scaled, black bars)\n");
     fprintf(f, "render_scale = %d\n", g_pc_settings.render_scale);
     fprintf(f, "\n");
     fprintf(f, "# Texture filtering: 0 = nearest-neighbor, 1 = use the game's filtering\n");
@@ -386,6 +397,9 @@ void pc_settings_save(void) {
     fprintf(f, "# Gamepad stick deadzones as a percentage (0-40)\n");
     fprintf(f, "stick_deadzone = %d\n", g_pc_settings.stick_deadzone);
     fprintf(f, "cstick_deadzone = %d\n", g_pc_settings.cstick_deadzone);
+    fprintf(f, "# PC menus: a held direction repeats after this many ms (50-2000), then every this many ms (20-1000)\n");
+    fprintf(f, "menu_repeat_delay = %d\n", g_pc_settings.menu_repeat_delay);
+    fprintf(f, "menu_repeat_rate = %d\n", g_pc_settings.menu_repeat_rate);
     fprintf(f, "\n");
     fprintf(f, "[Archipelago]\n");
     fprintf(f, "# AP connection status: 0 = title screen and pause menu only, 1 = always\n");
