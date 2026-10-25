@@ -71,13 +71,20 @@ typedef struct {
     PcButterflySlot slots[PC_DEBUG_BUTTERFLY_SLOTS];
 } PcButterflyProbe;
 
-// Fog probe (pc_gx.c): reversed fog distances, scene fog changes
+// Fog probe (pc_gx.c): reversed fog distances, plus one line per frame (projection, fog, object depths, camera)
 typedef struct {
     FILE* file;
     int lines;
     unsigned frame;
-    int scene_seen; // this frame's first perspective fog already looked at
-    float last[4];  // last logged scene fog: start, end, near, far
+    // This frame so far
+    int proj_seen;         // first perspective projection recorded
+    float proj_near, proj_far;
+    int fog_seen;          // first fog that isn't off recorded
+    unsigned fog_type, fog_types; // its type; bit per fog type set this frame
+    float fog_start, fog_end;
+    unsigned char fog_rgb[3];
+    int draws_fog, draws_nofog; // perspective draws with / without fog
+    float depth_min, depth_sum; // fogged perspective draws: eye depth of the object origin (-m[2][3])
 } PcFogProbe;
 
 typedef struct {

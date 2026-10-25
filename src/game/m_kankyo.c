@@ -1885,7 +1885,9 @@ static void mEnv_SetFog(GAME_PLAY* play, Kankyo* kankyo, Global_light* global_li
     }
 #ifdef PC_ENHANCEMENTS
     /* reset fog if rotated camera with C-stick outside*/
-    else if  (play->camera.focus_distance != 620.0){
+    // C-stick state (1 = default), not focus_distance: the normal camera's distance leaves 620 too (fishing zoom,
+    // moving back to the player), which turned the fog off mid-move (bright flash at dusk)
+    else if (play->camera.indoor_distance_addition_idx != 1 || play->camera.indoor_direction_addition_idx != 1) {
         if  (play->camera.now_main_index == CAMERA2_PROCESS_NORMAL || play->camera.now_main_index == CAMERA2_PROCESS_WADE){
             global_light->fogFar = 1000;
             global_light->fogNear = 1000;

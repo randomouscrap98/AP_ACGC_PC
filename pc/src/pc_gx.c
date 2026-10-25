@@ -392,6 +392,8 @@ void pc_gx_clear_black(void) {
 }
 
 static void pc_gx_fog_probe_new_frame(void);
+static void pc_gx_fog_probe_projection(const float m[3][4], u32 type);
+static void pc_gx_fog_probe_draw(void);
 
 void pc_gx_begin_frame(void) {
     g_pc_gx_frame_begun = 1;
@@ -1156,6 +1158,7 @@ void pc_gx_flush_vertices(void) {
         }
     }
     pc_profiler_add_time(PC_PROF_TIMER_GL_STATE, state_start);
+    pc_gx_fog_probe_draw();
 
     g_gx.dirty = 0;
 
@@ -1234,6 +1237,7 @@ void GXSetProjection(const void* mtx, u32 type) {
 #endif
 
     pc_gx_flush_if_begin_complete();
+    pc_gx_fog_probe_projection((const float(*)[4])mtx, type);
     same = (int)type == last_type && memcmp(last_in, mtx, sizeof(last_in)) == 0;
 #ifdef PC_ENHANCEMENTS
     same = same && g_pc_widescreen_stretch == last_stretch &&
@@ -1702,48 +1706,108 @@ void GXSetCullMode(u32 mode) {
 void GXSetCoPlanar(GXBool enable) { (void)enable; }
 
 /* --- Fog --- */
-// --debug fog probe (logs/fog_probe.txt), for the bright flash on camera moves: every perspective fog with
-// start >= end or a non-finite value is logged as REVERSED (the shader then draws no fog at all); the first
-// perspective fog of each frame (the scene's) as "scene" when its distances changed.
-#define PC_FOG_PROBE_MAX_LINES 20000
+// --debug fog probe (logs/fog_probe.txt), for the bright flash on camera moves. Every perspective fog with
+// start >= end or a non-finite value is logged as REVERSED (the shader then draws no fog at all). Each frame
+// also gets one line: the first perspective projection's near/far, the first fog (type, distances, colour,
+// every fog type set that frame as a bit mask), perspective draws with / without fog, the eye depth of the object
+// origin over the fogged ones (min / average; the shader fogs by eye depth) and the camera (actor probe's copy).
+// ~20 min at 60 fps.
+#define PC_FOG_PROBE_MAX_LINES 80000
 
-static void pc_gx_fog_probe_new_frame(void) {
-    g_pc_debug.fog.frame++;
-    g_pc_debug.fog.scene_seen = 0;
-}
-
-static void pc_gx_fog_probe(u32 type, f32 startz, f32 endz, f32 nearz, f32 farz, GXColor color) {
+static int pc_gx_fog_probe_open(void) {
     PcFogProbe* p = &g_pc_debug.fog;
-    float dist[4] = { startz, endz, nearz, farz };
-    int reversed;
 
-    if (!g_pc_debug.enabled || type != GX_FOG_PERSP_LIN || p->lines >= PC_FOG_PROBE_MAX_LINES) {
-        return;
+    if (!g_pc_debug.enabled || p->lines >= PC_FOG_PROBE_MAX_LINES) {
+        return 0;
     }
     if (p->file == NULL) {
         p->file = pc_debug_open("fog_probe.txt");
         if (p->file == NULL) {
             p->lines = PC_FOG_PROBE_MAX_LINES;
-            return;
+            return 0;
         }
     }
+    return 1;
+}
 
-    reversed = !(startz < endz) || !isfinite(startz) || !isfinite(endz) || !isfinite(nearz) || !isfinite(farz);
-    if (!reversed) {
-        if (p->scene_seen) {
-            return;
-        }
-        p->scene_seen = 1;
-        if (memcmp(dist, p->last, sizeof(dist)) == 0) {
-            return;
-        }
-        memcpy(p->last, dist, sizeof(dist));
+static void pc_gx_fog_probe_new_frame(void) {
+    PcFogProbe* p = &g_pc_debug.fog;
+    xyz_t eye = g_pc_debug.actor.cam_eye;
+    xyz_t center = g_pc_debug.actor.cam_center;
+
+    if ((p->proj_seen || p->fog_seen) && pc_gx_fog_probe_open()) {
+        fprintf(p->file, "frame %u proj near %.2f far %.2f fog type %u (types 0x%x) start %.2f end %.2f color %d %d %d"
+                " draws fog %d nofog %d depth min %.1f avg %.1f eye %.1f %.1f %.1f center %.1f %.1f %.1f\n",
+                p->frame, p->proj_near, p->proj_far, p->fog_type, p->fog_types, p->fog_start, p->fog_end,
+                p->fog_rgb[0], p->fog_rgb[1], p->fog_rgb[2], p->draws_fog, p->draws_nofog, p->depth_min,
+                p->draws_fog > 0 ? p->depth_sum / p->draws_fog : 0.0f, eye.x, eye.y, eye.z, center.x, center.y,
+                center.z);
+        fflush(p->file);
+        p->lines++;
     }
+    p->frame++;
+    p->proj_seen = 0;
+    p->fog_seen = 0;
+    p->fog_types = 0;
+    p->draws_fog = 0;
+    p->draws_nofog = 0;
+    p->depth_sum = 0.0f;
+}
 
-    fprintf(p->file, "frame %u %s start %.2f end %.2f near %.2f far %.2f color %d %d %d\n", p->frame,
-            reversed ? "REVERSED" : "scene", startz, endz, nearz, farz, color.r, color.g, color.b);
-    fflush(p->file);
-    p->lines++;
+// GX perspective matrix: [2][2] = -n/(f-n), [2][3] = -f*n/(f-n)
+static void pc_gx_fog_probe_projection(const float m[3][4], u32 type) {
+    PcFogProbe* p = &g_pc_debug.fog;
+
+    if (!g_pc_debug.enabled || type != GX_PERSPECTIVE || p->proj_seen) {
+        return;
+    }
+    p->proj_seen = 1;
+    p->proj_far = m[2][2] != 0.0f ? m[2][3] / m[2][2] : 0.0f;
+    p->proj_near = m[2][2] != 1.0f ? m[2][3] / (m[2][2] - 1.0f) : 0.0f;
+}
+
+// Each draw with its final state (pc_gx_flush)
+static void pc_gx_fog_probe_draw(void) {
+    PcFogProbe* p = &g_pc_debug.fog;
+    float depth = -g_gx.pos_mtx[g_gx.current_mtx][2][3];
+
+    if (!g_pc_debug.enabled || g_gx.projection_type != GX_PERSPECTIVE) {
+        return;
+    }
+    if (g_gx.fog_type == 0) {
+        p->draws_nofog++;
+        return;
+    }
+    if (p->draws_fog == 0 || depth < p->depth_min) {
+        p->depth_min = depth;
+    }
+    p->depth_sum += depth;
+    p->draws_fog++;
+}
+
+static void pc_gx_fog_probe(u32 type, f32 startz, f32 endz, f32 nearz, f32 farz, GXColor color) {
+    PcFogProbe* p = &g_pc_debug.fog;
+
+    if (!g_pc_debug.enabled) {
+        return;
+    }
+    p->fog_types |= 1u << (type & 31);
+    if (!p->fog_seen && type != 0) {
+        p->fog_seen = 1;
+        p->fog_type = type;
+        p->fog_start = startz;
+        p->fog_end = endz;
+        p->fog_rgb[0] = color.r;
+        p->fog_rgb[1] = color.g;
+        p->fog_rgb[2] = color.b;
+    }
+    if (type == GX_FOG_PERSP_LIN && (!(startz < endz) || !isfinite(startz) || !isfinite(endz) || !isfinite(nearz) ||
+                                     !isfinite(farz)) && pc_gx_fog_probe_open()) {
+        fprintf(p->file, "frame %u REVERSED start %.2f end %.2f near %.2f far %.2f color %d %d %d\n", p->frame,
+                startz, endz, nearz, farz, color.r, color.g, color.b);
+        fflush(p->file);
+        p->lines++;
+    }
 }
 
 void GXSetFog(u32 type, f32 startz, f32 endz, f32 nearz, f32 farz, GXColor color) {
