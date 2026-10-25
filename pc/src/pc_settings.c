@@ -62,7 +62,7 @@ static const char* DEFAULT_SETTINGS =
     "\n"
     "# Render scale: 0 = auto (smallest multiple of 480 lines at least the window height, scaled down),\n"
     "# 1-6 = 480 lines times that, -1 = exactly the window size,\n"
-    "# -2 = integer (largest multiple of 480 lines that fits, not scaled, black bars)\n"
+    "# -2 = integer (largest multiple of 640x480 that fits, not scaled, black bars)\n"
     "render_scale = 0\n"
     "\n"
     "# Texture filtering: 0 = nearest-neighbor, 1 = use the game's filtering\n"
@@ -339,7 +339,7 @@ void pc_settings_save(void) {
     fprintf(f, "\n");
     fprintf(f, "# Render scale: 0 = auto (smallest multiple of 480 lines at least the window height, scaled down),\n");
     fprintf(f, "# 1-6 = 480 lines times that, -1 = exactly the window size,\n");
-    fprintf(f, "# -2 = integer (largest multiple of 480 lines that fits, not scaled, black bars)\n");
+    fprintf(f, "# -2 = integer (largest multiple of 640x480 that fits, not scaled, black bars)\n");
     fprintf(f, "render_scale = %d\n", g_pc_settings.render_scale);
     fprintf(f, "\n");
     fprintf(f, "# Texture filtering: 0 = nearest-neighbor, 1 = use the game's filtering\n");

@@ -28,11 +28,13 @@ void pc_render_target_size(int win_w, int win_h, int scale, int max_dim, int* ou
     if (win_w <= 0 || win_h <= 0) {
         w = PC_SCREEN_WIDTH;
         h = PC_SCREEN_HEIGHT;
-    } else if (scale == PC_RENDER_SCALE_INTEGER && win_h >= PC_GC_HEIGHT) {
-        int n = win_h / PC_GC_HEIGHT; // round down: never scaled
+    } else if (scale == PC_RENDER_SCALE_INTEGER && win_w >= PC_GC_WIDTH && win_h >= PC_GC_HEIGHT) {
+        // round down: never scaled; the game's 4:3 (bars on the sides too)
+        int n = win_h / PC_GC_HEIGHT;
+        if (win_w / PC_GC_WIDTH < n) n = win_w / PC_GC_WIDTH;
         if (n > PC_RENDER_SCALE_MAX) n = PC_RENDER_SCALE_MAX;
         h = n * PC_GC_HEIGHT;
-        w = win_w;
+        w = n * PC_GC_WIDTH;
     } else if (scale != PC_RENDER_SCALE_WINDOW) {
         int n = scale;
         if (n == PC_RENDER_SCALE_AUTO || n == PC_RENDER_SCALE_INTEGER) {
