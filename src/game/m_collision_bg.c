@@ -528,6 +528,9 @@ static void mCoBG_RegistCollisionWallInfo(mCoBG_ActorInf_c* actor_inf, mCoBG_Wal
 
 #include "../src/game/m_collision_bg_wall.c_inc"
 #include "../src/game/m_collision_bg_move.c_inc"
+#ifdef TARGET_PC
+#include "pc_outdoor_ftr.h"
+#endif
 #include "../src/game/m_collision_bg_column.c_inc"
 
 static int mCoBG_JudgeWallFromVector(f32* speed, f32* normal) {

@@ -29,6 +29,7 @@
 #include "m_debug.h"
 #ifdef TARGET_PC
 #include "pc_ap_logic.h"
+#include "pc_outdoor_ftr.h"
 #endif
 
 static int l_skip_other_func_set_wade = FALSE;

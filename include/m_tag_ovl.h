@@ -141,6 +141,10 @@ enum {
     mTG_TYPE_TAG_NW_SELECT_PUT,
     mTG_TYPE_76,
     mTG_TYPE_TAG_PASSWORD_ITEM,
+#ifdef TARGET_PC
+    mTG_TYPE_PC_FIELD_FTR,      /* outdoor furniture: Grab / Drop / Place / Quit */
+    mTG_TYPE_PC_FIELD_FTR_BURY, /* the same with Bury */
+#endif
 
     mTG_TYPE_NUM
 };

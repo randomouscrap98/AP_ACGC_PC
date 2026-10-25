@@ -282,6 +282,21 @@ static int mCoBG_MakeOneColumnCollisionData(mCoBG_column_c* col, mCoBG_UnitInfo_
             col->atr_wall = FALSE;
             return TRUE;
         }
+
+#ifdef TARGET_PC
+        /* Outdoor furniture shown as a model (pc_outdoor_ftr.c): blocks like a signboard */
+        if (pc_outdoor_ftr_at(ut_info->item, ut_info->ut_x, ut_info->ut_z)) {
+            col->pos.x = mFI_UT_WORLDSIZE_HALF_X_F + mFI_UT_WORLDSIZE_X_F * ut_info->ut_x;
+            col->pos.z = mFI_UT_WORLDSIZE_HALF_Z_F + mFI_UT_WORLDSIZE_Z_F * ut_info->ut_z;
+            col->pos.y = mCoBG_GetBgY_OnlyCenter_FromWpos2(col->pos, 0.0f);
+            col->radius = 19.0f;
+            col->height = col->pos.y + 45.0f;
+            col->ux = ut_info->ut_x;
+            col->uz = ut_info->ut_z;
+            col->atr_wall = FALSE;
+            return TRUE;
+        }
+#endif
     }
 
     return FALSE;

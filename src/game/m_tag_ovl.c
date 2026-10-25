@@ -30,6 +30,7 @@
 #ifdef TARGET_PC
 #include "pc_ap_logic.h"
 #include "pc_ap_catalogsanity.h"
+#include "pc_outdoor_ftr.h"
 
 // Drag marking: after X marks or unmarks a slot, keep X held; once it has been held
 // PC_TG_DRAG_FRAMES, every slot the cursor moves onto (same table) gets that same state.
@@ -292,6 +293,16 @@ static mTG_tag_word_c mTG_tag_word_korewoireru = {
     "Put Away        ",
     &mTG_putin_proc,
 };
+
+#ifdef TARGET_PC
+static void mTG_pc_field_place_proc(Submenu*, mSM_MenuInfo_c*);
+
+/* Outdoor furniture (pc_outdoor_ftr.c): drop shown as the model, facing the player */
+static mTG_tag_word_c mTG_tag_word_pc_place = {
+    "Place           ",
+    &mTG_pc_field_place_proc,
+};
+#endif
 
 static mTG_tag_word_c mTG_tag_word_zimenniueru = {
     "Plant           ",
@@ -630,6 +641,20 @@ static mTG_tag_word_c* mTG_field_default_bury[] = {
     &mTG_tag_word_zimenniumeru,
     &mTG_tag_word_yameru,
 };
+
+#ifdef TARGET_PC
+static mTG_tag_word_c* mTG_pc_field_ftr[] = {
+    &mTG_tag_word_tukamu,
+    &mTG_tag_word_zimennioku,
+    &mTG_tag_word_pc_place,
+    &mTG_tag_word_yameru,
+};
+
+static mTG_tag_word_c* mTG_pc_field_ftr_bury[] = {
+    &mTG_tag_word_tukamu,   &mTG_tag_word_zimennioku, &mTG_tag_word_pc_place,
+    &mTG_tag_word_zimenniumeru, &mTG_tag_word_yameru,
+};
+#endif
 
 static mTG_tag_word_c* mTG_field_letter[] = {
     &mTG_tag_word_tukamu,
@@ -1153,6 +1178,10 @@ static mTG_tag_data_c mTG_label_table[] = {
     { mTG_tag_nw_select_put, ARRAY_COUNT(mTG_tag_nw_select_put) },           /* mTG_TYPE_TAG_NW_SELECT_PUT */
     { NULL, 0 },                                                             /* mTG_TYPE_76 */
     { mTG_tag_password_item, ARRAY_COUNT(mTG_tag_password_item) },           /* mTG_TYPE_TAG_PASSWORD_ITEM */
+#ifdef TARGET_PC
+    { mTG_pc_field_ftr, ARRAY_COUNT(mTG_pc_field_ftr) },                     /* mTG_TYPE_PC_FIELD_FTR */
+    { mTG_pc_field_ftr_bury, ARRAY_COUNT(mTG_pc_field_ftr_bury) },           /* mTG_TYPE_PC_FIELD_FTR_BURY */
+#endif
 };
 
 static void mTG_init_tag_data_item_win(Submenu*);
@@ -2899,6 +2928,11 @@ static int mTG_common_throw_put_field(GAME_PLAY* play, mActor_name_t item, xyz_t
         if (mFI_Wpos2UtNum(&ux, &uz, *pos_p) && Common_Get(clip).bg_item_clip != NULL &&
             Common_Get(clip).bg_item_clip->player_drop_entry_proc != NULL) {
             res = Common_Get(clip).bg_item_clip->player_drop_entry_proc(&play->game, item, ux, uz, layer);
+#ifdef TARGET_PC
+            if (res) {
+                pc_outdoor_ftr_dropped(item, ux, uz, GET_PLAYER_ACTOR(play)->actor_class.shape_info.rotation.y);
+            }
+#endif
         }
     }
 
@@ -4016,6 +4050,15 @@ static void mTG_field_put_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
         }
     }
 }
+
+#ifdef TARGET_PC
+/* "Place": the normal field drop, remembered as a model (pc_outdoor_ftr_dropped) */
+static void mTG_pc_field_place_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
+    pc_outdoor_ftr_set_placing(TRUE);
+    mTG_field_put_proc(submenu, menu_info);
+    pc_outdoor_ftr_set_placing(FALSE);
+}
+#endif
 
 static void mTG_room_put_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
     GAME_PLAY* play = (GAME_PLAY*)gamePT;
@@ -6807,6 +6850,14 @@ static int mTG_select_tag_decide_item_normal(Submenu* submenu, mActor_name_t ite
             ret_tag_type = mTG_TYPE_FIELD_PLANT_JOB;
         }
     }
+
+#ifdef TARGET_PC
+    /* Outdoor furniture: "Place" next to "Drop" */
+    if ((ret_tag_type == mTG_TYPE_FIELD_DEFAULT || ret_tag_type == mTG_TYPE_FIELD_DEFAULT_BURY) &&
+        pc_outdoor_ftr_can_place(item)) {
+        ret_tag_type = ret_tag_type == mTG_TYPE_FIELD_DEFAULT ? mTG_TYPE_PC_FIELD_FTR : mTG_TYPE_PC_FIELD_FTR_BURY;
+    }
+#endif
 
     return ret_tag_type;
 }

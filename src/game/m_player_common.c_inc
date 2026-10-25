@@ -7303,6 +7303,17 @@ static mActor_name_t* Player_actor_Search_putin_item(ACTOR* actorx, xyz_t* targe
     if (fg_p != NULL && ITEM_IS_SIGNBOARD(*fg_p) != FALSE) {
         return fg_p;
     }
+#ifdef TARGET_PC
+    /* Outdoor furniture shown as a model blocks like a signboard, so it's reached from as far */
+    if (fg_p != NULL) {
+        int ux;
+        int uz;
+
+        if (mFI_Wpos2UtNum(&ux, &uz, *target_pos_p) && pc_outdoor_ftr_at(*fg_p, ux, uz)) {
+            return fg_p;
+        }
+    }
+#endif
 
     /* Now look for regular items */
     Player_actor_Get_PickupHandPosition(actorx, &pos, 20.0f);

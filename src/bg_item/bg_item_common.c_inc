@@ -2637,6 +2637,10 @@ static void bg_item_common_classifyitemDataTable(const GAME_PLAY* const play, bg
                         if (*fg_p != EMPTY_NO) {
 #ifdef TARGET_PC
                             fg_no2fg_type(pc_ap_tree_draw_fg(*fg_p), &type_data, col, type_data_table);
+                            /* Outdoor furniture: drawn as its model (pc_outdoor_ftr_draw), no leaf */
+                            if (pc_outdoor_ftr_at(*fg_p, base_ut_x + ut_x, base_ut_z + ut_z)) {
+                                flag = FALSE;
+                            }
 #else
                             fg_no2fg_type(*fg_p, &type_data, col, type_data_table);
 #endif

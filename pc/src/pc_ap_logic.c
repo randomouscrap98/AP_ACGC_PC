@@ -55,6 +55,7 @@
 #include "m_name_table.h"
 #include "m_item_name.h"
 #include "pc_menu_util.h"
+#include "pc_outdoor_ftr.h"
 #include "libc64/qrand.h"
 #include "ac_set_manager.h"
 
@@ -277,6 +278,7 @@ void pc_ap_load(const char* filename) {
   pc_ap_fruit_load(&g_ap.fruit, ini);
   pc_ap_furniture_load(&g_ap.furniture, ini);
   pc_ap_storage_load(&g_ap.storage, ini);
+  pc_outdoor_ftr_load(ini);
   g_ap.goal_letter_sent = pc_ap_ini_get_int(ini, NULL, PC_AP_KEY_GOAL_LETTER_SENT, 0);
   if(ini != NULL) {
     ini_destroy(ini);
@@ -293,6 +295,7 @@ int pc_ap_save(const char* filename) {
   pc_ap_fruit_save(&g_ap.fruit, ini);
   pc_ap_furniture_save(&g_ap.furniture, ini);
   pc_ap_storage_save(&g_ap.storage, ini);
+  pc_outdoor_ftr_save(ini);
   pc_ap_ini_set_int(ini, NULL, PC_AP_KEY_GOAL_LETTER_SENT, g_ap.goal_letter_sent);
   int ok = pc_ap_state_write(filename, ini);
   ini_destroy(ini);
