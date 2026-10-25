@@ -291,6 +291,7 @@ set(PC_SOURCES
     ${DECOMP_ROOT}/src/static/dolphin/pad/Padclamp.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_card.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_dirs.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_screenshot.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_vi.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_audio.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_aram.c
@@ -500,14 +501,12 @@ else()
     target_link_options(ac_pc PRIVATE -static-libgcc -static-libstdc++)
     # Find libap_client.so next to the exe only, never the absolute build path
     set_target_properties(ac_pc PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE INSTALL_RPATH "$ORIGIN")
-    # Window icon (also the .desktop icon), the Wayland launcher entry script, stb licence
+    # Window icon (also the .desktop icon), the Wayland launcher entry script
     add_custom_command(TARGET ac_pc POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/res/icon_128.png" "${CMAKE_BINARY_DIR}/bin/icon.png"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/res/install-desktop-entry.sh" "${CMAKE_BINARY_DIR}/bin/install-desktop-entry.sh"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/lib/stb/LICENSE" "${CMAKE_BINARY_DIR}/bin/licenses/stb-LICENSE.txt"
     )
 endif()
 
@@ -520,6 +519,8 @@ add_custom_command(TARGET ac_pc POST_BUILD
         "${CMAKE_CURRENT_SOURCE_DIR}/lib/glad/LICENSE" "${CMAKE_BINARY_DIR}/bin/licenses/glad-LICENSE.txt"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/lib/fixnes/LICENSE" "${CMAKE_BINARY_DIR}/bin/licenses/fixNES-LICENSE.txt"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/lib/stb/LICENSE" "${CMAKE_BINARY_DIR}/bin/licenses/stb-LICENSE.txt"
 )
 
 # Apworld version (one place to bump: the apworld manifest), shown on the AP overlay

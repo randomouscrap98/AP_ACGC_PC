@@ -4,6 +4,7 @@
 #include "pc_render_target.h"
 #include "pc_platform.h"
 #include "pc_settings.h"
+#include "pc_screenshot.h"
 
 int g_pc_render_w = PC_SCREEN_WIDTH;
 int g_pc_render_h = PC_SCREEN_HEIGHT;
@@ -170,10 +171,14 @@ static GLuint resolved_source(int x, int y, int w, int h) {
 }
 
 void pc_render_target_present(void) {
-    if (!s_fbo) return;
+    if (!s_fbo) {
+        pc_screenshot_frame(0, g_pc_window_w, g_pc_window_h); // drawing straight to the window
+        return;
+    }
 
     int scissor = scissor_off();
     GLuint src = resolved_source(0, 0, g_pc_render_w, g_pc_render_h);
+    pc_screenshot_frame(src, g_pc_render_w, g_pc_render_h);
     int same = g_pc_render_w == g_pc_window_w && g_pc_render_h == g_pc_window_h;
     // Integer: smaller than the window, centred 1:1 on black
     int centred = g_pc_settings.render_scale == PC_RENDER_SCALE_INTEGER && !same &&

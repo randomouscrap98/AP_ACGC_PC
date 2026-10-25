@@ -21,6 +21,7 @@
 #include "pc_dirs.h"
 #include "pc_sound_test.h"
 #include "pc_window_icon.h"
+#include "pc_screenshot.h"
 
 // Single implementation of the vendored ini.h (pc/lib/ini) for the exe
 #define INI_IMPLEMENTATION
@@ -237,6 +238,10 @@ int pc_platform_poll_events(void) {
                 }
                 if (event.key.keysym.sym == SDLK_F3 && !event.key.repeat) {
                     pc_speedhack_toggle();
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_F12 && !event.key.repeat) {
+                    pc_screenshot_request();
                     break;
                 }
                 if (event.key.keysym.sym == SDLK_ESCAPE && !event.key.repeat) {
