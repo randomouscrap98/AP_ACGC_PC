@@ -4,6 +4,7 @@
 #include "pc_platform.h"
 #include "pc_dirs.h"
 #include "pc_ap_overlay.h"
+#include "ap_archipelago.h" // AP_CTRL_* toast colours
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,7 +62,7 @@ void pc_screenshot_frame(unsigned int fbo, int w, int h) {
 
     if (state == SHOT_DONE || state == SHOT_FAILED) {
         // Two lines; the name is fixed-length, so it fits the toast box
-        snprintf(msg, sizeof(msg), "%s\n%s", state == SHOT_DONE ? "Screenshot saved" : "Screenshot failed",
+        snprintf(msg, sizeof(msg), "%s\n" AP_CTRL_RED "%s", state == SHOT_DONE ? "Screenshot saved" : "Screenshot failed",
                  s_name);
         pc_ap_overlay_toast(msg);
         SDL_AtomicSet(&s_state, SHOT_IDLE);
