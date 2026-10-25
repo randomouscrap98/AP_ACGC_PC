@@ -19,5 +19,9 @@
   "3": {
     "note": "0.5.2: Treesanity (new option, off = 0.5.1)",
     "added": {"treesanity": 0, "tree_checks_per_fruit": 3}
+  },
+  "5": {
+    "note": "0.5.4: Global Storage (new option, off = 0.5.3)",
+    "added": {"global_storage": 0}
   }
 }

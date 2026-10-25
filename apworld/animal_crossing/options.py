@@ -678,6 +678,14 @@ class ShopsAlwaysOpen(Toggle):
     display_name = "Shops Always Open"
 
 
+class GlobalStorage(Toggle):
+    """
+    Get access to an additional 200 item slots. Available in the PC pause menu.
+    Storage doesn't carry over with vanilla save.
+    """
+    display_name = "Global Storage"
+
+
 class NoWeeds(DefaultOnToggle):
     """
     Weeds never grow in your town.
@@ -1124,6 +1132,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     starting_tool: StartingTool
     shops_always_open: ShopsAlwaysOpen
     turnips_never_spoil: TurnipsNeverSpoil
+    global_storage: GlobalStorage
     fruit_filler: FruitFiller
     skip_intro: SkipIntro
     player_name: PlayerName

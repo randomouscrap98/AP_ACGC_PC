@@ -320,6 +320,8 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_shells.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_shellsanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_treesanity.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_storage.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_storage_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_settings.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_beach_logo.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_planting.c

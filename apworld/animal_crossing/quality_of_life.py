@@ -1,5 +1,6 @@
-# Quality of Life options plus Shops Always Open and Turnips Never Spoil. Logic reads the last two where it matters
-# (timesanity.shop_open_rule, the Ant rule in museumsanity.py); the rest only go to the client. The QoL group's
+# Quality of Life options plus Shops Always Open, Turnips Never Spoil and Global Storage. Logic reads the first two
+# where it matters (timesanity.shop_open_rule, the Ant rule in museumsanity.py); the rest only go to the client.
+# Global Storage is per seed only (not in the Settings > AP tab). The QoL group's
 # values only seed the save's Settings > AP tab (ap_settings.ini) on its first load.
 # No cockroaches, no fishing trash, easier critter catch, hidden bug/item hints and short shop talk are game settings
 # since 0.5.3 (Settings > Gameplay): their yaml options are ignored and not in slot_data.
@@ -7,6 +8,7 @@ def slot_data(world) -> dict:
     o = world.options
     return {
         "shops_always_open": o.shops_always_open.value,
+        "global_storage": o.global_storage.value,
         "no_weeds": o.no_weeds.value,
         "more_favors": o.more_favors.value,
         "villagers_dont_leave": o.villagers_dont_leave.value,

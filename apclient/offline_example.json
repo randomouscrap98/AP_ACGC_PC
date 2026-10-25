@@ -15,7 +15,7 @@
     "New town settings only apply when the town is made. The Settings > AP ones (every toggle from no_weeds on except",
     "shops_always_open and turnips_never_spoil, plus critter_odds, fossil_odds) only seed the save's ap_settings.ini on its",
     "first load: editing them here later does nothing for that save, change them in game in Settings > AP instead.",
-    "shops_always_open, turnips_never_spoil and the rest always follow this file. No cockroaches, no fishing trash, easier",
+    "shops_always_open, turnips_never_spoil, global_storage and the rest always follow this file. No cockroaches, no fishing trash, easier",
     "critters, hidden bug/item hints and short shop talk are game settings now (Settings > Gameplay), not in this file."
   ],
   "seed": "offline",
@@ -33,6 +33,7 @@
   "train_station": -1,
   "town_day": 0,
   "shops_always_open": 1,
+  "global_storage": 0,
   "no_weeds": 1,
   "more_favors": 1,
   "villagers_dont_leave": 0,

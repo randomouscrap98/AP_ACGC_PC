@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define PCAP_MAXFILE 8192
+#define PCAP_MAXFILE 16384 // Global Storage: up to ~4 KB (4 players x 200 items)
 
 
 int pc_ap_ini_get_int(ini_t * ini, const char * section, const char * key, int def) {
@@ -25,13 +25,32 @@ int pc_ap_ini_get_int(ini_t * ini, const char * section, const char * key, int d
 }
 
 void pc_ap_ini_set_int(ini_t * ini, const char * section, const char * key, int value) {
+  char num[64]; // Absurdly large
+  snprintf(num, sizeof(num), "%d", value);
+  pc_ap_ini_set_str(ini, section, key, num);
+}
+
+const char * pc_ap_ini_get_str(ini_t * ini, const char * section, const char * key) {
+  if (ini == NULL) {
+    return NULL;
+  }
+  int s = section == NULL ? INI_GLOBAL_SECTION : ini_find_section(ini, section, 0);
+  if (s == INI_NOT_FOUND) {
+    return NULL;
+  }
+  int p = ini_find_property(ini, s, key, 0);
+  if (p == INI_NOT_FOUND) {
+    return NULL;
+  }
+  return ini_property_value(ini, s, p);
+}
+
+void pc_ap_ini_set_str(ini_t * ini, const char * section, const char * key, const char * value) {
   int s = section == NULL ? INI_GLOBAL_SECTION : ini_find_section(ini, section, 0);
   if (s == INI_NOT_FOUND) {
     s = ini_section_add(ini, section, 0);
   }
-  char num[64]; // Absurdly large
-  snprintf(num, sizeof(num), "%d", value);
-  ini_property_add(ini, s, key, 0, num, 0);
+  ini_property_add(ini, s, key, 0, value, 0);
 }
 
 // The only code that knows sidecar versions. Add a step only for a version that removed a key or changed

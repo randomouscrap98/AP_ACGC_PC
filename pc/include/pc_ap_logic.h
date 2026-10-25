@@ -312,6 +312,22 @@ int pc_ap_time_change_allowed(struct game_play_s* play);
 // The gate on the last play frame, for the pause menu (which runs between frames); 0 during a reload
 int pc_ap_time_change_allowed_now(void);
 
+// Global Storage (pc_ap_storage.h): on for this seed
+int pc_ap_storage_on(void);
+// Its gate: the Date & Time gate without "outdoors" (also in houses and shops)
+int pc_ap_storage_open_allowed(struct game_play_s* play);
+// The gate on the last play frame, for the pause menu; 0 during a reload
+int pc_ap_storage_open_allowed_now(void);
+// The current player's storage: entries 0 .. count - 1 (EMPTY_NO past the end)
+int pc_ap_storage_count(void);
+mActor_name_t pc_ap_storage_item(int idx);
+// Whether storage takes this pocket item (pc_ap_storage_allowed)
+int pc_ap_storage_item_allowed(mActor_name_t item, int cond);
+// Move a pocket item into storage / a storage entry into the first empty pocket: PC_AP_STORAGE_* result.
+// Only while pc_ap_storage_open_allowed_now
+int pc_ap_storage_put_pocket(int pocket);
+int pc_ap_storage_take_item(int idx);
+
 // Save (pause menu): on the next play frame, if the Date & Time gate still passes, the Date & Time
 // reload without the date change (save and quit, load again), then a toast. Saving inside the live
 // scene breaks the town: structures are dummy tiles until the scene ends (research/midplay_save.md).

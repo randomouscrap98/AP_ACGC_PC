@@ -9,6 +9,7 @@
 #include "pc_ap_shell_menu.h"
 #include "pc_ap_tree_menu.h"
 #include "pc_ap_ftr_menu.h"
+#include "pc_ap_storage_menu.h"
 #include "pc_ap_logic.h"
 #include "pc_ap_overlay.h"
 
@@ -43,6 +44,7 @@ typedef enum {
     PAGE_AP = 7, // list of the AP pages below
     PAGE_FTR = 8, // Furniture Set or Chess Set
     PAGE_TREES = 9,
+    PAGE_STORAGE = 10,
 } PauseMenuPage;
 
 // Entries of the main and AP list pages; which ones show is decided by lists_update
@@ -51,6 +53,7 @@ typedef enum {
     MAIN_AP,
     MAIN_TIME,
     MAIN_SAVE,
+    MAIN_STORAGE, // Global Storage only
     MAIN_SETTINGS,
     MAIN_QUIT,
     MAIN_CATALOG, // AP page, Catalogsanity only
@@ -84,6 +87,7 @@ static pc_ap_critter_menu critter_menu; // Bugs or Fish
 static pc_ap_shell_menu shell_menu;
 static pc_ap_tree_menu tree_menu;
 static pc_ap_ftr_menu ftr_menu; // Furniture Set or Chess Set
+static pc_ap_storage_menu storage_menu;
 
 // Index of item in the list, 0 if it isn't shown
 static int list_find(const MenuList* list, MainItem item) {
@@ -108,6 +112,9 @@ static void lists_update(void) {
     list_add(&main_list, MAIN_AP);
     list_add(&main_list, MAIN_TIME);
     list_add(&main_list, MAIN_SAVE);
+    if (pc_ap_storage_on()) {
+        list_add(&main_list, MAIN_STORAGE);
+    }
     list_add(&main_list, MAIN_SETTINGS);
     list_add(&main_list, MAIN_QUIT);
     main_list.sel = list_find(&main_list, prev_main);
@@ -140,6 +147,7 @@ static const char* main_label(MainItem item) {
         case MAIN_AP:       return "AP";
         case MAIN_TIME:     return "Date & Time";
         case MAIN_SAVE:     return "Save";
+        case MAIN_STORAGE:  return "Storage";
         case MAIN_CATALOG:  return "Catalog";
         case MAIN_BUGS:     return "Bugs";
         case MAIN_FISH:     return "Fish";
@@ -157,6 +165,7 @@ static const char* main_label(MainItem item) {
 // Greyed out where it can't open
 static int main_disabled(MainItem item) {
     if (item == MAIN_TIME || item == MAIN_SAVE) return !pc_ap_time_change_allowed_now();
+    if (item == MAIN_STORAGE) return !pc_ap_storage_open_allowed_now();
     if (item == MAIN_AP || item == MAIN_CATALOG || item == MAIN_BUGS || item == MAIN_FISH || item == MAIN_SHELLS ||
         item == MAIN_TREES || item == MAIN_FTR_SET || item == MAIN_CHESS) {
         return !pc_ap_accepting();
@@ -211,6 +220,14 @@ static void list_activate(MainItem item) {
                 pc_pause_menu_toggle();
             } else {
                 pc_ap_overlay_toast("Save: only outdoors in your own town");
+            }
+            break;
+        case MAIN_STORAGE: /* the Date & Time gate without "outdoors" */
+            if (pc_ap_storage_open_allowed_now()) {
+                cur_page = PAGE_STORAGE;
+                pc_ap_storage_menu_enter(&storage_menu);
+            } else {
+                pc_ap_overlay_toast("Storage: not available right now");
             }
             break;
         case MAIN_CATALOG: /* needs a loaded save (the catalog is the player's) */
@@ -304,17 +321,18 @@ static void handle_action(pc_menu_action act) {
 
     /* Date & Time, Catalog, Bugs/Fish, Shells, Trees, Furniture/Chess Set: each page handles its own input. */
     if (cur_page == PAGE_TIME || cur_page == PAGE_CATALOG || cur_page == PAGE_CRITTERS || cur_page == PAGE_SHELLS ||
-        cur_page == PAGE_TREES || cur_page == PAGE_FTR) {
+        cur_page == PAGE_TREES || cur_page == PAGE_FTR || cur_page == PAGE_STORAGE) {
         int result;
         if (cur_page == PAGE_TIME)         result = pc_ap_time_menu_input(&time_menu, act);
         else if (cur_page == PAGE_CATALOG) result = pc_ap_catalog_menu_input(&catalog_menu, act);
         else if (cur_page == PAGE_SHELLS)  result = pc_ap_shell_menu_input(&shell_menu, act);
         else if (cur_page == PAGE_TREES)   result = pc_ap_tree_menu_input(&tree_menu, act);
         else if (cur_page == PAGE_FTR)     result = pc_ap_ftr_menu_input(&ftr_menu, act);
+        else if (cur_page == PAGE_STORAGE) result = pc_ap_storage_menu_input(&storage_menu, act);
         else                               result = pc_ap_critter_menu_input(&critter_menu, act);
         if (result == PC_MENU_BACK) {
             // Back to the list the page was opened from
-            cur_page = (cur_page == PAGE_TIME) ? PAGE_MAIN : PAGE_AP;
+            cur_page = (cur_page == PAGE_TIME || cur_page == PAGE_STORAGE) ? PAGE_MAIN : PAGE_AP;
         } else if (result == PC_MENU_RESUME) {
             pc_pause_menu_toggle();
         }
@@ -493,6 +511,8 @@ void pc_pause_menu_draw(struct game_s* game) {
         pc_ap_tree_menu_draw(&tree_menu, game);
     } else if (cur_page == PAGE_FTR) {
         pc_ap_ftr_menu_draw(&ftr_menu, game);
+    } else if (cur_page == PAGE_STORAGE) {
+        pc_ap_storage_menu_draw(&storage_menu, game);
     } else {
         pc_menu_dim_rect(game->graph, 180);
         if (cur_page == PAGE_MAIN)              draw_list_page(game, "- Paused -", &main_list);

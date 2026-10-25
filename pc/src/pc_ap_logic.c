@@ -15,6 +15,7 @@
 #include "pc_ap_catalogsanity.h"
 #include "pc_ap_shellsanity.h"
 #include "pc_ap_treesanity.h"
+#include "pc_ap_storage.h"
 #include "pc_ap_settings.h"
 #include "pc_ap_shells.h"
 #include "pc_ap_overlay.h"
@@ -123,6 +124,7 @@ typedef struct {
   pc_ap_catalogsanity catalog;
   pc_ap_shellsanity shells;
   pc_ap_treesanity trees;
+  pc_ap_storage storage;
   // Treesanity counts for this frame (pc_ap_tree_counts): AP items per bearing tree, fruit the player has
   unsigned frame;      // pc_ap_update calls
   unsigned trees_frame; // frame the counts are from, +1 (0 = never)
@@ -135,6 +137,7 @@ typedef struct {
   int64_t dug_check;    // instant fossil's "Dig Up" check, sent when its "You got" message shows (-1 = none)
   pc_ap_reload reload;
   int time_change_allowed; // Date & Time gate on the last play frame (pause menu reads it)
+  int storage_allowed;     // Global Storage gate on the last play frame (pause menu reads it)
   pc_ap_request request;
   int initialized;    // module config set from slot_data
 } pc_ap;
@@ -159,6 +162,7 @@ void pc_ap_init(void) {
   pc_ap_catalogsanity_init(&g_ap.catalog, sd);
   pc_ap_shellsanity_init(&g_ap.shells, sd);
   pc_ap_treesanity_init(&g_ap.trees, sd);
+  pc_ap_storage_init(&g_ap.storage, sd); // storage itself: pc_ap_load
   g_ap.trees_frame = 0;
   pc_ap_settings_init(&g_ap.settings, sd); // until pc_ap_settings_open reads the save's file
   g_ap.settings_open = 0;
@@ -166,6 +170,7 @@ void pc_ap_init(void) {
   // Cleared here as when they were timesanity fields
   memset(&g_ap.reload, 0, sizeof(g_ap.reload));
   g_ap.time_change_allowed = 0;
+  g_ap.storage_allowed = 0;
   memset(&g_ap.request, 0, sizeof(g_ap.request));
   g_ap.goal_letter_sent = 0; // persisted: pc_ap_load sets it
   g_ap.dug_check = -1;
@@ -270,6 +275,7 @@ void pc_ap_load(const char* filename) {
   pc_ap_money_load(&g_ap.money, ini);
   pc_ap_fruit_load(&g_ap.fruit, ini);
   pc_ap_furniture_load(&g_ap.furniture, ini);
+  pc_ap_storage_load(&g_ap.storage, ini);
   g_ap.goal_letter_sent = pc_ap_ini_get_int(ini, NULL, PC_AP_KEY_GOAL_LETTER_SENT, 0);
   if(ini != NULL) {
     ini_destroy(ini);
@@ -285,6 +291,7 @@ int pc_ap_save(const char* filename) {
   pc_ap_money_save(&g_ap.money, ini);
   pc_ap_fruit_save(&g_ap.fruit, ini);
   pc_ap_furniture_save(&g_ap.furniture, ini);
+  pc_ap_storage_save(&g_ap.storage, ini);
   pc_ap_ini_set_int(ini, NULL, PC_AP_KEY_GOAL_LETTER_SENT, g_ap.goal_letter_sent);
   int ok = pc_ap_state_write(filename, ini);
   ini_destroy(ini);
@@ -1094,9 +1101,9 @@ void pc_ap_time_step_hour(lbRTC_time_c* t, int dir) {
   pc_ap_timesanity_step_hour(&g_ap.time, t, dir);
 }
 
-int pc_ap_time_change_allowed(GAME_PLAY* play) {
+// Date & Time without the outdoors rule: Global Storage also opens indoors (houses, shops)
+int pc_ap_storage_open_allowed(GAME_PLAY* play) {
   return pc_ap_in_game(play) &&
-         Save_Get(scene_no) == SCENE_FG &&
          !mFI_CheckInIsland() &&
          !mLd_PlayerManKindCheck() && // foreigner
          !Common_Get(reset_flag) &&
@@ -1105,8 +1112,45 @@ int pc_ap_time_change_allowed(GAME_PLAY* play) {
          mPlib_able_submenu_type1((GAME*)play);
 }
 
+int pc_ap_time_change_allowed(GAME_PLAY* play) {
+  return Save_Get(scene_no) == SCENE_FG && pc_ap_storage_open_allowed(play);
+}
+
 int pc_ap_time_change_allowed_now(void) {
   return g_ap.time_change_allowed;
+}
+
+int pc_ap_storage_on(void) {
+  return g_ap.storage.enabled;
+}
+
+int pc_ap_storage_open_allowed_now(void) {
+  return g_ap.storage_allowed;
+}
+
+int pc_ap_storage_count(void) {
+  int player = Common_Get(player_no);
+  return player >= 0 && player < PLAYER_NUM ? g_ap.storage.count[player] : 0;
+}
+
+mActor_name_t pc_ap_storage_item(int idx) {
+  int player = Common_Get(player_no);
+  if(player < 0 || player >= PLAYER_NUM || idx < 0 || idx >= g_ap.storage.count[player]) {
+    return EMPTY_NO;
+  }
+  return g_ap.storage.items[player][idx];
+}
+
+int pc_ap_storage_item_allowed(mActor_name_t item, int cond) {
+  return pc_ap_storage_allowed(&g_ap.storage, item, cond);
+}
+
+int pc_ap_storage_put_pocket(int pocket) {
+  return pc_ap_storage_put(&g_ap.storage, Common_Get(player_no), Now_Private, pocket);
+}
+
+int pc_ap_storage_take_item(int idx) {
+  return pc_ap_storage_take(&g_ap.storage, Common_Get(player_no), Now_Private, idx);
 }
 
 // Fade out of the town, then save and load again (pc_ap_time_reload_save). date NULL = keep the date.
@@ -1255,6 +1299,7 @@ void pc_ap_tick(GAME_PLAY* play) {
   pc_ap_request_tick(play); // before the gate: a blocked request is dropped with a toast
   // Not while paused (Game_play_move returns first), so the pause menu sees the last frame's
   g_ap.time_change_allowed = g_ap.reload.step == PC_AP_RELOAD_NONE && pc_ap_time_change_allowed(play);
+  g_ap.storage_allowed = g_ap.reload.step == PC_AP_RELOAD_NONE && pc_ap_storage_open_allowed(play);
   if(!pc_ap_in_game(play)) {
     return;
   }

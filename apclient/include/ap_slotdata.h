@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 // slot_data format this client reads (apworld SLOT_DATA_VERSION). Bump rules: ignore/docs/reference.md "Versions"
-#define AP_SLOTDATA_VERSION 4
+#define AP_SLOTDATA_VERSION 5
 
 #define AP_LOAN_NUM     5 // starting, medium, basement, large, upper (upgrade order)
 #define AP_BELLCREDIT_NUM 3 // small, modest, large
@@ -102,6 +102,7 @@ typedef struct {
   // QOL
   int skip_intro;
   int shops_always_open;
+  int global_storage;         // Global Storage: 200 extra item slots in the pause menu (per seed only)
   int no_weeds;
   int more_favors;            // villagers (almost) always offer a favor
   int villagers_dont_leave;   // no move-outs, no "thinking of moving" talk

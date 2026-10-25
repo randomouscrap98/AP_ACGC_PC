@@ -8,7 +8,7 @@
 #define PC_AP_STATE_FILENAME "ap_state.ini"
 // Format of ap_state.ini and ap_settings.ini (one number for both), in their global section.
 // Bump rules: ignore/docs/reference.md "Versions"
-#define PC_AP_STATE_VERSION 2
+#define PC_AP_STATE_VERSION 3
 #define PC_AP_STATE_KEY_VERSION "version"
 
 #ifdef __cplusplus
@@ -30,6 +30,10 @@ int pc_ap_state_write(const char * filename, struct ini_t* ini);
 int pc_ap_ini_get_int(struct ini_t* ini, const char * section, const char * key, int def);
 // Add an integer property to a section (made if missing; NULL = the global section)
 void pc_ap_ini_set_int(struct ini_t* ini, const char * section, const char * key, int value);
+// String property (valid until ini changes); NULL if ini is NULL or the section or key is missing
+const char * pc_ap_ini_get_str(struct ini_t* ini, const char * section, const char * key);
+// Add a string property to a section (made if missing; NULL = the global section)
+void pc_ap_ini_set_str(struct ini_t* ini, const char * section, const char * key, const char * value);
 
 #ifdef __cplusplus
 }
