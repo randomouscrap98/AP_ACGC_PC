@@ -285,6 +285,10 @@ void pc_ap_load(const char* filename) {
   }
 }
 
+void pc_ap_before_save(void) {
+  pc_outdoor_ftr_prune();
+}
+
 int pc_ap_save(const char* filename) {
   ini_t* ini = ini_create(NULL);
   pc_ap_loansanity_save(&g_ap.loans, ini);

@@ -33,6 +33,7 @@ typedef struct {
   f32 step;    // phase speed per frame
   f32 amount;  // squash amount, shrinks each half swing
   f32 dust;    // frames since the pop (dust puffs at 2 and 6)
+  xyz_t scale; // this frame's squash (drawn while BIRTH)
 } pc_outdoor_ftr_anim;
 
 typedef struct {
@@ -45,7 +46,11 @@ typedef struct {
 
 // Sidecar
 void pc_outdoor_ftr_load(struct ini_t* ini); // NULL: none
-void pc_outdoor_ftr_save(struct ini_t* ini);
+void pc_outdoor_ftr_save(struct ini_t* ini); // writes the list only
+// Before a save: forget pieces whose anchor no longer holds their item (picked up in vanilla, the dump cleared...)
+// and empty their units still holding the placeholder, straight in the save. Not as a visitor (the loaded town may
+// be another one)
+void pc_outdoor_ftr_prune(void);
 
 // Item menu: whether "Place" is offered for this pocket item (own town outdoors, supported furniture)
 int pc_outdoor_ftr_can_place(u16 item);
@@ -64,16 +69,16 @@ int pc_outdoor_ftr_at(u16 item, int ux, int uz);
 // The anchor of the intact piece covering global unit ux, uz (pickup and the item name go there). FALSE: none
 int pc_outdoor_ftr_anchor(int ux, int uz, int* anchor_ux, int* anchor_uz);
 
-// bg_item draw (after its own items): the models near the player
+// bg_item move, once a frame: the pop / shrink animations and the skeleton / unique-code pieces' own update
+void pc_outdoor_ftr_update(struct game_s* game);
+// bg_item draw (after its own items): the models near the player, as the last update left them
 void pc_outdoor_ftr_draw(struct game_s* game);
 
 // Pure helpers (unit tests)
-// One frame (dt in 60 fps frames) of the appear animation; fills scale; returns the dust puffs due (0, 1 = the first
-// pair, 2 = the second). The animation ends (state NONE, scale 1) once the wobble is small
-int pc_outdoor_ftr_birth_step(pc_outdoor_ftr_anim* a, f32 dt, xyz_t* scale);
+// One frame (dt in 60 fps frames) of the appear animation; sets a->scale; returns the dust puffs due (0, 1 = the
+// first pair, 2 = the second). The animation ends (state NONE, scale 1) once the wobble is small
+int pc_outdoor_ftr_birth_step(pc_outdoor_ftr_anim* a, f32 dt);
 int pc_outdoor_ftr_rot_from_angle(s16 player_angle); // the room's rule (aMR_JudgeBreedNewFurniture)
-// The room's look-at units (aMR_GetPlayerLookAtUnit): try 0..4, each a unit next to the player's
-void pc_outdoor_ftr_look_at(int* ux, int* uz, s16 player_angle, int try_no);
 // Units of a piece of profile shape `shape` (aFTR_SHAPE_*) at anchor ux, uz turned `rot`, anchor first
 // (aMR_SetInfoFurnitureTable). Returns the count (1, 2 or 4)
 int pc_outdoor_ftr_units(int shape, int rot, int ux, int uz, int* out_x, int* out_z);
@@ -95,6 +100,10 @@ void aMR_pc_ActorMove(struct furniture_actor_s* ftr_actor, struct game_s* game);
 void aMR_pc_ActorDt(struct furniture_actor_s* ftr_actor);
 void aMR_pc_DrawPlain(struct game_s* game, u16 ftr_no, const xyz_t* pos, s16 angle, const xyz_t* scale,
                       struct furniture_actor_s* actor);
+// The room's own helpers (ac_my_room_move.c_inc, not static on PC): look-at unit try 0..4 next to the player's,
+// and a dust puff's angle toward a footprint corner
+void aMR_GetPlayerLookAtUnit(int* ut_x, int* ut_z, s16 angleY, int high_ofs);
+s16 aMR_GetDustAngle(xyz_t* vec);
 
 #ifdef __cplusplus
 }

@@ -275,6 +275,9 @@ static int pc_save_write_gci_to(const char* gci_path, const char* tmp_path, int 
 
     if (!pc_save_ready) return TRUE;
 
+    if (with_ap_state) {
+        pc_ap_before_save(); /* may edit the save (outdoor furniture placeholders): before it's copied below */
+    }
     pc_card_dir_create();
 
     Save_Get(save_exist) = TRUE;

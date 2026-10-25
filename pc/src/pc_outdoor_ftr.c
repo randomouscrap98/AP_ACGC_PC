@@ -56,9 +56,9 @@ typedef struct {
   pc_outdoor_ftr_piece piece; // as it was (its rig slot, if any, is found by anchor + item)
   xyz_t pos;
   f32 scale;
+  int dust; // the puff is still due (next update)
 } pc_outdoor_ftr_bye;
 static pc_outdoor_ftr_bye s_byes[PC_OUTDOOR_FTR_BYES];
-static u32 s_anim_frame; // last frame the animations stepped (draw can run twice a frame)
 
 static void pc_outdoor_ftr_model_pos(const pc_outdoor_ftr_piece* p, xyz_t* pos);
 
@@ -76,24 +76,6 @@ int pc_outdoor_ftr_rot_from_angle(s16 player_angle) {
     return mRmTp_DIRECT_WEST;
   }
   return mRmTp_DIRECT_SOUTH;
-}
-
-void pc_outdoor_ftr_look_at(int* ux, int* uz, s16 player_angle, int try_no) {
-  // clang-format off
-  static const s8 unit_offset[16][2] = {
-    { 0, 1 }, { 1, 1 }, { 1, 1 }, { 1, 0 }, { 1, 0 }, { 1, -1 }, { 1, -1 }, { 0, -1 },
-    { 0, -1 }, { -1, -1 }, { -1, -1 }, { -1, 0 }, { -1, 0 }, { -1, 1 }, { -1, 1 }, { 0, 1 },
-  };
-  // clang-format on
-  static const int try_offset[8] = { 0, 2, -2, 4, -4, 6, -6, 8 };
-  int idx;
-
-  if(try_no < 0 || try_no >= 8) {
-    return;
-  }
-  idx = (((player_angle >> 12) & 0xF) + try_offset[try_no]) & 0xF;
-  *ux += unit_offset[idx][0];
-  *uz += unit_offset[idx][1];
 }
 
 int pc_outdoor_ftr_units(int shape, int rot, int ux, int uz, int* out_x, int* out_z) {
@@ -119,7 +101,8 @@ int pc_outdoor_ftr_units(int shape, int rot, int ux, int uz, int* out_x, int* ou
   return 1;
 }
 
-int pc_outdoor_ftr_birth_step(pc_outdoor_ftr_anim* a, f32 dt, xyz_t* scale) {
+int pc_outdoor_ftr_birth_step(pc_outdoor_ftr_anim* a, f32 dt) {
+  xyz_t* scale = &a->scale;
   f32 prev_dust = a->dust;
   s16 prev = (s16)a->counter;
   s16 now;
@@ -223,21 +206,24 @@ static int pc_outdoor_ftr_piece_units(const pc_outdoor_ftr_piece* p, int* xs, in
   return pc_outdoor_ftr_units(pc_outdoor_ftr_shape(p->item), p->rot, p->ux, p->uz, xs, zs);
 }
 
-// Its item on the anchor (or RSV_NO while it falls there), the placeholder on the rest
-static int pc_outdoor_ftr_intact(const pc_outdoor_ftr_piece* p) {
+// The placeholder still on every unit but the anchor
+static int pc_outdoor_ftr_placeholders_there(const pc_outdoor_ftr_piece* p) {
   int xs[4], zs[4];
   int n = pc_outdoor_ftr_piece_units(p, xs, zs);
-  u16 anchor = pc_outdoor_ftr_fg(p->ux, p->uz);
 
-  if(anchor != p->item && anchor != RSV_NO) {
-    return FALSE;
-  }
   for(int i = 1; i < n; i++) {
     if(pc_outdoor_ftr_fg(xs[i], zs[i]) != PC_OUTDOOR_FTR_PLACEHOLDER) {
       return FALSE;
     }
   }
   return TRUE;
+}
+
+// Its item on the anchor (or RSV_NO while it falls there), the placeholder on the rest
+static int pc_outdoor_ftr_intact(const pc_outdoor_ftr_piece* p) {
+  u16 anchor = pc_outdoor_ftr_fg(p->ux, p->uz);
+
+  return (anchor == p->item || anchor == RSV_NO) && pc_outdoor_ftr_placeholders_there(p);
 }
 
 // The piece with a unit at ux, uz (any state), or -1
@@ -286,9 +272,7 @@ static void pc_outdoor_ftr_remove(int i, int live) {
   s_pieces[i] = s_pieces[--s_count];
 }
 
-// Forget pieces whose anchor no longer holds their item (picked up in vanilla, dump cleared...). Not as a visitor:
-// the loaded town may not be this one
-static void pc_outdoor_ftr_prune(void) {
+void pc_outdoor_ftr_prune(void) {
   if(mLd_PlayerManKindCheck()) {
     return;
   }
@@ -308,7 +292,6 @@ void pc_outdoor_ftr_load(struct ini_t* ini) {
 void pc_outdoor_ftr_save(struct ini_t* ini) {
   static char buf[PC_OUTDOOR_FTR_MAX * 24];
 
-  pc_outdoor_ftr_prune();
   if(s_count == 0) {
     return;
   }
@@ -390,7 +373,7 @@ int pc_outdoor_ftr_place(GAME_PLAY* play, u16 item) {
     int tx = player_ux;
     int tz = player_uz;
 
-    pc_outdoor_ftr_look_at(&tx, &tz, angle, t);
+    aMR_GetPlayerLookAtUnit(&tx, &tz, angle, t);
     for(int s = 0; s < (shape == aFTR_SHAPE_TYPEC ? 4 : 1); s++) {
       int xs[4], zs[4];
       int n = pc_outdoor_ftr_units(shape, rot, tx + square_ofs[s][0], tz + square_ofs[s][1], xs, zs);
@@ -420,45 +403,36 @@ int pc_outdoor_ftr_place(GAME_PLAY* play, u16 item) {
   return FALSE;
 }
 
-void pc_outdoor_ftr_dropped(u16 item, int ux, int uz) {
-  int i;
+// The piece anchored at this own-town unit, or -1 (island / other town units aren't this town's)
+static int pc_outdoor_ftr_town_anchor(int ux, int uz) {
+  return pc_outdoor_ftr_own_town() ? pc_outdoor_ftr_find_anchor(ux, uz) : -1;
+}
 
-  if(!pc_outdoor_ftr_own_town()) {
-    return; // island / other town units aren't this town's
-  }
-  i = pc_outdoor_ftr_find_anchor(ux, uz);
+void pc_outdoor_ftr_dropped(u16 item, int ux, int uz) {
+  int i = pc_outdoor_ftr_town_anchor(ux, uz);
+
   if(i >= 0) {
     pc_outdoor_ftr_remove(i, TRUE);
   }
 }
 
 void pc_outdoor_ftr_picked_up(int ux, int uz) {
-  int i;
+  int i = pc_outdoor_ftr_town_anchor(ux, uz);
 
-  if(!pc_outdoor_ftr_own_town()) {
-    return;
-  }
-  i = pc_outdoor_ftr_find_anchor(ux, uz);
   if(i < 0) {
     return;
   }
   // Shrinks away where it stood (only if it was showing as a model: the other units still hold the placeholders)
-  for(int b = 0; b < PC_OUTDOOR_FTR_BYES; b++) {
-    if(!s_byes[b].used) {
-      int xs[4], zs[4];
-      int n = pc_outdoor_ftr_piece_units(&s_pieces[i], xs, zs);
-      int intact = TRUE;
-
-      for(int u = 1; u < n; u++) {
-        intact = intact && pc_outdoor_ftr_fg(xs[u], zs[u]) == PC_OUTDOOR_FTR_PLACEHOLDER;
-      }
-      if(intact) {
+  if(pc_outdoor_ftr_placeholders_there(&s_pieces[i])) {
+    for(int b = 0; b < PC_OUTDOOR_FTR_BYES; b++) {
+      if(!s_byes[b].used) {
         s_byes[b].used = TRUE;
         s_byes[b].piece = s_pieces[i];
         s_byes[b].scale = 1.0f;
+        s_byes[b].dust = TRUE;
         pc_outdoor_ftr_model_pos(&s_pieces[i], &s_byes[b].pos);
+        break;
       }
-      break;
     }
   }
   pc_outdoor_ftr_remove(i, TRUE);
@@ -489,8 +463,19 @@ int pc_outdoor_ftr_anchor(int ux, int uz, int* anchor_ux, int* anchor_uz) {
   return TRUE;
 }
 
-// The FTR_ACTOR for piece p, moved once per frame
-static FTR_ACTOR* pc_outdoor_ftr_rig_for(const pc_outdoor_ftr_piece* p, GAME* game) {
+// Piece p's FTR_ACTOR slot, or NULL
+static pc_outdoor_ftr_rig* pc_outdoor_ftr_rig_find(const pc_outdoor_ftr_piece* p) {
+  for(int i = 0; i < PC_OUTDOOR_FTR_RIGS; i++) {
+    pc_outdoor_ftr_rig* c = &s_rigs[i];
+    if(c->used && c->ux == p->ux && c->uz == p->uz && c->item == p->item) {
+      return c;
+    }
+  }
+  return NULL;
+}
+
+// Update: piece p's FTR_ACTOR, set up the first time (taking the free / least recently used slot), else moved
+static void pc_outdoor_ftr_rig_update(const pc_outdoor_ftr_piece* p, GAME* game) {
   u32 frame = game->frame_counter;
   pc_outdoor_ftr_rig* r = NULL;
   int ftr = mRmTp_FtrItemNo2FtrIdx(p->item);
@@ -517,11 +502,10 @@ static FTR_ACTOR* pc_outdoor_ftr_rig_for(const pc_outdoor_ftr_piece* p, GAME* ga
     r->uz = p->uz;
     r->item = p->item;
     r->used = TRUE;
-  } else if(r->frame != frame) {
+  } else {
     aMR_pc_ActorMove(&r->actor, game);
   }
   r->frame = frame;
-  return &r->actor;
 }
 
 // Where the model stands: the anchor's centre, a 2x2's centre of its 4 units; on the ground
@@ -534,14 +518,6 @@ static void pc_outdoor_ftr_model_pos(const pc_outdoor_ftr_piece* p, xyz_t* pos) 
   }
   pos->y = 0.0f;
   pos->y = mCoBG_GetBgY_OnlyCenter_FromWpos2(*pos, 0.0f);
-}
-
-// The room's dust puff toward a footprint corner (aMR_GetDustAngle)
-static s16 pc_outdoor_ftr_dust_angle(f32 dx, f32 dz) {
-  if(dx > 0.0f) {
-    return dz > 0.0f ? DEG2SHORT_ANGLE(45.0f) : DEG2SHORT_ANGLE(135.0f);
-  }
-  return dz > 0.0f ? DEG2SHORT_ANGLE(-90.0f) : DEG2SHORT_ANGLE(-135.0f);
 }
 
 // Dust at two opposite corners of piece p's footprint (pair 1: front left + back right, 2: the others), like
@@ -565,45 +541,46 @@ static void pc_outdoor_ftr_dust(GAME* game, const pc_outdoor_ftr_piece* p, const
     f32 dx = corners[pair - 1][c][0] * (max_x - min_x) * 0.5f;
     f32 dz = corners[pair - 1][c][1] * (max_z - min_z) * 0.5f;
     xyz_t pos;
+    xyz_t dir = { dx, 0.0f, dz };
 
     pos.x = (min_x + max_x) * 0.5f + dx * 0.6f;
     pos.y = center->y;
     pos.z = (min_z + max_z) * 0.5f + dz + 3.5f;
-    eEC_CLIP->effect_make_proc(eEC_EFFECT_DUST, pos, 2, pc_outdoor_ftr_dust_angle(dx, dz), game, RSV_NO, 0, 4);
+    eEC_CLIP->effect_make_proc(eEC_EFFECT_DUST, pos, 2, aMR_GetDustAngle(&dir), game, RSV_NO, 0, 4);
   }
 }
 
-static FTR_ACTOR* pc_outdoor_ftr_rig_of(const pc_outdoor_ftr_piece* p, GAME* game) {
-  return aMR_pc_NeedsActor(mRmTp_FtrItemNo2FtrIdx(p->item)) ? pc_outdoor_ftr_rig_for(p, game) : NULL;
+static FTR_ACTOR* pc_outdoor_ftr_actor_of(const pc_outdoor_ftr_piece* p) {
+  pc_outdoor_ftr_rig* r = pc_outdoor_ftr_rig_find(p);
+  return r != NULL ? &r->actor : NULL;
 }
 
-void pc_outdoor_ftr_draw(GAME* game) {
-  PLAYER_ACTOR* player;
-  xyz_t ppos;
-  int step;
+// Shown as its model near the player: within draw distance, landed (its item on the anchor) and intact. pos: where
+static int pc_outdoor_ftr_shown(const pc_outdoor_ftr_piece* p, const xyz_t* ppos, xyz_t* pos) {
+  pc_outdoor_ftr_model_pos(p, pos);
+  return ABS(pos->x - ppos->x) <= PC_OUTDOOR_FTR_DRAW_DIST && ABS(pos->z - ppos->z) <= PC_OUTDOOR_FTR_DRAW_DIST &&
+         pc_outdoor_ftr_fg(p->ux, p->uz) == p->item && pc_outdoor_ftr_intact(p);
+}
+
+static PLAYER_ACTOR* pc_outdoor_ftr_player(GAME* game) {
+  return pc_outdoor_ftr_own_town() ? GET_PLAYER_ACTOR((GAME_PLAY*)game) : NULL;
+}
+
+void pc_outdoor_ftr_update(GAME* game) {
+  PLAYER_ACTOR* player = pc_outdoor_ftr_player(game);
   f32 dt;
 
-  if(!pc_outdoor_ftr_own_town()) {
-    return;
-  }
-  player = GET_PLAYER_ACTOR((GAME_PLAY*)game);
   if(player == NULL) {
     return;
   }
-  ppos = player->actor_class.world.position;
-  step = game->frame_counter != s_anim_frame;
-  s_anim_frame = game->frame_counter;
   dt = game->graph != NULL ? (f32)game->graph->dt_num_60fps_frames : 1.0f;
 
   for(int i = 0; i < s_count; i++) {
     pc_outdoor_ftr_piece* p = &s_pieces[i];
     xyz_t pos;
-    xyz_t scale = { 1.0f, 1.0f, 1.0f };
 
-    pc_outdoor_ftr_model_pos(p, &pos);
-    if(ABS(pos.x - ppos.x) > PC_OUTDOOR_FTR_DRAW_DIST || ABS(pos.z - ppos.z) > PC_OUTDOOR_FTR_DRAW_DIST ||
-       pc_outdoor_ftr_fg(p->ux, p->uz) != p->item || !pc_outdoor_ftr_intact(p)) {
-      continue; // far away, still falling as a leaf, or not intact (its leaf / papers show)
+    if(!pc_outdoor_ftr_shown(p, &player->actor_class.world.position, &pos)) {
+      continue;
     }
     if(p->anim.state == PC_OUTDOOR_FTR_ANIM_LANDING) { // the leaf just landed: pop
       p->anim.state = PC_OUTDOOR_FTR_ANIM_BIRTH;
@@ -614,23 +591,50 @@ void pc_outdoor_ftr_draw(GAME* game) {
       sAdo_OngenTrgStart(NA_SE_ITEM_HORIDASHI, &pos);
     }
     if(p->anim.state == PC_OUTDOOR_FTR_ANIM_BIRTH) {
-      if(step) {
-        int puffs = pc_outdoor_ftr_birth_step(&p->anim, dt, &scale);
-        if(puffs != 0) {
-          pc_outdoor_ftr_dust(game, p, &pos, puffs);
-        }
-      } else { // drawn again this frame: same scale
-        f32 y = sinf_table(SHORT2RAD_ANGLE2((s16)p->anim.counter)) * p->anim.amount;
-        scale.x = scale.z = 1.0f - y;
-        scale.y = 1.0f + y;
+      int puffs = pc_outdoor_ftr_birth_step(&p->anim, dt);
+      if(puffs != 0) {
+        pc_outdoor_ftr_dust(game, p, &pos, puffs);
       }
     }
-    aMR_pc_DrawPlain(game, mRmTp_FtrItemNo2FtrIdx(p->item), &pos, (s16)(p->rot * DEG2SHORT_ANGLE(90.0f)),
-                     p->anim.state == PC_OUTDOOR_FTR_ANIM_BIRTH ? &scale : NULL,
-                     pc_outdoor_ftr_rig_of(p, game));
+    if(aMR_pc_NeedsActor(mRmTp_FtrItemNo2FtrIdx(p->item))) {
+      pc_outdoor_ftr_rig_update(p, game);
+    }
   }
 
   // Picked up: shrink 1/12 a frame, dust at the start, gone below a quarter
+  for(int b = 0; b < PC_OUTDOOR_FTR_BYES; b++) {
+    pc_outdoor_ftr_bye* bye = &s_byes[b];
+
+    if(!bye->used) {
+      continue;
+    }
+    if(bye->dust) {
+      pc_outdoor_ftr_dust(game, &bye->piece, &bye->pos, 1);
+      bye->dust = FALSE;
+    }
+    bye->scale -= dt / 12.0f;
+    if(bye->scale < 0.25f) {
+      bye->used = FALSE;
+    }
+  }
+}
+
+void pc_outdoor_ftr_draw(GAME* game) {
+  PLAYER_ACTOR* player = pc_outdoor_ftr_player(game);
+
+  if(player == NULL) {
+    return;
+  }
+  for(int i = 0; i < s_count; i++) {
+    pc_outdoor_ftr_piece* p = &s_pieces[i];
+    xyz_t pos;
+
+    if(!pc_outdoor_ftr_shown(p, &player->actor_class.world.position, &pos)) {
+      continue; // far away, still falling as a leaf, or not intact (its leaf / papers show)
+    }
+    aMR_pc_DrawPlain(game, mRmTp_FtrItemNo2FtrIdx(p->item), &pos, (s16)(p->rot * DEG2SHORT_ANGLE(90.0f)),
+                     p->anim.state == PC_OUTDOOR_FTR_ANIM_BIRTH ? &p->anim.scale : NULL, pc_outdoor_ftr_actor_of(p));
+  }
   for(int b = 0; b < PC_OUTDOOR_FTR_BYES; b++) {
     pc_outdoor_ftr_bye* bye = &s_byes[b];
     xyz_t scale;
@@ -638,19 +642,8 @@ void pc_outdoor_ftr_draw(GAME* game) {
     if(!bye->used) {
       continue;
     }
-    if(step) {
-      if(bye->scale == 1.0f) {
-        pc_outdoor_ftr_dust(game, &bye->piece, &bye->pos, 1);
-      }
-      bye->scale -= dt / 12.0f;
-      if(bye->scale < 0.25f) {
-        bye->used = FALSE;
-        continue;
-      }
-    }
     scale.x = scale.y = scale.z = bye->scale;
     aMR_pc_DrawPlain(game, mRmTp_FtrItemNo2FtrIdx(bye->piece.item), &bye->pos,
-                     (s16)(bye->piece.rot * DEG2SHORT_ANGLE(90.0f)), &scale,
-                     pc_outdoor_ftr_rig_of(&bye->piece, game));
+                     (s16)(bye->piece.rot * DEG2SHORT_ANGLE(90.0f)), &scale, pc_outdoor_ftr_actor_of(&bye->piece));
   }
 }

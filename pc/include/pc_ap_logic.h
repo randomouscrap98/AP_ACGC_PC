@@ -29,6 +29,8 @@ void pc_ap_init(void);
 // comes from pc_ap_init). A missing file loads the defaults (zero).
 void pc_ap_load(const char* filename);
 // Returns 0 on failure
+// Home-town save, before the game save is copied out: changes the save may need (outdoor furniture prune)
+void pc_ap_before_save(void);
 int pc_ap_save(const char* filename);
 
 // Settings > AP (pc_ap_settings.h). On loading a save (right after its folder is set):

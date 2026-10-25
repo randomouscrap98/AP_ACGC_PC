@@ -3111,6 +3111,9 @@ static void bg_item_common_move(GAME_PLAY* play, ACTOR* actorx, bg_item_common_c
 #ifdef TARGET_PC
     bIT_pc_item_hints(play, common);
 #endif
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
+    pc_outdoor_ftr_update((GAME*)play);
+#endif
 }
 
 static int bIT_actor_pit_entry_del(bg_item_pit_c* pit, int param_2, int param_3, xyz_t* pos,
