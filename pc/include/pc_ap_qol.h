@@ -109,6 +109,9 @@ int pc_ap_qol_hidden_item_hints(void);
 #define PC_AP_QOL_CLOD_PERIOD 75
 // Hidden Item Hints: frames between sparkles over the money rock / an item tree (bg_item_common.c_inc)
 #define PC_AP_QOL_SPARKLE_PERIOD 60
+// Hidden Item Hints: nonzero for furniture that hides the shop sparkles (aSG_pc_catalog_hints), which then
+// spread wider around it
+int pc_ap_qol_sparkle_wide(unsigned short item);
 
 #ifdef __cplusplus
 }

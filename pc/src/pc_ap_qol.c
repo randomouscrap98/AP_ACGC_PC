@@ -6,6 +6,7 @@
 
 #include "m_common_data.h"
 #include "m_home.h"
+#include "m_room_type.h"
 
 // slot_data skip_intro values (apworld options.py SkipIntro)
 #define PC_AP_SKIP_INTRO_TRAIN_AND_JOB 2
@@ -54,6 +55,19 @@ int pc_ap_qol_hidden_bug_hints(void) {
 
 int pc_ap_qol_hidden_item_hints(void) {
   return g_pc_settings.hidden_item_hints;
+}
+
+// Tall and as wide as the sparkle spread, so every sparkle starts and falls inside the model. Found with a
+// one-off vertex scan of all furniture models (ignore/docs/research/shop_sparkle_hidden_ftr.md); the other
+// tall ones have gaps the sparkles show through.
+int pc_ap_qol_sparkle_wide(unsigned short item) {
+  int idx;
+
+  if (!ITEM_IS_FTR(item)) {
+    return FALSE;
+  }
+  idx = mRmTp_FtrItemNo2FtrIdx(item);
+  return idx >= FTR_SUM_TOTEMP01 && idx <= FTR_SUM_TOTEMP04;
 }
 
 int pc_ap_qol_short_shop_talk(void) {
