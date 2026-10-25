@@ -2286,6 +2286,17 @@ static void Player_actor_putin_item(int slot, mActor_name_t item, xyz_t* pos_p) 
 
     if (pos_p != NULL) {
         mFI_SetFG_common(EMPTY_NO, *pos_p, TRUE);
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
+        /* Outdoor furniture: a piece anchored here goes, with its placeholders */
+        {
+            int ux;
+            int uz;
+
+            if (mFI_Wpos2UtNum(&ux, &uz, *pos_p)) {
+                pc_outdoor_ftr_picked_up(ux, uz);
+            }
+        }
+#endif
     }
 }
 
@@ -7293,9 +7304,33 @@ static mActor_name_t* Player_actor_CheckItem_fromPosition(const xyz_t* pos_p, f3
     return NULL;
 }
 
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
+/* Outdoor furniture shown as a model (pc_outdoor_ftr.c): any of its units means the whole piece, picked up from its
+   anchor unit (its placeholders go with it). NULL: not part of one */
+static mActor_name_t* Player_actor_pc_outdoor_ftr(mActor_name_t* fg_p, xyz_t* target_pos_p, xyz_t* item_pos_p) {
+    int ux;
+    int uz;
+    int anchor_ux;
+    int anchor_uz;
+
+    if (fg_p != NULL && mFI_Wpos2UtNum(&ux, &uz, *target_pos_p) && pc_outdoor_ftr_at(*fg_p, ux, uz) &&
+        pc_outdoor_ftr_anchor(ux, uz, &anchor_ux, &anchor_uz)) {
+        mFI_UtNum2CenterWpos(target_pos_p, anchor_ux, anchor_uz);
+        target_pos_p->y = mCoBG_GetBgY_OnlyCenter_FromWpos2(*target_pos_p, 0.0f);
+        Player_actor_Get_ItemDisplayPos(item_pos_p, target_pos_p);
+        return mFI_UtNum2UtFG(anchor_ux, anchor_uz);
+    }
+
+    return NULL;
+}
+#endif
+
 static mActor_name_t* Player_actor_Search_putin_item(ACTOR* actorx, xyz_t* target_pos_p, xyz_t* item_pos_p) {
     xyz_t pos;
     mActor_name_t* fg_p;
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
+    mActor_name_t* ftr_p;
+#endif
 
     /* Check for signboards first */
     Player_actor_Get_PickupHandPosition(actorx, &pos, 35.0f);
@@ -7304,14 +7339,10 @@ static mActor_name_t* Player_actor_Search_putin_item(ACTOR* actorx, xyz_t* targe
         return fg_p;
     }
 #if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
-    /* Outdoor furniture shown as a model blocks like a signboard, so it's reached from as far */
-    if (fg_p != NULL) {
-        int ux;
-        int uz;
-
-        if (mFI_Wpos2UtNum(&ux, &uz, *target_pos_p) && pc_outdoor_ftr_at(*fg_p, ux, uz)) {
-            return fg_p;
-        }
+    /* Outdoor furniture blocks like a signboard, so it's reached from as far */
+    ftr_p = Player_actor_pc_outdoor_ftr(fg_p, target_pos_p, item_pos_p);
+    if (ftr_p != NULL) {
+        return ftr_p;
     }
 #endif
 
@@ -7319,12 +7350,24 @@ static mActor_name_t* Player_actor_Search_putin_item(ACTOR* actorx, xyz_t* targe
     Player_actor_Get_PickupHandPosition(actorx, &pos, 20.0f);
     fg_p = Player_actor_CheckItem_fromPosition(&pos, SQ(15.0f), 15.0f, target_pos_p, item_pos_p);
     if (fg_p != NULL) {
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
+        ftr_p = Player_actor_pc_outdoor_ftr(fg_p, target_pos_p, item_pos_p);
+        if (ftr_p != NULL) {
+            return ftr_p;
+        }
+#endif
         return fg_p;
     }
 
     /* Search even closer */
     Player_actor_Get_PickupHandPosition(actorx, &pos, 10.0f);
     fg_p = Player_actor_CheckItem_fromPosition(&pos, SQ(15.0f), 15.0f, target_pos_p, item_pos_p);
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
+    ftr_p = Player_actor_pc_outdoor_ftr(fg_p, target_pos_p, item_pos_p);
+    if (ftr_p != NULL) {
+        return ftr_p;
+    }
+#endif
     return fg_p;
 }
 

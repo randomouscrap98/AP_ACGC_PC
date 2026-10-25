@@ -2930,7 +2930,7 @@ static int mTG_common_throw_put_field(GAME_PLAY* play, mActor_name_t item, xyz_t
             res = Common_Get(clip).bg_item_clip->player_drop_entry_proc(&play->game, item, ux, uz, layer);
 #if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
             if (res) {
-                pc_outdoor_ftr_dropped(item, ux, uz, GET_PLAYER_ACTOR(play)->actor_class.shape_info.rotation.y);
+                pc_outdoor_ftr_dropped(item, ux, uz);
             }
 #endif
         }
@@ -4052,11 +4052,20 @@ static void mTG_field_put_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
 }
 
 #if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
-/* "Place": the normal field drop, remembered as a model (pc_outdoor_ftr_dropped) */
+/* "Place": like the single-item field drop, but pc_outdoor_ftr_place picks the units (the room's rule) */
 static void mTG_pc_field_place_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
-    pc_outdoor_ftr_set_placing(TRUE);
-    mTG_field_put_proc(submenu, menu_info);
-    pc_outdoor_ftr_set_placing(FALSE);
+    mTG_tag_c* tag = &submenu->overlay->tag_ovl->tags[0];
+    int idx = mTG_get_table_idx(tag);
+
+    if (menu_info->data0 == 13) { /* the drop-to-swap inventory: a plain drop */
+        mTG_field_put_proc(submenu, menu_info);
+    } else if (pc_outdoor_ftr_place((GAME_PLAY*)gamePT, Now_Private->inventory.pockets[idx])) {
+        mPr_SetPossessionItem(Now_Private, idx, EMPTY_NO, mPr_ITEM_COND_NORMAL);
+        mTG_return_tag_init(submenu, mTG_TYPE_NONE, mTG_RETURN_CLOSE);
+        mTG_close_window(submenu, menu_info, FALSE);
+    } else {
+        mTG_open_warning_window(submenu, menu_info, mWR_WARNING_PUT_ITEM);
+    }
 }
 #endif
 
