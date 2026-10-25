@@ -107,6 +107,13 @@ int pc_ap_qol_hidden_item_hints(void);
 #define PC_AP_QOL_WIGGLE_PERIOD 80
 // Hidden Bug Hints: frames between dirt clods (mole cricket, pill bug)
 #define PC_AP_QOL_CLOD_PERIOD 75
+// Hidden Bug Hints: frames between the small "churning" clods around the big one
+#define PC_AP_QOL_CHURN_PERIOD 20
+struct game_s;
+// Hidden Bug Hints: one small dirt clod 0-10 from (x, z) on the ground, random direction and motion (the dig
+// mud's gentle fans and medium arcs). front_only: only on the camera side (+z), for spots
+// behind which something stands (pill bug rock).
+void pc_ap_qol_churn_clod(struct game_s* game, float x, float z, int front_only);
 // Hidden Item Hints: frames between sparkles over the money rock / an item tree (bg_item_common.c_inc)
 #define PC_AP_QOL_SPARKLE_PERIOD 60
 // Hidden Item Hints: nonzero for furniture that hides the shop sparkles (aSG_pc_catalog_hints), which then

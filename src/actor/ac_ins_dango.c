@@ -261,16 +261,22 @@ static void aIDG_stop(ACTOR* actor, GAME* game) {
 
 #ifdef TARGET_PC
 /* Hidden Bug Hints: the pill bug's small dirt clod pops up at the front of the rock (toward
- * the camera, a rock hides its own center) every few seconds, when the player is near. Spread
+ * the camera, a rock hides its own center) every few seconds, when the player is near, with
+ * churning clods around that spot in between (pc_ap_qol_churn_clod, camera side only). Spread
  * over frames by its unit (no per-bug state). */
 static void aIDG_pc_hint(ACTOR* actor, GAME* game) {
     aINS_INSECT_ACTOR* insect = (aINS_INSECT_ACTOR*)actor;
     xyz_t pos;
+    u32 frame;
 
     if (!pc_ap_qol_hidden_bug_hints() || actor->player_distance_xz > 400.0f) {
         return;
     }
-    if ((((GAME_PLAY*)game)->game_frame + insect->ut_x * 7 + insect->ut_z * 13) % PC_AP_QOL_CLOD_PERIOD != 0) {
+    frame = ((GAME_PLAY*)game)->game_frame + insect->ut_x * 7 + insect->ut_z * 13;
+    if (frame % PC_AP_QOL_CHURN_PERIOD == 0) {
+        pc_ap_qol_churn_clod(game, actor->world.position.x, actor->world.position.z + 20.0f, TRUE);
+    }
+    if (frame % PC_AP_QOL_CLOD_PERIOD != 0) {
         return;
     }
     pos = actor->world.position;

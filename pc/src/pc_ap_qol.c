@@ -7,6 +7,9 @@
 #include "m_common_data.h"
 #include "m_home.h"
 #include "m_room_type.h"
+#include "m_collision_bg.h"
+#include "ef_effect_control.h"
+#include "sys_math.h"
 
 // slot_data skip_intro values (apworld options.py SkipIntro)
 #define PC_AP_SKIP_INTRO_TRAIN_AND_JOB 2
@@ -127,6 +130,22 @@ int pc_ap_qol_purple_butterfly_low(void) {
 int pc_ap_qol_shops_always_open(void) {
   const ap_slotdata* sd = ap_getslotdata();
   return sd->valid && sd->shops_always_open;
+}
+
+void pc_ap_qol_churn_clod(struct game_s* game, float x, float z, int front_only) {
+  // Around the circle, or its +z half
+  s16 around = front_only ? (s16)(RANDOM(0x8000) - 0x4000) : (s16)RANDOM(0x10000);
+  f32 radius = RANDOM_F(10.0f);
+  s16 direction = (s16)RANDOM(0x10000);
+  // DIG_MUD motions (ef_dig_mud.c): 3-5 gentle fan, 6-7 medium arc (not 0-2, the fast spray: up to ~90 out)
+  s16 motion = 3 + RANDOM(5);
+  xyz_t pos;
+
+  pos.x = x + radius * sin_s(around);
+  pos.z = z + radius * cos_s(around);
+  pos.y = 0.0f;
+  pos.y = mCoBG_GetBgY_OnlyCenter_FromWpos2(pos, 0.0f);
+  eEC_CLIP->effect_make_proc(eEC_EFFECT_DIG_MUD, pos, 2, direction, game, RSV_NO, 0, 0x4000 | motion);
 }
 
 void pc_ap_qol_cockroaches(void) {
