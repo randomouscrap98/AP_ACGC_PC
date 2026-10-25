@@ -683,7 +683,7 @@ class GlobalStorage(Choice):
     Get access to an additional 200 item slots. Available in the PC pause menu.
     Storage doesn't carry over with vanilla save.
     - off: no storage
-    - indoors_only: the pause menu's Storage opens only inside buildings in your town (houses, shops...)
+    - indoors_only: Storage option only available inside buildings (houses, shops...)
     - anywhere: also outdoors in your town
     """
     display_name = "Global Storage"
