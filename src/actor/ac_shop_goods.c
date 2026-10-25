@@ -451,7 +451,8 @@ static void aSG_pc_catalog_hints(SHOP_GOODS_ACTOR* shop_goods, GAME* game) {
             int z0 = uz;
             int z1 = uz;
             xyz_t pos;
-            f32 spread;
+            f32 dx;
+            f32 dz;
             int i;
 
             if ((play->game_frame + ut * 7 + layer * 29) % PC_AP_QOL_SPARKLE_PERIOD != 0 ||
@@ -471,14 +472,23 @@ static void aSG_pc_catalog_hints(SHOP_GOODS_ACTOR* shop_goods, GAME* game) {
                 }
             }
 
-            // Anywhere between the box's first and last unit centers, plus a little (more around the totem
-            // poles, which hide them); it drifts down and is gone at the ground. Height as aSG_DrawGoods,
-            // started 55-70 above it so it clears tall goods (stove, clothes); flat rolls (wallpaper, carpets)
-            // keep 25-40.
-            spread = pc_ap_qol_sparkle_wide(fg_p[ut]) ? 80.0f : 15.0f; // +-40 vs. +-7.5
+            // Anywhere between the box's first and last unit centers, plus a little; it drifts down and is
+            // gone at the ground. Around the totem poles, which hide the middle, a ring of radius 7.5-18
+            // instead. Height as aSG_DrawGoods, started 55-70 above it so it clears tall goods (stove,
+            // clothes); flat rolls (wallpaper, carpets) keep 25-40.
+            if (pc_ap_qol_sparkle_wide(fg_p[ut])) {
+                s16 angle = (s16)RANDOM(0x10000);
+                f32 radius = 7.5f + RANDOM_F(10.5f);
+
+                dx = radius * sin_s(angle);
+                dz = radius * cos_s(angle);
+            } else {
+                dx = RANDOM2_F(15.0f);
+                dz = RANDOM2_F(15.0f);
+            }
             mFI_BkandUtNum2CenterWpos(&pos, shop_goods->bx, shop_goods->bz, x0, z0);
-            pos.x += RANDOM_F((x1 - x0) * mFI_UT_WORLDSIZE_X_F) + RANDOM2_F(spread);
-            pos.z += RANDOM_F((z1 - z0) * mFI_UT_WORLDSIZE_Z_F) + RANDOM2_F(spread);
+            pos.x += RANDOM_F((x1 - x0) * mFI_UT_WORLDSIZE_X_F) + dx;
+            pos.z += RANDOM_F((z1 - z0) * mFI_UT_WORLDSIZE_Z_F) + dz;
             if (layer == mCoBG_LAYER0) {
                 pos.y = mCoBG_GetBgY_OnlyCenter_FromWpos2(pos, 0.0f);
             } else {
