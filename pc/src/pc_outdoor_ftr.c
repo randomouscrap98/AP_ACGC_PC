@@ -33,6 +33,18 @@
 static pc_outdoor_ftr_piece s_pieces[PC_OUTDOOR_FTR_MAX];
 static int s_count;
 
+// Animation state of skeleton pieces near the player (an FTR_ACTOR each: keyframe, joints, matrices), handed out
+// as they're drawn; the least recently drawn slot is reused
+#define PC_OUTDOOR_FTR_RIGS 24
+typedef struct {
+  FTR_ACTOR actor;
+  s16 ux, uz; // the piece's anchor
+  u16 item;
+  u32 frame;  // last frame drawn (and played)
+  int used;
+} pc_outdoor_ftr_rig;
+static pc_outdoor_ftr_rig s_rigs[PC_OUTDOOR_FTR_RIGS];
+
 // --- Pure helpers ---
 
 int pc_outdoor_ftr_rot_from_angle(s16 player_angle) {
@@ -400,6 +412,34 @@ int pc_outdoor_ftr_anchor(int ux, int uz, int* anchor_ux, int* anchor_uz) {
   return TRUE;
 }
 
+// The animation state for piece p, played once per frame
+static FTR_ACTOR* pc_outdoor_ftr_rig_for(const pc_outdoor_ftr_piece* p, u32 frame) {
+  pc_outdoor_ftr_rig* r = NULL;
+  int ftr = mRmTp_FtrItemNo2FtrIdx(p->item);
+
+  for(int i = 0; i < PC_OUTDOOR_FTR_RIGS; i++) {
+    pc_outdoor_ftr_rig* c = &s_rigs[i];
+    if(c->used && c->ux == p->ux && c->uz == p->uz && c->item == p->item) {
+      r = c;
+      break;
+    }
+    if(r == NULL || !c->used || (r->used && c->frame < r->frame)) {
+      r = c; // the free / oldest slot, unless the piece has one
+    }
+  }
+  if(!r->used || r->ux != p->ux || r->uz != p->uz || r->item != p->item) {
+    aMR_pc_RigCt(&r->actor, ftr);
+    r->ux = p->ux;
+    r->uz = p->uz;
+    r->item = p->item;
+    r->used = TRUE;
+  } else if(r->frame != frame) {
+    aMR_pc_RigPlay(&r->actor);
+  }
+  r->frame = frame;
+  return &r->actor;
+}
+
 void pc_outdoor_ftr_draw(GAME* game) {
   PLAYER_ACTOR* player;
   xyz_t ppos;
@@ -429,6 +469,8 @@ void pc_outdoor_ftr_draw(GAME* game) {
     }
     pos.y = 0.0f;
     pos.y = mCoBG_GetBgY_OnlyCenter_FromWpos2(pos, 0.0f);
-    aMR_pc_DrawPlain(game, mRmTp_FtrItemNo2FtrIdx(p->item), &pos, (s16)(p->rot * DEG2SHORT_ANGLE(90.0f)));
+    aMR_pc_DrawPlain(game, mRmTp_FtrItemNo2FtrIdx(p->item), &pos, (s16)(p->rot * DEG2SHORT_ANGLE(90.0f)),
+                     aMR_pc_HasRig(mRmTp_FtrItemNo2FtrIdx(p->item)) ? pc_outdoor_ftr_rig_for(p, game->frame_counter)
+                                                                    : NULL);
   }
 }

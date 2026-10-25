@@ -2370,8 +2370,9 @@ extern void aMR_SameFurnitureSwitchOFF(u16 ftr_name) {
 }
 
 #ifdef TARGET_PC
-// Outdoor furniture (pc_outdoor_ftr.c): furniture drawn without a my_room actor. Only plain models for now: no
-// skeleton (rig) and no unique draw/move procs (vtable), which need an FTR_ACTOR and the room's banks
+// Outdoor furniture (pc_outdoor_ftr.c): furniture drawn without a my_room actor. Plain models and skeleton (rig)
+// ones (the caller keeps an FTR_ACTOR per piece for the animation); not yet unique draw/move procs (vtable), which
+// expect the room
 int aMR_pc_CanDrawPlain(u16 ftr_no) {
     aFTR_PROFILE* profile;
 
@@ -2381,15 +2382,45 @@ int aMR_pc_CanDrawPlain(u16 ftr_no) {
     }
 
     profile = furniture_quality[ftr_no];
-    return profile->rig == NULL && profile->vtable == NULL;
+    return profile->vtable == NULL;
+}
+
+int aMR_pc_HasRig(u16 ftr_no) {
+    return aMR_GetFurnitureProfile(ftr_no)->rig != NULL;
+}
+
+// A skeleton piece's animation state, as aMR_SystemAnimeCt_UniqueCt (rig part)
+void aMR_pc_RigCt(FTR_ACTOR* ftr_actor, u16 ftr_no) {
+    aFTR_PROFILE* profile = aMR_GetFurnitureProfile(ftr_no);
+
+    bzero(ftr_actor, sizeof(FTR_ACTOR));
+    ftr_actor->name = ftr_no;
+    if (profile->rig != NULL) {
+        cKF_SkeletonInfo_R_c* keyframe = &ftr_actor->keyframe;
+
+        cKF_SkeletonInfo_R_ct(keyframe, profile->rig->skeleton, profile->rig->animation, ftr_actor->joint,
+                              ftr_actor->morph);
+        cKF_SkeletonInfo_R_init_standard_repeat(keyframe, profile->rig->animation, NULL);
+        cKF_SkeletonInfo_R_play(keyframe);
+        keyframe->frame_control.speed = 0.5f;
+    }
+}
+
+// One frame of it, as the room's move (aMR_MoveFurniture)
+void aMR_pc_RigPlay(FTR_ACTOR* ftr_actor) {
+    if (aMR_GetFurnitureProfile(ftr_actor->name)->rig != NULL) {
+        cKF_SkeletonInfo_R_play(&ftr_actor->keyframe);
+        ftr_actor->keyframe.frame_control.speed = 0.5f;
+    }
 }
 
 int aMR_pc_GetShape(u16 ftr_no) {
     return aMR_GetFurnitureProfile(ftr_no)->shape;
 }
 
-// Like aMR_DrawFurniture + aMR_DrawOneFurniture for one placed, unscaled piece (base_position 0, scale 1)
-void aMR_pc_DrawPlain(GAME* game, u16 ftr_no, const xyz_t* pos, s16 angle) {
+// Like aMR_DrawFurniture + aMR_DrawOneFurniture for one placed, unscaled piece (base_position 0, scale 1).
+// rig: its aMR_pc_RigCt state (NULL: the skeleton isn't drawn)
+void aMR_pc_DrawPlain(GAME* game, u16 ftr_no, const xyz_t* pos, s16 angle, FTR_ACTOR* rig) {
     GAME_PLAY* play = (GAME_PLAY*)game;
     aFTR_PROFILE* profile = aMR_GetFurnitureProfile(ftr_no);
     LightsN* lights;
@@ -2434,6 +2465,9 @@ void aMR_pc_DrawPlain(GAME* game, u16 ftr_no, const xyz_t* pos, s16 angle) {
         CLOSE_DISP(game->graph);
     }
     aMR_DrawRegistModel(profile, game);
+    if (rig != NULL) {
+        aMR_DrawSkelShape(rig, profile, game);
+    }
 
     OPEN_DISP(game->graph);
     if (dolphin) {

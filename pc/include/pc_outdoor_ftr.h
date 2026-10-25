@@ -4,7 +4,7 @@
 // sheet of paper) so the game sees them as taken. The sidecar (ap_state.ini, written with the save) lists the
 // pieces: anchor unit, rotation, item. A piece is a model only while intact (its item on the anchor, the placeholder
 // on the rest); pickup from any of its units takes the piece and clears its placeholders.
-// For now only furniture with a plain model (no skeleton / unique draw).
+// For now only furniture with a plain or skeleton-animated model (not unique draw code: drawers, clocks...).
 // Decomp hooks are behind PC_OUTDOOR_FTR (pc/CMakeLists.txt). Research + decisions:
 // ignore/docs/research/outdoor_furniture.md.
 #ifndef PC_OUTDOOR_FTR_H
@@ -66,9 +66,13 @@ int pc_outdoor_ftr_parse(const char* s, pc_outdoor_ftr_piece* out, int max);
 int pc_outdoor_ftr_format(const pc_outdoor_ftr_piece* p, int count, char* buf, int size);
 
 // ac_my_room.c (TARGET_PC): furniture without a my_room actor
-int aMR_pc_CanDrawPlain(u16 ftr_no);
+struct furniture_actor_s;
+int aMR_pc_CanDrawPlain(u16 ftr_no); // plain or skeleton model, no unique code
 int aMR_pc_GetShape(u16 ftr_no);
-void aMR_pc_DrawPlain(struct game_s* game, u16 ftr_no, const xyz_t* pos, s16 angle);
+int aMR_pc_HasRig(u16 ftr_no);
+void aMR_pc_RigCt(struct furniture_actor_s* ftr_actor, u16 ftr_no);
+void aMR_pc_RigPlay(struct furniture_actor_s* ftr_actor);
+void aMR_pc_DrawPlain(struct game_s* game, u16 ftr_no, const xyz_t* pos, s16 angle, struct furniture_actor_s* rig);
 
 #ifdef __cplusplus
 }
