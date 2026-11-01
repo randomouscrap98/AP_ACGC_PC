@@ -357,14 +357,14 @@ class AnimalCrossingWorld(World):
 
         # Something must be reachable with only the start inventory, else the fill fails with a FillError
         # (e.g. only catalog checks, only museum checks behind a Progressive availability or a tool not given, only
-        # shop checks at Morning)
+        # shop checks at Morning; without Tools in Pool the tools are bought, so museum checks too)
         start = CollectionState(self.multiworld)  # every player's precollected items
         if not any(location.can_reach(start) for location in self.get_locations()):
             raise self.option_error("No check can be done at the start with these options. Turn on Loansanity, "
                                     "Favorsanity, Shellsanity or Treesanity. Museum checks only count at the "
-                                    "start with their category's Availability set to All (and, with Tools in Pool, "
-                                    "its tool as Starting Tool); loan checks at a Morning start need Shops Always "
-                                    "Open.")
+                                    "start with their category's Availability set to All and its tool as Starting "
+                                    "Tool (without Tools in Pool, Shops Always Open or a non-Morning start works "
+                                    "too); loan checks at a Morning start need Shops Always Open.")
 
     def fill_slot_data(self) -> Mapping[str, Any]:
         # Random choices are already resolved here, so the client gets plain numbers.

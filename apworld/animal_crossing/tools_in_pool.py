@@ -1,10 +1,11 @@
 # Tools in Pool: the net, fishing rod and shovel are AP items (not sold; lost & found gives a sapling; contests
-# need the rod/net). Catching, digging up and donating need the tool. Also Starting Tool (a freebie, mailed at the
-# start, also without Tools in Pool). The tools are the game's own items (game_items.py).
+# need the rod/net). Catching, digging up and donating need the tool: the item, or without Tools in Pool buying it
+# from Nook (an open shop). Also Starting Tool (a freebie, mailed at the start, also without Tools in Pool). The
+# tools are the game's own items (game_items.py).
 # Reads: world.museum_modes (museumsanity.setup; classify only, so the setup order doesn't matter).
 from BaseClasses import ItemClassification
 
-from . import options
+from . import options, timesanity
 from .museumsanity import MUSEUM_BUG, MUSEUM_FISH, MUSEUM_FOSSIL, MUSEUM_NAMES, add_museum_rule
 
 NET, FISHING_ROD, SHOVEL = "net", "fishing rod", "shovel"
@@ -49,14 +50,27 @@ def classify(world, name: str):
     return ItemClassification.progression if needed else ItemClassification.useful
 
 
+def tool_rule(world, tool: str):
+    # Having the tool: the item with Tools in Pool, else the Starting Tool or bought from Nook (an open shop).
+    # None = no rule
+    if world.options.tools_in_pool:
+        return lambda state: state.has(tool, world.player)
+    if tool == world.starting_tool:
+        return None
+    return timesanity.shop_open_rule(world)
+
+
 def rules(world) -> None:
     # Catching, digging up and donating need the tool (on top of the other museum rules)
-    if world.options.tools_in_pool:
-        for c, tool in CATEGORY_TOOLS.items():
+    for c, tool in CATEGORY_TOOLS.items():
+        rule = tool_rule(world, tool)
+        if rule:
             for name in MUSEUM_NAMES[c]:
-                add_museum_rule(world, c, name, lambda state, tool=tool: state.has(tool, world.player))
+                add_museum_rule(world, c, name, rule)
+    shovel = tool_rule(world, SHOVEL)
+    if shovel:
         for name in SHOVEL_BUGS:
-            add_museum_rule(world, MUSEUM_BUG, name, lambda state: state.has(SHOVEL, world.player))
+            add_museum_rule(world, MUSEUM_BUG, name, shovel)
 
 
 def slot_data(world) -> dict:
