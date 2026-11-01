@@ -12,6 +12,7 @@
 #include "m_play.h"
 #include "libforest/gbi_extensions.h"
 
+#include <math.h>
 #include <string.h>
 
 // Layout in screen pixels (the map's model units are pixels too). Rows of the extra lines are smaller than the
@@ -264,28 +265,28 @@ Gfx* pc_map_div_bubble(mMP_Ovl_c* map_ovl, mMP_LabelInfo_c* label_info, mMP_Labe
   }
 
   // The 4-row bubble's height, grown or shrunk by how much our content differs from its 4 rows (same bottom
-  // margin). The middle lobes stretch to fit exactly; with none the two caps meet (both end at a valley row) and
-  // stretch instead.
+  // margin). Both caps keep their size: the tail joins the top one, and the bottom one's side curves would rise
+  // if stretched. Only the middle lobes squeeze to fit (to half height at most), so there are just enough of
+  // them. Less than the two caps: no lobes (the caps meet, both end at a valley row) and a shorter bottom cap.
   content = info.vanilla_end + info.height;
   height = PC_MAP_DIV_BUBBLE_TOP - PC_MAP_DIV_BUBBLE_BOTTOM + (content - PC_MAP_DIV_VANILLA_END);
-  if (height < (cap_top + cap_bottom) * 0.9f) {
-    height = (cap_top + cap_bottom) * 0.9f;
+  if (height < cap_top + cap_bottom * 0.8f) {
+    height = cap_top + cap_bottom * 0.8f;
   }
-  lobes = (int)((height - cap_top - cap_bottom) / lobe + 0.5f);
-  if (lobes < 0) {
+  if (height <= cap_top + cap_bottom) {
     lobes = 0;
-  }
-  if (lobes > PC_MAP_DIV_SLICES_MAX - 2) {
-    lobes = PC_MAP_DIV_SLICES_MAX - 2;
-  }
-  if (lobes == 0) {
-    f32 stretch = height / (cap_top + cap_bottom);
-
-    cap_top *= stretch;
-    cap_bottom *= stretch;
     lobe_h = 0.0f;
+    cap_bottom = height - cap_top;
   } else {
+    lobes = (int)ceilf((height - cap_top - cap_bottom) / lobe);
+    if (lobes > PC_MAP_DIV_SLICES_MAX - 2) {
+      lobes = PC_MAP_DIV_SLICES_MAX - 2;
+    }
     lobe_h = (height - cap_top - cap_bottom) / lobes;
+    // A lobe squeezed much more draws as points on both sides: a little taller bubble instead
+    if (lobe_h < lobe * 0.5f) {
+      lobe_h = lobe * 0.5f;
+    }
   }
 
   memset(pc_map_div_dl, 0, sizeof(pc_map_div_dl));
