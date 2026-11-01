@@ -235,7 +235,7 @@ static Vtx* pc_map_div_slice(Vtx* v, f32 y0, f32 y1, f32 t0, f32 t1) {
     Vtx_t* vt = &v[i].v;
 
     vt->ob[0] = (s16)xs[i >> 1];
-    vt->ob[1] = (s16)((i & 1) ? y1 : y0);
+    vt->ob[1] = (s16)lroundf((i & 1) ? y1 : y0); // rounded: the same pixel edge for every bubble
     vt->ob[2] = 0;
     vt->flag = 1;
     vt->tc[0] = (i >> 1) ? 128 * 32 : 0;
@@ -267,16 +267,12 @@ Gfx* pc_map_div_bubble(mMP_Ovl_c* map_ovl, mMP_LabelInfo_c* label_info, mMP_Labe
   // The 4-row bubble's height, grown or shrunk by how much our content differs from its 4 rows (same bottom
   // margin). Both caps keep their size: the tail joins the top one, and the bottom one's side curves would rise
   // if stretched. Only the middle lobes squeeze to fit (to half height at most), so there are just enough of
-  // them. Less than the two caps: no lobes (the caps meet, both end at a valley row) and a shorter bottom cap.
+  // them. Never smaller than the two caps (no lobes: the caps meet, both end at a valley row).
   content = info.vanilla_end + info.height;
   height = PC_MAP_DIV_BUBBLE_TOP - PC_MAP_DIV_BUBBLE_BOTTOM + (content - PC_MAP_DIV_VANILLA_END);
-  if (height < cap_top + cap_bottom * 0.8f) {
-    height = cap_top + cap_bottom * 0.8f;
-  }
   if (height <= cap_top + cap_bottom) {
     lobes = 0;
     lobe_h = 0.0f;
-    cap_bottom = height - cap_top;
   } else {
     lobes = (int)ceilf((height - cap_top - cap_bottom) / lobe);
     if (lobes > PC_MAP_DIV_SLICES_MAX - 2) {
