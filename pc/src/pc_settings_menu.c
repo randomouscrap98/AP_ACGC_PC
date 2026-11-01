@@ -7,6 +7,7 @@
 #include "pc_menu_list.h"
 #include "pc_ap_logic.h"
 #include "pc_ap_settings.h"
+#include "pc_window_size.h"
 
 #include "graph.h"
 #include "m_font.h"
@@ -20,6 +21,7 @@
 /* --- Item IDs (stable across tabs - used by the dispatch switches) --- */
 enum {
     ITEM_DISPLAY,
+    ITEM_WINDOW_SIZE,
     ITEM_VSYNC,
     ITEM_MAX_FPS,
     ITEM_MSAA,
@@ -62,6 +64,7 @@ typedef struct {
 
 static const Item tab_video_items[] = {
     { "Display",    ITEM_DISPLAY,  0, NULL },
+    { "Window size", ITEM_WINDOW_SIZE, 0, "Only used in windowed mode" },
     { "VSync",      ITEM_VSYNC,    0, NULL },
     { "Max FPS",    ITEM_MAX_FPS,  0, NULL },
     { "MSAA",       ITEM_MSAA,     0, NULL },
@@ -174,6 +177,8 @@ static int     s_sel    = -1; /* start on the tab row */
 /* Pending edits - only committed to g_pc_settings on Apply. */
 static PCSettings s_pending;
 static int        s_pending_dirty = 0;
+// The Window size row was changed: until then it shows the live window size (resizing while the menu is open)
+static int        s_window_size_touched = 0;
 /* Same for the AP tab (pc_ap_settings_apply) */
 static pc_ap_settings s_ap_pending;
 static pc_ap_settings s_ap_current;
@@ -323,8 +328,19 @@ static int ap_dirty(void) {
     return memcmp(&s_ap_pending, &s_ap_current, sizeof(s_ap_pending)) != 0;
 }
 
+// The Window size row only takes left / right in windowed mode
+static int window_size_disabled(void) {
+    return s_pending.fullscreen != 0;
+}
+
+static int window_size_changed(void) {
+    return s_window_size_touched && (s_pending.window_width != g_pc_settings.window_width ||
+                                     s_pending.window_height != g_pc_settings.window_height);
+}
+
 static int pc_dirty(void) {
     return
+        window_size_changed() ||
         (s_pending.fullscreen       != g_pc_settings.fullscreen) ||
         (s_pending.vsync            != g_pc_settings.vsync) ||
         (s_pending.max_fps          != g_pc_settings.max_fps) ||
@@ -363,6 +379,7 @@ static void snapshot(void) {
     s_ap_pending = s_ap_current;
     s_ap_snapshot_available = pc_ap_settings_available();
     s_pending_dirty = 0;
+    s_window_size_touched = 0;
 }
 
 /* Per-item dispatch: cycle, format, changed. Add cases here when a
@@ -379,6 +396,17 @@ static void item_cycle(int id, int dir) {
         case ITEM_DISPLAY: {
             int v = s_pending.fullscreen + (dir > 0 ? 1 : 2);
             s_pending.fullscreen = v % 3;
+        } break;
+        case ITEM_WINDOW_SIZE: {
+            int max_w, max_h;
+            if (window_size_disabled()) break;
+            if (!s_window_size_touched) {
+                s_pending.window_width  = g_pc_settings.window_width;
+                s_pending.window_height = g_pc_settings.window_height;
+                s_window_size_touched = 1;
+            }
+            pc_window_size_max(&max_w, &max_h);
+            pc_window_size_step(&s_pending.window_width, &s_pending.window_height, dir, max_w, max_h);
         } break;
         case ITEM_VSYNC:
             s_pending.vsync = !s_pending.vsync;
@@ -522,6 +550,13 @@ static void item_format(int id, char* buf, size_t n) {
                 s_pending.fullscreen == 1 ? "< Fullscreen >" :
                                             "< Borderless >");
             break;
+        case ITEM_WINDOW_SIZE: {
+            int w = s_window_size_touched ? s_pending.window_width : g_pc_settings.window_width;
+            int h = s_window_size_touched ? s_pending.window_height : g_pc_settings.window_height;
+            // A size from resizing by hand shows as is ("Custom" doesn't fit the value column)
+            if (window_size_disabled()) snprintf(buf, n, "%dx%d", w, h);
+            else                        snprintf(buf, n, "< %dx%d >", w, h);
+        } break;
         case ITEM_VSYNC:
             snprintf(buf, n, "%s", s_pending.vsync ? "< On >" : "< Off >");
             break;
@@ -623,6 +658,7 @@ static int item_changed(int id) {
     }
     switch (id) {
         case ITEM_DISPLAY:    return s_pending.fullscreen       != g_pc_settings.fullscreen;
+        case ITEM_WINDOW_SIZE: return window_size_changed();
         case ITEM_VSYNC:      return s_pending.vsync            != g_pc_settings.vsync;
         case ITEM_MAX_FPS:    return s_pending.max_fps          != g_pc_settings.max_fps;
         case ITEM_MSAA:       return s_pending.msaa             != g_pc_settings.msaa;
@@ -706,11 +742,18 @@ static void apply_pending(void) {
         return;
     }
 
-    // The windowed size follows the window (resizing), not the menu
-    s_pending.window_width  = g_pc_settings.window_width;
-    s_pending.window_height = g_pc_settings.window_height;
+    // The windowed size follows the window (resizing) unless the Window size row picked one
+    int resize = window_size_changed();
+    if (!resize) {
+        s_pending.window_width  = g_pc_settings.window_width;
+        s_pending.window_height = g_pc_settings.window_height;
+    }
     g_pc_settings = s_pending;
     pc_settings_apply();
+    if (resize && g_pc_settings.fullscreen == 0) {
+        pc_window_size_set(g_pc_settings.window_width, g_pc_settings.window_height);
+    }
+    s_window_size_touched = 0;
     s_pending_dirty = 0;
     recompute_restart_needed();
     pc_settings_save();
@@ -1032,6 +1075,7 @@ static void draw_settings_page(struct game_s* game) {
         pc_menu_row_colors(selected, &r, &g, &b, &a);
         pc_menu_draw_left(game, it->label, lx, y, r, g, b, a, s);
         value_colors(selected, changed, &r, &g, &b, &a);
+        if (it->id == ITEM_WINDOW_SIZE && window_size_disabled()) { r = 90; g = 90; b = 90; a = 150; }
         pc_menu_draw_left(game, value_buf, vx, y, r, g, b, a, s);
     }
 
