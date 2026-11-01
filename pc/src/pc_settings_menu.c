@@ -34,6 +34,7 @@ enum {
     ITEM_INSTANT_TEXT,
     ITEM_PLANTING_MARKS,
     ITEM_BITE_SOUND,
+    ITEM_MAP_DIVINATION,
     ITEM_NO_COCKROACHES,
     ITEM_NO_FISHING_TRASH,
     ITEM_EASIER_CRITTER_CATCH,
@@ -78,6 +79,7 @@ static const Item tab_gameplay_items[] = {
     { "Instant text",     ITEM_INSTANT_TEXT,     0, "A or B shows the rest of a text page at once" },
     { "Plant vision",     ITEM_PLANTING_MARKS,   0, "Shows where a sapling would die or stay small" },
     { "Bite sound",       ITEM_BITE_SOUND,       0, "Sounds when a fish nibbles and bites" },
+    { "Map divination",   ITEM_MAP_DIVINATION,   0, "Map shows dig spots and who's out or home" },
     { "No cockroaches",   ITEM_NO_COCKROACHES,   0, "Removes cockroaches when you start playing" },
     { "No fishing trash", ITEM_NO_FISHING_TRASH, 0, "No cans, boots or tires when fishing" },
     { "Easier critters",  ITEM_EASIER_CRITTER_CATCH, 0, "Fish bite longer, bugs flee, bees chase slower" },
@@ -337,6 +339,7 @@ static int pc_dirty(void) {
         (s_pending.instant_text     != g_pc_settings.instant_text) ||
         (s_pending.planting_marks   != g_pc_settings.planting_marks) ||
         (s_pending.bite_sound       != g_pc_settings.bite_sound) ||
+        (s_pending.map_divination   != g_pc_settings.map_divination) ||
         (s_pending.no_cockroaches != g_pc_settings.no_cockroaches) ||
         (s_pending.no_fishing_trash != g_pc_settings.no_fishing_trash) ||
         (s_pending.easier_critter_catch != g_pc_settings.easier_critter_catch) ||
@@ -433,6 +436,9 @@ static void item_cycle(int id, int dir) {
             break;
         case ITEM_BITE_SOUND:
             s_pending.bite_sound = !s_pending.bite_sound;
+            break;
+        case ITEM_MAP_DIVINATION:
+            s_pending.map_divination = !s_pending.map_divination;
             break;
         case ITEM_NO_COCKROACHES:
             s_pending.no_cockroaches = !s_pending.no_cockroaches;
@@ -565,6 +571,9 @@ static void item_format(int id, char* buf, size_t n) {
         case ITEM_BITE_SOUND:
             snprintf(buf, n, "%s", s_pending.bite_sound ? "< On >" : "< Off >");
             break;
+        case ITEM_MAP_DIVINATION:
+            snprintf(buf, n, "%s", s_pending.map_divination ? "< On >" : "< Off >");
+            break;
         case ITEM_NO_COCKROACHES:
             snprintf(buf, n, "%s", s_pending.no_cockroaches ? "< On >" : "< Off >");
             break;
@@ -628,6 +637,7 @@ static int item_changed(int id) {
         case ITEM_INSTANT_TEXT:  return s_pending.instant_text  != g_pc_settings.instant_text;
         case ITEM_PLANTING_MARKS: return s_pending.planting_marks != g_pc_settings.planting_marks;
         case ITEM_BITE_SOUND:    return s_pending.bite_sound    != g_pc_settings.bite_sound;
+        case ITEM_MAP_DIVINATION: return s_pending.map_divination != g_pc_settings.map_divination;
         case ITEM_NO_COCKROACHES: return s_pending.no_cockroaches != g_pc_settings.no_cockroaches;
         case ITEM_NO_FISHING_TRASH: return s_pending.no_fishing_trash != g_pc_settings.no_fishing_trash;
         case ITEM_EASIER_CRITTER_CATCH: return s_pending.easier_critter_catch != g_pc_settings.easier_critter_catch;

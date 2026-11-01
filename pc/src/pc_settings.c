@@ -22,6 +22,7 @@ PCSettings g_pc_settings = {
     .instant_text = 0,
     .planting_marks = 0,
     .bite_sound = 0,
+    .map_divination = 1,
     .no_cockroaches = 1,
     .no_fishing_trash = 1,
     .easier_critter_catch = 1,
@@ -94,6 +95,9 @@ static const char* DEFAULT_SETTINGS =
     "\n"
     "# Bite sound: 0 = off, 1 = sounds when a fish nibbles the bobber and when it pulls it under\n"
     "bite_sound = 0\n"
+    "\n"
+    "# Map divination: 0 = off, 1 = the town map shows dig spots, walking villagers and who's home per acre\n"
+    "map_divination = 1\n"
     "\n"
     "# No cockroaches: 0 = off, 1 = cockroaches never appear in your house\n"
     "no_cockroaches = 1\n"
@@ -195,6 +199,8 @@ static void apply_setting(const char* key, const char* value) {
         if (val == 0 || val == 1) g_pc_settings.planting_marks = val;
     } else if (strcmp(key, "bite_sound") == 0) {
         if (val == 0 || val == 1) g_pc_settings.bite_sound = val;
+    } else if (strcmp(key, "map_divination") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.map_divination = val;
     } else if (strcmp(key, "no_cockroaches") == 0) {
         if (val == 0 || val == 1) g_pc_settings.no_cockroaches = val;
     } else if (strcmp(key, "no_fishing_trash") == 0) {
@@ -376,6 +382,9 @@ void pc_settings_save(void) {
     fprintf(f, "\n");
     fprintf(f, "# Bite sound: 0 = off, 1 = sounds when a fish nibbles the bobber and when it pulls it under\n");
     fprintf(f, "bite_sound = %d\n", g_pc_settings.bite_sound);
+    fprintf(f, "\n");
+    fprintf(f, "# Map divination: 0 = off, 1 = the town map shows dig spots, walking villagers and who's home per acre\n");
+    fprintf(f, "map_divination = %d\n", g_pc_settings.map_divination);
     fprintf(f, "\n");
     fprintf(f, "# No cockroaches: 0 = off, 1 = cockroaches never appear in your house\n");
     fprintf(f, "no_cockroaches = %d\n", g_pc_settings.no_cockroaches);

@@ -330,6 +330,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_beach_logo.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_planting.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_planting_marks.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_map_divination.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_outdoor_ftr.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_outdoor_ftr_allow.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_state.c

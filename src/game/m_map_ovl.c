@@ -11,6 +11,9 @@
 #include "sys_matrix.h"
 #include "m_malloc.h"
 #include "m_common_data.h"
+#ifdef TARGET_PC
+#include "pc_map_divination.h"
+#endif
 
 extern u8 kan_tizu_f_TA_tex_txt[];
 extern u8 kan_tizu_tst1_TA_tex_txt[];
@@ -1233,6 +1236,14 @@ static void mMP_set_win_dl(GRAPH* graph, mMP_Ovl_c* map_ovl, mMP_LabelInfo_c* la
     } else { /* label_count == 2 */
         gSPSegment(gfx++, ANIME_3_TXT_SEG, kan_win_waku2T_model_p);
     }
+#ifdef TARGET_PC
+    {
+        Gfx* pc_bubble = pc_map_div_bubble(map_ovl, label_info, mMP_label_data[label_info->label_no]);
+        if (pc_bubble != NULL) {
+            gSPSegment(gfx++, ANIME_3_TXT_SEG, pc_bubble);
+        }
+    }
+#endif
 
     gSPMatrix(gfx++, _Matrix_to_Mtx_new(graph), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(gfx++, kan_win_model2);
@@ -1322,6 +1333,9 @@ static void mMP_set_dl(Submenu* submenu, GAME* game, mSM_MenuInfo_c* menu) {
                          col[1], col[2], 255, FALSE, TRUE, 1.0f, 1.0f, mFont_MODE_POLY);
 
     mMP_set_label_dl(game, label_info, xpos, ypos);
+#ifdef TARGET_PC
+    pc_map_div_draw(game, map_ovl, label_info, mMP_label_data[label_info->label_no], xpos, ypos);
+#endif
 }
 
 static void mMP_map_ovl_draw(Submenu* submenu, GAME* game) {
