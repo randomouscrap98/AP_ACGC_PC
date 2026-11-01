@@ -99,15 +99,20 @@ static int pc_map_div_name_len(const u8* name) {
   return len;
 }
 
-// Fossils lying in the acre: the crack marks
+// Buried items in the acre (fossils, gyroids, anything the player buried): the crack marks. bg_item draws a crack
+// for a buried item (deposit bit) on a hole spot; the hole check needs the acre's collision, not loaded indoors.
 static int pc_map_div_count_dig_spots(int bx, int bz) {
   mActor_name_t* item = &Save_Get(fg[bz][bx]).items[0][0];
+  u16* deposit = Save_Get(deposit[bx + bz * FG_BLOCK_X_NUM]);
   int count = 0;
-  int i;
+  int ut_x;
+  int ut_z;
 
-  for (i = 0; i < UT_TOTAL_NUM; i++) {
-    if (item[i] == ITM_FOSSIL) {
-      count++;
+  for (ut_z = 0; ut_z < UT_Z_NUM; ut_z++) {
+    for (ut_x = 0; ut_x < UT_X_NUM; ut_x++) {
+      if (((deposit[ut_z] >> ut_x) & 1) && item[ut_z * UT_X_NUM + ut_x] != EMPTY_NO) {
+        count++;
+      }
     }
   }
   return count;
