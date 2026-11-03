@@ -40,6 +40,10 @@ s64 pc_automated_start_seconds(void);
 struct game_play_s;
 void pc_automated_play(struct game_play_s* play);
 
+// Each GX draw's pipeline key: counts the distinct ones (render test log: pipelines a Vulkan / SDL_GPU backend
+// would create). Automated runs only
+void pc_automated_note_pipeline(const void* key);
+
 // Ticks since boot: 1/60 s per presented frame
 s64 pc_automated_elapsed_ticks(void);
 

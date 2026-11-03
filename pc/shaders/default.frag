@@ -1,9 +1,19 @@
 #version 330 core
-in vec4 v_color;
-centroid in vec2 v_texcoord0;
-centroid in vec2 v_texcoord1;
-in vec3 v_normal;
-in float v_fog_z;
+// Slot numbers for a Vulkan build (glslang -V defines VULKAN); empty for GL 3.3, which has no layout() for these
+#ifdef VULKAN
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+#define LOC(n) layout(location = n)
+#define SAMPLER(n) layout(binding = n)
+#else
+#define LOC(n)
+#define SAMPLER(n)
+#endif
+LOC(0) in vec4 v_color;
+LOC(1) centroid in vec2 v_texcoord0;
+LOC(2) centroid in vec2 v_texcoord1;
+LOC(3) in vec3 v_normal;
+LOC(4) in float v_fog_z;
 
 /* Fog on/off is separate from the range params so shader specialization can
    fold the branch while start/end stay dynamic */
@@ -33,9 +43,9 @@ uniform ivec3 u_tev_ind_wrap[3];  /* x=wrap_s, y=wrap_t, z=add_prev */
 
 /* Textures: stage N samples u_textureN; sampler uniforms stay separate,
    while enable flags are packed into one int array upload. */
-uniform sampler2D u_texture0;
-uniform sampler2D u_texture1;
-uniform sampler2D u_texture2;
+SAMPLER(0) uniform sampler2D u_texture0;
+SAMPLER(1) uniform sampler2D u_texture1;
+SAMPLER(2) uniform sampler2D u_texture2;
 uniform int u_use_texture[3];
 
 /* Lighting / color channels */
@@ -59,13 +69,13 @@ uniform ivec2 u_alpha_refs; /* x=ref0, y=ref1 */
 
 /* Indirect textures */
 uniform int u_num_ind_stages;
-uniform sampler2D u_ind_tex0;
-uniform sampler2D u_ind_tex1;
+SAMPLER(3) uniform sampler2D u_ind_tex0;
+SAMPLER(4) uniform sampler2D u_ind_tex1;
 uniform vec2 u_ind_scale[4];
 uniform vec3 u_ind_mtx_r0[3];
 uniform vec3 u_ind_mtx_r1[3];
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 /* GXTevKColorSel: 0-7 = constant fractions 8/8..1/8, 8-11 = reserved (zero),
    12-15 = K0..K3 RGB, 16+ = K0..K3 single channel (R,G,B,A). The split range

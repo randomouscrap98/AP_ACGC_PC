@@ -1,4 +1,14 @@
 #version 330 core
+// Slot numbers for a Vulkan build (glslang -V defines VULKAN); empty for GL 3.3, which has no layout() for these
+#ifdef VULKAN
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+#define LOC(n) layout(location = n)
+#define SAMPLER(n) layout(binding = n)
+#else
+#define LOC(n)
+#define SAMPLER(n)
+#endif
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec4 a_color0;
@@ -10,11 +20,11 @@ uniform vec4 u_texmtx_row0[2];
 uniform vec4 u_texmtx_row1[2];
 uniform int u_texmtx_enable[2];
 uniform int u_texgen_src[2];  /* 1=GX_TG_NRM, 4=GX_TG_TEX0, etc. */
-out vec4 v_color;
-centroid out vec2 v_texcoord0;
-centroid out vec2 v_texcoord1;
-out vec3 v_normal;
-out float v_fog_z;
+LOC(0) out vec4 v_color;
+LOC(1) centroid out vec2 v_texcoord0;
+LOC(2) centroid out vec2 v_texcoord1;
+LOC(3) out vec3 v_normal;
+LOC(4) out float v_fog_z;
 void main() {
     vec4 eyePos = u_modelview * vec4(a_position, 1.0);
     gl_Position = u_projection * eyePos;

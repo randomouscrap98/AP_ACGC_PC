@@ -337,6 +337,25 @@ void pc_gx_clear_black(void);
 void pc_gx_texture_bind_cache_invalidate(void);
 void pc_gx_viewport_state_invalidate(void);
 
+// Everything a Vulkan / SDL_GPU pipeline bakes in, for one draw, in GX terms (backend-neutral). GL sets its
+// state from it; a pipeline-based backend would look up its pipeline cache with it. Viewport, scissor and
+// depth range stay dynamic and aren't in it.
+typedef struct {
+    const PCGXShaderVariant* shader; // TEV variant (pc_gx_tev.c), lives until shutdown
+    int prim;                        // GX_TRIANGLES, GX_QUADS, GX_TRIANGLESTRIP, ...
+    int depth_test;                  // z_compare_enable
+    int depth_func;                  // GX_LESS, ... (only with depth_test)
+    int depth_write;
+    int color_write;                 // RGB
+    int alpha_write;
+    int cull;                        // GX_CULL_*
+    int blend;                       // GX_BM_*
+    int blend_src;                   // GX_BL_* (only with GX_BM_BLEND)
+    int blend_dst;
+} PCGXPipelineKey;
+
+PCGXPipelineKey pc_gx_pipeline_key(const PCGXShaderVariant* shader);
+
 /* TEV shader */
 PCGXShaderVariant* pc_gx_tev_get_variant(void);
 void   pc_gx_tev_init(void);

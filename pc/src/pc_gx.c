@@ -1,5 +1,6 @@
 /* pc_gx.c - GX API → OpenGL 3.3: state management, vertex submission, draw dispatch */
 #include "pc_gx_internal.h"
+#include "pc_automated.h"
 #include "pc_profiler.h"
 #include "pc_render_target.h"
 #include "pc_debug.h"
@@ -764,6 +765,29 @@ void pc_gx_draw_pending(void) {
     g_gx.pending_verts = 0;
 }
 
+PCGXPipelineKey pc_gx_pipeline_key(const PCGXShaderVariant* shader) {
+    PCGXPipelineKey k;
+
+    memset(&k, 0, sizeof(k)); // padding too: keys may be compared with memcmp
+    k.shader = shader;
+    k.prim = g_gx.current_primitive;
+    k.depth_test = g_gx.z_compare_enable;
+    k.depth_func = g_gx.z_compare_func;
+    k.depth_write = g_gx.z_update_enable;
+    k.color_write = g_gx.color_update_enable;
+    k.alpha_write = g_gx.alpha_update_enable;
+    k.cull = g_gx.cull_mode;
+    k.blend = g_gx.blend_mode;
+    k.blend_src = g_gx.blend_src;
+    k.blend_dst = g_gx.blend_dst;
+    /* DST_ALPHA→SRC_ALPHA: GC EFB alpha semantics differ from GL */
+    if (k.blend_src == GX_BL_DSTALPHA && k.blend_dst == GX_BL_INVDSTALPHA) {
+        k.blend_src = GX_BL_SRCALPHA;
+        k.blend_dst = GX_BL_INVSRCALPHA;
+    }
+    return k;
+}
+
 void pc_gx_flush_vertices(void) {
     int count = g_gx.current_vertex_idx - g_gx.pending_verts;
     if (count <= 0) return;
@@ -1087,14 +1111,16 @@ void pc_gx_flush_vertices(void) {
         default:               gl_prim = GL_TRIANGLES; break;
     }
 
+    PCGXPipelineKey key = pc_gx_pipeline_key(var);
+    pc_automated_note_pipeline(&key);
     Uint64 state_start = pc_profiler_begin_timer();
 
     if (g_gx.dirty & PC_GX_DIRTY_DEPTH) {
         pc_profiler_add_count_state_change();
-        if (g_gx.z_compare_enable) {
+        if (key.depth_test) {
             glEnable(GL_DEPTH_TEST);
             GLenum zfunc;
-            switch (g_gx.z_compare_func) {
+            switch (key.depth_func) {
                 case GX_NEVER:   zfunc = GL_NEVER; break;
                 case GX_LESS:    zfunc = GL_LESS; break;
                 case GX_EQUAL:   zfunc = GL_EQUAL; break;
@@ -1109,22 +1135,22 @@ void pc_gx_flush_vertices(void) {
         } else {
             glDisable(GL_DEPTH_TEST);
         }
-        glDepthMask(g_gx.z_update_enable ? GL_TRUE : GL_FALSE);
+        glDepthMask(key.depth_write ? GL_TRUE : GL_FALSE);
     }
 
     if (g_gx.dirty & PC_GX_DIRTY_COLOR_MASK) {
         pc_profiler_add_count_state_change();
         glColorMask(
-            g_gx.color_update_enable ? GL_TRUE : GL_FALSE,
-            g_gx.color_update_enable ? GL_TRUE : GL_FALSE,
-            g_gx.color_update_enable ? GL_TRUE : GL_FALSE,
-            g_gx.alpha_update_enable ? GL_TRUE : GL_FALSE
+            key.color_write ? GL_TRUE : GL_FALSE,
+            key.color_write ? GL_TRUE : GL_FALSE,
+            key.color_write ? GL_TRUE : GL_FALSE,
+            key.alpha_write ? GL_TRUE : GL_FALSE
         );
     }
 
     if (g_gx.dirty & PC_GX_DIRTY_CULL) {
         pc_profiler_add_count_state_change();
-        switch (g_gx.cull_mode) {
+        switch (key.cull) {
             case GX_CULL_NONE:  glDisable(GL_CULL_FACE); break;
             case GX_CULL_FRONT: glEnable(GL_CULL_FACE); glCullFace(GL_FRONT); break;
             case GX_CULL_BACK:  glEnable(GL_CULL_FACE); glCullFace(GL_BACK); break;
@@ -1136,9 +1162,8 @@ void pc_gx_flush_vertices(void) {
         pc_profiler_add_count_state_change();
         /* Equation is state-driven: no hidden post-draw reset, so an
          * early-out on unchanged blend state stays correct */
-        glBlendEquation(g_gx.blend_mode == GX_BM_SUBTRACT ? GL_FUNC_REVERSE_SUBTRACT
-                                                          : GL_FUNC_ADD);
-        switch (g_gx.blend_mode) {
+        glBlendEquation(key.blend == GX_BM_SUBTRACT ? GL_FUNC_REVERSE_SUBTRACT : GL_FUNC_ADD);
+        switch (key.blend) {
             case GX_BM_NONE:
                 glDisable(GL_BLEND);
                 break;
@@ -1146,7 +1171,7 @@ void pc_gx_flush_vertices(void) {
                 glEnable(GL_BLEND);
                 {
                     GLenum src, dst;
-                    switch (g_gx.blend_src) {
+                    switch (key.blend_src) {
                         case GX_BL_ZERO:        src = GL_ZERO; break;
                         case GX_BL_ONE:         src = GL_ONE; break;
                         case GX_BL_DSTCLR:      src = GL_DST_COLOR; break;
@@ -1157,7 +1182,7 @@ void pc_gx_flush_vertices(void) {
                         case GX_BL_INVDSTALPHA: src = GL_ONE_MINUS_DST_ALPHA; break;
                         default:                src = GL_ONE; break;
                     }
-                    switch (g_gx.blend_dst) {
+                    switch (key.blend_dst) {
                         case GX_BL_ZERO:        dst = GL_ZERO; break;
                         case GX_BL_ONE:         dst = GL_ONE; break;
                         case GX_BL_SRCCLR:      dst = GL_SRC_COLOR; break;
@@ -1168,12 +1193,7 @@ void pc_gx_flush_vertices(void) {
                         case GX_BL_INVDSTALPHA: dst = GL_ONE_MINUS_DST_ALPHA; break;
                         default:                dst = GL_ZERO; break;
                     }
-                    /* DST_ALPHA→SRC_ALPHA: GC EFB alpha semantics differ from GL */
-                    if (g_gx.blend_src == GX_BL_DSTALPHA && g_gx.blend_dst == GX_BL_INVDSTALPHA) {
-                        src = GL_SRC_ALPHA;
-                        dst = GL_ONE_MINUS_SRC_ALPHA;
-                    }
-                    glBlendFunc(src, dst);
+                    glBlendFunc(src, dst); // the DST_ALPHA pair is already swapped in the key
                 }
                 break;
             case GX_BM_LOGIC:

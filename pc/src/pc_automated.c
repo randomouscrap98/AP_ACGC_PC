@@ -11,6 +11,7 @@
 #include "pc_dirs.h"
 #include "pc_screenshot.h"
 #include "pc_settings.h"
+#include "pc_gx_internal.h"
 #include "m_kankyo.h"
 #include "m_play.h"
 #include "m_scene.h"
@@ -345,6 +346,22 @@ void pc_automated_saved(int ok) {
     g_pc_running = 0;
 }
 
+#define RT_MAX_PIPELINES 1024
+static PCGXPipelineKey s_pipelines[RT_MAX_PIPELINES];
+static int s_pipeline_count;
+
+void pc_automated_note_pipeline(const void* key) {
+    if (!g_pc_automated || s_pipeline_count >= RT_MAX_PIPELINES) {
+        return;
+    }
+    for (int i = 0; i < s_pipeline_count; i++) {
+        if (memcmp(&s_pipelines[i], key, sizeof(PCGXPipelineKey)) == 0) {
+            return;
+        }
+    }
+    memcpy(&s_pipelines[s_pipeline_count++], key, sizeof(PCGXPipelineKey));
+}
+
 s64 pc_automated_start_seconds(void) {
     // Days since 2000-01-01 by counting (no time.h: mktime would apply the local daylight saving)
     static const int month_days[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
@@ -397,8 +414,8 @@ void pc_automated_frame(void) {
     {
         const PCGXFrameCounts* c = &pc_gx_frame_counts;
         const PCGXFrameCounts* t = &pc_gx_run_counts; // earlier frames
-        printf("[render-test] run fans=%d lines=%d wide_lines=%d points=%d big_points=%d efb_copies=%d\n",
-               t->fans + c->fans, t->lines + c->lines, t->wide_lines + c->wide_lines, t->points + c->points,
+        printf("[render-test] run pipelines=%d fans=%d lines=%d wide_lines=%d points=%d big_points=%d efb_copies=%d\n",
+               s_pipeline_count, t->fans + c->fans, t->lines + c->lines, t->wide_lines + c->wide_lines, t->points + c->points,
                t->big_points + c->big_points, t->efb_copies + c->efb_copies);
         Uint64 now = SDL_GetPerformanceCounter();
         // Wall time per frame since the first one (coarse: boot and loading included)
