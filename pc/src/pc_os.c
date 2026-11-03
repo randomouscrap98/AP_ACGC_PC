@@ -1,6 +1,6 @@
 /* pc_os.c - Dolphin OS replacement: arena, timers, threads, message queues */
 #include "pc_platform.h"
-#include "pc_render_test.h"
+#include "pc_automated.h"
 
 #include <time.h>
 
@@ -25,8 +25,8 @@ static s64 gc_epoch_offset_ticks = 0; /* Ticks from GC epoch to program start */
 #define GC_UNIX_EPOCH_DIFF 946684800LL
 
 s64 osGetTime(void) {
-    if (g_pc_render_test) {
-        return gc_epoch_offset_ticks + pc_render_test_elapsed_ticks(); // frames, not wall time
+    if (g_pc_automated) {
+        return gc_epoch_offset_ticks + pc_automated_elapsed_ticks(); // frames, not wall time
     }
     u64 now = SDL_GetPerformanceCounter();
     u64 freq = SDL_GetPerformanceFrequency();
@@ -259,6 +259,11 @@ void OSInit(void) {
         arena_hi = arena_memory + PC_MAIN_MEMORY_SIZE;
     }
     time_base_start = SDL_GetPerformanceCounter();
+    if (g_pc_automated) {
+        // The start time as written, no timezone or daylight saving
+        gc_epoch_offset_ticks = pc_automated_start_seconds() * (s64)GC_TIMER_CLOCK;
+        return;
+    }
     /* compute ticks from GC epoch (Jan 1, 2000) to now, with timezone */
     {
         time_t unix_now = time(NULL);

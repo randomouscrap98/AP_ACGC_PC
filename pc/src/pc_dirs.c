@@ -12,18 +12,19 @@
 #endif
 
 static char g_pc_saveroot[PC_PATHSIZE] = "saves";
+static int g_pc_saveroot_forced; // pc_card_dir_force_root: set_root_ap keeps g_pc_saveroot
 
-int pc_card_dir_set_root(const char * dir) {
-  if(strlen(dir) >= PC_PATHSIZE) {
-    return 1;
-  }
-  strcpy(g_pc_saveroot, dir);
-  pc_card_dir_create();
-  return 0;
+
+void pc_card_dir_force_root(const char * dir) {
+  snprintf(g_pc_saveroot, sizeof(g_pc_saveroot), "%s", dir);
+  g_pc_saveroot_forced = 1;
 }
 
-
 void pc_card_dir_set_root_ap(const char * seed, int team, int player) {
+  if (g_pc_saveroot_forced) {
+    pc_card_dir_create();
+    return;
+  }
   snprintf(g_pc_saveroot, sizeof(g_pc_saveroot), "saves/ap_%s_%d_%d",
       seed, team, player);
   pc_path_sanitize(g_pc_saveroot);

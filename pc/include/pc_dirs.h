@@ -10,9 +10,10 @@
 extern "C" {
 #endif
 
-int pc_card_dir_set_root(const char * dir);
 // Set root based on archipelago data
 void pc_card_dir_set_root_ap(const char * seed, int team, int player);
+// From now on the save root is always dir (pc_card_dir_set_root_ap ignores the seed); render test
+void pc_card_dir_force_root(const char * dir);
 void pc_card_dir_out(s32 chan, char * out, size_t size);
 void pc_card_file_out(s32 chan, char * out, size_t size, const char * fname);
 // A file in the save folder itself (next to card_a/)

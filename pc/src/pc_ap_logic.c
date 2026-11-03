@@ -23,6 +23,7 @@
 #include "pc_ap_weather.h"
 #include "pc_crash.h"
 #include "pc_dirs.h"
+#include "pc_automated.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 #include "m_common_data.h"
@@ -1270,6 +1271,7 @@ void pc_ap_time_reload_save(void) {
     OSReport("[AP] Date & Time reload: save failed, loading the last save\n");
   }
   g_ap.reload.step = PC_AP_RELOAD_TITLE;
+  pc_automated_saved(g_ap.reload.saved);
 }
 
 // What the title's Start press does, then player select
@@ -1313,7 +1315,7 @@ void pc_ap_time_reload_takeover(GAME* game) {
 
 int pc_ap_time_reload_take_player(void) {
   if(g_ap.reload.step != PC_AP_RELOAD_PLAYER_SELECT) {
-    return -1;
+    return pc_automated_take_player(); // -1 unless a render test loads a save
   }
   g_ap.reload.step = PC_AP_RELOAD_LEAVING;
   return g_ap.reload.player;

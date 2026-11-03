@@ -23,6 +23,7 @@
 #include "m_flashrom.h"
 #ifdef PC_ENHANCEMENTS
 #include "pc_ap_logic.h"
+#include "pc_automated.h"
 #include "pc_ap_villagers.h"
 #include "pc_settings.h"
 #include "pc_settings_menu.h"
@@ -444,6 +445,8 @@ static void aAL_pc_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
     default:
       break;
   }
+
+  if (pc_automated_autostart()) { actor->pc_menu_sel = 0; on_btn |= BUTTON_A; } // render test: Start Game
 
   /* Select */
   if (on_btn & (BUTTON_A | BUTTON_START)) {

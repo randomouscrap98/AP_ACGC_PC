@@ -87,6 +87,9 @@ static void aNPS_schedule_init_proc(NPC_ACTOR* nactorx, GAME_PLAY* play) {
     nactorx->talk_info.default_animation = aNPC_ANIM_4HAKU_E1;
     p_sel->strum_timer = 440.0f;
     p_sel->bgm_stop_timer = -1.0f;
+#ifdef TARGET_PC
+    if (pc_automated_autostart()) { p_sel->talk_end_flag = TRUE; p_sel->strum_timer = 0.0f; } // no talk
+#endif
 
     CLIP(npc_clip)->think_proc(nactorx, play, aNPC_THINK_IN_BLOCK, 0);
 }

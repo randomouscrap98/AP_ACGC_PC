@@ -13,6 +13,7 @@
 #include "libultra/libultra.h"
 #include "dolphin/os/OSRtc.h"
 #ifdef TARGET_PC
+#include "pc_automated.h"
 #include "pc_ap_newgame.h"
 #include "pc_ap_qol.h"
 #endif

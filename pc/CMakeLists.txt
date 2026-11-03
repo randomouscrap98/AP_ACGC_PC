@@ -293,7 +293,7 @@ set(PC_SOURCES
     ${DECOMP_ROOT}/src/static/dolphin/pad/Padclamp.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_card.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_dirs.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_render_test.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_automated.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_screenshot.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_vi.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_audio.c
