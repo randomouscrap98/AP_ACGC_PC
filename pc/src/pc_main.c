@@ -207,6 +207,7 @@ void pc_platform_swap_buffers(void) {
     }
 #endif
     pc_ap_ui_draw(); // AP text client over everything (pause menu only)
+    pc_automated_frame(); // the finished window image, before it's shown
     SDL_GL_SwapWindow(g_pc_window);
 }
 
@@ -367,6 +368,7 @@ int main(int argc, char* argv[]) {
             printf("                      limit; writes render_test/S.png at frame N and quits (town scenes:\n");
             printf("                      N frames after arriving; a new town unless --render-save)\n");
             printf("  --render-save DIR   Town for --render-test: a copy of the save folder DIR\n");
+            printf("  --render-list       Print the --render-test scenes, one per line, and quit\n");
             printf("  --generate-save DIR Like --render-test: a new town saved into DIR, then quit\n");
             printf("  --debug             Debug probes in logs/: actors that jump far in one frame (actor_probe.txt),\n");
             printf("                      butterflies stuck in place (butterfly_probe.txt), fog (fog_probe.txt);\n");
@@ -431,6 +433,9 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
             i += frame > 0 ? 2 : 1;
+        } else if (strcmp(argv[i], "--render-list") == 0) {
+            pc_automated_print_scenes();
+            return 0;
         } else if (strcmp(argv[i], "--render-save") == 0 && i + 1 < argc) {
             pc_automated_set_save(argv[++i]);
         } else if (strcmp(argv[i], "--generate-save") == 0 && i + 1 < argc) {

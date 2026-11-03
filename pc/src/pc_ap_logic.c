@@ -143,7 +143,7 @@ typedef struct {
   int storage_allowed;     // Global Storage gate on the last play frame (pause menu reads it)
   unsigned play_frames;    // 60 Hz frames in play (pc_ap_tick), for pc_ap_clock_minute
   int session_started;     // a play frame ran since launch
-  Uint32 session_start;    // SDL_GetTicks() at that first play frame
+  Uint32 session_start;    // pc_ticks_ms() at that first play frame
   pc_ap_request request;
   int initialized;    // module config set from slot_data
 } pc_ap;
@@ -1047,7 +1047,7 @@ int pc_ap_session_seconds(void) {
   if(!g_ap.session_started) {
     return -1;
   }
-  return (int)((SDL_GetTicks() - g_ap.session_start) / 1000);
+  return (int)((pc_ticks_ms() - g_ap.session_start) / 1000);
 }
 
 int pc_ap_time_owned_months(void) {
@@ -1344,6 +1344,7 @@ static void pc_ap_time_reload_update(void) {
 
 void pc_ap_tick(GAME_PLAY* play) {
   pc_crash_note_frame(play);
+  pc_automated_play(play); // render-test scenes: a door or menu
   pc_ap_request_tick(play); // before the gate: a blocked request is dropped with a toast
   // Not while paused (Game_play_move returns first), so the pause menu sees the last frame's
   g_ap.time_change_allowed = g_ap.reload.step == PC_AP_RELOAD_NONE && pc_ap_time_change_allowed(play);
@@ -1354,7 +1355,7 @@ void pc_ap_tick(GAME_PLAY* play) {
   g_ap.play_frames++; // one play frame (60 Hz)
   if(!g_ap.session_started) {
     g_ap.session_started = 1;
-    g_ap.session_start = SDL_GetTicks();
+    g_ap.session_start = pc_ticks_ms();
   }
   // Checks: every check of every paid-off loan (the DLL drops repeats)
   int paid = pc_ap_loans_paid();

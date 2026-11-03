@@ -42,6 +42,14 @@ s64 OSGetTime(void) { return osGetTime(); }
 /* same as OSGetTime on PC (no time_adjust needed) */
 s64 __OSGetSystemTime(void) { return OSGetTime(); }
 
+u32 pc_ticks_ms(void) {
+    extern u32 pc_frame_counter;
+    if (g_pc_automated) {
+        return (u32)((u64)pc_frame_counter * 1000 / 60);
+    }
+    return SDL_GetTicks();
+}
+
 u32 osGetCount(void) {
     return (u32)osGetTime();
 }

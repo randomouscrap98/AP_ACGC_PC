@@ -121,6 +121,11 @@ extern int pc_emu64_frame_cull_visible;
 extern int pc_emu64_frame_cull_rejected;
 extern int pc_gx_draw_call_count;
 
+/* --- Time --- */
+// Milliseconds for port timers that show on screen (toasts, the Runtime box): SDL_GetTicks, or frames x 1000/60
+// in an automated run so its pictures repeat
+u32 pc_ticks_ms(void);
+
 /* --- Audio --- */
 int  pc_audio_get_buffer_fill(void);
 int  pc_audio_is_active(void);

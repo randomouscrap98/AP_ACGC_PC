@@ -109,8 +109,8 @@ static void pc_ap_draw_seed(struct game_s* game, f32 status_y) {
 
 typedef struct {
   char text[_APO_MAXSTRING];
-  Uint32 born;    // SDL_GetTicks() time
-  Uint32 expires; // SDL_GetTicks() time
+  Uint32 born;    // pc_ticks_ms() time
+  Uint32 expires; // pc_ticks_ms() time
   f32 y;          // where it's drawn now (slides toward its slot); < 0 = not drawn yet
 } apo_toast;
 
@@ -121,7 +121,7 @@ static int s_toast_count = 0;
 // Drop expired toasts and pull new ones from the DLL while there's room.
 // Runs every frame, even when the overlay is hidden, so timers keep going.
 static void pc_ap_update_toasts(void) {
-  Uint32 now = SDL_GetTicks();
+  Uint32 now = pc_ticks_ms();
   int keep = 0;
   for(int i = 0; i < s_toast_count; i++) {
     if((Sint32)(s_toasts[i].expires - now) > 0) {
@@ -158,7 +158,7 @@ void pc_ap_overlay_toast(const char* text) {
     s_toast_count--;
   }
   snprintf(s_toasts[s_toast_count].text, _APO_MAXSTRING, "%s", text);
-  s_toasts[s_toast_count].born = SDL_GetTicks();
+  s_toasts[s_toast_count].born = pc_ticks_ms();
   s_toasts[s_toast_count].expires = s_toasts[s_toast_count].born + (Uint32)g_pc_settings.ap_toast_seconds * 1000;
   s_toasts[s_toast_count].y = -1.0f;
   s_toast_count++;
@@ -176,7 +176,7 @@ static f32 apo_toast_alpha(const apo_toast* t, Uint32 now) {
 // Toasts, top left, one line each, oldest on top. When one goes, the ones below slide up.
 static void pc_ap_draw_toasts(struct game_s* game) {
   static Uint32 last;
-  Uint32 now = SDL_GetTicks();
+  Uint32 now = pc_ticks_ms();
   f32 dt = (f32)(now - last);
   // share of the way to the target this frame (exponential ease; a long gap snaps)
   f32 step = 1.0f - expf(-dt / _APO_TOAST_SLIDE_MS);

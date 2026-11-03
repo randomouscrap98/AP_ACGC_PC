@@ -17,6 +17,8 @@ extern int g_pc_automated; // 1 during an automated run
 // From the argument parser. _set: 0 if scene isn't known (prints the list)
 int pc_automated_set_scene(const char* scene, int frame);
 void pc_automated_set_generate(const char* dir);
+// --render-list: the scene names, one per line (render_check.py reads them)
+void pc_automated_print_scenes(void);
 void pc_automated_set_save(const char* dir);
 
 // After argument parsing: date/time defaults, no frame limit, frame-driven audio, the save folder.
@@ -34,12 +36,16 @@ void pc_automated_saved(int ok);
 
 // The start time (date/time overrides, all set by pc_automated_setup) in seconds since 2000-01-01
 s64 pc_automated_start_seconds(void);
+// Each play frame (pc_ap_tick): a town scene's door or menu, RT_ACT_FRAME frames after arriving
+struct game_play_s;
+void pc_automated_play(struct game_play_s* play);
+
 // Ticks since boot: 1/60 s per presented frame
 s64 pc_automated_elapsed_ticks(void);
 
-// Called with each finished frame (same place as pc_screenshot_frame): notes arriving in town, asks for the
-// --generate-save save, and at the shot frame writes render_test/<scene>.png and ends the game
-void pc_automated_frame(unsigned int fbo, int w, int h);
+// Each frame just before the window swap: notes arriving in town, asks for the --generate-save save, and at
+// the shot frame writes the window image (what the player sees) to render_test/<scene>.png and ends the game
+void pc_automated_frame(void);
 
 #ifdef __cplusplus
 }
