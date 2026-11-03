@@ -455,19 +455,26 @@ int ap_roomplayer_valid(const ap_roomplayer * rp) {
   return strlen(rp->seed) > 0;
 }
 
-// Offline mode: slot_data and the session id (which save folder) from a local json, no
-// server. Everything that needs AP items is forced off. Non-zero on error.
-static int ap_start_offline(const char * path) {
+// Whole file into out; false if it can't be opened
+static bool ap_read_file(const char * path, std::string & out) {
   std::ifstream f(path, std::ios::binary);
-  if (!f) {
-    APLOG_WARN("Can't find offline file at %s", path);
-    ap_bad_config("offline: file not found");
-    return 1;
-  }
-  nlohmann::json data = nlohmann::json::parse(f, nullptr, false);
+  if (!f) { return false; }
+  std::stringstream ss;
+  ss << f.rdbuf();
+  out = ss.str();
+  return true;
+}
+
+// Offline mode: slot_data and the session id (which save folder) from json text, no
+// server. Everything that needs AP items is forced off. Non-zero on error.
+int ap_start_offline(const char * json_text) {
+  ap_connectstate_init(&g_ap_connectstate);
+  ap_slotdata_init(ap_slotdata_writable());
+
+  nlohmann::json data = nlohmann::json::parse(json_text, nullptr, false);
   if (!data.is_object() || !data.contains("seed") || !data["seed"].is_string() ||
       data["seed"].get<std::string>().empty()) {
-    APLOG_WARN("Malformed offline file at %s (needs a json object with a seed)", path);
+    APLOG_WARN("Malformed offline json (needs a json object with a seed)");
     ap_bad_config("offline: bad json or no seed");
     return 1;
   }
@@ -479,7 +486,7 @@ static int ap_start_offline(const char * path) {
     rp->team = data.value("team", 0);
     rp->player = data.value("player", 1);
     if (!ap_slotdata_upgrade(data)) {
-      APLOG_WARN("Offline file at %s is for a newer client (slot_data_version %d, client reads up to %d)", path,
+      APLOG_WARN("Offline json is for a newer client (slot_data_version %d, client reads up to %d)",
           data.value("slot_data_version", 1), AP_SLOTDATA_VERSION);
       ap_bad_config("offline: needs a newer client");
       ap_roomplayer_init(rp);
@@ -487,7 +494,7 @@ static int ap_start_offline(const char * path) {
     }
     ap_slotdata_fill(sd, data);
   } catch (const nlohmann::json::exception& e) {
-    APLOG_WARN("Malformed offline file at %s: %s", path, e.what());
+    APLOG_WARN("Malformed offline json: %s", e.what());
     ap_bad_config("offline: value of the wrong type");
     ap_slotdata_init(sd);
     ap_roomplayer_init(rp);
@@ -525,7 +532,14 @@ void ap_start(void) {
 
   if (load_config(AP_CONFIGNAME, &g_ap_config)) { return; }
   if (g_ap_config.offline[0]) {
-    ap_start_offline(g_ap_config.offline);
+    std::string text;
+    if (!ap_read_file(g_ap_config.offline, text)) {
+      APLOG_WARN("Can't find offline file at %s", g_ap_config.offline);
+      ap_bad_config("offline: file not found");
+      return;
+    }
+    APLOG_INFO("Offline file %s", g_ap_config.offline);
+    ap_start_offline(text.c_str());
     return;
   }
 

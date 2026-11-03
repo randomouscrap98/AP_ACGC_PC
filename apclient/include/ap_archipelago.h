@@ -13,6 +13,9 @@ extern "C" {
 // setup the connection to begin with and then poll every frame. A missing
 // ap_config.ini is created; config problems end in AP_CSTATE_BADCONFIG.
 AP_API void ap_start(void);
+// Instead of ap_start: offline mode from json text (same format as the offline= file), no
+// ap_config.ini. Non-zero on error (AP_CSTATE_BADCONFIG, reason like ap_start's).
+AP_API int ap_start_offline(const char * json_text);
 // Poll every frame
 AP_API void ap_poll(void);
 // Call on shutdown
