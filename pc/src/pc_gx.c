@@ -408,6 +408,13 @@ void pc_gx_begin_frame(void) {
     pc_emu64_frame_cull_visible = 0;
     pc_emu64_frame_cull_rejected = 0;
     pc_gx_draw_call_count = 0;
+    pc_gx_run_counts.fans += pc_gx_frame_counts.fans;
+    pc_gx_run_counts.lines += pc_gx_frame_counts.lines;
+    pc_gx_run_counts.wide_lines += pc_gx_frame_counts.wide_lines;
+    pc_gx_run_counts.points += pc_gx_frame_counts.points;
+    pc_gx_run_counts.big_points += pc_gx_frame_counts.big_points;
+    pc_gx_run_counts.efb_copies += pc_gx_frame_counts.efb_copies;
+    memset(&pc_gx_frame_counts, 0, sizeof(pc_gx_frame_counts));
     g_pc_widescreen_stretch = 0;
     pc_gx_draw_pending();
     /* glClear respects write masks — must enable all before clearing */
@@ -715,6 +722,10 @@ static unsigned int pc_gx_variant_stale_groups(const PCGXShaderVariant* v) {
 
 /* --- Vertex Flush --- */
 int pc_gx_draw_call_count = 0;
+PCGXFrameCounts pc_gx_frame_counts;
+PCGXFrameCounts pc_gx_run_counts;
+static int s_line_width = 16;  // GX units: 16 = 1 pixel
+static int s_point_size = 16;
 
 /* Draws the deferred run. Must run before any GL call that bypasses the
  * dirty system (viewport, scissor, readpixels, raw texture binds, swap)
@@ -1045,6 +1056,23 @@ void pc_gx_flush_vertices(void) {
                 if (groups & 1) var->uploaded_seq[b] = g_gx.group_seq[b];
             }
         }
+    }
+
+    switch (g_gx.current_primitive) {
+        case GX_TRIANGLEFAN:
+            pc_gx_frame_counts.fans++;
+            break;
+        case GX_LINES:
+        case GX_LINESTRIP:
+            pc_gx_frame_counts.lines++;
+            pc_gx_frame_counts.wide_lines += s_line_width > 16;
+            break;
+        case GX_POINTS:
+            pc_gx_frame_counts.points++;
+            pc_gx_frame_counts.big_points += s_point_size > 16;
+            break;
+        default:
+            break;
     }
 
     GLenum gl_prim;
@@ -2112,8 +2140,8 @@ void GXSetTexCoordGen2(u32 dst, u32 func, u32 src, u32 mtx, GXBool normalize, u3
         g_gx.tex_gen_mtx[dst] = mtx;
     }
 }
-void GXSetLineWidth(u8 width, u32 texOffsets) { glLineWidth(width / 16.0f); }
-void GXSetPointSize(u8 size, u32 texOffsets) { glPointSize(size / 16.0f); }
+void GXSetLineWidth(u8 width, u32 texOffsets) { s_line_width = width; glLineWidth(width / 16.0f); }
+void GXSetPointSize(u8 size, u32 texOffsets) { s_point_size = size; glPointSize(size / 16.0f); }
 void GXEnableTexOffsets(u32 coord, GXBool line, GXBool point) {
     (void)coord; (void)line; (void)point;
 }
@@ -2224,6 +2252,7 @@ static void pc_gx_copy_tex_execute_impl(void* dest, GXBool clear) {
 
         pc_render_target_copy_to_texture(read_left, gl_y, read_wd, read_ht, efb_tex);
         pc_gx_efb_capture_store((u32)(uintptr_t)dest, efb_tex);
+        pc_gx_frame_counts.efb_copies++;
     }
 #else
     size_t rgba_size = (size_t)read_wd * (size_t)read_ht * 4;

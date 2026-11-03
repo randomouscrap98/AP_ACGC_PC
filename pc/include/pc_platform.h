@@ -120,6 +120,17 @@ extern int pc_emu64_frame_dl_cmds;
 extern int pc_emu64_frame_cull_visible;
 extern int pc_emu64_frame_cull_rejected;
 extern int pc_gx_draw_call_count;
+// This frame's draws that a non-GL backend handles differently (render test log, pc_automated.c)
+typedef struct {
+    int fans;        // GX_TRIANGLEFAN draws (no fans in D3D12 / SDL_GPU)
+    int lines;       // GX_LINES / GX_LINESTRIP draws
+    int wide_lines;  // of those, width > 1 (no wide lines in core GL / SDL_GPU)
+    int points;      // GX_POINTS draws
+    int big_points;  // of those, size > 1 (D3D12 draws 1 pixel)
+    int efb_copies;  // GXCopyTex into a texture (mid-frame copy)
+} PCGXFrameCounts;
+extern PCGXFrameCounts pc_gx_frame_counts;
+extern PCGXFrameCounts pc_gx_run_counts; // the same, summed since boot
 
 /* --- Time --- */
 // Milliseconds for port timers that show on screen (toasts, the Runtime box): SDL_GetTicks, or frames x 1000/60

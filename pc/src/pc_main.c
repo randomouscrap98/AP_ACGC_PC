@@ -166,15 +166,15 @@ static void pc_speedhack_toggle(void) {
 void pc_platform_shutdown(void) {
     // NEW: PROBABLY safe to shutdown archipelago first... it's 
     // probably the least important system?
-    pc_ap_ui_shutdown(); // GL context still current
-    ap_stop();
-    pc_settings_save_window_size();
+    pc_ap_ui_shutdown(); printf("[TMP] %u pc_ap_ui_shutdown();\n", SDL_GetTicks()); // GL context still current
+    ap_stop(); printf("[TMP] %u ap_stop();\n", SDL_GetTicks());
+    pc_settings_save_window_size(); printf("[TMP] %u pc_settings_save_window_size();\n", SDL_GetTicks());
 
-    pc_audio_shutdown();
-    pc_audio_mq_shutdown();
-    PADCleanup();
-    pc_texture_pack_shutdown();
-    pc_gx_shutdown();
+    pc_audio_shutdown(); printf("[TMP] %u pc_audio_shutdown();\n", SDL_GetTicks());
+    pc_audio_mq_shutdown(); printf("[TMP] %u pc_audio_mq_shutdown();\n", SDL_GetTicks());
+    PADCleanup(); printf("[TMP] %u PADCleanup();\n", SDL_GetTicks());
+    pc_texture_pack_shutdown(); printf("[TMP] %u pc_texture_pack_shutdown();\n", SDL_GetTicks());
+    pc_gx_shutdown(); printf("[TMP] %u pc_gx_shutdown();\n", SDL_GetTicks());
 #ifdef PC_ENHANCEMENTS
     pc_render_target_shutdown();
 #endif
@@ -187,7 +187,7 @@ void pc_platform_shutdown(void) {
         SDL_DestroyWindow(g_pc_window);
         g_pc_window = NULL;
     }
-    SDL_Quit();
+    SDL_Quit(); printf("[TMP] %u SDL_Quit();\n", SDL_GetTicks());
 }
 
 void pc_platform_update_window_size(void) {
@@ -556,7 +556,7 @@ int main(int argc, char* argv[]) {
     ac_entry();                         /* sets HotStartEntry = &entry */
     boot_main(argc, (const char**)argv); /* full init → HotStartEntry → game loop */
 
-    pc_disc_shutdown();
+    printf("[TMP] %u start\n", SDL_GetTicks()); pc_disc_shutdown();
     pc_platform_shutdown();
     return 0;
 }

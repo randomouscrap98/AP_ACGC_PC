@@ -93,6 +93,7 @@ static const char* s_save_dir;     // --render-save
 static u32 s_arrived;              // frame the player could first act in town (0 = not yet)
 static int s_save_requested;
 static int s_player_taken;
+static Uint64 s_first_counter; // wall clock at the first frame (frame time in the log)
 
 int pc_automated_set_scene(const char* scene, int frame) {
     for (size_t i = 0; i < sizeof(s_scenes) / sizeof(s_scenes[0]); i++) {
@@ -372,6 +373,9 @@ void pc_automated_frame(void) {
     if (!g_pc_automated) {
         return;
     }
+    if (s_first_counter == 0) {
+        s_first_counter = SDL_GetPerformanceCounter();
+    }
     if (s_arrived == 0 && pc_ap_time_change_allowed_now()) {
         s_arrived = pc_frame_counter;
         printf("[render-test] in town at frame %lu\n", (unsigned long)s_arrived);
@@ -389,6 +393,20 @@ void pc_automated_frame(void) {
     shot = s_scene->town ? s_arrived + s_shot_frame : s_shot_frame;
     if (pc_frame_counter != shot) {
         return;
+    }
+    {
+        const PCGXFrameCounts* c = &pc_gx_frame_counts;
+        const PCGXFrameCounts* t = &pc_gx_run_counts; // earlier frames
+        printf("[render-test] run fans=%d lines=%d wide_lines=%d points=%d big_points=%d efb_copies=%d\n",
+               t->fans + c->fans, t->lines + c->lines, t->wide_lines + c->wide_lines, t->points + c->points,
+               t->big_points + c->big_points, t->efb_copies + c->efb_copies);
+        Uint64 now = SDL_GetPerformanceCounter();
+        // Wall time per frame since the first one (coarse: boot and loading included)
+        printf("[render-test] counts draws=%d fans=%d lines=%d wide_lines=%d points=%d big_points=%d efb_copies=%d\n",
+               pc_gx_draw_call_count, c->fans, c->lines, c->wide_lines, c->points, c->big_points, c->efb_copies);
+        printf("[render-test] time %.3f ms/frame over %lu frames\n",
+               (double)(now - s_first_counter) * 1000.0 / (double)SDL_GetPerformanceFrequency() / pc_frame_counter,
+               (unsigned long)pc_frame_counter);
     }
     pc_mkdir_p(RT_DIR);
     snprintf(path, sizeof(path), RT_DIR "/%s.png", s_scene->name);
