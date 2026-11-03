@@ -52,6 +52,32 @@ static void shot_name(void) {
     }
 }
 
+// The frame's pixels, RGB rows bottom-up (GL order); NULL if out of memory
+static unsigned char* read_pixels(unsigned int fbo, int w, int h) {
+    unsigned char* pixels = malloc((size_t)w * h * 3);
+    if (pixels == NULL) {
+        return NULL;
+    }
+    GLint pack = 4;
+    glGetIntegerv(GL_PACK_ALIGNMENT, &pack);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1); // rows of w * 3 bytes, no padding
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+    glPixelStorei(GL_PACK_ALIGNMENT, pack);
+    return pixels;
+}
+
+int pc_screenshot_write(unsigned int fbo, int w, int h, const char* path) {
+    unsigned char* pixels = read_pixels(fbo, w, h);
+    if (pixels == NULL) {
+        return 0;
+    }
+    stbi_flip_vertically_on_write(1);
+    int ok = stbi_write_png(path, w, h, 3, pixels, w * 3);
+    free(pixels);
+    return ok;
+}
+
 void pc_screenshot_request(void) {
     SDL_AtomicCAS(&s_state, SHOT_IDLE, SHOT_WANTED);
 }
@@ -72,18 +98,12 @@ void pc_screenshot_frame(unsigned int fbo, int w, int h) {
         return;
     }
 
-    s_pixels = malloc((size_t)w * h * 3);
+    s_pixels = read_pixels(fbo, w, h);
     if (s_pixels == NULL) {
         pc_ap_overlay_toast("Screenshot failed (out of memory)");
         SDL_AtomicSet(&s_state, SHOT_IDLE);
         return;
     }
-    GLint pack = 4;
-    glGetIntegerv(GL_PACK_ALIGNMENT, &pack);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1); // rows of w * 3 bytes, no padding
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
-    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, s_pixels);
-    glPixelStorei(GL_PACK_ALIGNMENT, pack);
     s_w = w;
     s_h = h;
     pc_mkdir_p(SHOT_DIR);

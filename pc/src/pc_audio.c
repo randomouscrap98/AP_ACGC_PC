@@ -35,6 +35,14 @@ static u32 ai_dsp_sample_rate = PC_AUDIO_SAMPLE_RATE;
 static SDL_Thread* audio_producer_thread = NULL;
 static SDL_atomic_t audio_thread_running;
 
+// Frame-driven mode (pc_audio_set_frame_driven): samples made so far, only counted
+static int s_frame_driven;
+static u32 s_frame_samples;
+
+void pc_audio_set_frame_driven(void) {
+    s_frame_driven = 1;
+}
+
 static int pc_audio_producer_func(void* data) {
     (void)data;
     while (SDL_AtomicGet(&audio_thread_running)) {
@@ -50,6 +58,7 @@ static int pc_audio_producer_func(void* data) {
 
 void pc_audio_start_producer_thread(void) {
     if (audio_producer_thread) return;
+    if (s_frame_driven) return; // pc_audio_frame_tick instead
     SDL_AtomicSet(&audio_thread_running, 1);
     audio_producer_thread = SDL_CreateThread(pc_audio_producer_func, "AudioProducer", NULL);
     if (audio_producer_thread) {
@@ -93,9 +102,26 @@ static void pc_audio_callback(void* userdata, Uint8* stream, int len) {
 
 /* --- AI (Audio Interface) --- */
 
+void pc_audio_frame_tick(void) {
+    extern u32 pc_frame_counter;
+    if (!s_frame_driven) {
+        return;
+    }
+    // Stereo samples due by this frame
+    u32 target = (u32)((u64)pc_frame_counter * PC_AUDIO_SAMPLE_RATE * 2 / 60);
+    while (s_frame_samples < target) {
+        u32 before = s_frame_samples;
+        pc_audio_process_frame();
+        if (s_frame_samples == before) {
+            break; // nothing made (not started yet)
+        }
+    }
+}
+
 void AIInit(u8* stack) {
     (void)stack;
     if (audio_device != 0) return;
+    if (s_frame_driven) return; // no device: AIInitDMA only counts
 
     SDL_AudioSpec want, have;
     memset(&want, 0, sizeof(want));
@@ -126,6 +152,10 @@ void AIInitDMA(u32 addr, u32 size) {
     s16* src = (s16*)(uintptr_t)addr;
     u32 n_samples = size / sizeof(s16);
     n_samples &= ~1u; /* whole stereo frames */
+    if (s_frame_driven) {
+        s_frame_samples += n_samples;
+        return;
+    }
 
     u32 wp = (u32)SDL_AtomicGet(&ring_write_pos);
     u32 rp = (u32)SDL_AtomicGet(&ring_read_pos);

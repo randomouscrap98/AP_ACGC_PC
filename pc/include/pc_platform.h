@@ -129,6 +129,10 @@ void pc_audio_shutdown(void);
 void pc_audio_start_producer_thread(void);
 void pc_audio_mq_init(void);
 void pc_audio_mq_shutdown(void);
+// Frame-driven audio (render test): no device, no producer thread; pc_audio_frame_tick makes exactly
+// 1/60 s of samples per frame and drops them, so the sound engine's state follows frames, not wall time
+void pc_audio_set_frame_driven(void);
+void pc_audio_frame_tick(void);
 
 #ifdef __cplusplus
 }

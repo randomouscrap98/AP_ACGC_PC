@@ -21,6 +21,7 @@
 #include "pc_dirs.h"
 #include "pc_sound_test.h"
 #include "pc_window_icon.h"
+#include "pc_render_test.h"
 #include "pc_screenshot.h"
 
 // Single implementation of the vendored ini.h (pc/lib/ini) for the exe
@@ -362,6 +363,8 @@ int main(int argc, char* argv[]) {
             printf("  --rain [intensity]  Force rainy weather; intensity is light, normal, or heavy\n");
             printf("  --uber-shader       Disable shader specialization (single uber shader)\n");
             printf("  --crash-test        Crash on purpose after startup, to check the crash report\n");
+            printf("  --render-test S [N] Repeatable run for render checks: clock on frames, offline, no frame\n");
+            printf("                      limit; writes render_test/S.png at frame N (default 600) and quits\n");
             printf("  --debug             Debug probes in logs/: actors that jump far in one frame (actor_probe.txt),\n");
             printf("                      butterflies stuck in place (butterfly_probe.txt), fog (fog_probe.txt);\n");
             printf("                      the log goes to logs/debug_log.txt (unless --verbose); \"DEBUG\" next to\n");
@@ -416,6 +419,15 @@ int main(int argc, char* argv[]) {
                 if (y >= 2000) g_pc_date_year = y;
             }
             i++;
+        } else if (strcmp(argv[i], "--render-test") == 0 && i + 1 < argc) {
+            int frame = 0;
+            if (i + 2 < argc && argv[i + 2][0] != '-') {
+                frame = atoi(argv[i + 2]);
+            }
+            if (!pc_render_test_set(argv[i + 1], frame)) {
+                return 1;
+            }
+            i += frame > 0 ? 2 : 1;
         } else if (strcmp(argv[i], "--crash-test") == 0) {
             crash_test = 1;
         } else if (strcmp(argv[i], "--debug") == 0) {
@@ -498,10 +510,15 @@ int main(int argc, char* argv[]) {
 #endif
 
     SDL_SetMainReady();
+    pc_render_test_setup(); // before settings: its frame limit override
     pc_settings_load();
     // read settings off disk rather than use UI 
     // (this won't work well for non-PC systems...)
-    ap_start(); // config problems show on the overlay status line
+    if (g_pc_render_test) {
+        ap_start_offline(PC_RENDER_TEST_JSON);
+    } else {
+        ap_start(); // config problems show on the overlay status line
+    }
     pc_keybindings_load();
     pc_platform_init();
     pc_crash_init_info();

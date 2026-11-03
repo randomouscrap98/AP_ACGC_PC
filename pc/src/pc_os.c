@@ -1,5 +1,6 @@
 /* pc_os.c - Dolphin OS replacement: arena, timers, threads, message queues */
 #include "pc_platform.h"
+#include "pc_render_test.h"
 
 #include <time.h>
 
@@ -24,6 +25,9 @@ static s64 gc_epoch_offset_ticks = 0; /* Ticks from GC epoch to program start */
 #define GC_UNIX_EPOCH_DIFF 946684800LL
 
 s64 osGetTime(void) {
+    if (g_pc_render_test) {
+        return gc_epoch_offset_ticks + pc_render_test_elapsed_ticks(); // frames, not wall time
+    }
     u64 now = SDL_GetPerformanceCounter();
     u64 freq = SDL_GetPerformanceFrequency();
     u64 d = now - time_base_start;

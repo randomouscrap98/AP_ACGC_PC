@@ -137,6 +137,7 @@ void VIWaitForRetrace(void) {
 
     retrace_count++;
     pc_frame_counter++;
+    pc_audio_frame_tick(); // frame-driven audio only
 }
 
 u32 VIGetRetraceCount(void) { return retrace_count; }
