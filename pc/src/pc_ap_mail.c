@@ -13,16 +13,8 @@ void pc_ap_mail_init(pc_ap_mail* m, const ap_slotdata* sd) {
 
 // Same fields as the game's own letters (mMl_get_mail_to_player_com, m_mail.c),
 // with our text instead of a ROM handbill
-int pc_ap_mail_send(const pc_ap_mail* m, struct home_s* home, Private_c* priv,
-                    const char* body, mActor_name_t present) {
-  if(home == NULL || priv == NULL) {
-    return 0;
-  }
-  int slot = mMl_chk_mail_free_space(home->mailbox, HOME_MAILBOX_SIZE);
-  if(slot == -1) {
-    return 0;
-  }
-
+void pc_ap_mail_build(const pc_ap_mail* m, Private_c* priv, const char* body, mActor_name_t present,
+                      Mail_c* out) {
   Mail_c mail;
   u8 sender[PLAYER_NAME_LEN];
   mMl_clear_mail(&mail);
@@ -43,7 +35,18 @@ int pc_ap_mail_send(const pc_ap_mail* m, struct home_s* home, Private_c* priv,
   mPr_CopyPlayerName(mail.header.sender.personalID.player_name, sender);
   mail.header.sender.type = mMl_NAME_TYPE_MUSEUM; // non-villager sender, like the bank's letters
   mail.present = present;
+  mMl_copy_mail(out, &mail);
+}
 
-  mMl_copy_mail(&home->mailbox[slot], &mail);
+int pc_ap_mail_send(const pc_ap_mail* m, struct home_s* home, Private_c* priv,
+                    const char* body, mActor_name_t present) {
+  if(home == NULL || priv == NULL) {
+    return 0;
+  }
+  int slot = mMl_chk_mail_free_space(home->mailbox, HOME_MAILBOX_SIZE);
+  if(slot == -1) {
+    return 0;
+  }
+  pc_ap_mail_build(m, priv, body, present, &home->mailbox[slot]);
   return 1;
 }

@@ -19,6 +19,11 @@
 #include "m_player.h"
 #include "m_player_lib.h"
 #include "pc_pause_menu.h"
+#include "pc_ap_mail.h"
+#include "ap_archipelago.h"
+#include "m_mail.h"
+#include "m_board_ovl.h"
+#include "m_common_data.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -45,7 +50,7 @@ extern int g_pc_date_month, g_pc_date_day, g_pc_date_year;
 extern int g_pc_weather_override, g_pc_weather_intensity_override;
 
 // Where a town scene goes RT_ACT_FRAME frames after arriving (the player stays put)
-enum { RT_STAY, RT_HOUSE, RT_SHOP, RT_MUSEUM, RT_PAUSE, RT_MAP, RT_INVENTORY };
+enum { RT_STAY, RT_HOUSE, RT_SHOP, RT_MUSEUM, RT_PAUSE, RT_MAP, RT_INVENTORY, RT_LETTER };
 #define RT_ACT_FRAME 30
 
 // One render-test scene. 0 in any field = the default (noon 2026-06-15, the weather of the day, settings.ini)
@@ -78,6 +83,7 @@ static const RTScene s_scenes[] = {
     { .name = "pause", .town = 1, .frame = 120, .act = RT_PAUSE },  // PC pause menu over the town
     { .name = "map", .town = 1, .frame = 120, .act = RT_MAP },  // town map
     { .name = "inventory", .town = 1, .frame = 120, .act = RT_INVENTORY },
+    { .name = "letter", .town = 1, .frame = 120, .act = RT_LETTER },  // a letter being read (stationery + text)
 };
 
 static const RTScene* s_scene;
@@ -288,6 +294,19 @@ void pc_automated_play(GAME_PLAY* play) {
             mSM_open_submenu(&play->submenu, mSM_OVL_MAP, 1, 0); // as from the inventory (m_submenu.c)
             player_menu_opened(play);
             break;
+        case RT_LETTER: {
+            // Opened like the inventory's "Read" (m_tag_ovl.c mTG_read_proc), straight from the field
+            static Mail_c mail;
+            pc_ap_mail m;
+            pc_ap_mail_init(&m, ap_getslotdata());
+            pc_ap_mail_build(&m, Now_Private,
+                             "This letter is a render test.\nThe quick brown fox jumps over the lazy dog.\n"
+                             "0123456789 !?.,'\"-",
+                             EMPTY_NO, &mail);
+            mSM_open_submenu_new(&play->submenu, mSM_OVL_BOARD, mSM_BD_OPEN_READ, -1, &mail);
+            player_menu_opened(play);
+            break;
+        }
         case RT_INVENTORY:
             mSM_open_submenu(&play->submenu, mSM_OVL_INVENTORY, 0, 0);
             player_menu_opened(play);

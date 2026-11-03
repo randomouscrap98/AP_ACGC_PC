@@ -25,6 +25,11 @@ typedef struct {
 
 void pc_ap_mail_init(pc_ap_mail* m, const ap_slotdata* sd);
 
+// The letter pc_ap_mail_send delivers, into out (Mail_c, m_mail.h)
+struct mail_s;
+void pc_ap_mail_build(const pc_ap_mail* m, Private_c* priv, const char* body, mActor_name_t present,
+                      struct mail_s* out);
+
 // Put a letter in home's mailbox right away (no delivery schedule), addressed
 // to priv, on the slot's stationery. Header is "Dear <player>,". Body is ASCII,
 // max 192 chars, '\n' for line breaks. present = attached item, EMPTY_NO for none.
