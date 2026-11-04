@@ -2,6 +2,7 @@
 #include "pc_platform.h"
 #include "pc_gx_internal.h"
 #include "pc_texture_pack.h"
+#include "pc_gpu.h"
 #include "pc_settings.h"
 #include "pc_render_target.h"
 #include "pc_ap_ui.h"
@@ -119,7 +120,7 @@ void pc_platform_init(void) {
         exit(1);
     }
 
-    if (!gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress)) {
+    if (!pc_gpu_init()) {
         fprintf(stderr, "gladLoadGL failed\n");
         SDL_GL_DeleteContext(g_pc_gl_context);
         SDL_DestroyWindow(g_pc_window);
@@ -130,11 +131,6 @@ void pc_platform_init(void) {
     SDL_GL_SetSwapInterval(g_pc_settings.vsync);
 
     pc_platform_update_window_size();
-
-#ifdef PC_ENHANCEMENTS
-    // GL's default, but MSAA can be turned on live (render target)
-    glEnable(GL_MULTISAMPLE);
-#endif
 
     pc_gx_init();
     // Black window right away (both buffers) instead of uninitialized video memory

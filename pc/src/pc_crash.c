@@ -1,5 +1,6 @@
 #include "pc_platform.h"
 #include "pc_crash.h"
+#include "pc_gpu.h"
 #include "ap_archipelago.h"
 #include "ap_log.h"
 
@@ -577,13 +578,8 @@ static void crash_init_os(void) {
 #endif
 
 void pc_crash_init_info(void) {
-  const char* vendor = (const char*)glGetString(GL_VENDOR);
-  const char* renderer = (const char*)glGetString(GL_RENDERER);
-  const char* version = (const char*)glGetString(GL_VERSION);
-
   crash_init_os();
-  snprintf(s_gl, sizeof(s_gl), "%s | %s | %s", vendor ? vendor : "?", renderer ? renderer : "?",
-           version ? version : "?");
+  pc_gpu_device_info(s_gl, sizeof(s_gl));
   s_module_count_init = crash_collect_modules(s_modules_init);
 #ifdef _WIN32
   // Again, in case SDL or the GL driver installed their own

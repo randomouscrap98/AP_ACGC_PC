@@ -5,6 +5,7 @@
  * index scan for TLUT hash (only used entries, in BE byte order).
  * DDS: BC7, BC1/DXT1, BC3/DXT5, or uncompressed RGBA. */
 #include "pc_texture_pack.h"
+#include "pc_gpu.h"
 #include <dolphin/gx/GXEnum.h>
 #include "pc_gx_internal.h"
 #include "pc_settings.h"
@@ -142,6 +143,25 @@ static xxh_u64 xxhash64(const void* input, int len) {
 
 static int g_has_bc7 = 0;
 static int g_has_s3tc = 0;
+
+// Formats are GL numbers (the cache file stores them, TPCEntryHeader.gl_internal); GL_RGBA = uncompressed
+static PCGpuFormat tp_gpu_format(xxh_u32 gl_internal) {
+    switch (gl_internal) {
+        case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT: return PC_GPU_DXT1;
+        case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT: return PC_GPU_DXT5;
+        case GL_COMPRESSED_RGBA_BPTC_UNORM:    return PC_GPU_BC7;
+        default:                               return PC_GPU_RGBA8;
+    }
+}
+
+// 0 if the GPU refused it
+static PCGpuTexture tp_create_texture(xxh_u32 gl_internal, int w, int h, const void* pixels, int data_size) {
+    PCGpuTexture tex = pc_gpu_texture_create(w, h, tp_gpu_format(gl_internal), pixels, data_size);
+
+    pc_profiler_add_count_texture_bind();
+    if (tex) pc_gpu_texture_set_sampler(tex, PC_GPU_LINEAR, PC_GPU_REPEAT, PC_GPU_REPEAT);
+    return tex;
+}
 
 static int g_stat_lookups = 0;
 static int g_stat_hits = 0;
@@ -431,7 +451,7 @@ static void scan_directory(const char* dir_path) {
 
 /* --- DDS file loader --- */
 
-static GLuint load_dds_file(const char* filepath, int* out_w, int* out_h) {
+static PCGpuTexture load_dds_file(const char* filepath, int* out_w, int* out_h) {
     FILE* f = fopen(filepath, "rb");
     if (!f) return 0;
 
@@ -451,7 +471,7 @@ static GLuint load_dds_file(const char* filepath, int* out_w, int* out_h) {
     memcpy(&pf_fourcc, header + 84, 4);
 
     xxh_u32 dxgi_format = 0;
-    GLenum gl_internal = 0;
+    xxh_u32 gl_internal = 0;
     int compressed = 0;
     int block_size = 0;
 
@@ -544,31 +564,9 @@ static GLuint load_dds_file(const char* filepath, int* out_w, int* out_h) {
         }
     }
 
-    GLuint tex;
-    glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
-    pc_profiler_add_count_texture_bind();
-
-    if (compressed) {
-        glCompressedTexImage2D(GL_TEXTURE_2D, 0, gl_internal,
-                               (GLsizei)dds_width, (GLsizei)dds_height,
-                               0, data_size, pixels);
-    } else {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)dds_width, (GLsizei)dds_height,
-                     0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-    }
-
-    GLenum err = glGetError();
-    if (err != GL_NO_ERROR) {
-        glDeleteTextures(1, &tex);
-        free(pixels);
-        return 0;
-    }
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
+    PCGpuTexture tex = tp_create_texture(gl_internal, (int)dds_width, (int)dds_height, pixels, data_size);
     free(pixels);
+    if (!tex) return 0;
 
     if (out_w) *out_w = (int)dds_width;
     if (out_h) *out_h = (int)dds_height;
@@ -610,7 +608,7 @@ static int gc_texture_data_size(int w, int h, unsigned int fmt) {
 
 typedef struct {
     xxh_u64 key;
-    GLuint  gl_tex;
+    PCGpuTexture gl_tex;
     int     tex_w, tex_h;
     int     occupied;
 } LoadedCacheEntry;
@@ -637,7 +635,7 @@ static LoadedCacheEntry* loaded_cache_find(xxh_u64 key) {
     return NULL;
 }
 
-static void loaded_cache_insert(xxh_u64 key, GLuint tex, int w, int h) {
+static void loaded_cache_insert(xxh_u64 key, PCGpuTexture tex, int w, int h) {
     xxh_u32 slot = (xxh_u32)(key & LOADED_CACHE_MASK);
     for (int i = 0; i < LOADED_CACHE_SIZE; i++) {
         xxh_u32 idx = (slot + i) & LOADED_CACHE_MASK;
@@ -674,14 +672,8 @@ static void neg_cache_insert(xxh_u64 key) {
 /* --- Public API --- */
 
 static void check_compressed_texture_support(void) {
-    GLint num_ext = 0;
-    glGetIntegerv(GL_NUM_EXTENSIONS, &num_ext);
-    for (GLint i = 0; i < num_ext; i++) {
-        const char* ext = (const char*)glGetStringi(GL_EXTENSIONS, i);
-        if (!ext) continue;
-        if (strcmp(ext, "GL_ARB_texture_compression_bptc") == 0) g_has_bc7 = 1;
-        if (strcmp(ext, "GL_EXT_texture_compression_s3tc") == 0) g_has_s3tc = 1;
-    }
+    g_has_bc7 = pc_gpu_format_supported(PC_GPU_BC7);
+    g_has_s3tc = pc_gpu_format_supported(PC_GPU_DXT1);
 }
 
 static void xxhash64_selftest(void) {
@@ -750,28 +742,9 @@ typedef struct {
 
 /* Upload a single cached texture entry to GL and insert into loaded_cache */
 static int tpc_upload_entry(const TPCEntryHeader* eh, const unsigned char* pixels) {
-    GLuint tex;
-    glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
-    pc_profiler_add_count_texture_bind();
-
-    if (eh->compressed) {
-        glCompressedTexImage2D(GL_TEXTURE_2D, 0, (GLenum)eh->gl_internal,
-                               (GLsizei)eh->width, (GLsizei)eh->height,
-                               0, (GLsizei)eh->data_size, pixels);
-    } else {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-                     (GLsizei)eh->width, (GLsizei)eh->height,
-                     0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-    }
-
-    if (glGetError() != GL_NO_ERROR) {
-        glDeleteTextures(1, &tex);
-        return 0;
-    }
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    PCGpuTexture tex = tp_create_texture(eh->gl_internal, (int)eh->width, (int)eh->height, pixels,
+                                         (int)eh->data_size);
+    if (!tex) return 0;
 
     loaded_cache_insert(eh->cache_key, tex, (int)eh->width, (int)eh->height);
     return 1;
@@ -857,7 +830,7 @@ static unsigned char* load_dds_raw(const char* filepath, xxh_u32* out_w, xxh_u32
     memcpy(&pf_fourcc, header + 84, 4);
 
     xxh_u32 dxgi_format = 0;
-    GLenum gl_internal = 0;
+    xxh_u32 gl_internal = 0;
     int compressed = 0;
     int block_size = 0;
 
@@ -983,21 +956,8 @@ void pc_texture_pack_preload_all(void) {
         if (pixels) {
             TPCEntryHeader eh = { key, gl_int, comp, dds_w, dds_h, (xxh_u32)data_size };
 
-            /* Upload to GL */
-            GLuint tex;
-            glGenTextures(1, &tex);
-            glBindTexture(GL_TEXTURE_2D, tex);
-            pc_profiler_add_count_texture_bind();
-            if (comp)
-                glCompressedTexImage2D(GL_TEXTURE_2D, 0, (GLenum)gl_int,
-                                       (GLsizei)dds_w, (GLsizei)dds_h, 0, data_size, pixels);
-            else
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-                             (GLsizei)dds_w, (GLsizei)dds_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-
-            if (glGetError() == GL_NO_ERROR) {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            PCGpuTexture tex = tp_create_texture(gl_int, (int)dds_w, (int)dds_h, pixels, data_size);
+            if (tex) {
                 loaded_cache_insert(key, tex, (int)dds_w, (int)dds_h);
                 loaded++;
 
@@ -1007,7 +967,6 @@ void pc_texture_pack_preload_all(void) {
                     cache_entries++;
                 }
             } else {
-                glDeleteTextures(1, &tex);
                 failed++;
             }
             free(pixels);
@@ -1042,20 +1001,8 @@ void pc_texture_pack_preload_all(void) {
         if (pixels) {
             TPCEntryHeader eh = { key, gl_int, comp, dds_w, dds_h, (xxh_u32)data_size };
 
-            GLuint tex;
-            glGenTextures(1, &tex);
-            glBindTexture(GL_TEXTURE_2D, tex);
-            pc_profiler_add_count_texture_bind();
-            if (comp)
-                glCompressedTexImage2D(GL_TEXTURE_2D, 0, (GLenum)gl_int,
-                                       (GLsizei)dds_w, (GLsizei)dds_h, 0, data_size, pixels);
-            else
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-                             (GLsizei)dds_w, (GLsizei)dds_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-
-            if (glGetError() == GL_NO_ERROR) {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            PCGpuTexture tex = tp_create_texture(gl_int, (int)dds_w, (int)dds_h, pixels, data_size);
+            if (tex) {
                 loaded_cache_insert(key, tex, (int)dds_w, (int)dds_h);
                 loaded++;
 
@@ -1065,7 +1012,6 @@ void pc_texture_pack_preload_all(void) {
                     cache_entries++;
                 }
             } else {
-                glDeleteTextures(1, &tex);
                 failed++;
             }
             free(pixels);
@@ -1107,7 +1053,7 @@ void pc_texture_pack_shutdown(void) {
 
     for (int i = 0; i < LOADED_CACHE_SIZE; i++) {
         if (g_loaded_cache[i].occupied && g_loaded_cache[i].gl_tex) {
-            glDeleteTextures(1, &g_loaded_cache[i].gl_tex);
+            pc_gpu_texture_destroy(g_loaded_cache[i].gl_tex);
         }
     }
     memset(g_loaded_cache, 0, sizeof(g_loaded_cache));
@@ -1129,10 +1075,10 @@ int pc_texture_pack_active(void) {
     return g_texpack_active;
 }
 
-GLuint pc_texture_pack_lookup(const void* data, int data_size,
-                              int w, int h, unsigned int fmt,
-                              const void* tlut_data, int tlut_entries, int tlut_is_be,
-                              int* out_w, int* out_h) {
+PCGpuTexture pc_texture_pack_lookup(const void* data, int data_size,
+                                    int w, int h, unsigned int fmt,
+                                    const void* tlut_data, int tlut_entries, int tlut_is_be,
+                                    int* out_w, int* out_h) {
     if (!g_texpack_active || !data || data_size <= 0) return 0;
 
     int hash_size = gc_texture_data_size(w, h, fmt);
@@ -1231,7 +1177,7 @@ GLuint pc_texture_pack_lookup(const void* data, int data_size,
 
     int dds_w = 0, dds_h = 0;
     const char* path = entry ? entry->filepath : wc_entry->filepath;
-    GLuint tex = load_dds_file(path, &dds_w, &dds_h);
+    PCGpuTexture tex = load_dds_file(path, &dds_w, &dds_h);
     if (!tex) {
         printf("[TexturePack] Failed to load DDS: %s\n", path);
         neg_cache_insert(cache_key);

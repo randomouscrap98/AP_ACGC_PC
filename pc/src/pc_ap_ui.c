@@ -1,6 +1,7 @@
 // The AP text client (apclient's ap_ui.h) in the pause menu: decides when it shows, feeds it SDL input and
 // starts SDL text input while its text line wants it. Everything else (window, log, sending) is in the DLL.
 #include "pc_ap_ui.h"
+#include "pc_gpu.h"
 #include "ap_archipelago.h"
 #include "ap_ui.h"
 
@@ -152,11 +153,9 @@ void pc_ap_ui_draw(void) {
     float dt = (float)(now - s_last_ticks) / (float)SDL_GetPerformanceFrequency();
     s_last_ticks = now;
     // Into the window: the render target's present leaves its offscreen buffer bound for late draws
-    GLint fbo = 0;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    PCGpuTarget previous = pc_gpu_set_draw_target(0);
     ap_ui_frame(g_pc_window_w, g_pc_window_h, dt);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)fbo);
+    pc_gpu_set_draw_target(previous);
     pc_ap_ui_text_input(ap_ui_wants_text());
 }
 

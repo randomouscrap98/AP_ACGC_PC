@@ -1,6 +1,7 @@
 // pc_screenshot.c - F12 saves the render target as screenshots/shot_<date>_<time>.png next to the exe.
-// The GL read happens on the main thread; compressing and writing the PNG runs on its own thread.
+// The pixel read happens on the main thread; compressing and writing the PNG runs on its own thread.
 #include "pc_screenshot.h"
+#include "pc_gpu.h"
 #include "pc_platform.h"
 #include "pc_dirs.h"
 #include "pc_ap_overlay.h"
@@ -52,23 +53,8 @@ static void shot_name(void) {
     }
 }
 
-// The frame's pixels, RGB rows bottom-up (GL order); NULL if out of memory
-static unsigned char* read_pixels(unsigned int fbo, int w, int h) {
-    unsigned char* pixels = malloc((size_t)w * h * 3);
-    if (pixels == NULL) {
-        return NULL;
-    }
-    GLint pack = 4;
-    glGetIntegerv(GL_PACK_ALIGNMENT, &pack);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1); // rows of w * 3 bytes, no padding
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
-    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-    glPixelStorei(GL_PACK_ALIGNMENT, pack);
-    return pixels;
-}
-
-int pc_screenshot_write(unsigned int fbo, int w, int h, const char* path) {
-    unsigned char* pixels = read_pixels(fbo, w, h);
+int pc_screenshot_write(PCGpuTarget source, int w, int h, const char* path) {
+    unsigned char* pixels = pc_gpu_read_pixels(source, w, h);
     if (pixels == NULL) {
         return 0;
     }
@@ -82,7 +68,7 @@ void pc_screenshot_request(void) {
     SDL_AtomicCAS(&s_state, SHOT_IDLE, SHOT_WANTED);
 }
 
-void pc_screenshot_frame(unsigned int fbo, int w, int h) {
+void pc_screenshot_frame(PCGpuTarget source, int w, int h) {
     char msg[96];
     int state = SDL_AtomicGet(&s_state);
 
@@ -98,7 +84,7 @@ void pc_screenshot_frame(unsigned int fbo, int w, int h) {
         return;
     }
 
-    s_pixels = read_pixels(fbo, w, h);
+    s_pixels = pc_gpu_read_pixels(source, w, h);
     if (s_pixels == NULL) {
         pc_ap_overlay_toast("Screenshot failed (out of memory)");
         SDL_AtomicSet(&s_state, SHOT_IDLE);

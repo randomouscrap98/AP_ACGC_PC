@@ -1,6 +1,7 @@
 /* pc_gx_texture.c - GC texture format decoders + 2048-entry texture cache */
 #include "pc_gx_internal.h"
 #include "pc_texture_pack.h"
+#include "pc_gpu.h"
 #include "pc_profiler.h"
 #include "pc_settings.h"
 #include <dolphin/gx/GXEnum.h>
@@ -9,6 +10,17 @@
 static int pc_gx_tlut_force_be(void);
 static void decode_rgb5a3_entry(u16 val, u8* r, u8* g, u8* b, u8* a);
 static u32 tlut_content_hash(const void* data, int tlut_fmt, int n_entries, int is_be);
+
+// GX filter (GX_NEAR = 0) and wrap (GX_CLAMP / GX_REPEAT / GX_MIRROR, the PCGpuWrap order) on a texture; binds it
+// on the active unit
+static void pc_gx_texture_set_sampler(PCGpuTexture tex, u32 filter, u32 wrap_s, u32 wrap_t) {
+    PCGpuWrap ws = wrap_s <= PC_GPU_MIRROR ? (PCGpuWrap)wrap_s : PC_GPU_REPEAT;
+    PCGpuWrap wt = wrap_t <= PC_GPU_MIRROR ? (PCGpuWrap)wrap_t : PC_GPU_REPEAT;
+
+    pc_gpu_texture_set_sampler(tex, filter ? PC_GPU_LINEAR : PC_GPU_NEAREST, ws, wt);
+    pc_profiler_add_count_texture_bind();
+    pc_gx_texture_bind_cache_invalidate();
+}
 
 /* --- TLUT stale-data detection ---
  * On GC, gsDPLoadTLUT_Dolphin always re-DMA'd palette data from memory.
@@ -126,7 +138,7 @@ static TexCacheEntry* tex_cache_insert(u32 data_ptr, int w, int h, u32 fmt, u32 
                         g_gx.gl_textures[s] = 0;
                 }
                 if (!tex_cache[i].external)
-                    glDeleteTextures(1, &tex_cache[i].gl_tex);
+                    pc_gpu_texture_destroy(tex_cache[i].gl_tex);
             }
         }
         memmove(&tex_cache[0], &tex_cache[half], (tex_cache_count - half) * sizeof(TexCacheEntry));
@@ -152,7 +164,7 @@ static TexCacheEntry* tex_cache_insert(u32 data_ptr, int w, int h, u32 fmt, u32 
 void pc_gx_texture_cache_invalidate(void) {
     for (int i = 0; i < tex_cache_count; i++) {
         if (tex_cache[i].gl_tex && !tex_cache[i].external) {
-            glDeleteTextures(1, &tex_cache[i].gl_tex);
+            pc_gpu_texture_destroy(tex_cache[i].gl_tex);
         }
     }
     tex_cache_count = 0;
@@ -630,12 +642,11 @@ static void pc_gx_load_tex_obj_impl(void* obj, u32 id) {
         GLuint efb_tex = pc_gx_efb_capture_find(o[TEXOBJ_IMAGE_PTR]);
         if (efb_tex) {
             pc_gx_draw_pending();
-            glBindTexture(GL_TEXTURE_2D, efb_tex);
+            // EFB copies are made clamped (pc_gx.c pc_gx_copy_tex_execute_impl); only the filter follows GX
+            pc_gpu_texture_set_sampler(efb_tex, filter_mode ? PC_GPU_LINEAR : PC_GPU_NEAREST, PC_GPU_CLAMP,
+                                       PC_GPU_CLAMP);
             pc_profiler_add_count_texture_bind();
             pc_gx_texture_bind_cache_invalidate();
-            GLenum gl_filter = filter_mode ? GL_LINEAR : GL_NEAREST;
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
             o[TEXOBJ_GL_TEX] = efb_tex;
             g_gx.gl_textures[id] = efb_tex;
             g_gx.tex_obj_w[id] = width;
@@ -666,24 +677,9 @@ static void pc_gx_load_tex_obj_impl(void* obj, u32 id) {
         /* update wrap/filter if changed */
         if (params_changed) {
             pc_gx_draw_pending();
-            glBindTexture(GL_TEXTURE_2D, tex);
-            pc_profiler_add_count_texture_bind();
-            pc_gx_texture_bind_cache_invalidate();
-        }
-        if (cached->wrap_s != wrap_s || cached->wrap_t != wrap_t) {
-            GLenum gl_ws = (wrap_s == 2) ? GL_MIRRORED_REPEAT :
-                           (wrap_s == 0) ? GL_CLAMP_TO_EDGE : GL_REPEAT;
-            GLenum gl_wt = (wrap_t == 2) ? GL_MIRRORED_REPEAT :
-                           (wrap_t == 0) ? GL_CLAMP_TO_EDGE : GL_REPEAT;
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, gl_ws);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, gl_wt);
+            pc_gx_texture_set_sampler(tex, filter_mode, wrap_s, wrap_t);
             cached->wrap_s = wrap_s;
             cached->wrap_t = wrap_t;
-        }
-        if (cached->min_filter != filter_mode) {
-            GLenum gl_filter = filter_mode ? GL_LINEAR : GL_NEAREST;
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
             cached->min_filter = filter_mode;
         }
 
@@ -715,25 +711,12 @@ static void pc_gx_load_tex_obj_impl(void* obj, u32 id) {
         }
         int data_size = (width * height * gc_format_bpp(format)) / 8;
         int hd_w = 0, hd_h = 0;
-        GLuint hd_tex = pc_texture_pack_lookup(image_ptr, data_size,
-                                               width, height, format,
-                                               tp_tlut, tp_tlut_entries, tp_tlut_is_be,
-                                               &hd_w, &hd_h);
+        PCGpuTexture hd_tex = pc_texture_pack_lookup(image_ptr, data_size,
+                                                     width, height, format,
+                                                     tp_tlut, tp_tlut_entries, tp_tlut_is_be,
+                                                     &hd_w, &hd_h);
         if (hd_tex) {
-            glBindTexture(GL_TEXTURE_2D, hd_tex);
-            pc_profiler_add_count_texture_bind();
-            pc_gx_texture_bind_cache_invalidate();
-            GLenum gl_ws = (wrap_s == 2) ? GL_MIRRORED_REPEAT :
-                           (wrap_s == 0) ? GL_CLAMP_TO_EDGE : GL_REPEAT;
-            GLenum gl_wt = (wrap_t == 2) ? GL_MIRRORED_REPEAT :
-                           (wrap_t == 0) ? GL_CLAMP_TO_EDGE : GL_REPEAT;
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, gl_ws);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, gl_wt);
-            {
-                GLenum gl_filter = filter_mode ? GL_LINEAR : GL_NEAREST;
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
-            }
+            pc_gx_texture_set_sampler(hd_tex, filter_mode, wrap_s, wrap_t);
 
             TexCacheEntry* entry = tex_cache_insert(o[TEXOBJ_IMAGE_PTR], width, height, format,
                                                     tlut_key, tlut_ptr_key, tlut_hash_key, hash, hd_tex);
@@ -752,11 +735,8 @@ static void pc_gx_load_tex_obj_impl(void* obj, u32 id) {
         }
     }
 
-    GLuint tex;
-    glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
-    pc_profiler_add_count_texture_bind();
-    pc_gx_texture_bind_cache_invalidate();
+    u8 white[4] = {255, 255, 255, 255};
+    PCGpuTexture tex = 0;
 
     if (image_ptr && width > 0 && height > 0 && width <= 1024 && height <= 1024) {
         u8* rgba = (u8*)malloc(width * height * 4);
@@ -778,33 +758,12 @@ static void pc_gx_load_tex_obj_impl(void* obj, u32 id) {
             }
 
             decode_gc_texture(image_ptr, rgba, width, height, format, palette);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
-                         GL_RGBA, GL_UNSIGNED_BYTE, rgba);
-            PC_GL_CHECK("glTexImage2D");
+            tex = pc_gpu_texture_create(width, height, PC_GPU_RGBA8, rgba, 0);
             free(rgba);
-        } else {
-            u8 white[4] = {255, 255, 255, 255};
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white);
         }
-    } else {
-        u8 white[4] = {255, 255, 255, 255};
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white);
     }
-
-    {
-        GLenum gl_filter = filter_mode ? GL_LINEAR : GL_NEAREST;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
-    }
-
-    {
-        GLenum gl_ws = (wrap_s == 2) ? GL_MIRRORED_REPEAT :
-                       (wrap_s == 0) ? GL_CLAMP_TO_EDGE : GL_REPEAT;
-        GLenum gl_wt = (wrap_t == 2) ? GL_MIRRORED_REPEAT :
-                       (wrap_t == 0) ? GL_CLAMP_TO_EDGE : GL_REPEAT;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, gl_ws);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, gl_wt);
-    }
+    if (!tex) tex = pc_gpu_texture_create(1, 1, PC_GPU_RGBA8, white, 0);
+    pc_gx_texture_set_sampler(tex, filter_mode, wrap_s, wrap_t);
 
     /* insert into cache */
     TexCacheEntry* entry = tex_cache_insert(o[TEXOBJ_IMAGE_PTR], width, height, format, tlut_key,

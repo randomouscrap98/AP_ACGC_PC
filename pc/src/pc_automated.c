@@ -52,7 +52,7 @@ extern int g_pc_weather_override, g_pc_weather_intensity_override;
 extern int g_pc_uber_shader_only;
 
 // Where a town scene goes RT_ACT_FRAME frames after arriving (the player stays put)
-enum { RT_STAY, RT_HOUSE, RT_SHOP, RT_MUSEUM, RT_PAUSE, RT_MAP, RT_INVENTORY, RT_LETTER };
+enum { RT_STAY, RT_HOUSE, RT_SHOP, RT_MUSEUM, RT_PAUSE, RT_MAP, RT_INVENTORY, RT_LETTER, RT_NES };
 #define RT_ACT_FRAME 30
 
 // One render-test scene. 0 in any field = the default (noon 2026-06-15, the weather of the day, settings.ini)
@@ -87,6 +87,7 @@ static const RTScene s_scenes[] = {
     { .name = "map", .town = 1, .frame = 120, .act = RT_MAP },  // town map
     { .name = "inventory", .town = 1, .frame = 120, .act = RT_INVENTORY },
     { .name = "letter", .town = 1, .frame = 120, .act = RT_LETTER },  // a letter being read (stationery + text)
+    { .name = "nes", .town = 1, .frame = 600, .act = RT_NES },  // NES game 1 (fixNES, own GL quad), as from the furniture
     // The uber shader is only the fallback (variant compile failed, cache full): only these scenes check it
     { .name = "title_uber", .frame = 600, .uber = 1 },
     { .name = "town_uber", .town = 1, .frame = 300, .uber = 1 },
@@ -320,6 +321,9 @@ void pc_automated_play(GAME_PLAY* play) {
         case RT_INVENTORY:
             mSM_open_submenu(&play->submenu, mSM_OVL_INVENTORY, 0, 0);
             player_menu_opened(play);
+            break;
+        case RT_NES:
+            goto_emu_game(&play->game, 1); // positive = built-in game by number (ac_my_room.c aMR_RequestStartEmu)
             break;
         default:
             break;
