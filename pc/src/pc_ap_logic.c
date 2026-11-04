@@ -1521,6 +1521,31 @@ int pc_ap_critter_status(int cat, int idx) {
   return pc_ap_museumsanity_critter_status(&g_ap.museum, cat, idx, journal, displayed);
 }
 
+int pc_ap_fossil_status(int idx) {
+  int displayed = mMmd_FossilInfo(idx) != mMmd_DONATOR_NONE;
+  return pc_ap_museumsanity_critter_status(&g_ap.museum, mMmd_CATEGORY_FOSSIL, idx, 0, displayed);
+}
+
+int pc_ap_fossil_seasons_on(void) {
+  return g_ap.museum.fossil_availability == AP_FOSSIL_AVAIL_SEASON_LOCKED;
+}
+
+int pc_ap_fossil_season(int idx) {
+  return idx >= 0 && idx < mMmd_FOSSIL_NUM ? g_ap.museum.fossil_seasons[idx] : 0;
+}
+
+int pc_ap_fossil_season_of_month(int month) {
+  return pc_ap_museumsanity_season_of_month(month);
+}
+
+int pc_ap_fossil_series(int idx) {
+  return pc_ap_museumsanity_fossil_group(&g_ap.museum, idx);
+}
+
+int pc_ap_fossil_series_open(int series) {
+  return pc_ap_museumsanity_fossil_series_open(&g_ap.museum, series);
+}
+
 int pc_ap_fish_passes_on(void) {
   return g_ap.museum.fish_availability == AP_FISH_AVAIL_PROGRESSIVE;
 }

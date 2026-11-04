@@ -169,6 +169,15 @@ void pc_ap_museum_plaque_name(mActor_name_t item);
 // (cat mMmd_CATEGORY_INSECT/FISH, museum index idx), see pc_ap_museumsanity_critter_status.
 // Needs a player (journal).
 int pc_ap_critter_status(int cat, int idx);
+// Fossils pause page: like pc_ap_critter_status for fossil idx (museum index); without fossil checks
+// 1 = on display. Season Locked on; season (0 spring .. 3 winter) of fossil idx / of month 0-11;
+// display series (PC_AP_FOSSIL_SERIES_*) of fossil idx; series open (always unless progressive).
+int pc_ap_fossil_status(int idx);
+int pc_ap_fossil_seasons_on(void);
+int pc_ap_fossil_season(int idx);
+int pc_ap_fossil_season_of_month(int month);
+int pc_ap_fossil_series(int idx);
+int pc_ap_fossil_series_open(int series);
 // Fish Availability "Progressive" is on (fish pass items gate fish)
 int pc_ap_fish_passes_on(void);
 // Fish pass p (PC_AP_FISH_PASS_*) received, or passes off

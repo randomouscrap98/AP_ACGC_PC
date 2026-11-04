@@ -302,12 +302,23 @@ int pc_ap_museumsanity_fossil_series(int idx) {
   return -1;
 }
 
-int pc_ap_museumsanity_fossil_open(const pc_ap_museumsanity* m, int idx) {
+int pc_ap_museumsanity_fossil_series_open(const pc_ap_museumsanity* m, int series) {
   if(m->fossil_availability != AP_FOSSIL_AVAIL_PROGRESSIVE) {
     return 1;
   }
-  int series = idx >= 0 && idx < mMmd_FOSSIL_NUM ? m->fossil_series[idx] : -1;
   return series < 0 || ap_item_count(PC_AP_ITEM_FOSSIL_SERIES_BASE + series) > 0;
+}
+
+int pc_ap_museumsanity_fossil_open(const pc_ap_museumsanity* m, int idx) {
+  int series = idx >= 0 && idx < mMmd_FOSSIL_NUM ? m->fossil_series[idx] : -1;
+  return pc_ap_museumsanity_fossil_series_open(m, series);
+}
+
+int pc_ap_museumsanity_fossil_group(const pc_ap_museumsanity* m, int idx) {
+  if(idx < 0 || idx >= mMmd_FOSSIL_NUM) {
+    return -1;
+  }
+  return m->fossil_series[idx] >= 0 ? m->fossil_series[idx] : pc_ap_museumsanity_fossil_series(idx);
 }
 
 int pc_ap_museumsanity_fossils_spawn(const pc_ap_museumsanity* m) {
@@ -345,6 +356,10 @@ int pc_ap_museumsanity_fossil_available(const pc_ap_museumsanity* m) {
 // Season Locked: season of each month (0 spring Mar-May .. 3 winter Dec-Feb). Frozen: 0.5.0 seeds' logic used it
 // (apworld fossil_availability.SEASON_MONTHS, sync-checked)
 static const int l_season_of_month[12] = { 3, 3, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3 };
+
+int pc_ap_museumsanity_season_of_month(int month) {
+  return l_season_of_month[month >= 0 && month < 12 ? month : 0];
+}
 
 int pc_ap_museumsanity_pick_fossil(const pc_ap_museumsanity* m, const u8 wanted[mMmd_FOSSIL_NUM], int month,
                                    f32 r) {

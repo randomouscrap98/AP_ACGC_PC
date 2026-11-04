@@ -7,6 +7,7 @@
 #include "pc_ap_time_menu.h"
 #include "pc_ap_catalog_menu.h"
 #include "pc_ap_critter_menu.h"
+#include "pc_ap_fossil_menu.h"
 #include "pc_ap_shell_menu.h"
 #include "pc_ap_tree_menu.h"
 #include "pc_ap_ftr_menu.h"
@@ -46,6 +47,7 @@ typedef enum {
     PAGE_FTR = 8, // Furniture Set or Chess Set
     PAGE_TREES = 9,
     PAGE_STORAGE = 10,
+    PAGE_FOSSILS = 11,
 } PauseMenuPage;
 
 // Entries of the main and AP list pages; which ones show is decided by lists_update
@@ -60,6 +62,7 @@ typedef enum {
     MAIN_CATALOG, // AP page, Catalogsanity only
     MAIN_BUGS,    // AP page
     MAIN_FISH,    // AP page
+    MAIN_FOSSILS, // AP page
     MAIN_SHELLS,  // AP page, Shellsanity only
     MAIN_TREES,   // AP page, Treesanity only
     MAIN_FTR_SET, // AP page, Furniture Set goal only
@@ -93,6 +96,7 @@ static int s_held_src;
 static pc_ap_time_menu time_menu;
 static pc_ap_catalog_menu catalog_menu;
 static pc_ap_critter_menu critter_menu; // Bugs or Fish
+static pc_ap_fossil_menu fossil_menu;
 static pc_ap_shell_menu shell_menu;
 static pc_ap_tree_menu tree_menu;
 static pc_ap_ftr_menu ftr_menu; // Furniture Set or Chess Set
@@ -134,6 +138,7 @@ static void lists_update(void) {
     }
     list_add(&ap_list, MAIN_BUGS);
     list_add(&ap_list, MAIN_FISH);
+    list_add(&ap_list, MAIN_FOSSILS);
     if (pc_ap_shells_per_month() > 0) {
         list_add(&ap_list, MAIN_SHELLS);
     }
@@ -160,6 +165,7 @@ static const char* main_label(MainItem item) {
         case MAIN_CATALOG:  return "Catalog";
         case MAIN_BUGS:     return "Bugs";
         case MAIN_FISH:     return "Fish";
+        case MAIN_FOSSILS:  return "Fossils";
         case MAIN_SHELLS:   return "Shells";
         case MAIN_TREES:    return "Trees";
         case MAIN_FTR_SET:  return "Furniture Set";
@@ -175,7 +181,8 @@ static const char* main_label(MainItem item) {
 static int main_disabled(MainItem item) {
     if (item == MAIN_TIME || item == MAIN_SAVE) return !pc_ap_time_change_allowed_now();
     if (item == MAIN_STORAGE) return !pc_ap_storage_open_allowed_now();
-    if (item == MAIN_AP || item == MAIN_CATALOG || item == MAIN_BUGS || item == MAIN_FISH || item == MAIN_SHELLS ||
+    if (item == MAIN_AP || item == MAIN_CATALOG || item == MAIN_BUGS || item == MAIN_FISH || item == MAIN_FOSSILS ||
+        item == MAIN_SHELLS ||
         item == MAIN_TREES || item == MAIN_FTR_SET || item == MAIN_CHESS) {
         return !pc_ap_accepting();
     }
@@ -259,6 +266,14 @@ static void list_activate(MainItem item) {
                 pc_ap_overlay_toast(item == MAIN_FISH ? "Fish: load your save first" : "Bugs: load your save first");
             }
             break;
+        case MAIN_FOSSILS:
+            if (pc_ap_accepting()) {
+                cur_page = PAGE_FOSSILS;
+                pc_ap_fossil_menu_enter(&fossil_menu);
+            } else {
+                pc_ap_overlay_toast("Fossils: load your save first");
+            }
+            break;
         case MAIN_SHELLS:
             if (pc_ap_accepting()) {
                 cur_page = PAGE_SHELLS;
@@ -331,12 +346,13 @@ static void handle_action(pc_menu_action act) {
         return;
     }
 
-    /* Date & Time, Catalog, Bugs/Fish, Shells, Trees, Furniture/Chess Set: each page handles its own input. */
-    if (cur_page == PAGE_TIME || cur_page == PAGE_CATALOG || cur_page == PAGE_CRITTERS || cur_page == PAGE_SHELLS ||
-        cur_page == PAGE_TREES || cur_page == PAGE_FTR || cur_page == PAGE_STORAGE) {
+    /* Date & Time, Catalog, Bugs/Fish, Fossils, Shells, Trees, Furniture/Chess Set: each page handles its own input. */
+    if (cur_page == PAGE_TIME || cur_page == PAGE_CATALOG || cur_page == PAGE_CRITTERS || cur_page == PAGE_FOSSILS ||
+        cur_page == PAGE_SHELLS || cur_page == PAGE_TREES || cur_page == PAGE_FTR || cur_page == PAGE_STORAGE) {
         int result;
         if (cur_page == PAGE_TIME)         result = pc_ap_time_menu_input(&time_menu, act);
         else if (cur_page == PAGE_CATALOG) result = pc_ap_catalog_menu_input(&catalog_menu, act);
+        else if (cur_page == PAGE_FOSSILS) result = pc_ap_fossil_menu_input(&fossil_menu, act);
         else if (cur_page == PAGE_SHELLS)  result = pc_ap_shell_menu_input(&shell_menu, act);
         else if (cur_page == PAGE_TREES)   result = pc_ap_tree_menu_input(&tree_menu, act);
         else if (cur_page == PAGE_FTR)     result = pc_ap_ftr_menu_input(&ftr_menu, act);
@@ -556,6 +572,8 @@ void pc_pause_menu_draw(struct game_s* game) {
         pc_ap_catalog_menu_draw(&catalog_menu, game);
     } else if (cur_page == PAGE_CRITTERS) {
         pc_ap_critter_menu_draw(&critter_menu, game);
+    } else if (cur_page == PAGE_FOSSILS) {
+        pc_ap_fossil_menu_draw(&fossil_menu, game);
     } else if (cur_page == PAGE_SHELLS) {
         pc_ap_shell_menu_draw(&shell_menu, game);
     } else if (cur_page == PAGE_TREES) {

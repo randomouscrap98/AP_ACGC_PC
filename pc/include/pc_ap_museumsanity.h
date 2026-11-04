@@ -131,6 +131,13 @@ int pc_ap_museumsanity_fossil_series(int idx);
 // Nonzero if a fossil can come out: always, unless progressive and its
 // series item isn't received
 int pc_ap_museumsanity_fossil_open(const pc_ap_museumsanity* m, int idx);
+// Nonzero if series (PC_AP_FOSSIL_SERIES_*, -1 = none) is open: always, unless progressive and its item
+// isn't received
+int pc_ap_museumsanity_fossil_series_open(const pc_ap_museumsanity* m, int series);
+// Series of a fossil for display: the seed's fossil_series, the game's groups when missing (-1 out of range)
+int pc_ap_museumsanity_fossil_group(const pc_ap_museumsanity* m, int idx);
+// Season Locked: season (0 spring .. 3 winter) of month 0-11
+int pc_ap_museumsanity_season_of_month(int month);
 // Nonzero if fossils get buried: always, unless progressive and no series item
 // is received yet
 int pc_ap_museumsanity_fossils_spawn(const pc_ap_museumsanity* m);

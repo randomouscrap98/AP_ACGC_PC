@@ -294,6 +294,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_time_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_catalog_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_critter_menu.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_fossil_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_shell_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_tree_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_ftr_menu.c
