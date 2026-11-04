@@ -759,6 +759,19 @@ static int pc_outdoor_ftr_slide(GAME* game, int i, int dir, int pull) {
      (pull && !pc_outdoor_ftr_walkable((GAME_PLAY*)game, player_ux + dx, player_uz + dz, ppos->y))) {
     return FALSE;
   }
+  // Not when the animation would take the player into another acre: only walking states notice an acre change
+  // (Player_actor_Set_ScrollDemo_forWade), so the acre's actors (houses...) wouldn't load
+  {
+    xyz_t target = s_hold.nice;
+    int bx, bz, to_bx, to_bz;
+
+    target.x += dx * mFI_UT_WORLDSIZE_X_F;
+    target.z += dz * mFI_UT_WORLDSIZE_Z_F;
+    if(!mFI_Wpos2BlockNum(&bx, &bz, *ppos) || !mFI_Wpos2BlockNum(&to_bx, &to_bz, target) || bx != to_bx ||
+       bz != to_bz) {
+      return FALSE;
+    }
+  }
   pc_outdoor_ftr_model_pos(p, &from);
   pc_outdoor_ftr_relocate(p, p->ux + dx, p->uz + dz, p->rot);
   p->anim.state = PC_OUTDOOR_FTR_ANIM_SLIDE;
