@@ -742,6 +742,14 @@ int pc_ap_catalog_goal(void) {
   return (ap_getslotdata()->goal & AP_GOAL_CATALOG) ? g_ap.catalog.goal_count : 0;
 }
 
+int pc_ap_catalog_items_open(void) {
+  return pc_ap_catalogsanity_items(&g_ap.catalog, pc_ap_catalog_pools_open());
+}
+
+int pc_ap_catalog_items_total(void) {
+  return g_ap.catalog.count;
+}
+
 int pc_ap_catalog_pool_items(int pool, mActor_name_t* out, int max) {
   // Locked pools stay a surprise
   if(pool < 0 || pool >= pc_ap_catalog_pools_open()) {

@@ -73,6 +73,8 @@ int64_t pc_ap_catalogsanity_next_check(const pc_ap_catalogsanity* c, int open, i
 void pc_ap_catalogsanity_sync(pc_ap_catalogsanity* c, const void* player);
 // Items of the first `open` pools in the current player's catalog (the checks sent)
 int pc_ap_catalogsanity_registered(const pc_ap_catalogsanity* c, int open);
+// Items of the first `open` pools (the checks available)
+int pc_ap_catalogsanity_items(const pc_ap_catalogsanity* c, int open);
 
 // Nonzero if source may give new pool items: PC_AP_CATALOG_SOURCE_NOOK, or an
 // AP_CATALOG_SOURCE_* bit that's on

@@ -321,7 +321,7 @@ static void apo_append_unlocks(char* out, size_t size) {
 
 static void pc_ap_draw_tracker(struct game_s* game) {
   const ap_slotdata* sd = ap_getslotdata();
-  char output[512];
+  char output[768];
   output[0] = '\0';
   if(sd->valid && pc_ap_accepting()) {
     if(pc_ap_loans_enabled()) {
@@ -347,17 +347,39 @@ static void pc_ap_draw_tracker(struct game_s* game) {
     if(pc_ap_catalog_pools_total() > 0) {
       apo_append(output, sizeof(output), "\nCatalog Pools: %d / %d", pc_ap_catalog_pools_open(),
                  pc_ap_catalog_pools_total());
+      // Catalog: in the catalog / items of the open pools / all items
+      apo_append(output, sizeof(output), "\nCatalog: %d / %d / %d", pc_ap_catalog_registered(),
+                 pc_ap_catalog_items_open(), pc_ap_catalog_items_total());
       if(pc_ap_catalog_goal() > 0) {
-        apo_append(output, sizeof(output), "\nCatalog: %d / %d", pc_ap_catalog_registered(), pc_ap_catalog_goal());
+        apo_append(output, sizeof(output), "\nCatalog Goal: %d / %d", pc_ap_catalog_registered(),
+                   pc_ap_catalog_goal());
       }
     }
+    // Trees: sent / checks of the fruit the player has / all checks
     if(pc_ap_trees_per_fruit() > 0) {
-      int left = 0;
+      int per_fruit = pc_ap_trees_per_fruit();
+      int sent = 0;
+      int available = 0;
       for(int f = 0; f < PC_AP_FRUITS; f++) {
-        left += pc_ap_trees_left(f);
+        sent += per_fruit - pc_ap_trees_left(f);
+        if(pc_ap_trees_fruit_owned(f)) {
+          available += per_fruit;
+        }
       }
-      int total = pc_ap_trees_per_fruit() * PC_AP_FRUITS;
-      apo_append(output, sizeof(output), "\nTrees: %d / %d", total - left, total);
+      apo_append(output, sizeof(output), "\nTrees: %d / %d / %d", sent, available, per_fruit * PC_AP_FRUITS);
+    }
+    // Shells: sent / checks of the owned months (all without Timesanity) / all checks
+    if(pc_ap_shells_per_month() > 0) {
+      int per_month = pc_ap_shells_per_month();
+      int sent = 0;
+      int available = 0;
+      for(int month = 0; month < 12; month++) {
+        sent += per_month - pc_ap_shells_left(month);
+        if(!pc_ap_time_frozen() || (pc_ap_time_owned_months() & (1 << month))) {
+          available += per_month;
+        }
+      }
+      apo_append(output, sizeof(output), "\nShells: %d / %d / %d", sent, available, per_month * 12);
     }
     apo_append_unlocks(output, sizeof(output));
   } else {

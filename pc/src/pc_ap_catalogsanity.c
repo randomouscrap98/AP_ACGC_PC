@@ -126,6 +126,16 @@ int pc_ap_catalogsanity_registered(const pc_ap_catalogsanity* c, int open) {
   return n;
 }
 
+int pc_ap_catalogsanity_items(const pc_ap_catalogsanity* c, int open) {
+  int n = 0;
+  for(int i = 0; i < c->count; i++) {
+    if(c->pool[i] < open) {
+      n++;
+    }
+  }
+  return n;
+}
+
 int pc_ap_catalogsanity_is_source(const pc_ap_catalogsanity* c, int source) {
   return source == PC_AP_CATALOG_SOURCE_NOOK || (source & c->sources) != 0;
 }
