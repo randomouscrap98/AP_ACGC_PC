@@ -49,6 +49,7 @@ extern int g_pc_frame_limit_override;
 extern int g_pc_time_override, g_pc_min_override, g_pc_sec_override;
 extern int g_pc_date_month, g_pc_date_day, g_pc_date_year;
 extern int g_pc_weather_override, g_pc_weather_intensity_override;
+extern int g_pc_uber_shader_only;
 
 // Where a town scene goes RT_ACT_FRAME frames after arriving (the player stays put)
 enum { RT_STAY, RT_HOUSE, RT_SHOP, RT_MUSEUM, RT_PAUSE, RT_MAP, RT_INVENTORY, RT_LETTER };
@@ -65,6 +66,7 @@ typedef struct {
     int rain, snow;    // heavy, all day
     int msaa;          // samples
     int scale;         // render scale (PC_RENDER_SCALE_*, 1-6 = x480 lines)
+    int uber;          // 1: uber shader only (--uber-shader), the fallback normal scenes never draw with
 } RTScene;
 
 // The only list of scenes: render_check.py reads it through --render-list
@@ -85,6 +87,11 @@ static const RTScene s_scenes[] = {
     { .name = "map", .town = 1, .frame = 120, .act = RT_MAP },  // town map
     { .name = "inventory", .town = 1, .frame = 120, .act = RT_INVENTORY },
     { .name = "letter", .town = 1, .frame = 120, .act = RT_LETTER },  // a letter being read (stationery + text)
+    // The uber shader is only the fallback (variant compile failed, cache full): only these scenes check it
+    { .name = "title_uber", .frame = 600, .uber = 1 },
+    { .name = "town_uber", .town = 1, .frame = 300, .uber = 1 },
+    { .name = "house_uber", .town = 1, .frame = 300, .act = RT_HOUSE, .uber = 1 },
+    { .name = "inventory_uber", .town = 1, .frame = 120, .act = RT_INVENTORY, .uber = 1 },
 };
 
 static const RTScene* s_scene;
@@ -102,6 +109,7 @@ int pc_automated_set_scene(const char* scene, int frame) {
             s_scene = &s_scenes[i];
             s_shot_frame = frame > 0 ? (u32)frame : (u32)s_scene->frame;
             g_pc_automated = 1;
+            if (s_scene->uber) g_pc_uber_shader_only = 1;
             return 1;
         }
     }
