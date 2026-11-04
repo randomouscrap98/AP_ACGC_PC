@@ -12,6 +12,21 @@
 #ifdef TARGET_PC
 #include "pc_bswap.h"
 #include "pc_settings.h"
+
+// Instant text fill paused at a quest order until the quest manager takes it: the order may fill strings
+// the page shows (birthday quest), and the manager only runs on the next frame
+static int pc_msg_instant_paused = FALSE;
+
+static int pc_msg_quest_order_pending(void) {
+    int i;
+
+    for (i = 0; i < mDemo_ORDER_VALUE_MAX; i++) {
+        if (mDemo_Get_OrderValue(mDemo_ORDER_QUEST, i) != 0) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
 #endif
 
 static u32 Msg_table_rom_start = 0;

@@ -5,10 +5,17 @@ static int mMsg_Check_CancelOrder(mMsg_Window_c* msg_p) {
     }
   }
 #ifdef TARGET_PC
-  // Instant text setting: A or B shows the rest of the page in any message (vanilla only where the text allows it)
-  if (g_pc_settings.instant_text && msg_p->cancel_flag == FALSE && (msg_p->status_flags & mMsg_STATUS_FLAG_CURSOL_JUST) == 0 &&
-      (chkTrigger(BUTTON_A) || chkTrigger(BUTTON_B))) {
-    return TRUE;
+  // Instant text setting: A or B shows the rest of the page in any message (vanilla only where the text allows it).
+  // Paused at a quest order: goes on by itself once the quest manager has taken it, A/B do nothing until then.
+  if (g_pc_settings.instant_text && msg_p->cancel_flag == FALSE && (msg_p->status_flags & mMsg_STATUS_FLAG_CURSOL_JUST) == 0) {
+    if (pc_msg_instant_paused) {
+      if (!pc_msg_quest_order_pending()) {
+        pc_msg_instant_paused = FALSE;
+        return TRUE;
+      }
+    } else if (chkTrigger(BUTTON_A) || chkTrigger(BUTTON_B)) {
+      return TRUE;
+    }
   }
 #endif
 
@@ -155,6 +162,13 @@ static int mMsg_Main_Cursol_SetDemoOrderNpc2_ControlCursol(mMsg_Window_c* msg_p,
 }
 
 static int mMsg_Main_Cursol_SetDemoOrderQuest_ControlCursol(mMsg_Window_c* msg_p, int* idx_p) {
+#ifdef TARGET_PC
+  // An Instant text fill (not a vanilla skip) waits here for the quest manager (pc_msg_instant_paused)
+  if (g_pc_settings.instant_text && msg_p->cancel_flag && msg_p->cancelable_flag == FALSE) {
+    msg_p->cancel_flag = FALSE;
+    pc_msg_instant_paused = TRUE;
+  }
+#endif
   return mMsg_Main_Cursol_SetDemoOrder_ControlCursol(msg_p, idx_p, mDemo_ORDER_QUEST);
 }
 

@@ -138,5 +138,8 @@ static void mMsg_MainSetup_Normal(mMsg_Window_c* msg_p, GAME* game) {
     }
 
     msg_p->cancel_flag = FALSE;
+#ifdef TARGET_PC
+    pc_msg_instant_paused = FALSE;
+#endif
   }
 }

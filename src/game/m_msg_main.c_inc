@@ -457,6 +457,9 @@ static void mMsg_init(GAME* game) {
     mMsg_window.main_index = mMsg_INDEX_HIDE;
     mMsg_window.draw_flag = 0;
     mMsg_window.cancel_flag = 0;
+#ifdef TARGET_PC
+    pc_msg_instant_paused = FALSE;
+#endif
     mMsg_window.cancelable_flag = 0;
     mMsg_window.continue_msg_no = 0xFFFF;
     mMsg_Unset_CancelNormalContinue(&mMsg_window);
