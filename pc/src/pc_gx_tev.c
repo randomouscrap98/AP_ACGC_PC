@@ -95,15 +95,22 @@ static GLuint link_program(GLuint vert, GLuint frag) {
     return prog;
 }
 
-/* Sampler units never change: set once per program. Caller restores the
- * previously bound program. */
-static void set_sampler_uniforms(GLuint prog, const PCGXUloc* u) {
+/* Sampler units and block bindings never change: set once per program (GL 3.3 GLSL can't
+ * give them in the source). Caller restores the previously bound program. */
+static void set_program_bindings(GLuint prog) {
+    static const char* const samplers[] = {
+        "u_texture0", "u_texture1", "u_texture2", "u_ind_tex0", "u_ind_tex1"
+    };
+    static const char* const blocks[PC_GX_NUM_BLOCKS] = { "GXVertex", "GXFragment", "GXConfig" };
+
     glUseProgram(prog);
-    if (u->texture0 >= 0) glUniform1i(u->texture0, 0);
-    if (u->texture1 >= 0) glUniform1i(u->texture1, 1);
-    if (u->texture2 >= 0) glUniform1i(u->texture2, 2);
-    for (int i = 0; i < 4; i++) {
-        if (u->ind_tex[i] >= 0) glUniform1i(u->ind_tex[i], 3 + i);
+    for (int i = 0; i < 5; i++) {
+        GLint loc = glGetUniformLocation(prog, samplers[i]);
+        if (loc >= 0) glUniform1i(loc, i);
+    }
+    for (int i = 0; i < PC_GX_NUM_BLOCKS; i++) {
+        GLuint index = glGetUniformBlockIndex(prog, blocks[i]);
+        if (index != GL_INVALID_INDEX) glUniformBlockBinding(prog, index, i);
     }
 }
 
@@ -146,17 +153,8 @@ static void key_cache_append(const PCGXShaderKey* k) {
 static void variant_init(PCGXShaderVariant* v, GLuint prog) {
     v->used = 1;
     v->prog = prog;
-    pc_gx_cache_uniform_locations(prog, &v->uloc);
-    memset(v->uploaded_seq, 0xFF, sizeof(v->uploaded_seq));
-    set_sampler_uniforms(prog, &v->uloc);
-}
-
-/* Seq counter wrapped: forget upload history so no stale seq aliases a new one */
-void pc_gx_tev_seq_reset(void) {
-    memset(s_uber.uploaded_seq, 0xFF, sizeof(s_uber.uploaded_seq));
-    for (int i = 0; i < s_variant_count; i++)
-        memset(s_variants[i].uploaded_seq, 0xFF, sizeof(s_variants[i].uploaded_seq));
-    memset(g_gx.group_seq, 0, sizeof(g_gx.group_seq));
+    v->uber = prog == default_program;
+    set_program_bindings(prog);
 }
 
 static void pc_gx_build_shader_key(PCGXShaderKey* k) {
@@ -233,40 +231,6 @@ static void pc_gx_build_shader_key(PCGXShaderKey* k) {
 }
 
 /* --- specialized source generation --- */
-
-/* Uniforms replaced by generated const declarations */
-static const char* const s_folded_uniforms[] = {
-    "u_num_tev_stages", "u_tev_color_in", "u_tev_alpha_in", "u_tev_color_op",
-    "u_tev_alpha_op", "u_tev_tc_src", "u_tev_bsc", "u_tev_out", "u_tev_swap",
-    "u_tev_ksel", "u_tev_ind_cfg", "u_tev_ind_wrap", "u_use_texture",
-    "u_lighting_cfg0", "u_lighting_cfg1", "u_swap_table", "u_alpha_ctrl",
-    "u_num_ind_stages", "u_fog_enable", NULL
-};
-
-static int is_ident_char(char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-           (c >= '0' && c <= '9') || c == '_';
-}
-
-/* True if this source line declares one of the folded uniforms */
-static int line_declares_folded_uniform(const char* line, const char* line_end) {
-    const char* p = line;
-    while (p < line_end && (*p == ' ' || *p == '\t')) p++;
-    if (line_end - p < 8 || strncmp(p, "uniform", 7) != 0) return 0;
-
-    for (int i = 0; s_folded_uniforms[i]; i++) {
-        const char* name = s_folded_uniforms[i];
-        size_t nlen = strlen(name);
-        for (const char* q = p; q + nlen <= line_end; q++) {
-            if (memcmp(q, name, nlen) == 0 &&
-                !is_ident_char(q[-1]) &&
-                (q + nlen == line_end || !is_ident_char(q[nlen]))) {
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
 
 #define EMIT(...) do { \
     n = snprintf(buf + pos, cap - pos, __VA_ARGS__); \
@@ -350,36 +314,29 @@ static int emit_const_block(char* buf, size_t cap, const PCGXShaderKey* k) {
 
 #undef EMIT
 
-/* Builds the specialized fragment source: #version line + const block + the
- * base source with the #version line and folded uniform decls stripped. */
+/* Builds the specialized fragment source: #version line, PC_SPECIALIZED (drops the
+ * GXConfig block), the const block with the same names, then the base source
+ * without its #version line. */
 static char* build_specialized_source(const PCGXShaderKey* k) {
     char consts[4096];
     int clen = emit_const_block(consts, sizeof(consts), k);
     if (clen < 0) return NULL;
 
     size_t base_len = strlen(s_frag_base);
-    char* out = (char*)malloc(base_len + (size_t)clen + 64);
+    static const char header[] = "#version 330 core\n#define PC_SPECIALIZED\n";
+    char* out = (char*)malloc(sizeof(header) + (size_t)clen + base_len + 1);
     if (!out) return NULL;
 
     size_t pos = 0;
-    memcpy(out + pos, "#version 330 core\n", 18); pos += 18;
+    memcpy(out + pos, header, sizeof(header) - 1); pos += sizeof(header) - 1;
     memcpy(out + pos, consts, (size_t)clen); pos += (size_t)clen;
 
-    const char* p = s_frag_base;
-    while (*p) {
-        const char* nl = strchr(p, '\n');
-        const char* line_end = nl ? nl : p + strlen(p);
-        int skip = (strncmp(p, "#version", 8) == 0) ||
-                   line_declares_folded_uniform(p, line_end);
-        if (!skip) {
-            size_t len = (size_t)(line_end - p);
-            memcpy(out + pos, p, len);
-            pos += len;
-            out[pos++] = '\n';
-        }
-        p = nl ? nl + 1 : line_end;
+    const char* body = s_frag_base;
+    if (strncmp(body, "#version", 8) == 0) {
+        const char* nl = strchr(body, '\n');
+        body = nl ? nl + 1 : body + strlen(body);
     }
-    out[pos] = '\0';
+    strcpy(out + pos, body);
     return out;
 }
 
@@ -574,6 +531,7 @@ void pc_gx_tev_init(void) {
 
     memset(&s_uber, 0, sizeof(s_uber));
     variant_init(&s_uber, default_program);
+    pc_gx_check_block_layout(default_program);
     glUseProgram(0);
 
     pc_gx_tev_precompile_cached();

@@ -1,25 +1,31 @@
 #version 330 core
 // Slot numbers for a Vulkan build (glslang -V defines VULKAN); empty for GL 3.3, which has no layout() for these
+// (GL binds the uniform blocks with glUniformBlockBinding, pc_gx_tev.c)
 #ifdef VULKAN
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 #define LOC(n) layout(location = n)
 #define SAMPLER(n) layout(binding = n)
+#define BLOCK(n) layout(std140, binding = n)
 #else
 #define LOC(n)
 #define SAMPLER(n)
+#define BLOCK(n) layout(std140)
 #endif
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec4 a_color0;
 layout(location = 3) in vec2 a_texcoord0;
-uniform mat4 u_projection;
-uniform mat4 u_modelview;
-uniform mat3 u_normal_mtx;
-uniform vec4 u_texmtx_row0[2];
-uniform vec4 u_texmtx_row1[2];
-uniform int u_texmtx_enable[2];
-uniform int u_texgen_src[2];  /* 1=GX_TG_NRM, 4=GX_TG_TEX0, etc. */
+// Mirrored by PCGXVertexBlock (pc_gx.c): every member starts on 16 bytes
+BLOCK(0) uniform GXVertex {
+    mat4 u_projection;  // column-major, like glUniformMatrix*(GL_TRUE) stored them (row_major rounds differently)
+    mat4 u_modelview;
+    mat3 u_normal_mtx;
+    vec4 u_texmtx_row0[2];
+    vec4 u_texmtx_row1[2];
+    int u_texmtx_enable[2];
+    int u_texgen_src[2];  /* 1=GX_TG_NRM, 4=GX_TG_TEX0, etc. */
+};
 LOC(0) out vec4 v_color;
 LOC(1) centroid out vec2 v_texcoord0;
 LOC(2) centroid out vec2 v_texcoord1;

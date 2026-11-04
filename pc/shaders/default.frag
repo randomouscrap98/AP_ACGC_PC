@@ -1,13 +1,16 @@
 #version 330 core
 // Slot numbers for a Vulkan build (glslang -V defines VULKAN); empty for GL 3.3, which has no layout() for these
+// (GL binds the uniform blocks with glUniformBlockBinding, pc_gx_tev.c)
 #ifdef VULKAN
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 #define LOC(n) layout(location = n)
 #define SAMPLER(n) layout(binding = n)
+#define BLOCK(n) layout(std140, binding = n)
 #else
 #define LOC(n)
 #define SAMPLER(n)
+#define BLOCK(n) layout(std140)
 #endif
 LOC(0) in vec4 v_color;
 LOC(1) centroid in vec2 v_texcoord0;
@@ -15,65 +18,73 @@ LOC(2) centroid in vec2 v_texcoord1;
 LOC(3) in vec3 v_normal;
 LOC(4) in float v_fog_z;
 
-/* Fog on/off is separate from the range params so shader specialization can
-   fold the branch while start/end stay dynamic */
-uniform int u_fog_enable;
-uniform vec4 u_fog_params;  /* y=start, z=end (x unused) */
-uniform vec4 u_fog_color;
+// Run-time values. Mirrored by PCGXFragmentBlock (pc_gx.c): every member starts on 16 bytes
+BLOCK(1) uniform GXFragment {
+    vec4 u_fog_params;  /* y=start, z=end (x unused) */
+    vec4 u_fog_color;
 
-/* TEV registers: PREV, REG0, REG1(=PRIM), REG2(=ENV) */
-uniform vec4 u_tev_prev;
-uniform vec4 u_tev_reg0;
-uniform vec4 u_tev_reg1;
-uniform vec4 u_tev_reg2;
+    /* TEV registers: PREV, REG0, REG1(=PRIM), REG2(=ENV) */
+    vec4 u_tev_prev;
+    vec4 u_tev_reg0;
+    vec4 u_tev_reg1;
+    vec4 u_tev_reg2;
 
-/* Per-stage TEV config. All stages are identical in shape, so one loop
-   over these arrays handles them; keep PC_GX_MAX_TEV_STAGES (=3) in sync. */
-uniform int u_num_tev_stages;
-uniform ivec4 u_tev_color_in[3];  /* x=a, y=b, z=c, w=d (GXTevColorArg) */
-uniform ivec4 u_tev_alpha_in[3];
-uniform int   u_tev_color_op[3];  /* 0=add, 1=sub */
-uniform int   u_tev_alpha_op[3];
-uniform int   u_tev_tc_src[3];    /* texcoord index (0 or 1) */
-uniform ivec4 u_tev_bsc[3];       /* x=c_bias, y=c_scale, z=a_bias, w=a_scale */
-uniform ivec4 u_tev_out[3];       /* x=c_clamp, y=a_clamp, z=c_out_reg, w=a_out_reg */
-uniform ivec2 u_tev_swap[3];      /* x=ras swap idx, y=tex swap idx */
-uniform ivec4 u_tev_ind_cfg[3];   /* x=ind_stage, y=ind_mtx, z=ind_bias, w=ind_alpha */
-uniform ivec3 u_tev_ind_wrap[3];  /* x=wrap_s, y=wrap_t, z=add_prev */
+    /* KONST colors */
+    vec4 u_kcolor[4];
 
-/* Textures: stage N samples u_textureN; sampler uniforms stay separate,
-   while enable flags are packed into one int array upload. */
+    /* Lighting / color channels */
+    vec4 u_chan_color[2];  /* 0=mat, 1=amb */
+    vec3 u_light_pos[8];
+    vec4 u_light_color[8];
+
+    /* Indirect textures */
+    vec2 u_ind_scale[4];
+    vec3 u_ind_mtx_r0[3];
+    vec3 u_ind_mtx_r1[3];
+
+    /* Alpha compare refs: run-time values, so they don't fragment the variant cache */
+    ivec2 u_alpha_refs; /* x=ref0, y=ref1 */
+};
+
+// Config: specialized variants (pc_gx_tev.c) define PC_SPECIALIZED and declare these names as
+// constants instead, so only the uber shader reads this block. Mirrored by PCGXConfigBlock
+// (pc_gx.c): every member starts on 16 bytes, so no two scalars / small vectors in a row.
+#ifndef PC_SPECIALIZED
+BLOCK(2) uniform GXConfig {
+    /* Per-stage TEV config. All stages are identical in shape, so one loop
+       over these arrays handles them; keep PC_GX_MAX_TEV_STAGES (=3) in sync. */
+    int u_num_tev_stages;
+    ivec4 u_tev_color_in[3];  /* x=a, y=b, z=c, w=d (GXTevColorArg) */
+    int u_num_ind_stages;
+    ivec4 u_tev_alpha_in[3];
+    int u_fog_enable;
+    int   u_tev_color_op[3];  /* 0=add, 1=sub */
+    int   u_tev_alpha_op[3];
+    int   u_tev_tc_src[3];    /* texcoord index (0 or 1) */
+    ivec4 u_tev_bsc[3];       /* x=c_bias, y=c_scale, z=a_bias, w=a_scale */
+    ivec4 u_tev_out[3];       /* x=c_clamp, y=a_clamp, z=c_out_reg, w=a_out_reg */
+    ivec2 u_tev_swap[3];      /* x=ras swap idx, y=tex swap idx */
+    ivec3 u_tev_ksel[3];      /* x=kcolor_sel, y=kalpha_sel */
+    ivec4 u_tev_ind_cfg[3];   /* x=ind_stage, y=ind_mtx, z=ind_bias, w=ind_alpha */
+    ivec3 u_tev_ind_wrap[3];  /* x=wrap_s, y=wrap_t, z=add_prev */
+    int u_use_texture[3];     /* stage N samples u_textureN */
+
+    ivec4 u_lighting_cfg0; /* x=lighting, y=mat_src, z=amb_src, w=num_chans */
+    ivec4 u_lighting_cfg1; /* x=alpha_lighting, y=alpha_mat_src, z=light_mask */
+
+    /* Swap tables (channel remapping) */
+    ivec4 u_swap_table[4];
+
+    ivec3 u_alpha_ctrl; /* x=comp0, y=op, z=comp1 */
+};
+#endif
+
+/* Textures: stage N samples u_textureN, indirect stages u_ind_texN */
 SAMPLER(0) uniform sampler2D u_texture0;
 SAMPLER(1) uniform sampler2D u_texture1;
 SAMPLER(2) uniform sampler2D u_texture2;
-uniform int u_use_texture[3];
-
-/* Lighting / color channels */
-uniform ivec4 u_lighting_cfg0; /* x=lighting, y=mat_src, z=amb_src, w=num_chans */
-uniform ivec4 u_lighting_cfg1; /* x=alpha_lighting, y=alpha_mat_src, z=light_mask */
-uniform vec4 u_chan_color[2];  /* 0=mat, 1=amb */
-uniform vec3 u_light_pos[8];
-uniform vec4 u_light_color[8];
-
-/* KONST colors and per-stage selection */
-uniform vec4 u_kcolor[4];
-uniform ivec3 u_tev_ksel[3];   /* x=kcolor_sel, y=kalpha_sel */
-
-/* Swap tables (channel remapping) */
-uniform ivec4 u_swap_table[4];
-
-/* Alpha compare: control folds into specialized variants; refs are runtime
-   values and must stay uniforms so they don't fragment the variant cache */
-uniform ivec3 u_alpha_ctrl; /* x=comp0, y=op, z=comp1 */
-uniform ivec2 u_alpha_refs; /* x=ref0, y=ref1 */
-
-/* Indirect textures */
-uniform int u_num_ind_stages;
 SAMPLER(3) uniform sampler2D u_ind_tex0;
 SAMPLER(4) uniform sampler2D u_ind_tex1;
-uniform vec2 u_ind_scale[4];
-uniform vec3 u_ind_mtx_r0[3];
-uniform vec3 u_ind_mtx_r1[3];
 
 layout(location = 0) out vec4 fragColor;
 

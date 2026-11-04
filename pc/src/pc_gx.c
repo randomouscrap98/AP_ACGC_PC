@@ -17,40 +17,6 @@ void GXSetTevAlphaOp(u32 stage, u32 op, u32 bias, u32 scale, GXBool clamp, u32 o
 
 typedef struct { u8 r, g, b, a; } GXColor;
 
-#undef glUniform1i
-#undef glUniform2i
-#undef glUniform3i
-#undef glUniform4i
-#undef glUniform1f
-#undef glUniform2f
-#undef glUniform3f
-#undef glUniform4f
-#undef glUniform1iv
-#undef glUniform2iv
-#undef glUniform3iv
-#undef glUniform4iv
-#undef glUniform4fv
-#undef glUniform3fv
-#undef glUniformMatrix3fv
-#undef glUniformMatrix4fv
-
-#define glUniform1i(...)        (pc_profiler_add_count_uniform(), glad_glUniform1i(__VA_ARGS__))
-#define glUniform2i(...)        (pc_profiler_add_count_uniform(), glad_glUniform2i(__VA_ARGS__))
-#define glUniform3i(...)        (pc_profiler_add_count_uniform(), glad_glUniform3i(__VA_ARGS__))
-#define glUniform4i(...)        (pc_profiler_add_count_uniform(), glad_glUniform4i(__VA_ARGS__))
-#define glUniform1f(...)        (pc_profiler_add_count_uniform(), glad_glUniform1f(__VA_ARGS__))
-#define glUniform2f(...)        (pc_profiler_add_count_uniform(), glad_glUniform2f(__VA_ARGS__))
-#define glUniform3f(...)        (pc_profiler_add_count_uniform(), glad_glUniform3f(__VA_ARGS__))
-#define glUniform4f(...)        (pc_profiler_add_count_uniform(), glad_glUniform4f(__VA_ARGS__))
-#define glUniform1iv(...)       (pc_profiler_add_count_uniform(), glad_glUniform1iv(__VA_ARGS__))
-#define glUniform2iv(...)       (pc_profiler_add_count_uniform(), glad_glUniform2iv(__VA_ARGS__))
-#define glUniform3iv(...)       (pc_profiler_add_count_uniform(), glad_glUniform3iv(__VA_ARGS__))
-#define glUniform4iv(...)       (pc_profiler_add_count_uniform(), glad_glUniform4iv(__VA_ARGS__))
-#define glUniform4fv(...)       (pc_profiler_add_count_uniform(), glad_glUniform4fv(__VA_ARGS__))
-#define glUniform3fv(...)       (pc_profiler_add_count_uniform(), glad_glUniform3fv(__VA_ARGS__))
-#define glUniformMatrix3fv(...) (pc_profiler_add_count_uniform(), glad_glUniformMatrix3fv(__VA_ARGS__))
-#define glUniformMatrix4fv(...) (pc_profiler_add_count_uniform(), glad_glUniformMatrix4fv(__VA_ARGS__))
-
 /* --- Global GX State --- */
 PCGXState g_gx;
 
@@ -172,14 +138,6 @@ static int pc_tex_mtx_id_to_slot(int id) {
     return -1;
 }
 
-static GLint pc_gx_get_uniform_location_profiled(GLuint shader, const char* name) {
-    Uint64 t = pc_profiler_begin_timer();
-    GLint loc = glGetUniformLocation(shader, name);
-    pc_profiler_add_time(PC_PROF_TIMER_UNIFORM_LOOKUP, t);
-    pc_profiler_add_count_uniform_lookup();
-    return loc;
-}
-
 static void pc_gx_use_program_profiled(GLuint shader) {
     Uint64 t = pc_profiler_begin_timer();
     glUseProgram(shader);
@@ -283,6 +241,231 @@ int pc_emu64_frame_dl_cmds = 0;
 int pc_emu64_frame_cull_visible = 0;
 int pc_emu64_frame_cull_rejected = 0;
 
+/* --- Uniform blocks --- */
+// std140 mirrors of the shader blocks (pc/shaders/default.*). Every member starts on 16 bytes:
+// scalars and int arrays take a whole vec4 slot (std140 array stride 16), vec3 is padded, a
+// mat3 is 3 padded columns. pc_gx_check_block_layout compares with the driver at boot.
+typedef struct { float v[4]; } PCGXVec4;
+typedef struct { int v[4]; } PCGXIVec4;
+
+typedef struct {
+    float projection[4][4]; // column-major: [column][row], g_gx's rows transposed
+    float modelview[4][4];
+    PCGXVec4 normal_mtx[3];
+    PCGXVec4 texmtx_row0[2];
+    PCGXVec4 texmtx_row1[2];
+    PCGXIVec4 texmtx_enable[2];
+    PCGXIVec4 texgen_src[2];
+} PCGXVertexBlock;
+
+typedef struct {
+    PCGXVec4 fog_params;
+    PCGXVec4 fog_color;
+    PCGXVec4 tev_prev, tev_reg0, tev_reg1, tev_reg2;
+    PCGXVec4 kcolor[4];
+    PCGXVec4 chan_color[2];
+    PCGXVec4 light_pos[8];
+    PCGXVec4 light_color[8];
+    PCGXVec4 ind_scale[4];
+    PCGXVec4 ind_mtx_r0[3];
+    PCGXVec4 ind_mtx_r1[3];
+    PCGXIVec4 alpha_refs;
+} PCGXFragmentBlock;
+
+typedef struct {
+    PCGXIVec4 num_tev_stages;
+    PCGXIVec4 tev_color_in[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 num_ind_stages;
+    PCGXIVec4 tev_alpha_in[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 fog_enable;
+    PCGXIVec4 tev_color_op[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 tev_alpha_op[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 tev_tc_src[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 tev_bsc[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 tev_out[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 tev_swap[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 tev_ksel[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 tev_ind_cfg[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 tev_ind_wrap[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 use_texture[PC_GX_MAX_TEV_STAGES];
+    PCGXIVec4 lighting_cfg0;
+    PCGXIVec4 lighting_cfg1;
+    PCGXIVec4 swap_table[4];
+    PCGXIVec4 alpha_ctrl;
+} PCGXConfigBlock;
+
+static PCGXVertexBlock s_vertex_block;
+static PCGXFragmentBlock s_fragment_block;
+static PCGXConfigBlock s_config_block;
+static const GLsizeiptr s_block_size[PC_GX_NUM_BLOCKS] = {
+    sizeof(PCGXVertexBlock), sizeof(PCGXFragmentBlock), sizeof(PCGXConfigBlock)
+};
+// GXConfig only matters to the uber program: uploaded when one draws after a config change
+static int s_config_stale = 1;
+
+void pc_gx_check_block_layout(GLuint prog) {
+    #define M(type, name, field) { #name, offsetof(type, field) }
+    static const struct { const char* name; size_t offset; } members[] = {
+        M(PCGXVertexBlock, u_projection, projection),
+        M(PCGXVertexBlock, u_modelview, modelview),
+        M(PCGXVertexBlock, u_normal_mtx, normal_mtx),
+        M(PCGXVertexBlock, u_texmtx_row0, texmtx_row0),
+        M(PCGXVertexBlock, u_texmtx_row1, texmtx_row1),
+        M(PCGXVertexBlock, u_texmtx_enable, texmtx_enable),
+        M(PCGXVertexBlock, u_texgen_src, texgen_src),
+        M(PCGXFragmentBlock, u_fog_params, fog_params),
+        M(PCGXFragmentBlock, u_fog_color, fog_color),
+        M(PCGXFragmentBlock, u_tev_prev, tev_prev),
+        M(PCGXFragmentBlock, u_tev_reg0, tev_reg0),
+        M(PCGXFragmentBlock, u_tev_reg1, tev_reg1),
+        M(PCGXFragmentBlock, u_tev_reg2, tev_reg2),
+        M(PCGXFragmentBlock, u_kcolor, kcolor),
+        M(PCGXFragmentBlock, u_chan_color, chan_color),
+        M(PCGXFragmentBlock, u_light_pos, light_pos),
+        M(PCGXFragmentBlock, u_light_color, light_color),
+        M(PCGXFragmentBlock, u_ind_scale, ind_scale),
+        M(PCGXFragmentBlock, u_ind_mtx_r0, ind_mtx_r0),
+        M(PCGXFragmentBlock, u_ind_mtx_r1, ind_mtx_r1),
+        M(PCGXFragmentBlock, u_alpha_refs, alpha_refs),
+        M(PCGXConfigBlock, u_num_tev_stages, num_tev_stages),
+        M(PCGXConfigBlock, u_tev_color_in, tev_color_in),
+        M(PCGXConfigBlock, u_num_ind_stages, num_ind_stages),
+        M(PCGXConfigBlock, u_tev_alpha_in, tev_alpha_in),
+        M(PCGXConfigBlock, u_fog_enable, fog_enable),
+        M(PCGXConfigBlock, u_tev_color_op, tev_color_op),
+        M(PCGXConfigBlock, u_tev_alpha_op, tev_alpha_op),
+        M(PCGXConfigBlock, u_tev_tc_src, tev_tc_src),
+        M(PCGXConfigBlock, u_tev_bsc, tev_bsc),
+        M(PCGXConfigBlock, u_tev_out, tev_out),
+        M(PCGXConfigBlock, u_tev_swap, tev_swap),
+        M(PCGXConfigBlock, u_tev_ksel, tev_ksel),
+        M(PCGXConfigBlock, u_tev_ind_cfg, tev_ind_cfg),
+        M(PCGXConfigBlock, u_tev_ind_wrap, tev_ind_wrap),
+        M(PCGXConfigBlock, u_use_texture, use_texture),
+        M(PCGXConfigBlock, u_lighting_cfg0, lighting_cfg0),
+        M(PCGXConfigBlock, u_lighting_cfg1, lighting_cfg1),
+        M(PCGXConfigBlock, u_swap_table, swap_table),
+        M(PCGXConfigBlock, u_alpha_ctrl, alpha_ctrl),
+    };
+    #undef M
+    int n = (int)(sizeof(members) / sizeof(members[0]));
+
+    for (int i = 0; i < n; i++) {
+        const GLchar* name = members[i].name;
+        GLuint index = GL_INVALID_INDEX;
+        GLint offset = -1;
+        glGetUniformIndices(prog, 1, &name, &index);
+        if (index != GL_INVALID_INDEX) glGetActiveUniformsiv(prog, 1, &index, GL_UNIFORM_OFFSET, &offset);
+        if (offset != (GLint)members[i].offset) {
+            fprintf(stderr, "WARNING: uniform block member %s at offset %d, C mirror says %d\n",
+                    name, (int)offset, (int)members[i].offset);
+        }
+    }
+    for (int i = 0; i < PC_GX_NUM_BLOCKS; i++) {
+        static const char* const blocks[PC_GX_NUM_BLOCKS] = { "GXVertex", "GXFragment", "GXConfig" };
+        GLuint index = glGetUniformBlockIndex(prog, blocks[i]);
+        GLint size = 0;
+        if (index != GL_INVALID_INDEX) glGetActiveUniformBlockiv(prog, index, GL_UNIFORM_BLOCK_DATA_SIZE, &size);
+        if (size == 0 || size > s_block_size[i]) {
+            fprintf(stderr, "WARNING: uniform block %s is %d bytes, C mirror %d\n",
+                    blocks[i], (int)size, (int)s_block_size[i]);
+        }
+    }
+}
+
+// Uniform ring size: town uploads ~140 blocks a frame (<= 1 KB each at 256 alignment), so it wraps every few frames
+#define PC_GX_UBO_RING_SIZE (1024 * 1024)
+
+static void* const s_block_data[PC_GX_NUM_BLOCKS] = { &s_vertex_block, &s_fragment_block, &s_config_block };
+// What each binding's range holds (only valid while s_block_bound): an unchanged block isn't uploaded again
+#define PC_GX_BLOCK_MAX_SIZE 1024
+_Static_assert(sizeof(PCGXVertexBlock) <= PC_GX_BLOCK_MAX_SIZE, "raise PC_GX_BLOCK_MAX_SIZE");
+_Static_assert(sizeof(PCGXFragmentBlock) <= PC_GX_BLOCK_MAX_SIZE, "raise PC_GX_BLOCK_MAX_SIZE");
+_Static_assert(sizeof(PCGXConfigBlock) <= PC_GX_BLOCK_MAX_SIZE, "raise PC_GX_BLOCK_MAX_SIZE");
+static unsigned char s_block_last[PC_GX_NUM_BLOCKS][PC_GX_BLOCK_MAX_SIZE];
+static int s_block_bound[PC_GX_NUM_BLOCKS];
+
+// Writes the block to the next free range of the ring and binds that range. Ranges a queued draw may still
+// read are never written again until the ring wraps, and a wrap orphans the buffer (the driver keeps the old
+// storage for those draws), so the write needs no sync: rewriting one small buffer between draws made
+// llvmpipe ~2.5x slower. Same shape as Vulkan dynamic offsets / SDL_GPU uniform pushes.
+static void pc_gx_write_block(int block) {
+    GLsizeiptr size = s_block_size[block];
+    GLintptr offset = (g_gx.ubo_head + g_gx.ubo_align - 1) / g_gx.ubo_align * g_gx.ubo_align;
+    void* dst = glMapBufferRange(GL_UNIFORM_BUFFER, offset, size,
+                                 GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
+    if (dst) {
+        memcpy(dst, s_block_data[block], (size_t)size);
+        glUnmapBuffer(GL_UNIFORM_BUFFER);
+    }
+    glBindBufferRange(GL_UNIFORM_BUFFER, block, g_gx.ubo, offset, size);
+    memcpy(s_block_last[block], s_block_data[block], (size_t)size);
+    s_block_bound[block] = 1;
+    g_gx.ubo_head = offset + size;
+    pc_profiler_add_count_uniform();
+}
+
+// Uploads the block's C mirror (s_vertex_block, ...) if it differs from what its binding holds
+static void pc_gx_upload_block(int block) {
+    GLintptr worst = g_gx.ubo_align * PC_GX_NUM_BLOCKS + (GLintptr)sizeof(s_block_last);
+
+    if (s_block_bound[block] && memcmp(s_block_last[block], s_block_data[block], s_block_size[block]) == 0) return;
+    glBindBuffer(GL_UNIFORM_BUFFER, g_gx.ubo);
+    if (g_gx.ubo_head + worst > PC_GX_UBO_RING_SIZE) {
+        // Orphan: the new storage is undefined, so every bound block is written again
+        glBufferData(GL_UNIFORM_BUFFER, PC_GX_UBO_RING_SIZE, NULL, GL_STREAM_DRAW);
+        g_gx.ubo_head = 0;
+        for (int i = 0; i < PC_GX_NUM_BLOCKS; i++) {
+            if (i != block && s_block_bound[i]) pc_gx_write_block(i);
+        }
+    }
+    pc_gx_write_block(block);
+}
+
+static void pc_gx_set_ivec4(PCGXIVec4* out, int x, int y, int z, int w) {
+    out->v[0] = x;
+    out->v[1] = y;
+    out->v[2] = z;
+    out->v[3] = w;
+}
+
+// GX state that only the uber program reads (specialized variants fold it into constants)
+static void pc_gx_fill_config_block(void) {
+    PCGXConfigBlock* c = &s_config_block;
+
+    memset(c, 0, sizeof(*c));
+    c->num_tev_stages.v[0] = g_gx.num_tev_stages;
+    c->num_ind_stages.v[0] = g_gx.num_ind_stages;
+    c->fog_enable.v[0] = g_gx.fog_type != 0;
+    for (int s = 0; s < PC_GX_MAX_TEV_STAGES; s++) {
+        const PCGXTevStage* ts = &g_gx.tev_stages[s];
+        int active = s < g_gx.num_tev_stages;
+        int tex_map = ts->tex_map;
+
+        pc_gx_set_ivec4(&c->tev_color_in[s], ts->color_a, ts->color_b, ts->color_c, ts->color_d);
+        pc_gx_set_ivec4(&c->tev_alpha_in[s], ts->alpha_a, ts->alpha_b, ts->alpha_c, ts->alpha_d);
+        c->tev_color_op[s].v[0] = ts->color_op;
+        c->tev_alpha_op[s].v[0] = ts->alpha_op;
+        c->tev_tc_src[s].v[0] = active ? pc_gx_tc_src_normalize(ts->tex_coord, s) : 0;
+        pc_gx_set_ivec4(&c->tev_bsc[s], ts->color_bias, ts->color_scale, ts->alpha_bias, ts->alpha_scale);
+        pc_gx_set_ivec4(&c->tev_out[s], ts->color_clamp, ts->alpha_clamp, ts->color_out, ts->alpha_out);
+        pc_gx_set_ivec4(&c->tev_swap[s], ts->ras_swap, ts->tex_swap, 0, 0);
+        pc_gx_set_ivec4(&c->tev_ksel[s], ts->k_color_sel, ts->k_alpha_sel, s, 0);
+        pc_gx_set_ivec4(&c->tev_ind_cfg[s], ts->ind_stage, ts->ind_mtx, ts->ind_bias, ts->ind_alpha);
+        pc_gx_set_ivec4(&c->tev_ind_wrap[s], ts->ind_wrap_s, ts->ind_wrap_t, ts->ind_add_prev, 0);
+        c->use_texture[s].v[0] = active && tex_map >= 0 && tex_map < 8 && g_gx.gl_textures[tex_map] != 0;
+    }
+    pc_gx_set_ivec4(&c->lighting_cfg0, g_gx.chan_ctrl_enable[0], g_gx.chan_ctrl_mat_src[0],
+                    g_gx.chan_ctrl_amb_src[0], g_gx.num_chans);
+    pc_gx_set_ivec4(&c->lighting_cfg1, g_gx.chan_ctrl_enable[1], g_gx.chan_ctrl_mat_src[1],
+                    g_gx.chan_ctrl_light_mask[0], 0);
+    for (int t = 0; t < 4; t++) {
+        pc_gx_set_ivec4(&c->swap_table[t], g_gx.tev_swap_table[t].r, g_gx.tev_swap_table[t].g,
+                        g_gx.tev_swap_table[t].b, g_gx.tev_swap_table[t].a);
+    }
+    pc_gx_set_ivec4(&c->alpha_ctrl, g_gx.alpha_comp0, g_gx.alpha_op, g_gx.alpha_comp1, 0);
+}
+
 void pc_gx_init(void) {
     memset(&g_gx, 0, sizeof(g_gx));
 
@@ -364,6 +547,18 @@ void pc_gx_init(void) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_index_buf), quad_index_buf, GL_STATIC_DRAW);
 
     glBindVertexArray(0);
+
+    {
+        GLint align = 0;
+        glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &align);
+        g_gx.ubo_align = align > 16 ? align : 16;
+    }
+    glGenBuffers(1, &g_gx.ubo);
+    glBindBuffer(GL_UNIFORM_BUFFER, g_gx.ubo);
+    glBufferData(GL_UNIFORM_BUFFER, PC_GX_UBO_RING_SIZE, NULL, GL_STREAM_DRAW);
+    g_gx.ubo_head = 0;
+    memset(s_block_bound, 0, sizeof(s_block_bound));
+    s_config_stale = 1;
 
     pc_gx_tev_init();
     pc_gx_texture_init();
@@ -459,6 +654,7 @@ void pc_gx_shutdown(void) {
     pc_gx_efb_capture_cleanup();
 #endif
 
+    if (g_gx.ubo) glDeleteBuffers(1, &g_gx.ubo);
     if (g_gx.ebo) glDeleteBuffers(1, &g_gx.ebo);
     if (g_gx.vbo) glDeleteBuffers(1, &g_gx.vbo);
     if (g_gx.vao) glDeleteVertexArrays(1, &g_gx.vao);
@@ -606,121 +802,6 @@ void GXTexCoord1x16(u16 index) {
 }
 void GXTexCoord1x8(u8 index) { GXTexCoord1x16(index); }
 
-/* --- Uniform Location Cache --- */
-void pc_gx_cache_uniform_locations(GLuint shader, PCGXUloc* u) {
-    char name[48];
-    int i;
-    #define UL(n) pc_gx_get_uniform_location_profiled(shader, n)
-
-    u->projection = UL("u_projection");
-    u->modelview  = UL("u_modelview");
-    u->normal_mtx = UL("u_normal_mtx");
-
-    u->tev_prev = UL("u_tev_prev");
-    u->tev_reg0 = UL("u_tev_reg0");
-    u->tev_reg1 = UL("u_tev_reg1");
-    u->tev_reg2 = UL("u_tev_reg2");
-
-    u->num_tev_stages = UL("u_num_tev_stages");
-    for (i = 0; i < PC_GX_MAX_TEV_STAGES; i++) {
-        snprintf(name, sizeof(name), "u_tev_color_in[%d]", i);
-        u->tev_color_in[i] = UL(name);
-        snprintf(name, sizeof(name), "u_tev_alpha_in[%d]", i);
-        u->tev_alpha_in[i] = UL(name);
-        snprintf(name, sizeof(name), "u_tev_color_op[%d]", i);
-        u->tev_color_op[i] = UL(name);
-        snprintf(name, sizeof(name), "u_tev_alpha_op[%d]", i);
-        u->tev_alpha_op[i] = UL(name);
-        snprintf(name, sizeof(name), "u_tev_tc_src[%d]", i);
-        u->tev_tc_src[i] = UL(name);
-        snprintf(name, sizeof(name), "u_tev_ind_cfg[%d]", i);
-        u->tev_ind_cfg[i] = UL(name);
-        snprintf(name, sizeof(name), "u_tev_ind_wrap[%d]", i);
-        u->tev_ind_wrap[i] = UL(name);
-    }
-
-    u->kcolor   = UL("u_kcolor");
-    u->tev_ksel = UL("u_tev_ksel");
-
-    u->alpha_ctrl = UL("u_alpha_ctrl");
-    u->alpha_refs = UL("u_alpha_refs");
-
-    u->lighting_enabled = UL("u_lighting_cfg0");
-    u->mat_color  = UL("u_chan_color[0]");
-    u->amb_color  = -1;
-    u->chan_mat_src = -1;
-    u->chan_amb_src = -1;
-    u->num_chans  = -1;
-    u->alpha_lighting_enabled = UL("u_lighting_cfg1");
-    u->alpha_mat_src = -1;
-
-    u->light_mask = -1;
-    for (i = 0; i < 8; i++) {
-        snprintf(name, sizeof(name), "u_light_pos[%d]", i);
-        u->light_pos[i] = UL(name);
-        snprintf(name, sizeof(name), "u_light_color[%d]", i);
-        u->light_color[i] = UL(name);
-    }
-
-    u->texmtx_enable[0] = UL("u_texmtx_enable[0]");
-    u->texmtx_row0[0]  = UL("u_texmtx_row0[0]");
-    u->texmtx_row1[0]  = UL("u_texmtx_row1[0]");
-    u->texgen_src[0]   = UL("u_texgen_src[0]");
-    u->texmtx_enable[1] = -1;
-    u->texmtx_row0[1]  = -1;
-    u->texmtx_row1[1]  = -1;
-    u->texgen_src[1]   = -1;
-
-    u->use_texture0 = UL("u_use_texture[0]");
-    u->use_texture1 = -1;
-    u->use_texture2 = -1;
-    u->texture0 = UL("u_texture0");
-    u->texture1 = UL("u_texture1");
-    u->texture2 = UL("u_texture2");
-
-    u->num_ind_stages = UL("u_num_ind_stages");
-    for (i = 0; i < 4; i++) {
-        snprintf(name, sizeof(name), "u_ind_tex%d", i);
-        u->ind_tex[i] = UL(name);
-        snprintf(name, sizeof(name), "u_ind_scale[%d]", i);
-        u->ind_scale[i] = UL(name);
-    }
-    for (i = 0; i < PC_GX_MAX_TEV_STAGES; i++) {
-        snprintf(name, sizeof(name), "u_ind_mtx_r0[%d]", i);
-        u->ind_mtx_r0[i] = UL(name);
-        snprintf(name, sizeof(name), "u_ind_mtx_r1[%d]", i);
-        u->ind_mtx_r1[i] = UL(name);
-    }
-
-    u->fog_type   = UL("u_fog_params");
-    u->fog_enable = UL("u_fog_enable");
-    u->fog_start  = -1;
-    u->fog_end    = -1;
-    u->fog_color  = UL("u_fog_color");
-
-    /* Per-stage bias/scale/clamp/output */
-    for (i = 0; i < PC_GX_MAX_TEV_STAGES; i++) {
-        snprintf(name, sizeof(name), "u_tev_bsc[%d]", i);
-        u->tev_bsc[i] = UL(name);
-        snprintf(name, sizeof(name), "u_tev_out[%d]", i);
-        u->tev_out[i] = UL(name);
-        snprintf(name, sizeof(name), "u_tev_swap[%d]", i);
-        u->tev_swap[i] = UL(name);
-    }
-    u->swap_table = UL("u_swap_table");
-
-    #undef UL
-}
-
-/* Uniform groups this program hasn't seen the latest values of */
-static unsigned int pc_gx_variant_stale_groups(const PCGXShaderVariant* v) {
-    unsigned int stale = 0;
-    for (int b = 0; (1u << b) <= PC_GX_DIRTY_UNIFORM_GROUPS; b++) {
-        if (v->uploaded_seq[b] != g_gx.group_seq[b]) stale |= (1u << b);
-    }
-    return stale;
-}
-
 /* --- Vertex Flush --- */
 int pc_gx_draw_call_count = 0;
 PCGXFrameCounts pc_gx_frame_counts;
@@ -816,207 +897,127 @@ void pc_gx_flush_vertices(void) {
         pc_gx_use_program_profiled(shader);
         PC_GL_CHECK("glUseProgram");
         g_gx.current_shader = shader;
-        g_gx.uloc = var->uloc;
-        /* Uniform values persist per program: re-upload only groups that
-         * changed while another program was bound */
-        g_gx.dirty |= pc_gx_variant_stale_groups(var);
     }
 
     glBindVertexArray(g_gx.vao);
     glBindBuffer(GL_ARRAY_BUFFER, g_gx.vbo);
 
-    /* Upload only dirty state groups */
+    /* Upload only dirty state groups. The blocks are shared by all programs, so a program
+     * switch needs no upload. */
     if (shader) {
         Uint64 uniform_start = pc_profiler_begin_timer();
-        GLint loc;
         unsigned int dirty = g_gx.dirty;
         pc_profiler_add_dirty_mask(dirty);
-        #define UL(field) g_gx.uloc.field
 
-        if (dirty & PC_GX_DIRTY_PROJECTION) {
-            loc = UL(projection);
-            if (loc >= 0) glUniformMatrix4fv(loc, 1, GL_TRUE, (float*)g_gx.projection_mtx);
-        }
+        if (dirty & (PC_GX_DIRTY_PROJECTION | PC_GX_DIRTY_MODELVIEW | PC_GX_DIRTY_TEXGEN)) {
+            PCGXVertexBlock* vb = &s_vertex_block;
 
-        if (dirty & PC_GX_DIRTY_MODELVIEW) {
-            loc = UL(modelview);
-            if (loc >= 0) {
-                float mv44[16];
-                const float* src = (const float*)g_gx.pos_mtx[g_gx.current_mtx];
-                mv44[ 0] = src[0]; mv44[ 1] = src[1]; mv44[ 2] = src[2]; mv44[ 3] = src[3];
-                mv44[ 4] = src[4]; mv44[ 5] = src[5]; mv44[ 6] = src[6]; mv44[ 7] = src[7];
-                mv44[ 8] = src[8]; mv44[ 9] = src[9]; mv44[10] = src[10]; mv44[11] = src[11];
-                mv44[12] = 0.0f;   mv44[13] = 0.0f;   mv44[14] = 0.0f;    mv44[15] = 1.0f;
-                glUniformMatrix4fv(loc, 1, GL_TRUE, mv44);
+            if (dirty & PC_GX_DIRTY_PROJECTION) {
+                for (int c = 0; c < 4; c++) {
+                    for (int r = 0; r < 4; r++) vb->projection[c][r] = g_gx.projection_mtx[r][c];
+                }
             }
-            loc = UL(normal_mtx);
-            if (loc >= 0) glUniformMatrix3fv(loc, 1, GL_TRUE, (const float*)g_gx.nrm_mtx[g_gx.current_mtx]);
-        }
+            if (dirty & PC_GX_DIRTY_MODELVIEW) {
+                const float (*pos)[4] = g_gx.pos_mtx[g_gx.current_mtx];
+                const float (*nrm)[3] = g_gx.nrm_mtx[g_gx.current_mtx];
+                for (int c = 0; c < 4; c++) {
+                    for (int r = 0; r < 3; r++) vb->modelview[c][r] = pos[r][c];
+                    vb->modelview[c][3] = c == 3 ? 1.0f : 0.0f;
+                }
+                for (int c = 0; c < 3; c++) {
+                    for (int r = 0; r < 3; r++) vb->normal_mtx[c].v[r] = nrm[r][c];
+                    vb->normal_mtx[c].v[3] = 0.0f;
+                }
+            }
+            if (dirty & PC_GX_DIRTY_TEXGEN) {
+                for (int tg = 0; tg < 2; tg++) {
+                    int slot = pc_tex_mtx_id_to_slot(g_gx.tex_gen_mtx[tg]);
+                    int enable = (slot >= 0 && slot < 10);
+                    PCGXVec4* row0 = &vb->texmtx_row0[tg];
+                    PCGXVec4* row1 = &vb->texmtx_row1[tg];
 
-        if (dirty & PC_GX_DIRTY_TEV_COLORS) {
-            loc = UL(tev_prev); if (loc >= 0) glUniform4fv(loc, 1, g_gx.tev_colors[0]);
-            loc = UL(tev_reg0); if (loc >= 0) glUniform4fv(loc, 1, g_gx.tev_colors[1]);
-            loc = UL(tev_reg1); if (loc >= 0) glUniform4fv(loc, 1, g_gx.tev_colors[2]);
-            loc = UL(tev_reg2); if (loc >= 0) glUniform4fv(loc, 1, g_gx.tev_colors[3]);
-        }
-
-        if (dirty & PC_GX_DIRTY_TEV_STAGES) {
-            loc = UL(num_tev_stages); if (loc >= 0) glUniform1i(loc, g_gx.num_tev_stages);
-            {
-                GLint color_in[PC_GX_MAX_TEV_STAGES][4];
-                GLint alpha_in[PC_GX_MAX_TEV_STAGES][4];
-                GLint color_op[PC_GX_MAX_TEV_STAGES];
-                GLint alpha_op[PC_GX_MAX_TEV_STAGES];
-                GLint bsc[PC_GX_MAX_TEV_STAGES][4];
-                GLint out_cfg[PC_GX_MAX_TEV_STAGES][4];
-                GLint swap[PC_GX_MAX_TEV_STAGES][2];
-                GLint ksel[PC_GX_MAX_TEV_STAGES][3];
-                GLint tc_src[PC_GX_MAX_TEV_STAGES];
-
-                for (int s = 0; s < PC_GX_MAX_TEV_STAGES; s++) {
-                    PCGXTevStage* ts = &g_gx.tev_stages[s];
-                    color_in[s][0] = ts->color_a;
-                    color_in[s][1] = ts->color_b;
-                    color_in[s][2] = ts->color_c;
-                    color_in[s][3] = ts->color_d;
-                    alpha_in[s][0] = ts->alpha_a;
-                    alpha_in[s][1] = ts->alpha_b;
-                    alpha_in[s][2] = ts->alpha_c;
-                    alpha_in[s][3] = ts->alpha_d;
-                    color_op[s] = ts->color_op;
-                    alpha_op[s] = ts->alpha_op;
-                    bsc[s][0] = ts->color_bias;
-                    bsc[s][1] = ts->color_scale;
-                    bsc[s][2] = ts->alpha_bias;
-                    bsc[s][3] = ts->alpha_scale;
-                    out_cfg[s][0] = ts->color_clamp;
-                    out_cfg[s][1] = ts->alpha_clamp;
-                    out_cfg[s][2] = ts->color_out;
-                    out_cfg[s][3] = ts->alpha_out;
-                    swap[s][0] = ts->ras_swap;
-                    swap[s][1] = ts->tex_swap;
-                    ksel[s][0] = ts->k_color_sel;
-                    ksel[s][1] = ts->k_alpha_sel;
-                    ksel[s][2] = s;
-                    if (s < g_gx.num_tev_stages) {
-                        tc_src[s] = pc_gx_tc_src_normalize(ts->tex_coord, s);
-                    } else {
-                        tc_src[s] = 0;
+                    vb->texmtx_enable[tg].v[0] = enable;
+                    vb->texgen_src[tg].v[0] = g_gx.tex_gen_src[tg];
+                    memset(row0, 0, sizeof(*row0));
+                    memset(row1, 0, sizeof(*row1));
+                    row0->v[0] = 1.0f;
+                    row1->v[1] = 1.0f;
+                    if (enable) {
+                        const float* tm = (const float*)g_gx.tex_mtx[slot];
+                        memcpy(row0->v, &tm[0], sizeof(row0->v));
+                        memcpy(row1->v, &tm[4], sizeof(row1->v));
                     }
                 }
-
-                loc = UL(tev_color_in[0]); if (loc >= 0) glUniform4iv(loc, PC_GX_MAX_TEV_STAGES, &color_in[0][0]);
-                loc = UL(tev_alpha_in[0]); if (loc >= 0) glUniform4iv(loc, PC_GX_MAX_TEV_STAGES, &alpha_in[0][0]);
-                loc = UL(tev_color_op[0]); if (loc >= 0) glUniform1iv(loc, PC_GX_MAX_TEV_STAGES, color_op);
-                loc = UL(tev_alpha_op[0]); if (loc >= 0) glUniform1iv(loc, PC_GX_MAX_TEV_STAGES, alpha_op);
-                loc = UL(tev_bsc[0]);      if (loc >= 0) glUniform4iv(loc, PC_GX_MAX_TEV_STAGES, &bsc[0][0]);
-                loc = UL(tev_out[0]);      if (loc >= 0) glUniform4iv(loc, PC_GX_MAX_TEV_STAGES, &out_cfg[0][0]);
-                loc = UL(tev_swap[0]);     if (loc >= 0) glUniform2iv(loc, PC_GX_MAX_TEV_STAGES, &swap[0][0]);
-                loc = UL(tev_ksel);        if (loc >= 0) glUniform3iv(loc, PC_GX_MAX_TEV_STAGES, &ksel[0][0]);
-                loc = UL(tev_tc_src[0]);   if (loc >= 0) glUniform1iv(loc, PC_GX_MAX_TEV_STAGES, tc_src);
             }
+            pc_gx_upload_block(PC_GX_BLOCK_VERTEX);
         }
 
-        if (dirty & PC_GX_DIRTY_SWAP_TABLES) {
-            loc = UL(swap_table);
-            if (loc >= 0) {
-                int sw[16];
-                for (int t = 0; t < 4; t++) {
-                    sw[t*4+0] = g_gx.tev_swap_table[t].r;
-                    sw[t*4+1] = g_gx.tev_swap_table[t].g;
-                    sw[t*4+2] = g_gx.tev_swap_table[t].b;
-                    sw[t*4+3] = g_gx.tev_swap_table[t].a;
-                }
-                glUniform4iv(loc, 4, sw);
+        if (dirty & (PC_GX_DIRTY_TEV_COLORS | PC_GX_DIRTY_KONST | PC_GX_DIRTY_ALPHA_CMP |
+                     PC_GX_DIRTY_LIGHTING | PC_GX_DIRTY_INDIRECT | PC_GX_DIRTY_FOG)) {
+            PCGXFragmentBlock* fb = &s_fragment_block;
+
+            if (dirty & PC_GX_DIRTY_TEV_COLORS) {
+                memcpy(fb->tev_prev.v, g_gx.tev_colors[0], sizeof(fb->tev_prev.v));
+                memcpy(fb->tev_reg0.v, g_gx.tev_colors[1], sizeof(fb->tev_reg0.v));
+                memcpy(fb->tev_reg1.v, g_gx.tev_colors[2], sizeof(fb->tev_reg1.v));
+                memcpy(fb->tev_reg2.v, g_gx.tev_colors[3], sizeof(fb->tev_reg2.v));
             }
-        }
-
-        if (dirty & PC_GX_DIRTY_KONST) {
-            loc = UL(kcolor); if (loc >= 0) glUniform4fv(loc, 4, (const float*)g_gx.tev_k_colors);
-        }
-
-        if (dirty & PC_GX_DIRTY_ALPHA_CMP) {
-            GLint ctrl[3] = { g_gx.alpha_comp0, g_gx.alpha_op, g_gx.alpha_comp1 };
-            GLint refs[2] = { g_gx.alpha_ref0, g_gx.alpha_ref1 };
-            loc = UL(alpha_ctrl); if (loc >= 0) glUniform3iv(loc, 1, ctrl);
-            loc = UL(alpha_refs); if (loc >= 0) glUniform2iv(loc, 1, refs);
-        }
-
-        if (dirty & PC_GX_DIRTY_LIGHTING) {
-            GLint lighting_cfg0[4] = {
-                g_gx.chan_ctrl_enable[0],
-                g_gx.chan_ctrl_mat_src[0],
-                g_gx.chan_ctrl_amb_src[0],
-                g_gx.num_chans
-            };
-            GLint lighting_cfg1[4] = {
-                g_gx.chan_ctrl_enable[1],
-                g_gx.chan_ctrl_mat_src[1],
-                g_gx.chan_ctrl_light_mask[0],
-                0
-            };
-            GLfloat chan_color[2][4];
-
-            memcpy(chan_color[0], g_gx.chan_mat_color[0], sizeof(chan_color[0]));
-            memcpy(chan_color[1], g_gx.chan_amb_color[0], sizeof(chan_color[1]));
-
-            loc = UL(lighting_enabled); if (loc >= 0) glUniform4iv(loc, 1, lighting_cfg0);
-            loc = UL(alpha_lighting_enabled); if (loc >= 0) glUniform4iv(loc, 1, lighting_cfg1);
-            loc = UL(mat_color); if (loc >= 0) glUniform4fv(loc, 2, &chan_color[0][0]);
-            {
-                float lpos[8][3], lcol[8][4];
+            if (dirty & PC_GX_DIRTY_KONST) {
+                memcpy(fb->kcolor, g_gx.tev_k_colors, sizeof(fb->kcolor));
+            }
+            if (dirty & PC_GX_DIRTY_ALPHA_CMP) {
+                pc_gx_set_ivec4(&fb->alpha_refs, g_gx.alpha_ref0, g_gx.alpha_ref1, 0, 0);
+            }
+            if (dirty & PC_GX_DIRTY_LIGHTING) {
+                memcpy(fb->chan_color[0].v, g_gx.chan_mat_color[0], sizeof(fb->chan_color[0].v));
+                memcpy(fb->chan_color[1].v, g_gx.chan_amb_color[0], sizeof(fb->chan_color[1].v));
                 for (int i = 0; i < 8; i++) {
-                    memcpy(lpos[i], g_gx.lights[i].pos, sizeof(lpos[i]));
-                    memcpy(lcol[i], g_gx.lights[i].color, sizeof(lcol[i]));
+                    memcpy(fb->light_pos[i].v, g_gx.lights[i].pos, sizeof(float) * 3);
+                    fb->light_pos[i].v[3] = 0.0f;
+                    memcpy(fb->light_color[i].v, g_gx.lights[i].color, sizeof(fb->light_color[i].v));
                 }
-                loc = UL(light_pos[0]);   if (loc >= 0) glUniform3fv(loc, 8, &lpos[0][0]);
-                loc = UL(light_color[0]); if (loc >= 0) glUniform4fv(loc, 8, &lcol[0][0]);
             }
+            if (dirty & PC_GX_DIRTY_INDIRECT) {
+                for (int i = 0; i < g_gx.num_ind_stages && i < 4; i++) {
+                    fb->ind_scale[i].v[0] = 1.0f / (float)(1 << g_gx.ind_order[i].scale_s);
+                    fb->ind_scale[i].v[1] = 1.0f / (float)(1 << g_gx.ind_order[i].scale_t);
+                }
+                for (int i = 0; i < 3; i++) {
+                    float scale_val = ldexpf(1.0f, g_gx.ind_mtx_scale[i] + 17) / 1024.0f;
+                    for (int j = 0; j < 3; j++) {
+                        fb->ind_mtx_r0[i].v[j] = g_gx.ind_mtx[i][0][j] * scale_val;
+                        fb->ind_mtx_r1[i].v[j] = g_gx.ind_mtx[i][1][j] * scale_val;
+                    }
+                }
+            }
+            if (dirty & PC_GX_DIRTY_FOG) {
+                fb->fog_params.v[0] = (float)g_gx.fog_type;
+                fb->fog_params.v[1] = g_gx.fog_start;
+                fb->fog_params.v[2] = g_gx.fog_end;
+                fb->fog_params.v[3] = 0.0f;
+                memcpy(fb->fog_color.v, g_gx.fog_color, sizeof(fb->fog_color.v));
+            }
+            pc_gx_upload_block(PC_GX_BLOCK_FRAGMENT);
         }
 
-        if (dirty & PC_GX_DIRTY_TEXGEN) {
-            GLint texmtx_enable[2];
-            GLint texgen_src[2];
-            GLfloat texmtx_row0[2][4];
-            GLfloat texmtx_row1[2][4];
-
-            for (int tg = 0; tg < 2; tg++) {
-                int slot = pc_tex_mtx_id_to_slot(g_gx.tex_gen_mtx[tg]);
-                texmtx_enable[tg] = (slot >= 0 && slot < 10);
-                texgen_src[tg] = g_gx.tex_gen_src[tg];
-                memset(texmtx_row0[tg], 0, sizeof(texmtx_row0[tg]));
-                memset(texmtx_row1[tg], 0, sizeof(texmtx_row1[tg]));
-                texmtx_row0[tg][0] = 1.0f;
-                texmtx_row1[tg][1] = 1.0f;
-                if (texmtx_enable[tg]) {
-                    const GLfloat* tm = (const GLfloat*)g_gx.tex_mtx[slot];
-                    memcpy(texmtx_row0[tg], &tm[0], sizeof(texmtx_row0[tg]));
-                    memcpy(texmtx_row1[tg], &tm[4], sizeof(texmtx_row1[tg]));
-                }
-            }
-
-            loc = g_gx.uloc.texmtx_enable[0]; if (loc >= 0) glUniform1iv(loc, 2, texmtx_enable);
-            loc = g_gx.uloc.texmtx_row0[0];   if (loc >= 0) glUniform4fv(loc, 2, &texmtx_row0[0][0]);
-            loc = g_gx.uloc.texmtx_row1[0];   if (loc >= 0) glUniform4fv(loc, 2, &texmtx_row1[0][0]);
-            loc = g_gx.uloc.texgen_src[0];    if (loc >= 0) glUniform1iv(loc, 2, texgen_src);
+        if (dirty & (PC_GX_DIRTY_TEV_STAGES | PC_GX_DIRTY_SWAP_TABLES | PC_GX_DIRTY_ALPHA_CMP |
+                     PC_GX_DIRTY_LIGHTING | PC_GX_DIRTY_TEXTURES | PC_GX_DIRTY_INDIRECT | PC_GX_DIRTY_FOG)) {
+            s_config_stale = 1;
+        }
+        if (var->uber && s_config_stale) {
+            pc_gx_fill_config_block();
+            pc_gx_upload_block(PC_GX_BLOCK_CONFIG);
+            s_config_stale = 0;
         }
 
         if (dirty & (PC_GX_DIRTY_TEXTURES | PC_GX_DIRTY_TEV_STAGES)) {
-            int use_tex_stage[PC_GX_MAX_TEV_STAGES] = { 0 };
-            GLuint tex_obj_stage[PC_GX_MAX_TEV_STAGES] = { 0 };
-            for (int s = 0; s < PC_GX_MAX_TEV_STAGES; s++) {
-                if (s < g_gx.num_tev_stages) {
-                    int tex_map = g_gx.tev_stages[s].tex_map;
-                    if (tex_map >= 0 && tex_map < 8)
-                        tex_obj_stage[s] = g_gx.gl_textures[tex_map];
-                }
-                if (tex_obj_stage[s] != 0) {
-                    use_tex_stage[s] = 1;
+            for (int s = 0; s < PC_GX_MAX_TEV_STAGES && s < g_gx.num_tev_stages; s++) {
+                int tex_map = g_gx.tev_stages[s].tex_map;
+                if (tex_map >= 0 && tex_map < 8 && g_gx.gl_textures[tex_map] != 0) {
                     pc_gx_active_texture_cached(GL_TEXTURE0 + s);
-                    pc_gx_bind_texture_profiled(GL_TEXTURE_2D, tex_obj_stage[s]);
+                    pc_gx_bind_texture_profiled(GL_TEXTURE_2D, g_gx.gl_textures[tex_map]);
                 }
             }
-            loc = UL(use_texture0); if (loc >= 0) glUniform1iv(loc, PC_GX_MAX_TEV_STAGES, use_tex_stage);
         }
 
         /* Indirect textures on units 3-6 */
@@ -1032,54 +1033,9 @@ void pc_gx_flush_vertices(void) {
                 }
             }
         }
-
-        if (dirty & PC_GX_DIRTY_INDIRECT) {
-            loc = UL(num_ind_stages); if (loc >= 0) glUniform1i(loc, g_gx.num_ind_stages);
-            for (int i = 0; i < g_gx.num_ind_stages && i < 4; i++) {
-                loc = UL(ind_scale[i]);
-                if (loc >= 0) {
-                    float s_scale = 1.0f / (float)(1 << g_gx.ind_order[i].scale_s);
-                    float t_scale = 1.0f / (float)(1 << g_gx.ind_order[i].scale_t);
-                    glUniform2f(loc, s_scale, t_scale);
-                }
-            }
-            for (int i = 0; i < 3; i++) {
-                float scale_val = ldexpf(1.0f, g_gx.ind_mtx_scale[i] + 17) / 1024.0f;
-                float packed[6];
-                for (int j = 0; j < 6; j++)
-                    packed[j] = ((float*)g_gx.ind_mtx[i])[j] * scale_val;
-                loc = UL(ind_mtx_r0[i]); if (loc >= 0) glUniform3f(loc, packed[0], packed[1], packed[2]);
-                loc = UL(ind_mtx_r1[i]); if (loc >= 0) glUniform3f(loc, packed[3], packed[4], packed[5]);
-            }
-            for (int s = 0; s < g_gx.num_tev_stages && s < PC_GX_MAX_TEV_STAGES; s++) {
-                PCGXTevStage* ts = &g_gx.tev_stages[s];
-                loc = UL(tev_ind_cfg[s]);
-                if (loc >= 0) glUniform4i(loc, ts->ind_stage, ts->ind_mtx, ts->ind_bias, ts->ind_alpha);
-                loc = UL(tev_ind_wrap[s]);
-                if (loc >= 0) glUniform3i(loc, ts->ind_wrap_s, ts->ind_wrap_t, ts->ind_add_prev);
-            }
-        }
         pc_gx_active_texture_cached(GL_TEXTURE0);
 
-        if (dirty & PC_GX_DIRTY_FOG) {
-            GLfloat fog_params[4] = {
-                (GLfloat)g_gx.fog_type, g_gx.fog_start, g_gx.fog_end, 0.0f
-            };
-            loc = UL(fog_type);   if (loc >= 0) glUniform4fv(loc, 1, fog_params);
-            loc = UL(fog_enable); if (loc >= 0) glUniform1i(loc, g_gx.fog_type != 0);
-            loc = UL(fog_color);  if (loc >= 0) glUniform4fv(loc, 1, g_gx.fog_color);
-        }
-
-        #undef UL
         pc_profiler_add_time(PC_PROF_TIMER_UNIFORM_UPLOAD, uniform_start);
-
-        /* Record what this program has now seen for stale tracking */
-        {
-            unsigned int groups = dirty & PC_GX_DIRTY_UNIFORM_GROUPS;
-            for (int b = 0; groups; b++, groups >>= 1) {
-                if (groups & 1) var->uploaded_seq[b] = g_gx.group_seq[b];
-            }
-        }
     }
 
     switch (g_gx.current_primitive) {
