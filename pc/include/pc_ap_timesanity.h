@@ -69,6 +69,9 @@ void pc_ap_timesanity_day_before(lbRTC_time_c* out, const lbRTC_time_c* date);
 // Vanilla turnip rule on a real jump: 1 when old -> new passes a Sunday 6am, or new is an
 // earlier date than old. Hour-only changes never get here.
 int pc_ap_timesanity_turnips_spoil(const lbRTC_time_c* old_time, const lbRTC_time_c* new_time);
+// 1 when old is in the windsock days (May 1-5, mAGrw_CheckCarpTime) and new isn't: the game would
+// take them down, but it checks the rewritten "last growth" date, which is never May 1-5 then.
+int pc_ap_timesanity_windsocks_end(const lbRTC_time_c* old_time, const lbRTC_time_c* new_time);
 
 // The one-day rule: rewrites save's "last" timestamps so old_time -> new_time counts as one
 // day passing, and stashes the turnip decision. Returns 0 (does nothing) with

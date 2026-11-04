@@ -1609,7 +1609,10 @@ static void mAGrw_SetEnoughCarp(mAGrw_CarpInfo_c* carp_info, mFM_fg_c* fg_block)
     }
 }
 
-static void mAGrw_ClearAllCarp(mFM_fg_c* fg_block) {
+#ifndef TARGET_PC
+static
+#endif
+void mAGrw_ClearAllCarp(mFM_fg_c* fg_block) {
     int bz;
     int bx;
 

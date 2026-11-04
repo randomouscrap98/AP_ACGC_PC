@@ -225,6 +225,16 @@ static void pc_ap_timesanity_shift_memories(Animal_c* animal, const lbRTC_time_c
   }
 }
 
+static int pc_ap_timesanity_windsock_day(const lbRTC_time_c* t) {
+  return t->month == lbRTC_MAY && t->day <= 5;
+}
+
+int pc_ap_timesanity_windsocks_end(const lbRTC_time_c* old_time, const lbRTC_time_c* new_time) {
+  return pc_ap_timesanity_windsock_day(old_time) && !pc_ap_timesanity_windsock_day(new_time);
+}
+
+extern void mAGrw_ClearAllCarp(mFM_fg_c* fg_block); // m_all_grow_ovl.c, un-static on PC
+
 int pc_ap_timesanity_normalize(pc_ap_timesanity* t, Save_t* save,
                                const lbRTC_time_c* old_time, const lbRTC_time_c* new_time) {
   lbRTC_time_c before;
@@ -252,6 +262,9 @@ int pc_ap_timesanity_normalize(pc_ap_timesanity* t, Save_t* save,
     pc_ap_timesanity_shift_memories(&save->animals[i], old_time, new_time); // "long time no see"
   }
   pc_ap_timesanity_shift_memories(&save->island.animal, old_time, new_time);
+  if(pc_ap_timesanity_windsocks_end(old_time, new_time)) {
+    mAGrw_ClearAllCarp(save->fg[0]); // windsocks back to signboards
+  }
 
   pc_ap_timesanity_clamp(&save->post_office.delivery_time, &before); // no mail until it comes again
   for(i = 0; i < mFR_RECORD_NUM; i++) {
