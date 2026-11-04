@@ -13,10 +13,10 @@ void pc_window_icon_set(SDL_Window* window) {
     if (pixels == NULL) {
         return; // optional, keep the default icon
     }
-    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormatFrom(pixels, w, h, 32, w * 4, SDL_PIXELFORMAT_RGBA32);
+    SDL_Surface* surface = SDL_CreateSurfaceFrom(w, h, SDL_PIXELFORMAT_RGBA32, pixels, w * 4);
     if (surface != NULL) {
         SDL_SetWindowIcon(window, surface);
-        SDL_FreeSurface(surface);
+        SDL_DestroySurface(surface);
     }
     stbi_image_free(pixels);
 }

@@ -1,5 +1,6 @@
-/* pc_main.c - PC entry point: SDL2/GL init and boot sequence */
+/* pc_main.c - PC entry point: SDL3/GL init and boot sequence */
 #include "pc_platform.h"
+#include <SDL3/SDL_main.h> // SDL_SetMainReady (SDL_MAIN_HANDLED: our own main)
 #include "pc_gx_internal.h"
 #include "pc_texture_pack.h"
 #include "pc_gpu.h"
@@ -68,9 +69,9 @@ void pc_platform_init(void) {
     SDL_SetHint(SDL_HINT_WINDOWS_INTRESOURCE_ICON, "1");
 #else
     // Wayland app id / X11 window class (default: exe name), matched by install-desktop-entry.sh
-    setenv("SDL_VIDEO_X11_WMCLASS", "AnimalCrossingAP", 0);
+    SDL_SetHint(SDL_HINT_APP_ID, "AnimalCrossingAP");
 #endif
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO | SDL_INIT_TIMER) < 0) {
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_AUDIO)) {
         fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
         exit(1);
     }
@@ -82,32 +83,18 @@ void pc_platform_init(void) {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     // No MSAA on the window: it lives in the render target (pc_render_target.c)
 
-    {
-        Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
-        int win_w = g_pc_settings.window_width;
-        int win_h = g_pc_settings.window_height;
-        if (g_pc_settings.fullscreen == 1) {
-            // Exclusive fullscreen at the desktop's mode (SDL picks the mode closest to the window size)
-            SDL_DisplayMode mode;
-            if (SDL_GetDesktopDisplayMode(0, &mode) == 0) {
-                win_w = mode.w;
-                win_h = mode.h;
-            }
-            flags |= SDL_WINDOW_FULLSCREEN;
-        } else if (g_pc_settings.fullscreen == 2) {
-            flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-        }
-        g_pc_window = SDL_CreateWindow(
-            PC_WINDOW_TITLE,
-            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-            win_w, win_h, flags
-        );
-    }
+    // Hidden until placed. High pixel density: full pixels on Wayland (Windows / X11 have them anyway)
+    g_pc_window = SDL_CreateWindow(PC_WINDOW_TITLE, g_pc_settings.window_width, g_pc_settings.window_height,
+                                   SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN |
+                                       SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (!g_pc_window) {
         fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
         SDL_Quit();
         exit(1);
     }
+    SDL_SetWindowPosition(g_pc_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    if (g_pc_settings.fullscreen) pc_platform_set_fullscreen(g_pc_settings.fullscreen);
+    SDL_ShowWindow(g_pc_window);
 #ifndef _WIN32
     pc_window_icon_set(g_pc_window);
 #endif
@@ -122,7 +109,7 @@ void pc_platform_init(void) {
 
     if (!pc_gpu_init()) {
         fprintf(stderr, "gladLoadGL failed\n");
-        SDL_GL_DeleteContext(g_pc_gl_context);
+        SDL_GL_DestroyContext(g_pc_gl_context);
         SDL_DestroyWindow(g_pc_window);
         SDL_Quit();
         exit(1);
@@ -176,7 +163,7 @@ void pc_platform_shutdown(void) {
 #endif
 
     if (g_pc_gl_context) {
-        SDL_GL_DeleteContext(g_pc_gl_context);
+        SDL_GL_DestroyContext(g_pc_gl_context);
         g_pc_gl_context = NULL;
     }
     if (g_pc_window) {
@@ -186,8 +173,30 @@ void pc_platform_shutdown(void) {
     SDL_Quit();
 }
 
+// settings.ini fullscreen: 0 = windowed, 1 = exclusive at the desktop's own mode, 2 = borderless desktop
+void pc_platform_set_fullscreen(int mode) {
+    if (mode == 1) {
+        // Exclusive needs one of SDL's fullscreen modes: the one closest to the desktop's
+        SDL_DisplayID display = SDL_GetDisplayForWindow(g_pc_window);
+        const SDL_DisplayMode* desktop;
+        SDL_DisplayMode closest;
+
+        if (display == 0) display = SDL_GetPrimaryDisplay();
+        desktop = SDL_GetDesktopDisplayMode(display);
+        if (desktop != NULL && SDL_GetClosestFullscreenDisplayMode(display, desktop->w, desktop->h,
+                                                                   desktop->refresh_rate, false, &closest)) {
+            SDL_SetWindowFullscreenMode(g_pc_window, &closest);
+        } else {
+            SDL_SetWindowFullscreenMode(g_pc_window, NULL); // unknown: borderless
+        }
+    } else {
+        SDL_SetWindowFullscreenMode(g_pc_window, NULL);
+    }
+    SDL_SetWindowFullscreen(g_pc_window, mode != 0);
+}
+
 void pc_platform_update_window_size(void) {
-    SDL_GL_GetDrawableSize(g_pc_window, &g_pc_window_w, &g_pc_window_h);
+    SDL_GetWindowSizeInPixels(g_pc_window, &g_pc_window_w, &g_pc_window_h);
     if (g_pc_window_w <= 0) g_pc_window_w = PC_SCREEN_WIDTH;
     if (g_pc_window_h <= 0) g_pc_window_h = PC_SCREEN_HEIGHT;
 }
@@ -218,31 +227,29 @@ int pc_platform_poll_events(void) {
     while (SDL_PollEvent(&event)) {
         if (pc_ap_ui_handle_event(&event)) continue;
         switch (event.type) {
-            case SDL_QUIT:
+            case SDL_EVENT_QUIT:
                 g_pc_running = 0;
                 return 0;
-            case SDL_WINDOWEVENT:
-                if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-                    pc_platform_update_window_size();
-                    pc_settings_note_window_size();
-                }
+            case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+                pc_platform_update_window_size();
+                pc_settings_note_window_size();
                 break;
-            case SDL_KEYDOWN:
+            case SDL_EVENT_KEY_DOWN:
                 /* Keybinding capture eats all input first (works from both
                  * the pause menu and the title Options menu). */
                 if (pc_settings_menu_capture_active()) {
                     pc_settings_menu_handle_capture_event(&event);
                     break;
                 }
-                if (event.key.keysym.sym == SDLK_F3 && !event.key.repeat) {
+                if (event.key.key == SDLK_F3 && !event.key.repeat) {
                     pc_speedhack_toggle();
                     break;
                 }
-                if (event.key.keysym.sym == SDLK_F12 && !event.key.repeat) {
+                if (event.key.key == SDLK_F12 && !event.key.repeat) {
                     pc_screenshot_request();
                     break;
                 }
-                if (event.key.keysym.sym == SDLK_ESCAPE && !event.key.repeat) {
+                if (event.key.key == SDLK_ESCAPE && !event.key.repeat) {
                     if (g_pc_paused) {
                         pc_pause_menu_handle_event(&event);
                     } else {
@@ -256,19 +263,19 @@ int pc_platform_poll_events(void) {
                 }
                 pc_typing_handle_event(&event);
                 break;
-            case SDL_KEYUP:
-            case SDL_CONTROLLERBUTTONUP:
+            case SDL_EVENT_KEY_UP:
+            case SDL_EVENT_GAMEPAD_BUTTON_UP:
                 /* Releases end a held menu direction (pc_menu_repeat) */
                 if (g_pc_paused && !pc_settings_menu_capture_active()) {
                     pc_pause_menu_handle_event(&event);
                 }
                 break;
-            case SDL_MOUSEBUTTONDOWN:
+            case SDL_EVENT_MOUSE_BUTTON_DOWN:
                 if (pc_settings_menu_capture_active()) {
                     pc_settings_menu_handle_capture_event(&event);
                 }
                 break;
-            case SDL_CONTROLLERBUTTONDOWN:
+            case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
                 if (pc_settings_menu_capture_active()) {
                     pc_settings_menu_handle_capture_event(&event);
                     break;
@@ -278,11 +285,11 @@ int pc_platform_poll_events(void) {
                     break;
                 }
                 /* Back/Select opens the pause menu (controller Esc). */
-                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_BACK) {
+                if (event.gbutton.button == SDL_GAMEPAD_BUTTON_BACK) {
                     pc_pause_menu_toggle();
                 }
                 break;
-            case SDL_CONTROLLERAXISMOTION:
+            case SDL_EVENT_GAMEPAD_AXIS_MOTION:
                 if (pc_settings_menu_capture_active()) {
                     pc_settings_menu_handle_capture_event(&event);
                     break;
@@ -291,7 +298,7 @@ int pc_platform_poll_events(void) {
                     pc_pause_menu_handle_event(&event);
                 }
                 break;
-            case SDL_TEXTINPUT:
+            case SDL_EVENT_TEXT_INPUT:
                 if (g_pc_paused) break;
                 pc_typing_handle_event(&event);
                 break;
@@ -323,7 +330,7 @@ static int pc_parse_rain_intensity(const char* text) {
 // Every data path (ROM, saves, settings, ap_config.ini, cacert.pem) is relative, so run
 // from the exe's folder no matter where the game was launched from
 static void pc_chdir_to_exe(void) {
-    char* base = SDL_GetBasePath(); // UTF-8, ends with a separator
+    const char* base = SDL_GetBasePath(); // UTF-8, ends with a separator; owned by SDL
     if (base == NULL) {
         fprintf(stderr, "Can't find the exe folder: %s\n", SDL_GetError());
         return;
@@ -339,7 +346,6 @@ static void pc_chdir_to_exe(void) {
         fprintf(stderr, "Can't change to the exe folder: %s\n", base);
     }
 #endif
-    SDL_free(base);
 }
 
 int main(int argc, char* argv[]) {

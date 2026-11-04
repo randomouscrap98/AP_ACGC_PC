@@ -489,7 +489,7 @@ static void mv_handle_input(GAME_MODEL_VIEWER* mv) {
 
     /* Tab = cycle category */
     {
-        const Uint8* keys = SDL_GetKeyboardState(NULL);
+        const bool* keys = SDL_GetKeyboardState(NULL);
         static int tab_prev = 0;
         int tab_now = keys[SDL_SCANCODE_TAB];
         if (tab_now && !tab_prev) {
@@ -521,7 +521,7 @@ static void mv_handle_input(GAME_MODEL_VIEWER* mv) {
 
     /* LCtrl = prev model */
     {
-        const Uint8* keys = SDL_GetKeyboardState(NULL);
+        const bool* keys = SDL_GetKeyboardState(NULL);
         static int ctrl_prev = 0;
         int ctrl_now = keys[SDL_SCANCODE_LCTRL];
         if (ctrl_now && !ctrl_prev) {

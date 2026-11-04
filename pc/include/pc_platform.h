@@ -1,4 +1,4 @@
-/* pc_platform.h - SDL2/OpenGL platform layer and global state */
+/* pc_platform.h - SDL3/OpenGL platform layer and global state */
 #ifndef PC_PLATFORM_H
 #define PC_PLATFORM_H
 
@@ -9,7 +9,7 @@
 #endif
 
 #define SDL_MAIN_HANDLED
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <glad/gl.h>
 
 #include <stdio.h>
@@ -84,6 +84,8 @@ extern u32           g_frame_limiter;
 extern int g_pc_window_w;
 extern int g_pc_window_h;
 void pc_platform_update_window_size(void);
+// settings.ini fullscreen: 0 = windowed, 1 = exclusive (desktop mode), 2 = borderless desktop
+void pc_platform_set_fullscreen(int mode);
 
 /* --- Widescreen mode (3-state) ---
  * 0 = hor+ (default): full-window viewport, FOV-corrected projection. Resets each frame.

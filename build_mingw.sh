@@ -20,15 +20,15 @@ done
  
 # Some defaults (also defined in the dockerfile but the dockerfile overrides these
 # if you're building through that)
-SDL2_VERSION="${SDL2_VERSION:-2.30.10}"
-SDL2_DIR="${SDL2_DIR:-/opt/SDL2-${SDL2_VERSION}/i686-w64-mingw32}"
+SDL3_VERSION="${SDL3_VERSION:-3.4.20}"
+SDL3_DIR="${SDL3_DIR:-/opt/SDL3-${SDL3_VERSION}/i686-w64-mingw32}"
 OPENSSL_VERSION="${OPENSSL_VERSION:-3.5.8}"
 OPENSSL_DIR="${OPENSSL_DIR:-/opt/openssl-${OPENSSL_VERSION}/i686-w64-mingw32}"
 BUILD_DIR="${BUILD_DIR:-build/windows32}"
  
-if [ ! -d "$SDL2_DIR" ]; then
-  echo "SDL2 not found at $SDL2_DIR" >&2
-  echo "Set SDL2_DIR, or rebuild the docker image with --build-arg SDL2_VERSION=$SDL2_VERSION" >&2
+if [ ! -d "$SDL3_DIR" ]; then
+  echo "SDL3 not found at $SDL3_DIR" >&2
+  echo "Set SDL3_DIR, or rebuild the docker image with --build-arg SDL3_VERSION=$SDL3_VERSION" >&2
   exit 1
 fi
 
@@ -40,7 +40,7 @@ fi
 
 cmake -S pc -B "$BUILD_DIR" \
   -DCMAKE_TOOLCHAIN_FILE="$PWD/pc/cmake/Toolchain-mingw32.cmake" \
-  -DCMAKE_PREFIX_PATH="$SDL2_DIR" \
+  -DCMAKE_PREFIX_PATH="$SDL3_DIR" \
   -DOPENSSL_ROOT_DIR="$OPENSSL_DIR" \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
@@ -86,16 +86,16 @@ if [ -n "$HOST_DIR" ]; then
         done
   fi
 
-  # Same for the container-only OpenSSL and SDL2 headers
+  # Same for the container-only OpenSSL and SDL3 headers
   SSL_INC_DIR="ignore/openssl-include"
   if [ ! -d "$SSL_INC_DIR" ]; then
     mkdir -p "$SSL_INC_DIR"
     cp -rL "$OPENSSL_DIR/include/." "$SSL_INC_DIR/"
   fi
-  SDL_INC_DIR="ignore/sdl2-include"
+  SDL_INC_DIR="ignore/sdl3-include"
   if [ ! -d "$SDL_INC_DIR" ]; then
     mkdir -p "$SDL_INC_DIR"
-    cp -rL "$SDL2_DIR/include/." "$SDL_INC_DIR/"
+    cp -rL "$SDL3_DIR/include/." "$SDL_INC_DIR/"
   fi
 
   {
@@ -104,7 +104,6 @@ if [ -n "$HOST_DIR" ]; then
     echo "  CompilationDatabase: build/windows32"
     echo "  Add:"
     echo "    - -isystem$HOST_DIR/$SDL_INC_DIR"
-    echo "    - -isystem$HOST_DIR/$SDL_INC_DIR/SDL2"
     echo "    - -isystem$HOST_DIR/$SSL_INC_DIR"
     while read -r dir; do
       case "$dir" in */lib/gcc/*/include | */include-fixed) continue ;; esac
@@ -114,14 +113,14 @@ if [ -n "$HOST_DIR" ]; then
 fi
 
 # Only copy when changed: cp rewrites in place, which crashes a running game
-cmp -s "$SDL2_DIR/bin/SDL2.dll" "$BUILD_DIR/bin/SDL2.dll" || cp "$SDL2_DIR/bin/SDL2.dll" "$BUILD_DIR/bin/"
+cmp -s "$SDL3_DIR/bin/SDL3.dll" "$BUILD_DIR/bin/SDL3.dll" || cp "$SDL3_DIR/bin/SDL3.dll" "$BUILD_DIR/bin/"
 
 
-# Third-party license texts: statically linked OpenSSL, shipped SDL2.dll
+# Third-party license texts: statically linked OpenSSL, shipped SDL3.dll
 mkdir -p "$BUILD_DIR/bin/licenses"
 cp "$OPENSSL_DIR/LICENSE.txt" "$BUILD_DIR/bin/licenses/OpenSSL-LICENSE.txt"
-if [ -f "$SDL2_DIR/LICENSE.txt" ]; then
-  cp "$SDL2_DIR/LICENSE.txt" "$BUILD_DIR/bin/licenses/SDL2-LICENSE.txt"
+if [ -f "$SDL3_DIR/LICENSE.txt" ]; then
+  cp "$SDL3_DIR/LICENSE.txt" "$BUILD_DIR/bin/licenses/SDL3-LICENSE.txt"
 else
-  echo "WARNING: $SDL2_DIR/LICENSE.txt missing, rebuild the build image (Dockerfile keeps it now)" >&2
+  echo "WARNING: $SDL3_DIR/LICENSE.txt missing, rebuild the build image (Dockerfile keeps it now)" >&2
 fi

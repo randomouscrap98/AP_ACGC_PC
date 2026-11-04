@@ -1,6 +1,6 @@
 #include "pc_window_size.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 extern SDL_Window* g_pc_window;
 
@@ -47,10 +47,10 @@ void pc_window_size_step(int* w, int* h, int dir, int max_w, int max_h) {
 void pc_window_size_max(int* max_w, int* max_h) {
     SDL_Rect r;
     int top = 0, left = 0, bottom = 0, right = 0;
-    int display = g_pc_window ? SDL_GetWindowDisplayIndex(g_pc_window) : 0;
+    SDL_DisplayID display = g_pc_window ? SDL_GetDisplayForWindow(g_pc_window) : 0;
 
-    if (display < 0) display = 0;
-    if (SDL_GetDisplayUsableBounds(display, &r) != 0) {
+    if (display == 0) display = SDL_GetPrimaryDisplay();
+    if (!SDL_GetDisplayUsableBounds(display, &r)) {
         // Unknown desktop: allow everything
         *max_w = 1 << 16;
         *max_h = 1 << 16;

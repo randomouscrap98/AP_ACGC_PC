@@ -272,23 +272,13 @@ static void apply_display_mode(void) {
     applied = g_pc_settings.fullscreen;
 
     switch (g_pc_settings.fullscreen) {
-        case 1: {
-            // Exclusive fullscreen at the desktop's own mode
-            SDL_DisplayMode mode;
-            int display_idx = SDL_GetWindowDisplayIndex(g_pc_window);
-            if (display_idx < 0) display_idx = 0;
-            if (SDL_GetDesktopDisplayMode(display_idx, &mode) == 0) {
-                SDL_SetWindowDisplayMode(g_pc_window, &mode);
-            }
-            SDL_SetWindowFullscreen(g_pc_window, SDL_WINDOW_FULLSCREEN);
-            break;
-        }
+        case 1:
         case 2:
-            SDL_SetWindowFullscreen(g_pc_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+            pc_platform_set_fullscreen(g_pc_settings.fullscreen);
             break;
         case 0:
         default:
-            SDL_SetWindowFullscreen(g_pc_window, 0);
+            pc_platform_set_fullscreen(0);
             SDL_SetWindowSize(g_pc_window, g_pc_settings.window_width, g_pc_settings.window_height);
             SDL_SetWindowPosition(g_pc_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             break;

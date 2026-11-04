@@ -60,7 +60,7 @@
 #include "libc64/qrand.h"
 #include "ac_set_manager.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <ini.h>
 #include <stdio.h>
 

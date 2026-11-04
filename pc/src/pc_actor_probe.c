@@ -6,7 +6,7 @@
 #include "m_play.h"
 #include "m_common_data.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>

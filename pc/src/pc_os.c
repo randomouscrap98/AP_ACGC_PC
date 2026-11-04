@@ -47,7 +47,7 @@ u32 pc_ticks_ms(void) {
     if (g_pc_automated) {
         return (u32)((u64)pc_frame_counter * 1000 / 60);
     }
-    return SDL_GetTicks();
+    return (u32)SDL_GetTicks(); // SDL3: 64-bit; wraps like SDL2 did
 }
 
 u32 osGetCount(void) {

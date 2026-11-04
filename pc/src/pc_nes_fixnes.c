@@ -32,7 +32,7 @@
 #undef BUTTON_RIGHT
 
 /* Avoid pc_platform.h, which pulls in game types.h */
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include "pc_gpu.h"
 #include "fm2play.h"
 #include "audio.h"

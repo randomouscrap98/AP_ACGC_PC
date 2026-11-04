@@ -1,5 +1,6 @@
 #include "pc_keybindings.h"
 #include "pc_platform.h"
+#include <stddef.h>
 
 static const PCKeybindings s_kb_defaults = {
     /* buttons */
@@ -34,18 +35,18 @@ static const PCKeybindings s_kb_defaults = {
 /* Back/Select is reserved for opening the PC pause menu, so it is not a
  * default here. Triggers: LT=L, RT=R, RB=Z (GC Z is a digital button). */
 static const PCPadBindings s_pad_defaults = {
-    .a     = SDL_CONTROLLER_BUTTON_A,
-    .b     = SDL_CONTROLLER_BUTTON_B,
-    .x     = SDL_CONTROLLER_BUTTON_X,
-    .y     = SDL_CONTROLLER_BUTTON_Y,
-    .start = SDL_CONTROLLER_BUTTON_START,
-    .z     = SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
-    .l     = PC_PAD_AXIS_BIT | SDL_CONTROLLER_AXIS_TRIGGERLEFT,
-    .r     = PC_PAD_AXIS_BIT | SDL_CONTROLLER_AXIS_TRIGGERRIGHT,
-    .dpad_up    = SDL_CONTROLLER_BUTTON_DPAD_UP,
-    .dpad_down  = SDL_CONTROLLER_BUTTON_DPAD_DOWN,
-    .dpad_left  = SDL_CONTROLLER_BUTTON_DPAD_LEFT,
-    .dpad_right = SDL_CONTROLLER_BUTTON_DPAD_RIGHT,
+    .a     = SDL_GAMEPAD_BUTTON_SOUTH,
+    .b     = SDL_GAMEPAD_BUTTON_EAST,
+    .x     = SDL_GAMEPAD_BUTTON_WEST,
+    .y     = SDL_GAMEPAD_BUTTON_NORTH,
+    .start = SDL_GAMEPAD_BUTTON_START,
+    .z     = SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
+    .l     = PC_PAD_AXIS_BIT | SDL_GAMEPAD_AXIS_LEFT_TRIGGER,
+    .r     = PC_PAD_AXIS_BIT | SDL_GAMEPAD_AXIS_RIGHT_TRIGGER,
+    .dpad_up    = SDL_GAMEPAD_BUTTON_DPAD_UP,
+    .dpad_down  = SDL_GAMEPAD_BUTTON_DPAD_DOWN,
+    .dpad_left  = SDL_GAMEPAD_BUTTON_DPAD_LEFT,
+    .dpad_right = SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
 };
 
 PCKeybindings g_pc_keybindings;
@@ -149,30 +150,30 @@ const char* pc_pad_code_name(PCPadCode code) {
     if (code < 0) return "-";
     if (code & PC_PAD_AXIS_BIT) {
         switch (code & 0xFF) {
-            case SDL_CONTROLLER_AXIS_TRIGGERLEFT:  return "LT";
-            case SDL_CONTROLLER_AXIS_TRIGGERRIGHT: return "RT";
+            case SDL_GAMEPAD_AXIS_LEFT_TRIGGER:  return "LT";
+            case SDL_GAMEPAD_AXIS_RIGHT_TRIGGER: return "RT";
         }
         return "Axis?";
     }
     switch (code) {
-        case SDL_CONTROLLER_BUTTON_A:             return "A";
-        case SDL_CONTROLLER_BUTTON_B:             return "B";
-        case SDL_CONTROLLER_BUTTON_X:             return "X";
-        case SDL_CONTROLLER_BUTTON_Y:             return "Y";
-        case SDL_CONTROLLER_BUTTON_BACK:          return "Back";
-        case SDL_CONTROLLER_BUTTON_GUIDE:         return "Guide";
-        case SDL_CONTROLLER_BUTTON_START:         return "Start";
-        case SDL_CONTROLLER_BUTTON_LEFTSTICK:     return "LS";
-        case SDL_CONTROLLER_BUTTON_RIGHTSTICK:    return "RS";
-        case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:  return "LB";
-        case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: return "RB";
-        case SDL_CONTROLLER_BUTTON_DPAD_UP:       return "D-Up";
-        case SDL_CONTROLLER_BUTTON_DPAD_DOWN:     return "D-Down";
-        case SDL_CONTROLLER_BUTTON_DPAD_LEFT:     return "D-Left";
-        case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:    return "D-Right";
+        case SDL_GAMEPAD_BUTTON_SOUTH:             return "A";
+        case SDL_GAMEPAD_BUTTON_EAST:             return "B";
+        case SDL_GAMEPAD_BUTTON_WEST:             return "X";
+        case SDL_GAMEPAD_BUTTON_NORTH:             return "Y";
+        case SDL_GAMEPAD_BUTTON_BACK:          return "Back";
+        case SDL_GAMEPAD_BUTTON_GUIDE:         return "Guide";
+        case SDL_GAMEPAD_BUTTON_START:         return "Start";
+        case SDL_GAMEPAD_BUTTON_LEFT_STICK:     return "LS";
+        case SDL_GAMEPAD_BUTTON_RIGHT_STICK:    return "RS";
+        case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:  return "LB";
+        case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: return "RB";
+        case SDL_GAMEPAD_BUTTON_DPAD_UP:       return "D-Up";
+        case SDL_GAMEPAD_BUTTON_DPAD_DOWN:     return "D-Down";
+        case SDL_GAMEPAD_BUTTON_DPAD_LEFT:     return "D-Left";
+        case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:    return "D-Right";
     }
     {
-        const char* s = SDL_GameControllerGetStringForButton((SDL_GameControllerButton)code);
+        const char* s = SDL_GetGamepadStringForButton((SDL_GamepadButton)code);
         return s ? s : "Unknown";
     }
 }
@@ -181,11 +182,11 @@ const char* pc_pad_code_name(PCPadCode code) {
 static const char* pad_code_ini_name(PCPadCode code) {
     if (code < 0) return "none";
     if (code & PC_PAD_AXIS_BIT) {
-        const char* s = SDL_GameControllerGetStringForAxis((SDL_GameControllerAxis)(code & 0xFF));
+        const char* s = SDL_GetGamepadStringForAxis((SDL_GamepadAxis)(code & 0xFF));
         return s ? s : "none";
     }
     {
-        const char* s = SDL_GameControllerGetStringForButton((SDL_GameControllerButton)code);
+        const char* s = SDL_GetGamepadStringForButton((SDL_GamepadButton)code);
         return s ? s : "none";
     }
 }
@@ -212,11 +213,11 @@ static PCInputCode parse_input_code(const char* value) {
 static PCPadCode parse_pad_code(const char* value) {
     if (SDL_strcasecmp(value, "none") == 0) return PC_PAD_NONE;
 
-    SDL_GameControllerButton b = SDL_GameControllerGetButtonFromString(value);
-    if (b != SDL_CONTROLLER_BUTTON_INVALID) return (PCPadCode)b;
+    SDL_GamepadButton b = SDL_GetGamepadButtonFromString(value);
+    if (b != SDL_GAMEPAD_BUTTON_INVALID) return (PCPadCode)b;
 
-    SDL_GameControllerAxis ax = SDL_GameControllerGetAxisFromString(value);
-    if (ax == SDL_CONTROLLER_AXIS_TRIGGERLEFT || ax == SDL_CONTROLLER_AXIS_TRIGGERRIGHT) {
+    SDL_GamepadAxis ax = SDL_GetGamepadAxisFromString(value);
+    if (ax == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || ax == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) {
         return PC_PAD_AXIS_BIT | (PCPadCode)ax;
     }
 
@@ -265,12 +266,12 @@ void pc_keybindings_save(void) {
     }
 
     fprintf(f, "[Keyboard]\n");
-    fprintf(f, "# Key names use SDL2 scancode names.\n");
+    fprintf(f, "# Key names use SDL3 scancode names.\n");
     fprintf(f, "# Common names: Space, Left Shift, Right Shift, Left Ctrl, Right Ctrl,\n");
     fprintf(f, "#   Left Alt, Right Alt, Return, Escape, Tab, Backspace, Delete,\n");
     fprintf(f, "#   A-Z, 0-9, F1-F12, Up, Down, Left, Right, etc.\n");
     fprintf(f, "# Mouse buttons: Mouse1 (left), Mouse2 (right), Mouse3 (middle)\n");
-    fprintf(f, "# For the full list, search the SDL2 scancode name table.\n");
+    fprintf(f, "# For the full list, search the SDL3 scancode name table.\n");
     fprintf(f, "\n");
     fprintf(f, "# Buttons\n");
 
@@ -285,9 +286,10 @@ void pc_keybindings_save(void) {
     }
 
     fprintf(f, "\n[Gamepad]\n");
-    fprintf(f, "# SDL2 game controller names: a, b, x, y, start, leftshoulder,\n");
+    fprintf(f, "# SDL3 gamepad names: a, b, x, y, start, leftshoulder,\n");
     fprintf(f, "#   rightshoulder, lefttrigger, righttrigger, leftstick, rightstick,\n");
     fprintf(f, "#   dpup, dpdown, dpleft, dpright. Use 'none' to unbind.\n");
+    fprintf(f, "# a, b, x, y are positions, not labels: a = bottom, b = right, x = left, y = top.\n");
     fprintf(f, "# Sticks are fixed: left stick = movement, right stick = C-stick.\n");
     fprintf(f, "# The Back/Select button is reserved: it opens the pause menu.\n");
 

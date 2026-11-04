@@ -1,7 +1,7 @@
 FROM debian:13-slim
 
-ARG SDL2_VERSION=2.30.10
-ENV SDL2_DIR=/opt/SDL2-${SDL2_VERSION}/i686-w64-mingw32
+ARG SDL3_VERSION=3.4.20
+ENV SDL3_DIR=/opt/SDL3-${SDL3_VERSION}/i686-w64-mingw32
 # Latest 3.5.x LTS: websocketpp/asio are not verified against OpenSSL 4.x
 ARG OPENSSL_VERSION=3.5.8
 ENV OPENSSL_DIR=/opt/openssl-${OPENSSL_VERSION}/i686-w64-mingw32
@@ -14,16 +14,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix \
   && rm -rf /var/lib/apt/lists/*
 
-# Very confusing SDL2 download and build. Build? So we can use mingw and whatever...
-RUN curl -fsSL --retry 5 --retry-all-errors -o /tmp/sdl2.tar.gz \
-  https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-mingw.tar.gz \
-  && tar xzf /tmp/sdl2.tar.gz -C /tmp \
-  && rm /tmp/sdl2.tar.gz \
-  && mkdir -p ${SDL2_DIR}/bin ${SDL2_DIR}/lib/cmake/SDL2 ${SDL2_DIR}/lib/pkgconfig \
-  && make -C /tmp/SDL2-${SDL2_VERSION} install-package \
-       arch=i686-w64-mingw32 prefix=${SDL2_DIR} \
-  && cp /tmp/SDL2-${SDL2_VERSION}/LICENSE.txt ${SDL2_DIR}/LICENSE.txt \
-  && rm -rf /tmp/SDL2-${SDL2_VERSION}
+# SDL3 MinGW development package: prebuilt SDL3.dll, headers and a relocatable CMake config
+RUN curl -fsSL --retry 5 --retry-all-errors -o /tmp/sdl3.tar.gz \
+  https://github.com/libsdl-org/SDL/releases/download/release-${SDL3_VERSION}/SDL3-devel-${SDL3_VERSION}-mingw.tar.gz \
+  && tar xzf /tmp/sdl3.tar.gz -C /tmp \
+  && rm /tmp/sdl3.tar.gz \
+  && mkdir -p /opt/SDL3-${SDL3_VERSION} \
+  && cp -r /tmp/SDL3-${SDL3_VERSION}/i686-w64-mingw32 ${SDL3_DIR} \
+  && cp /tmp/SDL3-${SDL3_VERSION}/LICENSE.txt ${SDL3_DIR}/LICENSE.txt \
+  && rm -rf /tmp/SDL3-${SDL3_VERSION}
 
 # Static OpenSSL for wss:// support in apclientpp (no DLLs to ship)
 RUN cd /tmp \

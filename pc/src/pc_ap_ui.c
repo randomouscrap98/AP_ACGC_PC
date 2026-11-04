@@ -33,13 +33,18 @@ static void pc_ap_ui_clip_set(const char* text) {
 }
 
 static void pc_ap_ui_text_input(int on) {
-    if (on && !s_text_input && !SDL_IsTextInputActive()) {
-        SDL_StartTextInput();
+    if (on && !s_text_input && !SDL_TextInputActive(g_pc_window)) {
+        SDL_StartTextInput(g_pc_window);
         s_text_input = 1;
     } else if (!on && s_text_input) {
-        SDL_StopTextInput();
+        SDL_StopTextInput(g_pc_window);
         s_text_input = 0;
     }
+}
+
+// SDL's GL lookup in the DLL's function type
+static void* pc_ap_ui_gl_proc(const char* name) {
+    return (void*)SDL_GL_GetProcAddress(name);
 }
 
 // Input stops going to it: nothing stays held, the text line lets go
@@ -66,12 +71,12 @@ static int pc_ap_ui_key(SDL_Keycode sym) {
         case SDLK_BACKSPACE: return AP_UI_KEY_BACKSPACE;
         case SDLK_RETURN:
         case SDLK_KP_ENTER:  return AP_UI_KEY_ENTER;
-        case SDLK_a:         return AP_UI_KEY_A;
-        case SDLK_c:         return AP_UI_KEY_C;
-        case SDLK_v:         return AP_UI_KEY_V;
-        case SDLK_x:         return AP_UI_KEY_X;
-        case SDLK_y:         return AP_UI_KEY_Y;
-        case SDLK_z:         return AP_UI_KEY_Z;
+        case SDLK_A:         return AP_UI_KEY_A;
+        case SDLK_C:         return AP_UI_KEY_C;
+        case SDLK_V:         return AP_UI_KEY_V;
+        case SDLK_X:         return AP_UI_KEY_X;
+        case SDLK_Y:         return AP_UI_KEY_Y;
+        case SDLK_Z:         return AP_UI_KEY_Z;
         case SDLK_LCTRL:
         case SDLK_RCTRL:     return AP_UI_KEY_CTRL;
         case SDLK_LSHIFT:
@@ -91,30 +96,30 @@ int pc_ap_ui_handle_event(const SDL_Event* event) {
     }
     s_active = 1;
     switch (event->type) {
-        case SDL_MOUSEBUTTONDOWN:
-        case SDL_MOUSEBUTTONUP: {
-            int down = event->type == SDL_MOUSEBUTTONDOWN;
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        case SDL_EVENT_MOUSE_BUTTON_UP: {
+            int down = event->type == SDL_EVENT_MOUSE_BUTTON_DOWN;
             if (event->button.button == SDL_BUTTON_LEFT) ap_ui_mouse_button(AP_UI_MOUSE_LEFT, down);
             if (event->button.button == SDL_BUTTON_RIGHT) ap_ui_mouse_button(AP_UI_MOUSE_RIGHT, down);
             if (event->button.button == SDL_BUTTON_MIDDLE) ap_ui_mouse_button(AP_UI_MOUSE_MIDDLE, down);
             return 1; // nothing else uses the mouse in the pause menu
         }
-        case SDL_MOUSEWHEEL:
+        case SDL_EVENT_MOUSE_WHEEL:
             ap_ui_mouse_wheel((float)event->wheel.x, (float)event->wheel.y);
             return 1;
-        case SDL_KEYDOWN:
-        case SDL_KEYUP: {
-            int key = pc_ap_ui_key(event->key.keysym.sym);
-            if (event->type == SDL_KEYUP) {
+        case SDL_EVENT_KEY_DOWN:
+        case SDL_EVENT_KEY_UP: {
+            int key = pc_ap_ui_key(event->key.key);
+            if (event->type == SDL_EVENT_KEY_UP) {
                 ap_ui_key(key, 0); // always, so no key stays held in it
                 return 0;
             }
             // Esc stays the pause menu's (closing it while typing)
-            if (event->key.keysym.sym == SDLK_ESCAPE || !ap_ui_wants_text()) return 0;
+            if (event->key.key == SDLK_ESCAPE || !ap_ui_wants_text()) return 0;
             ap_ui_key(key, 1);
             return 1; // typing: the pause menu doesn't see the keys
         }
-        case SDL_TEXTINPUT:
+        case SDL_EVENT_TEXT_INPUT:
             if (!ap_ui_wants_text()) return 0;
             ap_ui_text(event->text.text);
             return 1;
@@ -130,7 +135,7 @@ void pc_ap_ui_draw(void) {
     if (!s_started) {
         if (s_failed) return;
         // GL functions through SDL, the same lookup the game's glad uses
-        if (!ap_ui_init(SDL_GL_GetProcAddress)) {
+        if (!ap_ui_init(pc_ap_ui_gl_proc)) {
             s_failed = 1;
             fprintf(stderr, "[AP UI] text client not started (needs OpenGL 3.3)\n");
             return;
@@ -142,11 +147,12 @@ void pc_ap_ui_draw(void) {
     s_active = 1;
 
     // Mouse position every frame (also right after the menu opens, before any motion), in drawable pixels
-    int mx, my, ww, wh;
+    float mx, my;
+    int ww, wh;
     SDL_GetMouseState(&mx, &my);
     SDL_GetWindowSize(g_pc_window, &ww, &wh);
     if (ww > 0 && wh > 0) {
-        ap_ui_mouse_pos((float)mx * g_pc_window_w / ww, (float)my * g_pc_window_h / wh);
+        ap_ui_mouse_pos(mx * g_pc_window_w / ww, my * g_pc_window_h / wh);
     }
 
     Uint64 now = SDL_GetPerformanceCounter();

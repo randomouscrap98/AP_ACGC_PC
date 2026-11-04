@@ -393,13 +393,13 @@ static void handle_action(pc_menu_action act) {
 static pc_menu_action translate_key(SDL_Keycode k) {
     switch (k) {
         case SDLK_UP:
-        case SDLK_w:        return PC_MENU_UP;
+        case SDLK_W:        return PC_MENU_UP;
         case SDLK_DOWN:
-        case SDLK_s:        return PC_MENU_DOWN;
+        case SDLK_S:        return PC_MENU_DOWN;
         case SDLK_LEFT:
-        case SDLK_a:        return PC_MENU_LEFT;
+        case SDLK_A:        return PC_MENU_LEFT;
         case SDLK_RIGHT:
-        case SDLK_d:        return PC_MENU_RIGHT;
+        case SDLK_D:        return PC_MENU_RIGHT;
         case SDLK_RETURN:
         case SDLK_KP_ENTER:
         case SDLK_SPACE:    return PC_MENU_CONFIRM;
@@ -410,14 +410,14 @@ static pc_menu_action translate_key(SDL_Keycode k) {
 
 static pc_menu_action translate_pad_button(int button) {
     switch (button) {
-        case SDL_CONTROLLER_BUTTON_DPAD_UP:    return PC_MENU_UP;
-        case SDL_CONTROLLER_BUTTON_DPAD_DOWN:  return PC_MENU_DOWN;
-        case SDL_CONTROLLER_BUTTON_DPAD_LEFT:  return PC_MENU_LEFT;
-        case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: return PC_MENU_RIGHT;
-        case SDL_CONTROLLER_BUTTON_A:          return PC_MENU_CONFIRM;
-        case SDL_CONTROLLER_BUTTON_B:
-        case SDL_CONTROLLER_BUTTON_BACK:
-        case SDL_CONTROLLER_BUTTON_START:      return PC_MENU_CANCEL;
+        case SDL_GAMEPAD_BUTTON_DPAD_UP:    return PC_MENU_UP;
+        case SDL_GAMEPAD_BUTTON_DPAD_DOWN:  return PC_MENU_DOWN;
+        case SDL_GAMEPAD_BUTTON_DPAD_LEFT:  return PC_MENU_LEFT;
+        case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: return PC_MENU_RIGHT;
+        case SDL_GAMEPAD_BUTTON_SOUTH:          return PC_MENU_CONFIRM;
+        case SDL_GAMEPAD_BUTTON_EAST:
+        case SDL_GAMEPAD_BUTTON_BACK:
+        case SDL_GAMEPAD_BUTTON_START:      return PC_MENU_CANCEL;
     }
     return PC_MENU_NONE;
 }
@@ -433,8 +433,8 @@ static int translate_pad_axis(int axis, int value, pc_menu_action* dir) {
     int old;
     pc_menu_action neg, pos;
 
-    if (axis == SDL_CONTROLLER_AXIS_LEFTX)      { latch = &latch_x; neg = PC_MENU_LEFT; pos = PC_MENU_RIGHT; }
-    else if (axis == SDL_CONTROLLER_AXIS_LEFTY) { latch = &latch_y; neg = PC_MENU_UP;   pos = PC_MENU_DOWN; }
+    if (axis == SDL_GAMEPAD_AXIS_LEFTX)      { latch = &latch_x; neg = PC_MENU_LEFT; pos = PC_MENU_RIGHT; }
+    else if (axis == SDL_GAMEPAD_AXIS_LEFTY) { latch = &latch_y; neg = PC_MENU_UP;   pos = PC_MENU_DOWN; }
     else return 0;
 
     old = *latch;
@@ -478,21 +478,21 @@ int pc_pause_menu_handle_event(const SDL_Event* e) {
     if (!g_pc_paused) return 0;
 
     switch (e->type) {
-        case SDL_KEYDOWN:
-        case SDL_KEYUP:
+        case SDL_EVENT_KEY_DOWN:
+        case SDL_EVENT_KEY_UP:
             if (e->key.repeat) return 1; /* our own repeat (pc_menu_repeat) */
-            input(translate_key(e->key.keysym.sym), e->key.keysym.sym, e->type == SDL_KEYDOWN);
+            input(translate_key(e->key.key), e->key.key, e->type == SDL_EVENT_KEY_DOWN);
             return 1; /* swallow all keys while paused */
-        case SDL_CONTROLLERBUTTONDOWN:
-        case SDL_CONTROLLERBUTTONUP:
-            input(translate_pad_button(e->cbutton.button), HELD_PAD + e->cbutton.button,
-                  e->type == SDL_CONTROLLERBUTTONDOWN);
+        case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+        case SDL_EVENT_GAMEPAD_BUTTON_UP:
+            input(translate_pad_button(e->gbutton.button), HELD_PAD + e->gbutton.button,
+                  e->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN);
             return 1;
-        case SDL_CONTROLLERAXISMOTION: {
+        case SDL_EVENT_GAMEPAD_AXIS_MOTION: {
             pc_menu_action dir;
-            if (translate_pad_axis(e->caxis.axis, e->caxis.value, &dir)) {
-                if (dir != PC_MENU_NONE) input(dir, HELD_AXIS + e->caxis.axis, 1);
-                else if (s_held_src == HELD_AXIS + e->caxis.axis) s_held = PC_MENU_NONE;
+            if (translate_pad_axis(e->gaxis.axis, e->gaxis.value, &dir)) {
+                if (dir != PC_MENU_NONE) input(dir, HELD_AXIS + e->gaxis.axis, 1);
+                else if (s_held_src == HELD_AXIS + e->gaxis.axis) s_held = PC_MENU_NONE;
             }
             return 1;
         }

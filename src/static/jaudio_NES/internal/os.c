@@ -4,8 +4,8 @@
 #include "jaudio_NES/sample.h"
 
 #ifdef TARGET_PC
-#include <SDL.h>
-static SDL_mutex* z_mq_mutex = NULL;
+#include <SDL3/SDL.h>
+static SDL_Mutex* z_mq_mutex = NULL;
 
 void pc_audio_mq_init(void) {
     if (!z_mq_mutex) z_mq_mutex = SDL_CreateMutex();

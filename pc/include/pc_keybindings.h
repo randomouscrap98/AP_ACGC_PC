@@ -1,14 +1,14 @@
 #ifndef PC_KEYBINDINGS_H
 #define PC_KEYBINDINGS_H
 
-#include <SDL2/SDL_scancode.h>
-#include <SDL2/SDL_mouse.h>
+#include <SDL3/SDL_scancode.h>
+#include <SDL3/SDL_mouse.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* PCInputCode: values 0..SDL_NUM_SCANCODES-1 are keyboard scancodes.
+/* PCInputCode: values 0..SDL_SCANCODE_COUNT-1 are keyboard scancodes.
    Values with PC_INPUT_MOUSE_BIT set are mouse buttons (low bits = SDL button index). */
 typedef int PCInputCode;
 
@@ -17,9 +17,9 @@ typedef int PCInputCode;
 #define PC_INPUT_MOUSE2      (PC_INPUT_MOUSE_BIT | SDL_BUTTON_RIGHT)   /* right click */
 #define PC_INPUT_MOUSE3      (PC_INPUT_MOUSE_BIT | SDL_BUTTON_MIDDLE)  /* middle click */
 
-/* PCPadCode: -1 = unbound, 0..SDL_CONTROLLER_BUTTON_MAX-1 = controller button.
+/* PCPadCode: -1 = unbound, 0..SDL_GAMEPAD_BUTTON_COUNT-1 = controller button.
    Values with PC_PAD_AXIS_BIT set are trigger axes read as buttons
-   (low bits = SDL_GameControllerAxis, positive direction). */
+   (low bits = SDL_GamepadAxis, positive direction). */
 typedef int PCPadCode;
 
 #define PC_PAD_NONE      (-1)

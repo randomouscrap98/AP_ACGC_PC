@@ -1,7 +1,7 @@
 #ifndef PC_AP_UI_H
 #define PC_AP_UI_H
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 // The DLL's AP text client (ap_ui.h) in the game: only while the pause menu is open (and the Settings toggle is
 // on, not offline). Started the first time it would show. Mouse always goes to it then, keys and text only while

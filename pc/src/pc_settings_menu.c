@@ -946,9 +946,9 @@ int pc_settings_menu_handle_capture_event(const SDL_Event* e) {
     if (row >= BIND_ROW_COUNT) { s_capture = 0; return 1; }
 
     switch (e->type) {
-        case SDL_KEYDOWN: {
+        case SDL_EVENT_KEY_DOWN: {
             if (e->key.repeat) return 1;
-            SDL_Scancode sc = e->key.keysym.scancode;
+            SDL_Scancode sc = e->key.scancode;
             if (sc == SDL_SCANCODE_ESCAPE) { capture_finish(0); return 1; }
             if (s_bind_col == 1) {
                 /* Delete/Backspace clears a pad binding; other keys ignored. */
@@ -962,7 +962,7 @@ int pc_settings_menu_handle_capture_event(const SDL_Event* e) {
             capture_finish(1);
             return 1;
         }
-        case SDL_MOUSEBUTTONDOWN: {
+        case SDL_EVENT_MOUSE_BUTTON_DOWN: {
             int b = e->button.button;
             if (s_bind_col == 0 &&
                 (b == SDL_BUTTON_LEFT || b == SDL_BUTTON_RIGHT || b == SDL_BUTTON_MIDDLE)) {
@@ -971,21 +971,21 @@ int pc_settings_menu_handle_capture_event(const SDL_Event* e) {
             }
             return 1;
         }
-        case SDL_CONTROLLERBUTTONDOWN: {
-            int b = e->cbutton.button;
+        case SDL_EVENT_GAMEPAD_BUTTON_DOWN: {
+            int b = e->gbutton.button;
             /* Back/Select is reserved for the pause menu - treat as cancel. */
-            if (b == SDL_CONTROLLER_BUTTON_BACK) { capture_finish(0); return 1; }
+            if (b == SDL_GAMEPAD_BUTTON_BACK) { capture_finish(0); return 1; }
             if (s_bind_col == 1) {
                 bind_assign_pad(row, (PCPadCode)b);
                 capture_finish(1);
             }
             return 1;
         }
-        case SDL_CONTROLLERAXISMOTION: {
-            int ax = e->caxis.axis;
-            if (s_bind_col == 1 && e->caxis.value > 16000 &&
-                (ax == SDL_CONTROLLER_AXIS_TRIGGERLEFT ||
-                 ax == SDL_CONTROLLER_AXIS_TRIGGERRIGHT)) {
+        case SDL_EVENT_GAMEPAD_AXIS_MOTION: {
+            int ax = e->gaxis.axis;
+            if (s_bind_col == 1 && e->gaxis.value > 16000 &&
+                (ax == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
+                 ax == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)) {
                 bind_assign_pad(row, PC_PAD_AXIS_BIT | ax);
                 capture_finish(1);
             }

@@ -1,7 +1,7 @@
 #include "pc_menu_repeat.h"
 #include "pc_settings.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 pc_menu_action pc_menu_repeat_update(pc_menu_repeat* r, pc_menu_action held, unsigned now_ms, unsigned delay_ms,
                                      unsigned rate_ms) {

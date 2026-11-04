@@ -15,13 +15,13 @@ for arg in "$@"; do
   esac
 done
 
-SDL2_VERSION="${SDL2_VERSION:-2.30.10}"
-SDL2_DIR="${SDL2_DIR:-/opt/SDL2-${SDL2_VERSION}/i686-linux-gnu}"
+SDL3_VERSION="${SDL3_VERSION:-3.4.20}"
+SDL3_DIR="${SDL3_DIR:-/opt/SDL3-${SDL3_VERSION}/i686-linux-gnu}"
 OPENSSL_VERSION="${OPENSSL_VERSION:-3.5.8}"
 OPENSSL_DIR="${OPENSSL_DIR:-/opt/openssl-${OPENSSL_VERSION}/i686-linux-gnu}"
 BUILD_DIR="${BUILD_DIR:-build/linux32}"
 
-for dir in "$SDL2_DIR" "$OPENSSL_DIR"; do
+for dir in "$SDL3_DIR" "$OPENSSL_DIR"; do
   if [ ! -d "$dir" ]; then
     echo "$dir not found; build inside the Dockerfile.linux image (build_podman.sh --linux)" >&2
     exit 1
@@ -33,7 +33,7 @@ export PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig
 
 cmake -S pc -B "$BUILD_DIR" \
   -DCMAKE_TOOLCHAIN_FILE="$PWD/pc/cmake/Toolchain-linux32.cmake" \
-  -DCMAKE_PREFIX_PATH="$SDL2_DIR" \
+  -DCMAKE_PREFIX_PATH="$SDL3_DIR" \
   -DOPENSSL_ROOT_DIR="$OPENSSL_DIR"
 
 if [ "$CLEAN" = 1 ]; then
@@ -45,4 +45,4 @@ cmake --build "$BUILD_DIR" -j"$(nproc)"
 # Third-party license texts for the statically linked libraries
 mkdir -p "$BUILD_DIR/bin/licenses"
 cp "$OPENSSL_DIR/LICENSE.txt" "$BUILD_DIR/bin/licenses/OpenSSL-LICENSE.txt"
-cp "$SDL2_DIR/LICENSE.txt" "$BUILD_DIR/bin/licenses/SDL2-LICENSE.txt"
+cp "$SDL3_DIR/LICENSE.txt" "$BUILD_DIR/bin/licenses/SDL3-LICENSE.txt"

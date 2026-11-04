@@ -2,8 +2,8 @@
 # X11/Wayland/GL/audio), so the binary needs at least this image's glibc (2.36).
 FROM debian:12-slim
 
-ARG SDL2_VERSION=2.30.10
-ENV SDL2_DIR=/opt/SDL2-${SDL2_VERSION}/i686-linux-gnu
+ARG SDL3_VERSION=3.4.20
+ENV SDL3_DIR=/opt/SDL3-${SDL3_VERSION}/i686-linux-gnu
 # Latest 3.5.x LTS: websocketpp/asio are not verified against OpenSSL 4.x
 ARG OPENSSL_VERSION=3.5.8
 ENV OPENSSL_DIR=/opt/openssl-${OPENSSL_VERSION}/i686-linux-gnu
@@ -16,27 +16,27 @@ RUN dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-in
   gcc-i686-linux-gnu g++-i686-linux-gnu cmake make perl pkg-config file \
   zlib1g-dev:i386 \
   libx11-dev:i386 libxext-dev:i386 libxrandr-dev:i386 libxcursor-dev:i386 libxi-dev:i386 \
-  libxfixes-dev:i386 libxss-dev:i386 libxkbcommon-dev:i386 \
+  libxfixes-dev:i386 libxss-dev:i386 libxtst-dev:i386 libxkbcommon-dev:i386 \
   libwayland-dev:i386 libwayland-bin wayland-protocols libdecor-0-dev:i386 \
   libgl-dev:i386 libegl-dev:i386 \
   libasound2-dev:i386 libpulse-dev:i386 libpipewire-0.3-dev:i386 \
   libudev-dev:i386 libdbus-1-dev:i386 \
   && rm -rf /var/lib/apt/lists/*
 
-# Static SDL2 from source (backends still dlopen their system libraries at runtime)
+# Static SDL3 from source (backends still dlopen their system libraries at runtime)
 RUN cd /tmp \
-  && curl -fsSLO --retry 5 --retry-all-errors https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-${SDL2_VERSION}.tar.gz \
-  && tar xzf SDL2-${SDL2_VERSION}.tar.gz \
+  && curl -fsSLO --retry 5 --retry-all-errors https://github.com/libsdl-org/SDL/releases/download/release-${SDL3_VERSION}/SDL3-${SDL3_VERSION}.tar.gz \
+  && tar xzf SDL3-${SDL3_VERSION}.tar.gz \
   && PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig \
-     cmake -S SDL2-${SDL2_VERSION} -B sdl-build \
+     cmake -S SDL3-${SDL3_VERSION} -B sdl-build \
        -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=i686 \
        -DCMAKE_C_COMPILER=i686-linux-gnu-gcc -DCMAKE_CXX_COMPILER=i686-linux-gnu-g++ \
-       -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${SDL2_DIR} \
-       -DSDL_SHARED=OFF -DSDL_STATIC=ON -DSDL_STATIC_PIC=ON -DSDL_TEST=OFF \
+       -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${SDL3_DIR} \
+       -DSDL_SHARED=OFF -DSDL_STATIC=ON -DSDL_TEST_LIBRARY=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF \
   && cmake --build sdl-build -j"$(nproc)" \
   && cmake --install sdl-build \
-  && cp SDL2-${SDL2_VERSION}/LICENSE.txt ${SDL2_DIR}/LICENSE.txt \
-  && cd / && rm -rf /tmp/SDL2-${SDL2_VERSION}* /tmp/sdl-build
+  && cp SDL3-${SDL3_VERSION}/LICENSE.txt ${SDL3_DIR}/LICENSE.txt \
+  && cd / && rm -rf /tmp/SDL3-${SDL3_VERSION}* /tmp/sdl-build
 
 # Static OpenSSL for wss:// support in apclientpp
 RUN cd /tmp \
