@@ -430,8 +430,8 @@ static pc_menu_action translate_pad_button(int button) {
         case SDL_GAMEPAD_BUTTON_DPAD_DOWN:  return PC_MENU_DOWN;
         case SDL_GAMEPAD_BUTTON_DPAD_LEFT:  return PC_MENU_LEFT;
         case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: return PC_MENU_RIGHT;
-        case SDL_GAMEPAD_BUTTON_SOUTH:          return PC_MENU_CONFIRM;
-        case SDL_GAMEPAD_BUTTON_EAST:
+        case SDL_GAMEPAD_BUTTON_EAST:       return PC_MENU_CONFIRM; // Nintendo A position
+        case SDL_GAMEPAD_BUTTON_SOUTH:
         case SDL_GAMEPAD_BUTTON_BACK:
         case SDL_GAMEPAD_BUTTON_START:      return PC_MENU_CANCEL;
     }

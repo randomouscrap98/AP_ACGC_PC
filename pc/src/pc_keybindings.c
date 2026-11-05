@@ -1,6 +1,7 @@
 #include "pc_keybindings.h"
 #include "pc_platform.h"
 #include <stddef.h>
+#include <stdlib.h>
 
 static const PCKeybindings s_kb_defaults = {
     /* buttons */
@@ -34,11 +35,12 @@ static const PCKeybindings s_kb_defaults = {
 
 /* Back/Select is reserved for opening the PC pause menu, so it is not a
  * default here. Triggers: LT=L, RT=R, RB=Z (GC Z is a digital button). */
+// Face buttons by position, Nintendo layout on every pad: A right, B bottom, X top, Y left
 static const PCPadBindings s_pad_defaults = {
-    .a     = SDL_GAMEPAD_BUTTON_SOUTH,
-    .b     = SDL_GAMEPAD_BUTTON_EAST,
-    .x     = SDL_GAMEPAD_BUTTON_WEST,
-    .y     = SDL_GAMEPAD_BUTTON_NORTH,
+    .a     = SDL_GAMEPAD_BUTTON_EAST,
+    .b     = SDL_GAMEPAD_BUTTON_SOUTH,
+    .x     = SDL_GAMEPAD_BUTTON_NORTH,
+    .y     = SDL_GAMEPAD_BUTTON_WEST,
     .start = SDL_GAMEPAD_BUTTON_START,
     .z     = SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
     .l     = PC_PAD_AXIS_BIT | SDL_GAMEPAD_AXIS_LEFT_TRIGGER,
@@ -53,6 +55,9 @@ PCKeybindings g_pc_keybindings;
 PCPadBindings g_pc_padbindings;
 
 static const char* KEYBINDINGS_FILE = "keybindings.ini";
+
+// File version: 2 = face buttons default to Nintendo positions (0.6.0); no Version key = 1
+#define KEYBINDINGS_VERSION 2
 
 /* mapping table: ini key name -> offset into PCKeybindings */
 typedef struct {
@@ -156,10 +161,11 @@ const char* pc_pad_code_name(PCPadCode code) {
         return "Axis?";
     }
     switch (code) {
-        case SDL_GAMEPAD_BUTTON_SOUTH:             return "A";
-        case SDL_GAMEPAD_BUTTON_EAST:             return "B";
-        case SDL_GAMEPAD_BUTTON_WEST:             return "X";
-        case SDL_GAMEPAD_BUTTON_NORTH:             return "Y";
+        // positional: labels differ per pad
+        case SDL_GAMEPAD_BUTTON_SOUTH:         return "Bottom";
+        case SDL_GAMEPAD_BUTTON_EAST:          return "Right";
+        case SDL_GAMEPAD_BUTTON_WEST:          return "Left";
+        case SDL_GAMEPAD_BUTTON_NORTH:         return "Top";
         case SDL_GAMEPAD_BUTTON_BACK:          return "Back";
         case SDL_GAMEPAD_BUTTON_GUIDE:         return "Guide";
         case SDL_GAMEPAD_BUTTON_START:         return "Start";
@@ -265,6 +271,7 @@ void pc_keybindings_save(void) {
         return;
     }
 
+    fprintf(f, "Version = %d\n\n", KEYBINDINGS_VERSION);
     fprintf(f, "[Keyboard]\n");
     fprintf(f, "# Key names use SDL3 scancode names.\n");
     fprintf(f, "# Common names: Space, Left Shift, Right Shift, Left Ctrl, Right Ctrl,\n");
@@ -290,6 +297,7 @@ void pc_keybindings_save(void) {
     fprintf(f, "#   rightshoulder, lefttrigger, righttrigger, leftstick, rightstick,\n");
     fprintf(f, "#   dpup, dpdown, dpleft, dpright. Use 'none' to unbind.\n");
     fprintf(f, "# a, b, x, y are positions, not labels: a = bottom, b = right, x = left, y = top.\n");
+    fprintf(f, "# Defaults are the Nintendo positions: Pad_A = b (right), Pad_B = a (bottom).\n");
     fprintf(f, "# Sticks are fixed: left stick = movement, right stick = C-stick.\n");
     fprintf(f, "# The Back/Select button is reserved: it opens the pause menu.\n");
 
@@ -312,6 +320,7 @@ void pc_keybindings_load(void) {
         return;
     }
 
+    int version = 1;
     char line[256];
     while (fgets(line, sizeof(line), f)) {
         const char* p = skip_ws(line);
@@ -327,10 +336,26 @@ void pc_keybindings_load(void) {
         char* value = (char*)skip_ws(eq + 1);
         trim_end(value);
 
-        if (*key && *value) {
+        if (strcmp(key, "Version") == 0) {
+            version = atoi(value);
+        } else if (*key && *value) {
             apply_keybind(key, value);
         }
     }
     fclose(f);
     printf("[Keybindings] Loaded %s\n", KEYBINDINGS_FILE);
+
+    if (version < 2) {
+        // Old files have the Xbox positions as defaults; move them to the Nintendo ones once, keep custom binds
+        PCPadBindings* p = &g_pc_padbindings;
+        if (p->a == SDL_GAMEPAD_BUTTON_SOUTH && p->b == SDL_GAMEPAD_BUTTON_EAST &&
+            p->x == SDL_GAMEPAD_BUTTON_WEST && p->y == SDL_GAMEPAD_BUTTON_NORTH) {
+            p->a = s_pad_defaults.a;
+            p->b = s_pad_defaults.b;
+            p->x = s_pad_defaults.x;
+            p->y = s_pad_defaults.y;
+            printf("[Keybindings] Face buttons moved to the Nintendo positions\n");
+        }
+        pc_keybindings_save();
+    }
 }
