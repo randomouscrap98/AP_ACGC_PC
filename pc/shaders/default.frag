@@ -1,12 +1,14 @@
 #version 330 core
 // Slot numbers for a Vulkan build (glslang -V defines VULKAN); empty for GL 3.3, which has no layout() for these
 // (GL binds the uniform blocks with glUniformBlockBinding, pc_gx_tev.c)
+// SDL_GPU descriptor sets: fragment textures set 2, fragment uniform blocks set 3 (binding = SDL uniform slot,
+// so GXFragment = slot 0, GXConfig = slot 1: BLOCK numbers here are per stage, not the GL block numbers)
 #ifdef VULKAN
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 #define LOC(n) layout(location = n)
-#define SAMPLER(n) layout(binding = n)
-#define BLOCK(n) layout(std140, binding = n)
+#define SAMPLER(n) layout(set = 2, binding = n)
+#define BLOCK(n) layout(std140, set = 3, binding = n)
 #else
 #define LOC(n)
 #define SAMPLER(n)
@@ -19,7 +21,7 @@ LOC(3) in vec3 v_normal;
 LOC(4) in float v_fog_z;
 
 // Run-time values. Mirrored by PCGXFragmentBlock (pc_gx.c): every member starts on 16 bytes
-BLOCK(1) uniform GXFragment {
+BLOCK(0) uniform GXFragment {
     vec4 u_fog_params;  /* y=start, z=end (x unused) */
     vec4 u_fog_color;
 
@@ -50,7 +52,7 @@ BLOCK(1) uniform GXFragment {
 // constants instead, so only the uber shader reads this block. Mirrored by PCGXConfigBlock
 // (pc_gx.c): every member starts on 16 bytes, so no two scalars / small vectors in a row.
 #ifndef PC_SPECIALIZED
-BLOCK(2) uniform GXConfig {
+BLOCK(1) uniform GXConfig {
     /* Per-stage TEV config. All stages are identical in shape, so one loop
        over these arrays handles them; keep PC_GX_MAX_TEV_STAGES (=3) in sync. */
     int u_num_tev_stages;

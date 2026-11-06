@@ -500,8 +500,23 @@ add_custom_command(
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.vert" "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.frag"
     COMMENT "Copying shader files to bin/shaders/"
 )
+# Vulkan renderer (pc_gpu_sdl.c): the uber shader (no PC_SPECIALIZED) as SPIR-V; glslangValidator -V defines VULKAN
+find_program(GLSLANG_VALIDATOR glslangValidator REQUIRED)
+set(AC_PC_SPIRV "")
+foreach(stage vert frag)
+    set(spv "${CMAKE_BINARY_DIR}/bin/shaders/default.${stage}.spv")
+    add_custom_command(
+        OUTPUT "${spv}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bin/shaders"
+        COMMAND ${GLSLANG_VALIDATOR} -V --target-env vulkan1.0 -o "${spv}" "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.${stage}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.${stage}"
+        COMMENT "Compiling default.${stage} to SPIR-V"
+    )
+    list(APPEND AC_PC_SPIRV "${spv}")
+endforeach()
 add_custom_target(ac_pc_shaders ALL
     DEPENDS "${CMAKE_BINARY_DIR}/bin/shaders/default.vert" "${CMAKE_BINARY_DIR}/bin/shaders/default.frag"
+            ${AC_PC_SPIRV}
 )
 
 # Copy SDL3.dll next to executable so users don't need it on PATH

@@ -1,12 +1,13 @@
 #version 330 core
 // Slot numbers for a Vulkan build (glslang -V defines VULKAN); empty for GL 3.3, which has no layout() for these
 // (GL binds the uniform blocks with glUniformBlockBinding, pc_gx_tev.c)
+// SDL_GPU descriptor sets: vertex textures set 0, vertex uniform blocks set 1 (binding = SDL uniform slot)
 #ifdef VULKAN
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 #define LOC(n) layout(location = n)
-#define SAMPLER(n) layout(binding = n)
-#define BLOCK(n) layout(std140, binding = n)
+#define SAMPLER(n) layout(set = 0, binding = n)
+#define BLOCK(n) layout(std140, set = 1, binding = n)
 #else
 #define LOC(n)
 #define SAMPLER(n)
