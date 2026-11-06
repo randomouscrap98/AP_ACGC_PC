@@ -202,11 +202,31 @@ static void pc_gx_bind_texture_profiled(GLenum target, GLuint texture) {
 #endif
 }
 
-static void pc_gx_buffer_data_profiled(GLenum target, GLsizeiptr size, const void* data, GLenum usage) {
+// Copies the vertices to the next free range of the vertex ring (bound as GL_ARRAY_BUFFER) and returns the
+// index of the first one there. Same no-sync scheme as the uniform ring (pc_gx_write_block): ranges queued draws
+// read are never written again until a wrap orphans the buffer. Draws address their range by vertex index,
+// the shape SDL_GPU needs (one transfer buffer filled during the pass, copied before it).
+static GLint pc_gx_upload_vertices(const PCGXVertex* verts, int count) {
     Uint64 t = pc_profiler_begin_timer();
-    glBufferData(target, size, data, usage);
+    GLsizeiptr size = (GLsizeiptr)count * sizeof(PCGXVertex);
+    GLint first;
+    void* dst;
+
+    if (g_gx.vbo_head + count > PC_GX_VBO_RING_VERTS) {
+        glBufferData(GL_ARRAY_BUFFER, PC_GX_VBO_RING_VERTS * sizeof(PCGXVertex), NULL, GL_STREAM_DRAW);
+        g_gx.vbo_head = 0;
+    }
+    first = g_gx.vbo_head;
+    dst = glMapBufferRange(GL_ARRAY_BUFFER, (GLintptr)first * sizeof(PCGXVertex), size,
+                           GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
+    if (dst) {
+        memcpy(dst, verts, (size_t)size);
+        glUnmapBuffer(GL_ARRAY_BUFFER);
+    }
+    g_gx.vbo_head += count;
     pc_profiler_add_time(PC_PROF_TIMER_BUFFER_UPLOAD, t);
     pc_profiler_add_count_buffer_upload((size_t)size);
+    return first;
 }
 
 /* Commit pending vertex + flush batch to GL. Used by GXBegin/GXEnd/GXCopyDisp/etc. */
@@ -530,7 +550,8 @@ void pc_gx_init(void) {
     /* VAO setup: attrib pointers persist since PCGXVertex layout and VBO ID never change */
     glBindVertexArray(g_gx.vao);
     glBindBuffer(GL_ARRAY_BUFFER, g_gx.vbo);
-    glBufferData(GL_ARRAY_BUFFER, PC_GX_MAX_VERTS * sizeof(PCGXVertex), NULL, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, PC_GX_VBO_RING_VERTS * sizeof(PCGXVertex), NULL, GL_STREAM_DRAW);
+    g_gx.vbo_head = 0;
     {
         size_t stride = sizeof(PCGXVertex);
         glEnableVertexAttribArray(0);
@@ -818,16 +839,16 @@ void pc_gx_draw_pending(void) {
 
     glBindVertexArray(g_gx.vao);
     glBindBuffer(GL_ARRAY_BUFFER, g_gx.vbo);
-    pc_gx_buffer_data_profiled(GL_ARRAY_BUFFER, count * sizeof(PCGXVertex), g_gx.vertex_buffer, GL_STREAM_DRAW);
+    GLint first = pc_gx_upload_vertices(g_gx.vertex_buffer, count);
 
     Uint64 draw_start = pc_profiler_begin_timer();
     if (g_gx.pending_prim == GX_QUADS) {
         int num_indices = (count / 4) * 6;
-        glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, 0);
+        glDrawElementsBaseVertex(GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, 0, first);
         pc_profiler_add_count_draw(count, num_indices);
-        PC_GL_CHECK("glDrawElements");
+        PC_GL_CHECK("glDrawElementsBaseVertex");
     } else {
-        glDrawArrays(GL_TRIANGLES, 0, count);
+        glDrawArrays(GL_TRIANGLES, first, count);
         pc_profiler_add_count_draw(count, 0);
         PC_GL_CHECK("glDrawArrays");
     }
@@ -1174,17 +1195,17 @@ void pc_gx_flush_vertices(void) {
         return;
     }
 
-    pc_gx_buffer_data_profiled(GL_ARRAY_BUFFER, count * sizeof(PCGXVertex), g_gx.vertex_buffer, GL_STREAM_DRAW);
+    GLint first = pc_gx_upload_vertices(g_gx.vertex_buffer, count);
 
     Uint64 draw_start = pc_profiler_begin_timer();
     if (prim == GX_QUADS) {
         int num_quads = count / 4;
         int num_indices = num_quads * 6;
-        glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, 0);
+        glDrawElementsBaseVertex(GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, 0, first);
         pc_profiler_add_count_draw(count, num_indices);
-        PC_GL_CHECK("glDrawElements");
+        PC_GL_CHECK("glDrawElementsBaseVertex");
     } else {
-        glDrawArrays(gl_prim, 0, count);
+        glDrawArrays(gl_prim, first, count);
         pc_profiler_add_count_draw(count, 0);
         PC_GL_CHECK("glDrawArrays");
     }

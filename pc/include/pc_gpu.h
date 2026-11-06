@@ -28,6 +28,10 @@ void pc_gpu_device_info(char* out, int size);
 int pc_gpu_format_supported(PCGpuFormat format);
 
 // Textures are bound on the active texture unit while being set up (callers invalidate their bind caches)
+// Uploads (create with data, upload): the data is copied before the call returns (callers free it right after)
+// and the image is valid for draws issued after the call. A backend may defer the copy: GL uploads at once,
+// SDL_GPU can stage it in a transfer buffer and copy before the render pass. So never upload a texture that a
+// draw earlier in the same frame used (today only fixNES re-uploads, once a frame before its draw).
 PCGpuTexture pc_gpu_texture_create(int w, int h, PCGpuFormat format, const void* data, int data_size);
 // Replaces the whole image (size and format may change)
 void pc_gpu_texture_upload(PCGpuTexture tex, int w, int h, PCGpuFormat format, const void* data, int data_size);

@@ -46,6 +46,7 @@ extern "C" {
 
 /* --- Vertex buffer --- */
 #define PC_GX_MAX_VERTS       65536
+#define PC_GX_VBO_RING_VERTS  (PC_GX_MAX_VERTS * 4) // vertex ring: room for 4 full batches before a wrap
 #define PC_GX_MAX_ATTRIB_SIZE 64
 #define PC_GX_MAX_ATTR        26
 #define PC_GX_MAX_VTXFMT      8
@@ -203,7 +204,8 @@ typedef struct {
 
     /* GL objects */
     GLuint vao;
-    GLuint vbo;
+    GLuint vbo;           // vertex ring: every draw's vertices go to a fresh range (pc_gx_upload_vertices)
+    GLint vbo_head;       // next free vertex
     GLuint ebo;
     GLuint current_shader;
     GLuint ubo;           // uniform ring: every block upload goes to a fresh range (pc_gx_upload_block)
