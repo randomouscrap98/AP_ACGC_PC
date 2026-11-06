@@ -14,6 +14,7 @@ RUN dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-in
   curl \
   ca-certificates \
   gcc-i686-linux-gnu g++-i686-linux-gnu cmake make perl pkg-config file \
+  glslang-tools \
   zlib1g-dev:i386 \
   libx11-dev:i386 libxext-dev:i386 libxrandr-dev:i386 libxcursor-dev:i386 libxi-dev:i386 \
   libxfixes-dev:i386 libxss-dev:i386 libxtst-dev:i386 libxkbcommon-dev:i386 \

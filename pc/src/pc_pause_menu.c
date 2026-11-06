@@ -305,7 +305,7 @@ static void list_activate(MainItem item) {
             break;
         case MAIN_SETTINGS:
             cur_page = PAGE_SETTINGS;
-            pc_settings_menu_enter();
+            pc_settings_menu_enter_paused();
             break;
         case MAIN_QUIT: /* -> confirm page (default to No) */
             cur_page = PAGE_CONFIRM_QUIT;

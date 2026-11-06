@@ -7,6 +7,21 @@
 extern "C" {
 #endif
 
+// The backend this run uses (settings.ini renderer / --renderer, set before the window exists)
+enum { PC_RENDERER_OPENGL = 0, PC_RENDERER_VULKAN = 1 };
+extern int g_pc_renderer;
+// GL code runs only on the OpenGL backend; the Vulkan backend skips it until it has its own version
+static inline int pc_gpu_is_gl(void) { return g_pc_renderer == PC_RENDERER_OPENGL; }
+
+// SDL_GPU backend (pc_gpu_sdl.c, Vulkan). init after the window exists, 0 = failed (then use GL)
+struct SDL_Window;
+int pc_gpu_sdl_init(struct SDL_Window* window);
+// One frame: clear the window to the colour (0-1 RGBA) and present
+void pc_gpu_sdl_present(const float clear[4]);
+// Swapchain present mode: vsync, else immediate (or mailbox where immediate is missing)
+void pc_gpu_sdl_set_vsync(int on);
+void pc_gpu_sdl_shutdown(void);
+
 typedef unsigned int PCGpuTexture; // 0 = none (GL: the texture name)
 typedef unsigned int PCGpuTarget;  // something drawn into / read from; 0 = the window (GL: the framebuffer name)
 

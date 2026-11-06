@@ -15,6 +15,8 @@ struct game_s;
 /* Snapshot g_pc_settings into the pending buffer, reset selection.
  * Call when opening the menu from either host (pause or title). */
 void pc_settings_menu_enter(void);
+// From the pause menu: a renderer change waits for the next launch instead of offering a restart
+void pc_settings_menu_enter_paused(void);
 
 /* 1 while the menu (settings page or res-confirm sub-page) is active. */
 int  pc_settings_menu_active(void);

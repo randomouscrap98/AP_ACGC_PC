@@ -4,6 +4,7 @@
 #include "pc_profiler.h"
 #include "pc_render_target.h"
 #include "pc_debug.h"
+#include "pc_gpu.h"
 #include <stddef.h>
 static GLushort quad_index_buf[(PC_GX_MAX_VERTS / 4) * 6];
 #include <math.h>
@@ -543,6 +544,14 @@ void pc_gx_init(void) {
         quad_index_buf[q * 6 + 5] = base + 3;
     }
 
+    // Vulkan step 1: no GL objects or shaders; textures only get placeholder handles (pc_gpu_texture_create)
+    if (!pc_gpu_is_gl()) {
+        pc_gx_texture_init();
+        pc_gx_texture_bind_cache_invalidate();
+        g_gx.dirty = PC_GX_DIRTY_ALL;
+        return;
+    }
+
     glGenVertexArrays(1, &g_gx.vao);
     glGenBuffers(1, &g_gx.vbo);
     glGenBuffers(1, &g_gx.ebo);
@@ -599,6 +608,7 @@ int g_pc_gx_frame_begun = 0;
 // Boot swaps before any frame began: clear the window to black, else the driver shows
 // whatever was in the buffer (garbage on some GPUs)
 void pc_gx_clear_black(void) {
+    if (!pc_gpu_is_gl()) return;
     glDepthMask(GL_TRUE);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glDisable(GL_SCISSOR_TEST);
@@ -633,6 +643,7 @@ void pc_gx_begin_frame(void) {
     pc_gx_run_counts.efb_copies += pc_gx_frame_counts.efb_copies;
     memset(&pc_gx_frame_counts, 0, sizeof(pc_gx_frame_counts));
     g_pc_widescreen_stretch = 0;
+    if (!pc_gpu_is_gl()) return; // Vulkan step 1: the frame is a clear in pc_gpu_sdl_present
     pc_gx_draw_pending();
     /* glClear respects write masks — must enable all before clearing */
     glDepthMask(GL_TRUE);
@@ -655,6 +666,7 @@ void pc_gx_begin_frame(void) {
 void pc_gx_restore_after_nes(void) {
     /* NES emulator uses its own shader/VAO/state. Rebind the game's GL objects
      * and mark all GX state dirty so uniforms/textures get re-uploaded. */
+    if (!pc_gpu_is_gl()) return;
     glBindVertexArray(g_gx.vao);
     glBindBuffer(GL_ARRAY_BUFFER, g_gx.vbo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_gx.ebo);
@@ -669,6 +681,10 @@ void pc_gx_restore_after_nes(void) {
 }
 
 void pc_gx_shutdown(void) {
+    if (!pc_gpu_is_gl()) {
+        pc_gx_texture_shutdown();
+        return;
+    }
     pc_gx_tev_shutdown();
     pc_gx_texture_shutdown();
 #ifdef PC_ENHANCEMENTS
@@ -893,6 +909,12 @@ PCGXPipelineKey pc_gx_pipeline_key(const PCGXShaderVariant* shader) {
 void pc_gx_flush_vertices(void) {
     int count = g_gx.current_vertex_idx - g_gx.pending_verts;
     if (count <= 0) return;
+    // Vulkan step 1: nothing is drawn, the vertices are dropped
+    if (!pc_gpu_is_gl()) {
+        g_gx.current_vertex_idx = 0;
+        g_gx.pending_verts = 0;
+        return;
+    }
 
     Uint64 flush_start = pc_profiler_begin_timer();
     pc_profiler_add_count_flush();
@@ -1407,6 +1429,7 @@ void GXSetViewport(f32 left, f32 top, f32 wd, f32 ht, f32 nearz, f32 farz) {
         (double)nearz == s_gl_viewport.n && (double)farz == s_gl_viewport.f)
         return;
 
+    if (!pc_gpu_is_gl()) return;
     pc_gx_draw_pending(); /* glViewport is not dirty-tracked */
     glViewport(gl_x, gl_y, gl_w, gl_h);
     glDepthRange((double)nearz, (double)farz);
@@ -1452,6 +1475,7 @@ void GXSetScissor(u32 left, u32 top, u32 wd, u32 ht) {
         gl_w == s_gl_scissor.w && gl_h == s_gl_scissor.h)
         return;
 
+    if (!pc_gpu_is_gl()) return;
     pc_gx_draw_pending(); /* glScissor is not dirty-tracked */
     glEnable(GL_SCISSOR_TEST);
     glScissor(gl_x, gl_y, gl_w, gl_h);
@@ -2137,8 +2161,14 @@ void GXSetTexCoordGen2(u32 dst, u32 func, u32 src, u32 mtx, GXBool normalize, u3
         g_gx.tex_gen_mtx[dst] = mtx;
     }
 }
-void GXSetLineWidth(u8 width, u32 texOffsets) { s_line_width = width; glLineWidth(width / 16.0f); }
-void GXSetPointSize(u8 size, u32 texOffsets) { s_point_size = size; glPointSize(size / 16.0f); }
+void GXSetLineWidth(u8 width, u32 texOffsets) {
+    s_line_width = width;
+    if (pc_gpu_is_gl()) glLineWidth(width / 16.0f);
+}
+void GXSetPointSize(u8 size, u32 texOffsets) {
+    s_point_size = size;
+    if (pc_gpu_is_gl()) glPointSize(size / 16.0f);
+}
 void GXEnableTexOffsets(u32 coord, GXBool line, GXBool point) {
     (void)coord; (void)line; (void)point;
 }
@@ -2192,7 +2222,7 @@ static void pc_gx_copy_tex_execute_impl(void* dest, GXBool clear) {
     pc_gx_commit_pending_and_flush();
     pc_gx_draw_pending(); /* everything must hit the framebuffer before the copy */
 
-    if (!dest) return;
+    if (!dest || !pc_gpu_is_gl()) return;
 
     int out_wd = g_gx.tex_copy_src[2];
     int out_ht = g_gx.tex_copy_src[3];
@@ -2345,7 +2375,10 @@ void* GXInit(void* base, u32 size) {
 }
 
 void GXSetMisc(u32 token, u32 val) { (void)token; (void)val; }
-void GXFlush(void) { pc_gx_draw_pending(); glFlush(); }
+void GXFlush(void) {
+    pc_gx_draw_pending();
+    if (pc_gpu_is_gl()) glFlush();
+}
 void GXResetWriteGatherPipe(void) {}
 void GXAbortFrame(void) {}
 void GXSetDrawSync(u16 token) { (void)token; }

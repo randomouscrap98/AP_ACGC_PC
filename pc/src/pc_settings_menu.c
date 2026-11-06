@@ -8,6 +8,8 @@
 #include "pc_ap_logic.h"
 #include "pc_ap_settings.h"
 #include "pc_window_size.h"
+#include "pc_gpu.h"
+#include "pc_platform.h" // g_pc_running, g_pc_restart_requested
 
 #include "graph.h"
 #include "m_font.h"
@@ -28,6 +30,7 @@ enum {
     ITEM_RENDER_SCALE,
     ITEM_TEXTURE_FILTERING,
     ITEM_TEXTURES,
+    ITEM_RENDERER,
     ITEM_AP_TEXT_CLIENT,
     ITEM_RESETTI,
     ITEM_SHOP_VISITOR,
@@ -71,6 +74,7 @@ static const Item tab_video_items[] = {
     { "Render scale", ITEM_RENDER_SCALE, 0, NULL },
     { "Texture filter", ITEM_TEXTURE_FILTERING, 0, NULL },
     { "Textures",   ITEM_TEXTURES, 1, NULL },
+    { "Renderer",   ITEM_RENDERER, 1, "Vulkan is in development: draws nothing yet" },
     { "AP text client", ITEM_AP_TEXT_CLIENT, 0, NULL },
 };
 
@@ -167,6 +171,7 @@ typedef enum {
     SUB_SETTINGS = 0,
     SUB_CONFIRM_BACK = 2,
     SUB_BINDINGS = 3,
+    SUB_CONFIRM_RESTART = 4, // the renderer changed: restart now (title screen) or later
 } SubPage;
 
 static int     s_active = 0;
@@ -191,6 +196,11 @@ static pc_menu_list s_list;
 // Back-confirm state (Back hit while dirty): one of BACK_CHOICE_*
 enum { BACK_CHOICE_APPLY, BACK_CHOICE_DISCARD, BACK_CHOICE_KEEP_EDITING, BACK_CHOICE_COUNT };
 static int    s_back_sel = BACK_CHOICE_APPLY;
+
+// Restart page (SUB_CONFIRM_RESTART): 0 = Restart now, 1 = Later. Restarting is only offered from the title
+// screen (pc_settings_menu_enter); from the pause menu the page only says it waits for the next launch
+static int    s_restart_sel = 0;
+static int    s_in_game = 0;
 
 /* --- Bindings editor (SUB_BINDINGS) state --- */
 typedef struct {
@@ -348,6 +358,7 @@ static int pc_dirty(void) {
         (s_pending.render_scale     != g_pc_settings.render_scale) ||
         (s_pending.texture_filtering != g_pc_settings.texture_filtering) ||
         (s_pending.preload_textures != g_pc_settings.preload_textures) ||
+        (s_pending.renderer         != g_pc_settings.renderer) ||
         (s_pending.disable_resetti  != g_pc_settings.disable_resetti) ||
         (s_pending.disable_shop_visitor_req != g_pc_settings.disable_shop_visitor_req) ||
         (s_pending.borderless_acres != g_pc_settings.borderless_acres) ||
@@ -444,6 +455,9 @@ static void item_cycle(int id, int dir) {
             if (v > 2) v = 0;
             s_pending.preload_textures = v;
         } break;
+        case ITEM_RENDERER:
+            s_pending.renderer = s_pending.renderer == PC_RENDERER_OPENGL ? PC_RENDERER_VULKAN : PC_RENDERER_OPENGL;
+            break;
         case ITEM_RESETTI:
             s_pending.disable_resetti = !s_pending.disable_resetti;
             break;
@@ -583,6 +597,9 @@ static void item_format(int id, char* buf, size_t n) {
                 s_pending.preload_textures == 1 ? "< Preload >"   :
                                                   "< Preload&Cache >");
             break;
+        case ITEM_RENDERER:
+            snprintf(buf, n, "%s", s_pending.renderer == PC_RENDERER_VULKAN ? "< Vulkan >" : "< OpenGL >");
+            break;
         case ITEM_RESETTI:
             /* disable_resetti flips the polarity - show the user-facing side. */
             snprintf(buf, n, "%s", s_pending.disable_resetti ? "< Disabled >" : "< Enabled >");
@@ -666,6 +683,7 @@ static int item_changed(int id) {
         case ITEM_TEXTURE_FILTERING:
             return s_pending.texture_filtering != g_pc_settings.texture_filtering;
         case ITEM_TEXTURES:   return s_pending.preload_textures != g_pc_settings.preload_textures;
+        case ITEM_RENDERER:   return s_pending.renderer         != g_pc_settings.renderer;
         case ITEM_RESETTI:    return s_pending.disable_resetti  != g_pc_settings.disable_resetti;
         case ITEM_SHOP_VISITOR: return s_pending.disable_shop_visitor_req != g_pc_settings.disable_shop_visitor_req;
         case ITEM_BORDERLESS_ACRES: return s_pending.borderless_acres != g_pc_settings.borderless_acres;
@@ -696,6 +714,7 @@ static int item_changed(int id) {
 static int item_differs_from_startup(int id) {
     switch (id) {
         case ITEM_TEXTURES: return g_pc_settings.preload_textures != s_startup.preload_textures;
+        case ITEM_RENDERER: return g_pc_settings.renderer != s_startup.renderer;
     }
     return 0;
 }
@@ -742,6 +761,7 @@ static void apply_pending(void) {
         return;
     }
 
+    int renderer_changed = s_pending.renderer != g_pc_settings.renderer;
     // The windowed size follows the window (resizing) unless the Window size row picked one
     int resize = window_size_changed();
     if (!resize) {
@@ -758,6 +778,10 @@ static void apply_pending(void) {
     recompute_restart_needed();
     pc_settings_save();
     printf("[SETTINGS] applied\n");
+    if (renderer_changed) {
+        s_sub = SUB_CONFIRM_RESTART;
+        s_restart_sel = 0;
+    }
 }
 
 /* =========================================================================
@@ -772,6 +796,7 @@ void pc_settings_menu_enter(void) {
         s_startup = g_pc_settings;
         s_startup_captured = 1;
     }
+    s_in_game = 0;
     snapshot();
     s_tab = 0;
     s_sel = -1;           /* start cursor on the tab row */
@@ -780,6 +805,11 @@ void pc_settings_menu_enter(void) {
     s_capture = 0;
     s_capture_grace = 0;
     s_active = 1;
+}
+
+void pc_settings_menu_enter_paused(void) {
+    pc_settings_menu_enter();
+    s_in_game = 1;
 }
 
 int pc_settings_menu_active(void) {
@@ -836,6 +866,10 @@ static int nav_horizontal(int dir) {
         s_back_sel = (s_back_sel + dir + BACK_CHOICE_COUNT) % BACK_CHOICE_COUNT;
         return 1;
     }
+    if (s_sub == SUB_CONFIRM_RESTART) {
+        if (!s_in_game) s_restart_sel = !s_restart_sel;
+        return 1;
+    }
     if (s_sel == -1) {
         /* Tab row: clamp at the ends, no wrap. */
         if (dir < 0) { if (s_tab > 0) s_tab--; }
@@ -878,9 +912,21 @@ int pc_settings_menu_confirm(void) {
         // Apply, or Discard (pending edits drop on the floor); either way the menu closes
         if (s_back_sel == BACK_CHOICE_APPLY) {
             apply_pending();
+            if (s_sub == SUB_CONFIRM_RESTART) return 1; // ask about the restart first
         }
         s_active = 0;
         return 0;
+    }
+    if (s_sub == SUB_CONFIRM_RESTART) {
+        if (!s_in_game && s_restart_sel == 0) {
+            printf("[SETTINGS] restarting for the renderer change\n");
+            g_pc_restart_requested = 1;
+            g_pc_running = 0;
+            s_active = 0;
+            return 0;
+        }
+        s_sub = SUB_SETTINGS;
+        return 1;
     }
     if (s_sel == -1) {
         /* Confirm on the tab row - just hop into the first item. */
@@ -911,7 +957,7 @@ int pc_settings_menu_cancel(void) {
         s_sub = SUB_SETTINGS;
         return 1;
     }
-    if (s_sub == SUB_CONFIRM_BACK) {
+    if (s_sub == SUB_CONFIRM_BACK || s_sub == SUB_CONFIRM_RESTART) {
         /* Esc = cancel the confirm - snap back to the settings page. */
         s_sub = SUB_SETTINGS;
         return 1;
@@ -1148,6 +1194,22 @@ static void draw_back_confirm_page(struct game_s* game) {
     pc_menu_draw_three_choice(game, choices, s_back_sel, 160.0f);
 }
 
+// After applying a renderer change
+static void draw_restart_page(struct game_s* game) {
+    int r, g, b, a;
+
+    pc_menu_draw_centered(game, "- Restart needed -", 80.0f, 255, 255, 255, 255, 1.0f);
+    if (s_in_game) {
+        pc_menu_draw_centered(game, "The new renderer is used the next", 115.0f, 230, 230, 230, 255, 1.0f);
+        pc_menu_draw_centered(game, "time you start the game.", 130.0f, 230, 230, 230, 255, 1.0f);
+        pc_menu_row_colors(1, &r, &g, &b, &a);
+        pc_menu_draw_centered(game, "OK", 160.0f, r, g, b, a, PC_MENU_SCALE_SELECTED);
+        return;
+    }
+    pc_menu_draw_centered(game, "The renderer changes after a restart.", 115.0f, 230, 230, 230, 255, 1.0f);
+    pc_menu_draw_two_choice(game, "Restart now", "Later", s_restart_sel, 160.0f);
+}
+
 /* Keyboard/gamepad columns for every remappable action, with scrolling.
  * Cells are selected with left/right; confirm arms capture for the cell. */
 static void draw_bindings_page(struct game_s* game) {
@@ -1245,5 +1307,6 @@ void pc_settings_menu_draw(struct game_s* game, int with_dim_backdrop) {
     if (with_dim_backdrop) pc_menu_dim_rect(game->graph, 180);
     if (s_sub == SUB_SETTINGS)          draw_settings_page(game);
     else if (s_sub == SUB_BINDINGS)     draw_bindings_page(game);
+    else if (s_sub == SUB_CONFIRM_RESTART) draw_restart_page(game);
     else                                draw_back_confirm_page(game);
 }

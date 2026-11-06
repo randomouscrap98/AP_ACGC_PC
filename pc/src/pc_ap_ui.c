@@ -17,8 +17,9 @@ static int s_text_input = 0; // we started SDL text input (so we stop it)
 static Uint64 s_last_ticks = 0;
 static char* s_clipboard = NULL;
 
+// Not on the Vulkan renderer yet: ImGui draws with GL
 static int pc_ap_ui_shown(void) {
-    return g_pc_settings.ap_text_client && g_pc_paused && !pc_settings_menu_capture_active() &&
+    return pc_gpu_is_gl() && g_pc_settings.ap_text_client && g_pc_paused && !pc_settings_menu_capture_active() &&
            ap_getconnectstate()->state != AP_CSTATE_OFFLINE;
 }
 

@@ -42,6 +42,10 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #endif
 
 SDL_Window*   g_pc_window = NULL;
+int           g_pc_renderer = PC_RENDERER_OPENGL;
+int           g_pc_restart_requested = 0;
+static int    s_renderer_flag = -1; // --renderer, overrides settings.ini for this run
+static char** s_argv;               // for the relaunch (g_pc_restart_requested)
 SDL_GLContext  g_pc_gl_context = NULL;
 int           g_pc_running = 1;
 int           g_pc_frame_limit_override = -1;
@@ -63,6 +67,25 @@ int           g_pc_widescreen_stretch = 0;
 unsigned int pc_image_base = 0;
 unsigned int pc_image_end  = 0;
 
+// Hidden until placed. High pixel density: full pixels on Wayland (Windows / X11 have them anyway)
+static void pc_platform_create_window(void) {
+    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+
+    if (pc_gpu_is_gl()) flags |= SDL_WINDOW_OPENGL;
+    g_pc_window = SDL_CreateWindow(PC_WINDOW_TITLE, g_pc_settings.window_width, g_pc_settings.window_height, flags);
+    if (!g_pc_window) {
+        fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
+        SDL_Quit();
+        exit(1);
+    }
+    SDL_SetWindowPosition(g_pc_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    if (g_pc_settings.fullscreen) pc_platform_set_fullscreen(g_pc_settings.fullscreen);
+    SDL_ShowWindow(g_pc_window);
+#ifndef _WIN32
+    pc_window_icon_set(g_pc_window);
+#endif
+}
+
 void pc_platform_init(void) {
 #ifdef _WIN32
     SetProcessDPIAware();
@@ -83,21 +106,21 @@ void pc_platform_init(void) {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     // No MSAA on the window: it lives in the render target (pc_render_target.c)
 
-    // Hidden until placed. High pixel density: full pixels on Wayland (Windows / X11 have them anyway)
-    g_pc_window = SDL_CreateWindow(PC_WINDOW_TITLE, g_pc_settings.window_width, g_pc_settings.window_height,
-                                   SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN |
-                                       SDL_WINDOW_HIGH_PIXEL_DENSITY);
-    if (!g_pc_window) {
-        fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
-        SDL_Quit();
-        exit(1);
+    g_pc_renderer = s_renderer_flag >= 0 ? s_renderer_flag : g_pc_settings.renderer;
+    pc_platform_create_window();
+    // Vulkan unavailable: OpenGL in a new window (an SDL_GPU window can't get a GL context)
+    if (!pc_gpu_is_gl() && !pc_gpu_sdl_init(g_pc_window)) {
+        fprintf(stderr, "[GPU] Vulkan renderer unavailable, using OpenGL\n");
+        SDL_DestroyWindow(g_pc_window);
+        g_pc_renderer = PC_RENDERER_OPENGL;
+        pc_platform_create_window();
     }
-    SDL_SetWindowPosition(g_pc_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-    if (g_pc_settings.fullscreen) pc_platform_set_fullscreen(g_pc_settings.fullscreen);
-    SDL_ShowWindow(g_pc_window);
-#ifndef _WIN32
-    pc_window_icon_set(g_pc_window);
-#endif
+    if (!pc_gpu_is_gl()) {
+        pc_platform_update_window_size();
+        pc_gx_init();
+        pc_texture_pack_init();
+        return;
+    }
 
     g_pc_gl_context = SDL_GL_CreateContext(g_pc_window);
     if (!g_pc_gl_context) {
@@ -135,6 +158,26 @@ void pc_platform_init(void) {
 
 extern void PADCleanup(void);
 
+// Settings asked for a restart (renderer change): start the exe again with the same arguments, after
+// everything is saved and closed
+static void pc_platform_relaunch(void) {
+#ifdef _WIN32
+    STARTUPINFOW si = {0};
+    PROCESS_INFORMATION pi;
+
+    si.cb = sizeof(si);
+    if (CreateProcessW(NULL, GetCommandLineW(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+    } else {
+        fprintf(stderr, "[PC] relaunch failed: %lu\n", (unsigned long)GetLastError());
+    }
+#else
+    execv("/proc/self/exe", s_argv);
+    fprintf(stderr, "[PC] relaunch failed\n");
+#endif
+}
+
 static void pc_speedhack_toggle(void) {
     g_pc_speedhack_enabled = !g_pc_speedhack_enabled;
     if (g_pc_window != NULL) {
@@ -159,8 +202,9 @@ void pc_platform_shutdown(void) {
     pc_texture_pack_shutdown();
     pc_gx_shutdown();
 #ifdef PC_ENHANCEMENTS
-    pc_render_target_shutdown();
+    if (pc_gpu_is_gl()) pc_render_target_shutdown();
 #endif
+    pc_gpu_sdl_shutdown();
 
     if (g_pc_gl_context) {
         SDL_GL_DestroyContext(g_pc_gl_context);
@@ -171,6 +215,7 @@ void pc_platform_shutdown(void) {
         g_pc_window = NULL;
     }
     SDL_Quit();
+    if (g_pc_restart_requested) pc_platform_relaunch();
 }
 
 // settings.ini fullscreen: 0 = windowed, 1 = exclusive at the desktop's own mode, 2 = borderless desktop
@@ -202,6 +247,12 @@ void pc_platform_update_window_size(void) {
 }
 
 void pc_platform_swap_buffers(void) {
+    if (!pc_gpu_is_gl()) {
+        static const float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+        pc_gpu_sdl_present(g_pc_gx_frame_begun ? g_gx.clear_color : black);
+        pc_automated_frame();
+        return;
+    }
     pc_gx_draw_pending();
     if (!g_pc_gx_frame_begun) {
         pc_gx_clear_black();
@@ -350,6 +401,7 @@ static void pc_chdir_to_exe(void) {
 
 int main(int argc, char* argv[]) {
     int crash_test = 0;
+    s_argv = argv;
     pc_crash_init();
     pc_chdir_to_exe();
     for (int i = 1; i < argc; i++) {
@@ -365,6 +417,7 @@ int main(int argc, char* argv[]) {
             printf("  --date M/D[/Y]      Override in-game date (e.g. 7/4, 12/24/2026)\n");
             printf("  --rain [intensity]  Force rainy weather; intensity is light, normal, or heavy\n");
             printf("  --uber-shader       Disable shader specialization (single uber shader)\n");
+            printf("  --renderer R        opengl or vulkan for this run (default: settings.ini renderer)\n");
             printf("  --crash-test        Crash on purpose after startup, to check the crash report\n");
             printf("  --render-test S [N] Repeatable run for render checks: clock on frames, offline, no frame\n");
             printf("                      limit; writes render_test/S.png at frame N and quits (town scenes:\n");
@@ -388,6 +441,11 @@ int main(int argc, char* argv[]) {
                 }
                 i++;
             }
+        } else if (strcmp(argv[i], "--renderer") == 0 && i + 1 < argc) {
+            i++;
+            if (strcmp(argv[i], "opengl") == 0)      s_renderer_flag = PC_RENDERER_OPENGL;
+            else if (strcmp(argv[i], "vulkan") == 0) s_renderer_flag = PC_RENDERER_VULKAN;
+            else fprintf(stderr, "[PC] --renderer: unknown \"%s\" (opengl or vulkan)\n", argv[i]);
         } else if (strcmp(argv[i], "--no-framelimit") == 0) {
             g_pc_frame_limit_override = 0;
         } else if (strcmp(argv[i], "--uber-shader") == 0) {

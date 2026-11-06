@@ -68,6 +68,7 @@ extern "C" {
 extern SDL_Window*   g_pc_window;
 extern SDL_GLContext  g_pc_gl_context;
 extern int           g_pc_running;
+extern int           g_pc_restart_requested; // relaunch the exe after the normal shutdown (pc_platform_shutdown)
 extern int           g_pc_verbose;
 extern int           g_pc_frame_limit_override;
 extern int           g_pc_speedhack_enabled;

@@ -39,6 +39,10 @@ int pc_gpu_init(void) {
 }
 
 void pc_gpu_device_info(char* out, int size) {
+    if (!pc_gpu_is_gl()) {
+        snprintf(out, (size_t)size, "SDL_GPU vulkan");
+        return;
+    }
     const char* vendor = (const char*)glGetString(GL_VENDOR);
     const char* renderer = (const char*)glGetString(GL_RENDERER);
     const char* version = (const char*)glGetString(GL_VERSION);
@@ -89,6 +93,11 @@ static int upload_bound(int w, int h, PCGpuFormat format, const void* data, int 
 PCGpuTexture pc_gpu_texture_create(int w, int h, PCGpuFormat format, const void* data, int data_size) {
     GLuint tex;
 
+    // Vulkan (step 1, no textures yet): a unique non-zero handle so the callers' caches still work
+    if (!pc_gpu_is_gl()) {
+        static PCGpuTexture s_fake;
+        return ++s_fake;
+    }
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
     if (!upload_bound(w, h, format, data, data_size)) {
@@ -99,6 +108,7 @@ PCGpuTexture pc_gpu_texture_create(int w, int h, PCGpuFormat format, const void*
 }
 
 void pc_gpu_texture_upload(PCGpuTexture tex, int w, int h, PCGpuFormat format, const void* data, int data_size) {
+    if (!pc_gpu_is_gl()) return;
     glBindTexture(GL_TEXTURE_2D, tex);
     upload_bound(w, h, format, data, data_size);
 }
@@ -107,6 +117,7 @@ void pc_gpu_texture_set_sampler(PCGpuTexture tex, PCGpuFilter filter, PCGpuWrap 
     static const GLint wraps[] = { GL_CLAMP_TO_EDGE, GL_REPEAT, GL_MIRRORED_REPEAT };
     GLint gl_filter = filter == PC_GPU_LINEAR ? GL_LINEAR : GL_NEAREST;
 
+    if (!pc_gpu_is_gl()) return;
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
@@ -117,12 +128,13 @@ void pc_gpu_texture_set_sampler(PCGpuTexture tex, PCGpuFilter filter, PCGpuWrap 
 void pc_gpu_texture_destroy(PCGpuTexture tex) {
     GLuint name = tex;
 
-    if (name) glDeleteTextures(1, &name);
+    if (name && pc_gpu_is_gl()) glDeleteTextures(1, &name);
 }
 
 PCGpuTarget pc_gpu_set_draw_target(PCGpuTarget target) {
     GLint previous = 0;
 
+    if (!pc_gpu_is_gl()) return 0;
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target);
     return (PCGpuTarget)previous;
@@ -195,6 +207,7 @@ static void quad_init(void) {
 }
 
 void pc_gpu_draw_texture(PCGpuTexture tex, int x, int y, int w, int h, int target_w, int target_h) {
+    if (!pc_gpu_is_gl()) return;
     if (!s_quad_program) quad_init();
 
     // Whole target first so the bars are black, not stale pixels
@@ -218,9 +231,11 @@ void pc_gpu_draw_texture(PCGpuTexture tex, int x, int y, int w, int h, int targe
 }
 
 unsigned char* pc_gpu_read_pixels(PCGpuTarget source, int w, int h) {
-    unsigned char* pixels = malloc((size_t)w * h * 3);
+    unsigned char* pixels;
     GLint pack = 4;
 
+    if (!pc_gpu_is_gl()) return NULL;
+    pixels = malloc((size_t)w * h * 3);
     if (pixels == NULL) return NULL;
     glGetIntegerv(GL_PACK_ALIGNMENT, &pack);
     glPixelStorei(GL_PACK_ALIGNMENT, 1); // rows of w * 3 bytes, no padding

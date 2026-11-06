@@ -14,6 +14,7 @@ typedef struct {
     int msaa;             /* 0=off, 2/4/8=samples */
     int render_scale;     // PC_RENDER_SCALE_* (pc_render_target.h): -1 = window, 0 = auto, 1-6 = x480 lines
     int texture_filtering; /* 0=force nearest-neighbor, 1=use the game's texture filtering */
+    int renderer;         // PC_RENDERER_* (pc_gpu.h): 0 = OpenGL (default), 1 = Vulkan; read at startup only
     int preload_textures; /* 0=off (load on demand), 1=on (load all at startup), 2=on + cache file */
     int disable_resetti;  /* 0=normal (Resetti appears on reset), 1=disable reset penalty */
     int disable_shop_visitor_req; /* 0=normal (Nookington's needs a foreign-town shopper), 1=skip requirement (default) */

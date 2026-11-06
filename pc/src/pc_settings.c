@@ -2,6 +2,7 @@
 #include "pc_settings.h"
 #include "pc_platform.h"
 #include "pc_render_target.h"
+#include "pc_gpu.h"
 #include "m_player_lib.h"
 #include "ac_birth_control.h"
 
@@ -14,6 +15,7 @@ PCSettings g_pc_settings = {
     .msaa          = 0,
     .render_scale  = PC_RENDER_SCALE_AUTO,
     .texture_filtering = 1,
+    .renderer      = 0,
     .preload_textures = 0,
     .disable_resetti = 1,
     .disable_shop_visitor_req = 1,
@@ -69,6 +71,9 @@ static const char* DEFAULT_SETTINGS =
     "\n"
     "# Texture filtering: 0 = nearest-neighbor, 1 = use the game's filtering\n"
     "texture_filtering = 1\n"
+    "\n"
+    "# Renderer: 0 = OpenGL, 1 = Vulkan (in development: draws nothing yet). Takes effect on restart\n"
+    "renderer = 0\n"
     "\n"
     "[Enhancements]\n"
     "# Preload HD textures at startup: 0 = off (load on demand), 1 = preload, 2 = preload + cache file (fastest)\n"
@@ -183,6 +188,8 @@ static void apply_setting(const char* key, const char* value) {
         if (val >= PC_RENDER_SCALE_INTEGER && val <= PC_RENDER_SCALE_MAX) g_pc_settings.render_scale = val;
     } else if (strcmp(key, "texture_filtering") == 0) {
         if (val == 0 || val == 1) g_pc_settings.texture_filtering = val;
+    } else if (strcmp(key, "renderer") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.renderer = val;
     } else if (strcmp(key, "preload_textures") == 0) {
         if (val >= 0 && val <= 2) g_pc_settings.preload_textures = val;
     } else if (strcmp(key, "disable_resetti") == 0) {
@@ -347,6 +354,9 @@ void pc_settings_save(void) {
     fprintf(f, "# Texture filtering: 0 = nearest-neighbor, 1 = use the game's filtering\n");
     fprintf(f, "texture_filtering = %d\n", g_pc_settings.texture_filtering);
     fprintf(f, "\n");
+    fprintf(f, "# Renderer: 0 = OpenGL, 1 = Vulkan (in development: draws nothing yet). Takes effect on restart\n");
+    fprintf(f, "renderer = %d\n", g_pc_settings.renderer);
+    fprintf(f, "\n");
     fprintf(f, "[Enhancements]\n");
     fprintf(f, "# Preload HD textures at startup: 0 = off (load on demand), 1 = preload, 2 = preload + cache file (fastest)\n");
     fprintf(f, "preload_textures = %d\n", g_pc_settings.preload_textures);
@@ -440,7 +450,8 @@ void pc_settings_apply(void) {
     if (!g_pc_window) return;
     apply_display_mode();
 
-    SDL_GL_SetSwapInterval(g_pc_settings.vsync);
+    if (pc_gpu_is_gl()) SDL_GL_SetSwapInterval(g_pc_settings.vsync);
+    else                pc_gpu_sdl_set_vsync(g_pc_settings.vsync);
     pc_platform_update_window_size();
 
     printf("[Settings] Applied: %dx%d fullscreen=%d vsync=%d max_fps=%d msaa=%d\n",
