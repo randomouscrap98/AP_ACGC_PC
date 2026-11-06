@@ -308,6 +308,7 @@ class Goal(OptionSet):
       Only one item of each kind is sent through AP, after which you can order the rest
       from the catalog.
     Chess and furniture goals need the basement built and an open shop time unlocked.
+    A random goal leaves out the goals whose Loansanity / Museumsanity / Catalogsanity is off.
     """
     display_name = "Goal"
     valid_keys = ["Statue", "Museum", "Froggy Chair", "Catalog", "Furniture Set", "Chess Set"]
@@ -454,7 +455,8 @@ class Favorsanity(DefaultOnToggle):
 
 
 class RandomFlagRange(Range):
-    # Remembers whether the yaml value was a "random..." roll (favor_pools.setup re-rolls it to fit).
+    # Remembers whether the yaml value was a "random..." roll, so a product limit can re-roll it to fit
+    # (favor_pools, catalogsanity setup).
     rolled_random = False
 
     @classmethod
@@ -894,12 +896,13 @@ class Catalogsanity(Toggle):
     display_name = "Catalogsanity"
 
 
-class CatalogPools(Range):
+class CatalogPools(RandomFlagRange):
     """
     Catalog is split into pools, each one requiring a Progressive Catalog Pool
     unlock (none open at the start). Pools x Pool Size = total catalog checks,
     at most 575 (furniture, clothes, carpets and wallpaper only; fewer with
-    the Furniture Set / Chess Set goals). Asking for more lowers the pool size.
+    the Furniture Set / Chess Set goals). Asking for more lowers the pool size
+    (a random Pools or Pool Size is re-rolled to fit instead).
     """
     display_name = "Catalog Pools"
     range_start = 1
@@ -907,7 +910,7 @@ class CatalogPools(Range):
     default = 5
 
 
-class CatalogPoolSize(Range):
+class CatalogPoolSize(RandomFlagRange):
     """
     Catalog items unlocked per Progressive Catalog Pool. Items are picked at
     random, with every pool getting a similar mix of furniture, clothes,

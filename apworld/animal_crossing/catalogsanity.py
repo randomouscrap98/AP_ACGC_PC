@@ -72,9 +72,13 @@ def setup(world) -> None:
         # The set goals' pieces aren't pooled
         excluded = furniture_sets.catalog_excluded(world)
         most = sum(len(ids) for ids in eligible(excluded).values())
-        # More than fit (e.g. a set goal took more items out): smaller pools, same pool count, so a yaml that
-        # fit once still generates
-        if pools * size > most:
+        # More than fit: a random side is re-rolled to fit (with both random, the size). Else (e.g. a set goal
+        # took more items out) smaller pools, same pool count, so a yaml that fit once still generates
+        if pools * size > most and o.catalog_pool_size.rolled_random:
+            size = o.catalog_pool_size.value = world.random.randint(1, most // pools)
+        elif pools * size > most and o.catalog_pools.rolled_random:
+            pools = o.catalog_pools.value = world.random.randint(1, most // size)
+        elif pools * size > most:
             logging.warning(f"[Animal Crossing - '{world.player_name}'] Catalog Pools x Catalog Pool Size is "
                             f"{pools * size}, at most {most} with these goals: pool size {size} lowered to "
                             f"{most // pools}.")

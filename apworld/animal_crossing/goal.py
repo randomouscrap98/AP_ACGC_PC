@@ -3,8 +3,17 @@
 from . import catalogsanity, furniture_sets, loansanity, museumsanity, timesanity
 
 
+# Goals that need a sanity option on
+GOAL_NEEDS = {"Statue": "loansanity", "Museum": "museumsanity", "Catalog": "catalogsanity"}
+
+
 def setup(world) -> None:
-    goals = world.options.goal.value
+    goal = world.options.goal
+    # Random goal: drop the goals whose sanity is off; none left = one goal that can be done
+    if goal.random_str:
+        possible = [g for g in goal.valid_keys if g not in GOAL_NEEDS or getattr(world.options, GOAL_NEEDS[g])]
+        goal.value = {g for g in goal.value if g in possible} or {world.random.choice(possible)}
+    goals = goal.value
     if not goals:
         raise world.option_error("Goal needs at least one goal.")
     if "Statue" in goals and not world.options.loansanity:
