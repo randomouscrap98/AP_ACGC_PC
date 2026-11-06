@@ -453,10 +453,22 @@ class Favorsanity(DefaultOnToggle):
     display_name = "Favorsanity"
 
 
-class FavorPools(Range):
+class RandomFlagRange(Range):
+    # Remembers whether the yaml value was a "random..." roll (favor_pools.setup re-rolls it to fit).
+    rolled_random = False
+
+    @classmethod
+    def from_text(cls, text: str):
+        option = super().from_text(text)
+        option.rolled_random = text.lower().startswith("random")
+        return option
+
+
+class FavorPools(RandomFlagRange):
     """
     With Favorsanity, the number of pools to gate favors. Each pool has "Favors Per Pool"
-    amount of favors in it. "Favor Pools" x "Favors per Pool" is at most 100.
+    amount of favors in it. "Favor Pools" x "Favors per Pool" is at most 100: a random
+    value is re-rolled to fit (with both random, Favors per Pool is re-rolled).
     """
     display_name = "Favor Pools"
     range_start = 1
@@ -464,7 +476,7 @@ class FavorPools(Range):
     default = 3
 
 
-class FavorsPerPool(Range):
+class FavorsPerPool(RandomFlagRange):
     """
     Favor checks in each Favor Pool.
     """

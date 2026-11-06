@@ -20,10 +20,18 @@ LOCATIONS = {favor_location_name(n): FAVOR_BASE_ID + n for n in range(1, FAVORS_
 
 def setup(world) -> None:
     o = world.options
-    world.favor_pools = o.favor_pools.value if o.favorsanity else 0
-    world.favor_count = world.favor_pools * o.favors_per_pool.value
-    if world.favor_count > FAVORS_MAX:
-        raise world.option_error(f"Favor Pools x Favors per Pool is {world.favor_count}, at most {FAVORS_MAX}.")
+    pools, per = o.favor_pools, o.favors_per_pool
+    if o.favorsanity and pools.value * per.value > FAVORS_MAX:
+        # Re-roll a random side to fit; with both random, pools counts as rolled first
+        if per.rolled_random:
+            per.value = world.random.randint(1, FAVORS_MAX // pools.value)
+        elif pools.rolled_random:
+            pools.value = world.random.randint(1, FAVORS_MAX // per.value)
+        else:
+            raise world.option_error(f"Favor Pools x Favors per Pool is {pools.value * per.value}, "
+                                     f"at most {FAVORS_MAX}.")
+    world.favor_pools = pools.value if o.favorsanity else 0
+    world.favor_count = world.favor_pools * per.value
 
 
 def locations(world) -> list[str]:
