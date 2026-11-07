@@ -323,6 +323,9 @@ void pc_gx_sdl_draw(const PCGXPipelineKey* key, const PCGXVertex* verts, int cou
 // Texture units like GL's (0-2 TEV stages, 3-4 indirect); a draw samples what they hold when it's recorded
 void pc_gx_sdl_set_texture(int unit, PCGpuTexture tex);
 void pc_gx_sdl_texture_destroyed(PCGpuTexture tex); // units holding it go back to none
+// EFB copy: the frame's rectangle (GL style) as drawn so far into dst (made with pc_gpu_sdl_texture_create_target,
+// same size), top row first; draws recorded after it see the copy
+void pc_gx_sdl_copy(PCGpuTexture dst, int x, int y, int w, int h);
 // Adds the recorded draws to cmd (vertex upload, render pass into the offscreen target) and forgets them.
 // Returns the offscreen colour target and its size
 SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h);
@@ -331,6 +334,8 @@ unsigned char* pc_gx_sdl_read_pixels(int w, int h);
 // pc_gpu_sdl.c textures: the current image + sampler of a handle (0 if none), staged uploads into cmd (NULL = a
 // command buffer of its own, submitted at once), releases of destroyed textures once the frame is replayed
 int pc_gpu_sdl_texture_get(PCGpuTexture tex, SDL_GPUTexture** out_tex, SDL_GPUSampler** out_sampler);
+// A w x h RGBA8 texture that is also a draw target (EFB copies), contents undefined until drawn; 0 if refused
+PCGpuTexture pc_gpu_sdl_texture_create_target(int w, int h);
 void pc_gpu_sdl_flush_textures(SDL_GPUCommandBuffer* cmd);
 void pc_gpu_sdl_release_textures(void);
 
@@ -350,8 +355,8 @@ void   pc_gx_texture_cache_invalidate(void);
 
 #ifdef PC_ENHANCEMENTS
 /* EFB capture: store full-res GL texture from GXCopyTex, retrieve on texture load */
-void   pc_gx_efb_capture_store(u32 dest_ptr, GLuint gl_tex);
-GLuint pc_gx_efb_capture_find(u32 data_ptr);
+void   pc_gx_efb_capture_store(u32 dest_ptr, PCGpuTexture gl_tex);
+PCGpuTexture pc_gx_efb_capture_find(u32 data_ptr);
 void   pc_gx_efb_capture_cleanup(void);
 #endif
 

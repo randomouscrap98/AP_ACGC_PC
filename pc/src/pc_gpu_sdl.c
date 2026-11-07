@@ -252,8 +252,9 @@ static int stage(SDL_GPUTexture* tex, int w, int h, PCGpuFormat format, const vo
     return 1;
 }
 
-// A new SDL texture for the image (staged); NULL if refused
-static SDL_GPUTexture* make_texture(int w, int h, PCGpuFormat format, const void* data, int data_size) {
+// A new SDL texture for the image (staged; none = contents undefined); NULL if refused
+static SDL_GPUTexture* make_texture(int w, int h, PCGpuFormat format, const void* data, int data_size,
+                                    SDL_GPUTextureUsageFlags usage) {
     SDL_GPUTextureCreateInfo info = {0};
     SDL_GPUTexture* tex;
 
@@ -261,7 +262,7 @@ static SDL_GPUTexture* make_texture(int w, int h, PCGpuFormat format, const void
     if (format != PC_GPU_RGBA8 && format != PC_GPU_RGB565_REV && !pc_gpu_sdl_format_supported(format)) return NULL;
     info.type = SDL_GPU_TEXTURETYPE_2D;
     info.format = sdl_format(format);
-    info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    info.usage = usage;
     info.width = (Uint32)w;
     info.height = (Uint32)h;
     info.layer_count_or_depth = 1;
@@ -275,7 +276,8 @@ static SDL_GPUTexture* make_texture(int w, int h, PCGpuFormat format, const void
     return tex;
 }
 
-PCGpuTexture pc_gpu_sdl_texture_create(int w, int h, PCGpuFormat format, const void* data, int data_size) {
+static PCGpuTexture texture_create(int w, int h, PCGpuFormat format, const void* data, int data_size,
+                                   SDL_GPUTextureUsageFlags usage) {
     SDL_GPUTexture* tex;
     SdlTexture* t;
     int index;
@@ -284,7 +286,7 @@ PCGpuTexture pc_gpu_sdl_texture_create(int w, int h, PCGpuFormat format, const v
     if (s_free_count == 0 &&
         !grow_array((void**)&s_textures, &s_texture_cap, s_texture_count + 1, sizeof(*s_textures)))
         return 0;
-    tex = make_texture(w, h, format, data, data_size);
+    tex = make_texture(w, h, format, data, data_size, usage);
     if (tex == NULL) return 0;
     index = s_free_count > 0 ? s_free_handles[--s_free_count] : s_texture_count++;
     t = &s_textures[index];
@@ -294,6 +296,15 @@ PCGpuTexture pc_gpu_sdl_texture_create(int w, int h, PCGpuFormat format, const v
     t->format = sdl_format(format);
     t->sampler = get_sampler(PC_GPU_NEAREST, PC_GPU_REPEAT, PC_GPU_REPEAT);
     return (PCGpuTexture)(index + 1);
+}
+
+PCGpuTexture pc_gpu_sdl_texture_create(int w, int h, PCGpuFormat format, const void* data, int data_size) {
+    return texture_create(w, h, format, data, data_size, SDL_GPU_TEXTUREUSAGE_SAMPLER);
+}
+
+PCGpuTexture pc_gpu_sdl_texture_create_target(int w, int h) {
+    return texture_create(w, h, PC_GPU_RGBA8, NULL, 0, SDL_GPU_TEXTUREUSAGE_SAMPLER |
+                                                        SDL_GPU_TEXTUREUSAGE_COLOR_TARGET);
 }
 
 void pc_gpu_sdl_texture_upload(PCGpuTexture tex, int w, int h, PCGpuFormat format, const void* data, int data_size) {
@@ -306,7 +317,7 @@ void pc_gpu_sdl_texture_upload(PCGpuTexture tex, int w, int h, PCGpuFormat forma
     }
     // New size or format: a new texture under the same handle (draws recorded earlier keep the old one)
     {
-        SDL_GPUTexture* fresh = make_texture(w, h, format, data, data_size);
+        SDL_GPUTexture* fresh = make_texture(w, h, format, data, data_size, SDL_GPU_TEXTUREUSAGE_SAMPLER);
         if (fresh == NULL) return; // GL keeps the old image when it refuses too
         release_later(t->tex);
         t->tex = fresh;

@@ -41,26 +41,26 @@ static void pc_gx_update_aspect(void) {
     }
 }
 
-/* EFB capture: keep full-res GL textures from GXCopyTex instead of downsampling to 640x480 */
+/* EFB capture: keep full-res textures from GXCopyTex instead of downsampling to 640x480 */
 #define MAX_EFB_CAPTURES 4
 static struct {
     u32 dest_ptr;
-    GLuint gl_tex;
+    PCGpuTexture gl_tex;
 } s_efb_captures[MAX_EFB_CAPTURES];
 static int s_efb_capture_count = 0;
 
-void pc_gx_efb_capture_store(u32 dest_ptr, GLuint gl_tex) {
+void pc_gx_efb_capture_store(u32 dest_ptr, PCGpuTexture gl_tex) {
     for (int i = 0; i < s_efb_capture_count; i++) {
         if (s_efb_captures[i].dest_ptr == dest_ptr) {
             if (s_efb_captures[i].gl_tex)
-                glDeleteTextures(1, &s_efb_captures[i].gl_tex);
+                pc_gpu_texture_destroy(s_efb_captures[i].gl_tex);
             s_efb_captures[i].gl_tex = gl_tex;
             return;
         }
     }
     if (s_efb_capture_count >= MAX_EFB_CAPTURES) {
         if (s_efb_captures[0].gl_tex)
-            glDeleteTextures(1, &s_efb_captures[0].gl_tex);
+            pc_gpu_texture_destroy(s_efb_captures[0].gl_tex);
         memmove(&s_efb_captures[0], &s_efb_captures[1],
                 (MAX_EFB_CAPTURES - 1) * sizeof(s_efb_captures[0]));
         s_efb_capture_count = MAX_EFB_CAPTURES - 1;
@@ -70,7 +70,7 @@ void pc_gx_efb_capture_store(u32 dest_ptr, GLuint gl_tex) {
     s_efb_capture_count++;
 }
 
-GLuint pc_gx_efb_capture_find(u32 data_ptr) {
+PCGpuTexture pc_gx_efb_capture_find(u32 data_ptr) {
     for (int i = 0; i < s_efb_capture_count; i++) {
         if (s_efb_captures[i].dest_ptr == data_ptr)
             return s_efb_captures[i].gl_tex;
@@ -81,7 +81,7 @@ GLuint pc_gx_efb_capture_find(u32 data_ptr) {
 void pc_gx_efb_capture_cleanup(void) {
     for (int i = 0; i < s_efb_capture_count; i++) {
         if (s_efb_captures[i].gl_tex)
-            glDeleteTextures(1, &s_efb_captures[i].gl_tex);
+            pc_gpu_texture_destroy(s_efb_captures[i].gl_tex);
     }
     s_efb_capture_count = 0;
 }
@@ -699,6 +699,9 @@ void pc_gx_restore_after_nes(void) {
 void pc_gx_shutdown(void) {
     if (!pc_gpu_is_gl()) {
         pc_gx_texture_shutdown();
+#ifdef PC_ENHANCEMENTS
+        pc_gx_efb_capture_cleanup();
+#endif
         return;
     }
     pc_gx_tev_shutdown();
@@ -2264,7 +2267,7 @@ static void pc_gx_copy_tex_execute_impl(void* dest, GXBool clear) {
     pc_gx_commit_pending_and_flush();
     pc_gx_draw_pending(); /* everything must hit the framebuffer before the copy */
 
-    if (!dest || !pc_gpu_is_gl()) return;
+    if (!dest) return;
 
     int out_wd = g_gx.tex_copy_src[2];
     int out_ht = g_gx.tex_copy_src[3];
@@ -2300,6 +2303,17 @@ static void pc_gx_copy_tex_execute_impl(void* dest, GXBool clear) {
     if (gl_y < 0) return;
 
 #ifdef PC_ENHANCEMENTS
+    // Vulkan: the copy is recorded with the frame's draws (pc_gx_sdl.c); its shader writes alpha 1 like GL's RGB8
+    if (!pc_gpu_is_gl()) {
+        PCGpuTexture efb_tex = pc_gpu_sdl_texture_create_target(read_wd, read_ht);
+        if (efb_tex) {
+            pc_gpu_texture_set_sampler(efb_tex, PC_GPU_LINEAR, PC_GPU_CLAMP, PC_GPU_CLAMP);
+            pc_gx_sdl_copy(efb_tex, read_left, gl_y, read_wd, read_ht);
+            pc_gx_efb_capture_store((u32)(uintptr_t)dest, efb_tex);
+            pc_gx_frame_counts.efb_copies++;
+        }
+        return;
+    }
     // GPU copy into a full-res GL texture; GXLoadTexObj will substitute it for the RGB565 buffer.
     // RGB8: the game copies to RGB565, so alpha samples as 1 like on the GC
     {
@@ -2324,6 +2338,7 @@ static void pc_gx_copy_tex_execute_impl(void* dest, GXBool clear) {
         pc_gx_frame_counts.efb_copies++;
     }
 #else
+    if (!pc_gpu_is_gl()) return; // CPU readback below is GL only
     size_t rgba_size = (size_t)read_wd * (size_t)read_ht * 4;
     u8* rgba = (u8*)malloc(rgba_size);
     if (!rgba) return;

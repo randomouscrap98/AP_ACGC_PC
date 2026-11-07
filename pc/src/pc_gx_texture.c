@@ -639,7 +639,7 @@ static void pc_gx_load_tex_obj_impl(void* obj, u32 id) {
 #ifdef PC_ENHANCEMENTS
     /* EFB capture bypass: use full-res FBO texture instead of re-decoding */
     {
-        GLuint efb_tex = pc_gx_efb_capture_find(o[TEXOBJ_IMAGE_PTR]);
+        PCGpuTexture efb_tex = pc_gx_efb_capture_find(o[TEXOBJ_IMAGE_PTR]);
         if (efb_tex) {
             pc_gx_draw_pending();
             // EFB copies are made clamped (pc_gx.c pc_gx_copy_tex_execute_impl); only the filter follows GX

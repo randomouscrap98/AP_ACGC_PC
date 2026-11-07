@@ -501,17 +501,18 @@ add_custom_command(
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.vert" "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.frag"
     COMMENT "Copying shader files to bin/shaders/"
 )
-# Vulkan renderer (pc_gpu_sdl.c): the uber shader (no PC_SPECIALIZED) as SPIR-V; glslangValidator -V defines VULKAN
+# Vulkan renderer (pc_gpu_sdl.c): the uber shader (no PC_SPECIALIZED) as SPIR-V; glslangValidator -V defines VULKAN.
+# copy.*: Vulkan-only texture copy (EFB copies)
 find_program(GLSLANG_VALIDATOR glslangValidator REQUIRED)
 set(AC_PC_SPIRV "")
-foreach(stage vert frag)
-    set(spv "${CMAKE_BINARY_DIR}/bin/shaders/default.${stage}.spv")
+foreach(shader default.vert default.frag copy.vert copy.frag)
+    set(spv "${CMAKE_BINARY_DIR}/bin/shaders/${shader}.spv")
     add_custom_command(
         OUTPUT "${spv}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bin/shaders"
-        COMMAND ${GLSLANG_VALIDATOR} -V --target-env vulkan1.0 -o "${spv}" "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.${stage}"
-        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.${stage}"
-        COMMENT "Compiling default.${stage} to SPIR-V"
+        COMMAND ${GLSLANG_VALIDATOR} -V --target-env vulkan1.0 -o "${spv}" "${CMAKE_CURRENT_SOURCE_DIR}/shaders/${shader}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/${shader}"
+        COMMENT "Compiling ${shader} to SPIR-V"
     )
     list(APPEND AC_PC_SPIRV "${spv}")
 endforeach()
@@ -558,4 +559,10 @@ install(TARGETS ac_pc RUNTIME DESTINATION bin)
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/shaders/"
     DESTINATION bin/shaders
     FILES_MATCHING PATTERN "*.vert" PATTERN "*.frag"
+    PATTERN "copy.*" EXCLUDE # Vulkan only: SPIR-V below
+)
+# Vulkan renderer: the SPIR-V built above
+install(DIRECTORY "${CMAKE_BINARY_DIR}/bin/shaders/"
+    DESTINATION bin/shaders
+    FILES_MATCHING PATTERN "*.spv"
 )
