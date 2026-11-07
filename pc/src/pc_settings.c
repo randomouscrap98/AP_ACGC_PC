@@ -72,7 +72,7 @@ static const char* DEFAULT_SETTINGS =
     "# Texture filtering: 0 = nearest-neighbor, 1 = use the game's filtering\n"
     "texture_filtering = 1\n"
     "\n"
-    "# Renderer: 0 = OpenGL, 1 = Vulkan (in development: draws nothing yet). Takes effect on restart\n"
+    "# Renderer: 0 = OpenGL, 1 = Vulkan (falls back to OpenGL if Vulkan can't start). Takes effect on restart\n"
     "renderer = 0\n"
     "\n"
     "[Enhancements]\n"
