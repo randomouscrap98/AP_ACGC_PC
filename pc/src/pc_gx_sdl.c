@@ -5,7 +5,8 @@
 // upload inside a render pass.
 // Textures come from pc_gpu_sdl.c (uploads staged before the render pass). EFB copies are entries in the draw
 // list: the render pass ends, copy.vert/frag draw the region into the copy's texture, the pass resumes.
-// Not yet: render scale, MSAA, NES, ImGui.
+// pc_gpu_draw_texture (fixNES) is the same kind of entry, drawing a texture into the frame.
+// Not yet: render scale, MSAA, ImGui.
 #include "pc_gx_internal.h"
 #include "pc_gpu.h"
 #include <dolphin/gx/GXEnum.h>
@@ -24,9 +25,14 @@ typedef struct {
     float depth[2];
     int scissor[4];
     SDL_GPUTextureSamplerBinding tex[PC_GX_SDL_NUM_SAMPLERS];
-    SDL_GPUTexture* copy_dst;   // non-NULL: an EFB copy of copy_rect (GL style) instead of a draw
-    int copy_rect[4];
+    // DRAW_GX = a GX draw; the others are their own render pass with copy.vert/frag, splitting the frame's pass
+    int kind;                   // DRAW_*
+    SDL_GPUTexture* other;      // EFB copy: the destination; texture draw: the source
+    SDL_GPUSampler* other_sampler;
+    int rect[4];                // in the frame, GL style: EFB copy source / texture draw destination
 } Draw;
+
+enum { DRAW_GX = 0, DRAW_EFB_COPY, DRAW_TEXTURE };
 
 typedef struct {
     PCGXPipelineKey key;
@@ -530,7 +536,7 @@ void pc_gx_sdl_draw(const PCGXPipelineKey* key, const PCGXVertex* verts, int cou
 
     // Same state as the previous draw and a list primitive: one bigger draw (quads within the index buffer)
     d = s_draw_count > 0 ? &s_draws[s_draw_count - 1] : NULL;
-    merge = d != NULL && list && d->copy_dst == NULL && d->pipeline == pipeline && d->quads == quads &&
+    merge = d != NULL && list && d->kind == DRAW_GX && d->pipeline == pipeline && d->quads == quads &&
             memcmp(d->block, s_block_off, sizeof(d->block)) == 0 &&
             memcmp(d->viewport, s_viewport, sizeof(d->viewport)) == 0 &&
             memcmp(d->depth, s_depth_range, sizeof(d->depth)) == 0 &&
@@ -545,7 +551,7 @@ void pc_gx_sdl_draw(const PCGXPipelineKey* key, const PCGXVertex* verts, int cou
         d->quads = quads;
         d->first = s_vert_count;
         d->count = 0;
-        d->copy_dst = NULL;
+        d->kind = DRAW_GX;
         memcpy(d->block, s_block_off, sizeof(d->block));
         memcpy(d->viewport, s_viewport, sizeof(d->viewport));
         memcpy(d->depth, s_depth_range, sizeof(d->depth));
@@ -565,43 +571,70 @@ void pc_gx_sdl_draw(const PCGXPipelineKey* key, const PCGXVertex* verts, int cou
     }
 }
 
+// Appends a non-GX entry; NULL if out of memory
+static Draw* add_other(int kind, SDL_GPUTexture* other, SDL_GPUSampler* sampler, int x, int y, int w, int h) {
+    Draw* d;
+
+    if (!grow((void**)&s_draws, &s_draw_cap, s_draw_count + 1, sizeof(Draw))) return NULL;
+    d = &s_draws[s_draw_count++];
+    memset(d, 0, sizeof(*d));
+    d->kind = kind;
+    d->other = other;
+    d->other_sampler = sampler;
+    d->rect[0] = x;
+    d->rect[1] = y;
+    d->rect[2] = w;
+    d->rect[3] = h;
+    return d;
+}
+
 void pc_gx_sdl_copy(PCGpuTexture dst, int x, int y, int w, int h) {
     SDL_GPUTexture* tex;
     SDL_GPUSampler* unused;
-    Draw* d;
 
-    if (!pc_gpu_sdl_texture_get(dst, &tex, &unused)) return;
-    if (!grow((void**)&s_draws, &s_draw_cap, s_draw_count + 1, sizeof(Draw))) return;
-    d = &s_draws[s_draw_count++];
-    memset(d, 0, sizeof(*d));
-    d->copy_dst = tex;
-    d->copy_rect[0] = x;
-    d->copy_rect[1] = y;
-    d->copy_rect[2] = w;
-    d->copy_rect[3] = h;
+    if (pc_gpu_sdl_texture_get(dst, &tex, &unused)) add_other(DRAW_EFB_COPY, tex, NULL, x, y, w, h);
 }
 
-// Draws rect (x, y, w, h from the top left, in pixels of src) of src over all of dst (dst_w x dst_h), alpha 1.
-// Its own render pass; overwrites vertex uniform slot 0
-static void copy_texture(SDL_GPUCommandBuffer* cmd, SDL_GPUTexture* src, int src_w, int src_h, const int rect[4],
-                         SDL_GPUTexture* dst, SDL_GPUSampler* sampler) {
+void pc_gx_sdl_draw_texture(PCGpuTexture src, int x, int y, int w, int h) {
+    SDL_GPUTexture* tex;
+    SDL_GPUSampler* sampler;
+
+    if (pc_gpu_sdl_texture_get(src, &tex, &sampler)) add_other(DRAW_TEXTURE, tex, sampler, x, y, w, h);
+}
+
+// GL rectangle (bottom-left origin) in the target -> top-left x, y, w, h, clipped to it
+static void target_rect(const int gl[4], int out[4]) {
+    int x0 = SDL_max(gl[0], 0);
+    int y0 = SDL_max(s_target_h - gl[1] - gl[3], 0);
+    int x1 = SDL_min(gl[0] + gl[2], s_target_w);
+    int y1 = SDL_min(s_target_h - gl[1], s_target_h);
+
+    out[0] = x0;
+    out[1] = y0;
+    out[2] = x1 - x0;
+    out[3] = y1 - y0;
+}
+
+// Draws the source rectangle uv (left, top, right, bottom in texture coordinates) of src into the viewport
+// (x, y, w, h from the top left) of dst, alpha 1. Its own render pass: clear = dst cleared to black first, else
+// the rest of dst is undefined. Overwrites vertex uniform slot 0
+static void copy_texture(SDL_GPUCommandBuffer* cmd, SDL_GPUTexture* src, SDL_GPUSampler* sampler, const float uv[4],
+                         SDL_GPUTexture* dst, const int viewport[4], int clear) {
     SDL_GPUColorTargetInfo target = {0};
     SDL_GPUTextureSamplerBinding binding = { src, sampler };
-    float uv[4];
+    SDL_GPUViewport vp = { (float)viewport[0], (float)viewport[1], (float)viewport[2], (float)viewport[3], 0, 1 };
     SDL_GPURenderPass* pass;
 
-    uv[0] = (float)rect[0] / (float)src_w;
-    uv[1] = (float)rect[1] / (float)src_h;
-    uv[2] = (float)(rect[0] + rect[2]) / (float)src_w;
-    uv[3] = (float)(rect[1] + rect[3]) / (float)src_h;
     target.texture = dst;
-    target.load_op = SDL_GPU_LOADOP_DONT_CARE; // every pixel is drawn
+    target.clear_color = (SDL_FColor){ 0.0f, 0.0f, 0.0f, 1.0f };
+    target.load_op = clear ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_DONT_CARE;
     target.store_op = SDL_GPU_STOREOP_STORE;
     pass = SDL_BeginGPURenderPass(cmd, &target, 1, NULL);
     if (pass == NULL) return;
     SDL_BindGPUGraphicsPipeline(pass, s_copy_pipeline);
+    SDL_SetGPUViewport(pass, &vp);
     SDL_BindGPUFragmentSamplers(pass, 0, &binding, 1);
-    SDL_PushGPUVertexUniformData(cmd, 0, uv, sizeof(uv));
+    SDL_PushGPUVertexUniformData(cmd, 0, uv, 4 * sizeof(float));
     SDL_DrawGPUPrimitives(pass, 3, 1, 0, 0);
     SDL_EndGPURenderPass(pass);
 }
@@ -741,19 +774,25 @@ SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h) {
             depth.load_op = SDL_GPU_LOADOP_LOAD; // stencil stays cleared each time: unused
         }
         if (d == NULL) break;
-        if (d->copy_dst) {
-            // GL rectangle -> top-left rows, clipped to the target; the copy texture's row 0 = the top row
-            int x0 = SDL_max(d->copy_rect[0], 0);
-            int y0 = SDL_max(s_target_h - d->copy_rect[1] - d->copy_rect[3], 0);
-            int x1 = SDL_min(d->copy_rect[0] + d->copy_rect[2], s_target_w);
-            int y1 = SDL_min(s_target_h - d->copy_rect[1], s_target_h);
-            int rect[4] = { x0, y0, x1 - x0, y1 - y0 };
+        if (d->kind != DRAW_GX) {
+            int rect[4];
 
+            target_rect(d->rect, rect);
             if (rect[2] <= 0 || rect[3] <= 0) continue;
             SDL_EndGPURenderPass(pass);
             pass = NULL;
-            // Same size, so nearest = an exact copy (GL blits with GL_NEAREST)
-            copy_texture(cmd, s_color, s_target_w, s_target_h, rect, d->copy_dst, s_sampler);
+            if (d->kind == DRAW_EFB_COPY) {
+                // The rectangle over all of the copy (its row 0 = the top row); same size, so nearest = an exact
+                // copy (GL blits with GL_NEAREST)
+                float uv[4] = { (float)rect[0] / s_target_w, (float)rect[1] / s_target_h,
+                                (float)(rect[0] + rect[2]) / s_target_w, (float)(rect[1] + rect[3]) / s_target_h };
+                int all[4] = { 0, 0, rect[2], rect[3] };
+                copy_texture(cmd, s_color, s_sampler, uv, d->other, all, 0);
+            } else {
+                // pc_gpu_draw_texture: whole frame black, the texture in the rectangle
+                const float uv[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
+                copy_texture(cmd, d->other, d->other_sampler, uv, s_color, rect, 1);
+            }
             continue;
         }
         if (d->count == 0) continue;

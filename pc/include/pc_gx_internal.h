@@ -326,6 +326,8 @@ void pc_gx_sdl_texture_destroyed(PCGpuTexture tex); // units holding it go back 
 // EFB copy: the frame's rectangle (GL style) as drawn so far into dst (made with pc_gpu_sdl_texture_create_target,
 // same size), top row first; draws recorded after it see the copy
 void pc_gx_sdl_copy(PCGpuTexture dst, int x, int y, int w, int h);
+// pc_gpu_draw_texture on Vulkan: the frame cleared to black, then tex drawn into the rectangle (GL style)
+void pc_gx_sdl_draw_texture(PCGpuTexture tex, int x, int y, int w, int h);
 // Adds the recorded draws to cmd (vertex upload, render pass into the offscreen target) and forgets them.
 // Returns the offscreen colour target and its size
 SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h);

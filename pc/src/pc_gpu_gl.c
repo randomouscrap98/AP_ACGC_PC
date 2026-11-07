@@ -215,7 +215,11 @@ static void quad_init(void) {
 }
 
 void pc_gpu_draw_texture(PCGpuTexture tex, int x, int y, int w, int h, int target_w, int target_h) {
-    if (!pc_gpu_is_gl()) return;
+    // Vulkan: always the frame (the only draw target there), which is target_w x target_h
+    if (!pc_gpu_is_gl()) {
+        pc_gx_sdl_draw_texture(tex, x, y, w, h);
+        return;
+    }
     if (!s_quad_program) quad_init();
 
     // Whole target first so the bars are black, not stale pixels

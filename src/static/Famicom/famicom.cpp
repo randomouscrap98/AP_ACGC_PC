@@ -2805,7 +2805,10 @@ extern void famicom_1frame() {
 
     JW_SetFamicomMode(TRUE);
 
+#ifndef TARGET_PC
+    // PC: fixNES draws the picture (pc_fixnes_render_frame); result_bufp is never filled
     famicom_draw();
+#endif
 
     /* If filer mode is enabled, controller 4 L press toggles process profiling bar */
     if (filer_mode_enable && (((JUTGamePad*)gamePad)[3].mButtons.mTrigger & JUTGamePad::L)) {

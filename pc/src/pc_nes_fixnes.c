@@ -346,5 +346,6 @@ void pc_fixnes_render_frame(uint16_t *fb) {
     }
 
     pc_gpu_draw_texture(fixnes_texture, vp_x, vp_y, vp_w, vp_h, win_w, win_h);
+    pc_gx_restore_after_nes(); // the quad changed GL state the GX cache doesn't know about
     if (g_pc_profile_enabled) pc_profiler_add_count_texture_bind_slow();
 }
