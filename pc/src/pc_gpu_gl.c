@@ -1,6 +1,7 @@
 // pc_gpu_gl.c - pc_gpu.h on OpenGL 3.3
 #include "pc_gpu.h"
 #include "pc_platform.h"
+#include "pc_gx_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -234,7 +235,7 @@ unsigned char* pc_gpu_read_pixels(PCGpuTarget source, int w, int h) {
     unsigned char* pixels;
     GLint pack = 4;
 
-    if (!pc_gpu_is_gl()) return NULL;
+    if (!pc_gpu_is_gl()) return pc_gx_sdl_read_pixels(w, h);
     pixels = malloc((size_t)w * h * 3);
     if (pixels == NULL) return NULL;
     glGetIntegerv(GL_PACK_ALIGNMENT, &pack);

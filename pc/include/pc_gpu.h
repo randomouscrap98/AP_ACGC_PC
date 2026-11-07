@@ -1,5 +1,6 @@
 // pc_gpu.h - the renderer calls the port makes outside the GX core (pc_gx*.c) and the render target.
-// One implementation per backend: pc_gpu_gl.c (OpenGL 3.3). No GL types here.
+// One implementation per backend: pc_gpu_gl.c (OpenGL 3.3); the Vulkan backend (pc_gpu_sdl.c, pc_gx_sdl.c) has
+// a few of them so far, called from pc_gpu_gl.c. No GL types here.
 #ifndef PC_GPU_H
 #define PC_GPU_H
 
@@ -16,8 +17,8 @@ static inline int pc_gpu_is_gl(void) { return g_pc_renderer == PC_RENDERER_OPENG
 // SDL_GPU backend (pc_gpu_sdl.c, Vulkan). init after the window exists, 0 = failed (then use GL)
 struct SDL_Window;
 int pc_gpu_sdl_init(struct SDL_Window* window);
-// One frame: clear the window to the colour (0-1 RGBA) and present
-void pc_gpu_sdl_present(const float clear[4]);
+// One frame: replay the recorded draws (pc_gx_sdl.c), blit them to the window and present
+void pc_gpu_sdl_present(void);
 // Swapchain present mode: vsync, else immediate (or mailbox where immediate is missing)
 void pc_gpu_sdl_set_vsync(int on);
 void pc_gpu_sdl_shutdown(void);

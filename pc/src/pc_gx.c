@@ -430,6 +430,10 @@ static void pc_gx_write_block(int block) {
 static void pc_gx_upload_block(int block) {
     GLintptr worst = g_gx.ubo_align * PC_GX_NUM_BLOCKS + (GLintptr)sizeof(s_block_last);
 
+    if (!pc_gpu_is_gl()) {
+        pc_gx_sdl_set_block(block, s_block_data[block], (int)s_block_size[block]);
+        return;
+    }
     if (s_block_bound[block] && memcmp(s_block_last[block], s_block_data[block], s_block_size[block]) == 0) return;
     glBindBuffer(GL_UNIFORM_BUFFER, g_gx.ubo);
     if (g_gx.ubo_head + worst > PC_GX_UBO_RING_SIZE) {
@@ -544,8 +548,10 @@ void pc_gx_init(void) {
         quad_index_buf[q * 6 + 5] = base + 3;
     }
 
-    // Vulkan step 1: no GL objects or shaders; textures only get placeholder handles (pc_gpu_texture_create)
+    // Vulkan: no GL objects or shaders (pc_gx_sdl.c has its own); textures only get placeholder handles
+    // (pc_gpu_texture_create)
     if (!pc_gpu_is_gl()) {
+        s_config_stale = 1;
         pc_gx_texture_init();
         pc_gx_texture_bind_cache_invalidate();
         g_gx.dirty = PC_GX_DIRTY_ALL;
@@ -643,7 +649,18 @@ void pc_gx_begin_frame(void) {
     pc_gx_run_counts.efb_copies += pc_gx_frame_counts.efb_copies;
     memset(&pc_gx_frame_counts, 0, sizeof(pc_gx_frame_counts));
     g_pc_widescreen_stretch = 0;
-    if (!pc_gpu_is_gl()) return; // Vulkan step 1: the frame is a clear in pc_gpu_sdl_present
+    if (!pc_gpu_is_gl()) {
+        // Vulkan: the window-sized target is cleared when pc_gx_sdl.c replays the frame (no render scale yet)
+#ifdef PC_ENHANCEMENTS
+        g_pc_render_w = g_pc_window_w;
+        g_pc_render_h = g_pc_window_h;
+        pc_gx_update_aspect();
+#endif
+        pc_gx_viewport_state_invalidate();
+        pc_gx_sdl_begin_frame(g_pc_render_w, g_pc_render_h, g_gx.clear_color, g_gx.clear_depth);
+        pc_profiler_add_time(PC_PROF_TIMER_GX_BEGIN, prof_start);
+        return;
+    }
     pc_gx_draw_pending();
     /* glClear respects write masks — must enable all before clearing */
     glDepthMask(GL_TRUE);
@@ -906,11 +923,123 @@ PCGXPipelineKey pc_gx_pipeline_key(const PCGXShaderVariant* shader) {
     return k;
 }
 
+// Fills the uniform blocks from the dirty GX state and uploads the changed ones (both backends)
+static void pc_gx_update_blocks(unsigned int dirty, int uber) {
+    if (dirty & (PC_GX_DIRTY_PROJECTION | PC_GX_DIRTY_MODELVIEW | PC_GX_DIRTY_TEXGEN)) {
+        PCGXVertexBlock* vb = &s_vertex_block;
+
+        if (dirty & PC_GX_DIRTY_PROJECTION) {
+            for (int c = 0; c < 4; c++) {
+                for (int r = 0; r < 4; r++) vb->projection[c][r] = g_gx.projection_mtx[r][c];
+            }
+        }
+        if (dirty & PC_GX_DIRTY_MODELVIEW) {
+            const float (*pos)[4] = g_gx.pos_mtx[g_gx.current_mtx];
+            const float (*nrm)[3] = g_gx.nrm_mtx[g_gx.current_mtx];
+            for (int c = 0; c < 4; c++) {
+                for (int r = 0; r < 3; r++) vb->modelview[c][r] = pos[r][c];
+                vb->modelview[c][3] = c == 3 ? 1.0f : 0.0f;
+            }
+            for (int c = 0; c < 3; c++) {
+                for (int r = 0; r < 3; r++) vb->normal_mtx[c].v[r] = nrm[r][c];
+                vb->normal_mtx[c].v[3] = 0.0f;
+            }
+        }
+        if (dirty & PC_GX_DIRTY_TEXGEN) {
+            for (int tg = 0; tg < 2; tg++) {
+                int slot = pc_tex_mtx_id_to_slot(g_gx.tex_gen_mtx[tg]);
+                int enable = (slot >= 0 && slot < 10);
+                PCGXVec4* row0 = &vb->texmtx_row0[tg];
+                PCGXVec4* row1 = &vb->texmtx_row1[tg];
+
+                vb->texmtx_enable[tg].v[0] = enable;
+                vb->texgen_src[tg].v[0] = g_gx.tex_gen_src[tg];
+                memset(row0, 0, sizeof(*row0));
+                memset(row1, 0, sizeof(*row1));
+                row0->v[0] = 1.0f;
+                row1->v[1] = 1.0f;
+                if (enable) {
+                    const float* tm = (const float*)g_gx.tex_mtx[slot];
+                    memcpy(row0->v, &tm[0], sizeof(row0->v));
+                    memcpy(row1->v, &tm[4], sizeof(row1->v));
+                }
+            }
+        }
+        pc_gx_upload_block(PC_GX_BLOCK_VERTEX);
+    }
+
+    if (dirty & (PC_GX_DIRTY_TEV_COLORS | PC_GX_DIRTY_KONST | PC_GX_DIRTY_ALPHA_CMP |
+                 PC_GX_DIRTY_LIGHTING | PC_GX_DIRTY_INDIRECT | PC_GX_DIRTY_FOG)) {
+        PCGXFragmentBlock* fb = &s_fragment_block;
+
+        if (dirty & PC_GX_DIRTY_TEV_COLORS) {
+            memcpy(fb->tev_prev.v, g_gx.tev_colors[0], sizeof(fb->tev_prev.v));
+            memcpy(fb->tev_reg0.v, g_gx.tev_colors[1], sizeof(fb->tev_reg0.v));
+            memcpy(fb->tev_reg1.v, g_gx.tev_colors[2], sizeof(fb->tev_reg1.v));
+            memcpy(fb->tev_reg2.v, g_gx.tev_colors[3], sizeof(fb->tev_reg2.v));
+        }
+        if (dirty & PC_GX_DIRTY_KONST) {
+            memcpy(fb->kcolor, g_gx.tev_k_colors, sizeof(fb->kcolor));
+        }
+        if (dirty & PC_GX_DIRTY_ALPHA_CMP) {
+            pc_gx_set_ivec4(&fb->alpha_refs, g_gx.alpha_ref0, g_gx.alpha_ref1, 0, 0);
+        }
+        if (dirty & PC_GX_DIRTY_LIGHTING) {
+            memcpy(fb->chan_color[0].v, g_gx.chan_mat_color[0], sizeof(fb->chan_color[0].v));
+            memcpy(fb->chan_color[1].v, g_gx.chan_amb_color[0], sizeof(fb->chan_color[1].v));
+            for (int i = 0; i < 8; i++) {
+                memcpy(fb->light_pos[i].v, g_gx.lights[i].pos, sizeof(float) * 3);
+                fb->light_pos[i].v[3] = 0.0f;
+                memcpy(fb->light_color[i].v, g_gx.lights[i].color, sizeof(fb->light_color[i].v));
+            }
+        }
+        if (dirty & PC_GX_DIRTY_INDIRECT) {
+            for (int i = 0; i < g_gx.num_ind_stages && i < 4; i++) {
+                fb->ind_scale[i].v[0] = 1.0f / (float)(1 << g_gx.ind_order[i].scale_s);
+                fb->ind_scale[i].v[1] = 1.0f / (float)(1 << g_gx.ind_order[i].scale_t);
+            }
+            for (int i = 0; i < 3; i++) {
+                float scale_val = ldexpf(1.0f, g_gx.ind_mtx_scale[i] + 17) / 1024.0f;
+                for (int j = 0; j < 3; j++) {
+                    fb->ind_mtx_r0[i].v[j] = g_gx.ind_mtx[i][0][j] * scale_val;
+                    fb->ind_mtx_r1[i].v[j] = g_gx.ind_mtx[i][1][j] * scale_val;
+                }
+            }
+        }
+        if (dirty & PC_GX_DIRTY_FOG) {
+            fb->fog_params.v[0] = (float)g_gx.fog_type;
+            fb->fog_params.v[1] = g_gx.fog_start;
+            fb->fog_params.v[2] = g_gx.fog_end;
+            fb->fog_params.v[3] = 0.0f;
+            memcpy(fb->fog_color.v, g_gx.fog_color, sizeof(fb->fog_color.v));
+        }
+        pc_gx_upload_block(PC_GX_BLOCK_FRAGMENT);
+    }
+
+    if (dirty & (PC_GX_DIRTY_TEV_STAGES | PC_GX_DIRTY_SWAP_TABLES | PC_GX_DIRTY_ALPHA_CMP |
+                 PC_GX_DIRTY_LIGHTING | PC_GX_DIRTY_TEXTURES | PC_GX_DIRTY_INDIRECT | PC_GX_DIRTY_FOG)) {
+        s_config_stale = 1;
+    }
+    if (uber && s_config_stale) {
+        pc_gx_fill_config_block();
+        pc_gx_upload_block(PC_GX_BLOCK_CONFIG);
+        s_config_stale = 0;
+    }
+}
+
 void pc_gx_flush_vertices(void) {
     int count = g_gx.current_vertex_idx - g_gx.pending_verts;
     if (count <= 0) return;
-    // Vulkan step 1: nothing is drawn, the vertices are dropped
+    // Vulkan: the uber shader only (no TEV variants yet); pc_gx_sdl.c records the draw and merges runs itself
     if (!pc_gpu_is_gl()) {
+        PCGXPipelineKey key;
+
+        pc_gx_update_blocks(g_gx.dirty, 1);
+        key = pc_gx_pipeline_key(NULL);
+        pc_automated_note_pipeline(&key);
+        pc_gx_sdl_draw(&key, g_gx.vertex_buffer, count);
+        pc_gx_draw_call_count++;
+        g_gx.dirty = 0;
         g_gx.current_vertex_idx = 0;
         g_gx.pending_verts = 0;
         return;
@@ -952,106 +1081,7 @@ void pc_gx_flush_vertices(void) {
         unsigned int dirty = g_gx.dirty;
         pc_profiler_add_dirty_mask(dirty);
 
-        if (dirty & (PC_GX_DIRTY_PROJECTION | PC_GX_DIRTY_MODELVIEW | PC_GX_DIRTY_TEXGEN)) {
-            PCGXVertexBlock* vb = &s_vertex_block;
-
-            if (dirty & PC_GX_DIRTY_PROJECTION) {
-                for (int c = 0; c < 4; c++) {
-                    for (int r = 0; r < 4; r++) vb->projection[c][r] = g_gx.projection_mtx[r][c];
-                }
-            }
-            if (dirty & PC_GX_DIRTY_MODELVIEW) {
-                const float (*pos)[4] = g_gx.pos_mtx[g_gx.current_mtx];
-                const float (*nrm)[3] = g_gx.nrm_mtx[g_gx.current_mtx];
-                for (int c = 0; c < 4; c++) {
-                    for (int r = 0; r < 3; r++) vb->modelview[c][r] = pos[r][c];
-                    vb->modelview[c][3] = c == 3 ? 1.0f : 0.0f;
-                }
-                for (int c = 0; c < 3; c++) {
-                    for (int r = 0; r < 3; r++) vb->normal_mtx[c].v[r] = nrm[r][c];
-                    vb->normal_mtx[c].v[3] = 0.0f;
-                }
-            }
-            if (dirty & PC_GX_DIRTY_TEXGEN) {
-                for (int tg = 0; tg < 2; tg++) {
-                    int slot = pc_tex_mtx_id_to_slot(g_gx.tex_gen_mtx[tg]);
-                    int enable = (slot >= 0 && slot < 10);
-                    PCGXVec4* row0 = &vb->texmtx_row0[tg];
-                    PCGXVec4* row1 = &vb->texmtx_row1[tg];
-
-                    vb->texmtx_enable[tg].v[0] = enable;
-                    vb->texgen_src[tg].v[0] = g_gx.tex_gen_src[tg];
-                    memset(row0, 0, sizeof(*row0));
-                    memset(row1, 0, sizeof(*row1));
-                    row0->v[0] = 1.0f;
-                    row1->v[1] = 1.0f;
-                    if (enable) {
-                        const float* tm = (const float*)g_gx.tex_mtx[slot];
-                        memcpy(row0->v, &tm[0], sizeof(row0->v));
-                        memcpy(row1->v, &tm[4], sizeof(row1->v));
-                    }
-                }
-            }
-            pc_gx_upload_block(PC_GX_BLOCK_VERTEX);
-        }
-
-        if (dirty & (PC_GX_DIRTY_TEV_COLORS | PC_GX_DIRTY_KONST | PC_GX_DIRTY_ALPHA_CMP |
-                     PC_GX_DIRTY_LIGHTING | PC_GX_DIRTY_INDIRECT | PC_GX_DIRTY_FOG)) {
-            PCGXFragmentBlock* fb = &s_fragment_block;
-
-            if (dirty & PC_GX_DIRTY_TEV_COLORS) {
-                memcpy(fb->tev_prev.v, g_gx.tev_colors[0], sizeof(fb->tev_prev.v));
-                memcpy(fb->tev_reg0.v, g_gx.tev_colors[1], sizeof(fb->tev_reg0.v));
-                memcpy(fb->tev_reg1.v, g_gx.tev_colors[2], sizeof(fb->tev_reg1.v));
-                memcpy(fb->tev_reg2.v, g_gx.tev_colors[3], sizeof(fb->tev_reg2.v));
-            }
-            if (dirty & PC_GX_DIRTY_KONST) {
-                memcpy(fb->kcolor, g_gx.tev_k_colors, sizeof(fb->kcolor));
-            }
-            if (dirty & PC_GX_DIRTY_ALPHA_CMP) {
-                pc_gx_set_ivec4(&fb->alpha_refs, g_gx.alpha_ref0, g_gx.alpha_ref1, 0, 0);
-            }
-            if (dirty & PC_GX_DIRTY_LIGHTING) {
-                memcpy(fb->chan_color[0].v, g_gx.chan_mat_color[0], sizeof(fb->chan_color[0].v));
-                memcpy(fb->chan_color[1].v, g_gx.chan_amb_color[0], sizeof(fb->chan_color[1].v));
-                for (int i = 0; i < 8; i++) {
-                    memcpy(fb->light_pos[i].v, g_gx.lights[i].pos, sizeof(float) * 3);
-                    fb->light_pos[i].v[3] = 0.0f;
-                    memcpy(fb->light_color[i].v, g_gx.lights[i].color, sizeof(fb->light_color[i].v));
-                }
-            }
-            if (dirty & PC_GX_DIRTY_INDIRECT) {
-                for (int i = 0; i < g_gx.num_ind_stages && i < 4; i++) {
-                    fb->ind_scale[i].v[0] = 1.0f / (float)(1 << g_gx.ind_order[i].scale_s);
-                    fb->ind_scale[i].v[1] = 1.0f / (float)(1 << g_gx.ind_order[i].scale_t);
-                }
-                for (int i = 0; i < 3; i++) {
-                    float scale_val = ldexpf(1.0f, g_gx.ind_mtx_scale[i] + 17) / 1024.0f;
-                    for (int j = 0; j < 3; j++) {
-                        fb->ind_mtx_r0[i].v[j] = g_gx.ind_mtx[i][0][j] * scale_val;
-                        fb->ind_mtx_r1[i].v[j] = g_gx.ind_mtx[i][1][j] * scale_val;
-                    }
-                }
-            }
-            if (dirty & PC_GX_DIRTY_FOG) {
-                fb->fog_params.v[0] = (float)g_gx.fog_type;
-                fb->fog_params.v[1] = g_gx.fog_start;
-                fb->fog_params.v[2] = g_gx.fog_end;
-                fb->fog_params.v[3] = 0.0f;
-                memcpy(fb->fog_color.v, g_gx.fog_color, sizeof(fb->fog_color.v));
-            }
-            pc_gx_upload_block(PC_GX_BLOCK_FRAGMENT);
-        }
-
-        if (dirty & (PC_GX_DIRTY_TEV_STAGES | PC_GX_DIRTY_SWAP_TABLES | PC_GX_DIRTY_ALPHA_CMP |
-                     PC_GX_DIRTY_LIGHTING | PC_GX_DIRTY_TEXTURES | PC_GX_DIRTY_INDIRECT | PC_GX_DIRTY_FOG)) {
-            s_config_stale = 1;
-        }
-        if (var->uber && s_config_stale) {
-            pc_gx_fill_config_block();
-            pc_gx_upload_block(PC_GX_BLOCK_CONFIG);
-            s_config_stale = 0;
-        }
+        pc_gx_update_blocks(dirty, var->uber);
 
         if (dirty & (PC_GX_DIRTY_TEXTURES | PC_GX_DIRTY_TEV_STAGES)) {
             for (int s = 0; s < PC_GX_MAX_TEV_STAGES && s < g_gx.num_tev_stages; s++) {
@@ -1429,7 +1459,10 @@ void GXSetViewport(f32 left, f32 top, f32 wd, f32 ht, f32 nearz, f32 farz) {
         (double)nearz == s_gl_viewport.n && (double)farz == s_gl_viewport.f)
         return;
 
-    if (!pc_gpu_is_gl()) return;
+    if (!pc_gpu_is_gl()) {
+        pc_gx_sdl_set_viewport(gl_x, gl_y, gl_w, gl_h, nearz, farz);
+        return;
+    }
     pc_gx_draw_pending(); /* glViewport is not dirty-tracked */
     glViewport(gl_x, gl_y, gl_w, gl_h);
     glDepthRange((double)nearz, (double)farz);
@@ -1475,7 +1508,10 @@ void GXSetScissor(u32 left, u32 top, u32 wd, u32 ht) {
         gl_w == s_gl_scissor.w && gl_h == s_gl_scissor.h)
         return;
 
-    if (!pc_gpu_is_gl()) return;
+    if (!pc_gpu_is_gl()) {
+        pc_gx_sdl_set_scissor(gl_x, gl_y, gl_w, gl_h);
+        return;
+    }
     pc_gx_draw_pending(); /* glScissor is not dirty-tracked */
     glEnable(GL_SCISSOR_TEST);
     glScissor(gl_x, gl_y, gl_w, gl_h);

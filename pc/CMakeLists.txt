@@ -237,6 +237,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gx_texture.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gpu_gl.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gpu_sdl.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gx_sdl.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gbi_runtime.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_os.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_dvd.c

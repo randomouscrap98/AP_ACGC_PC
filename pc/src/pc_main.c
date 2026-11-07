@@ -248,8 +248,8 @@ void pc_platform_update_window_size(void) {
 
 void pc_platform_swap_buffers(void) {
     if (!pc_gpu_is_gl()) {
-        static const float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-        pc_gpu_sdl_present(g_pc_gx_frame_begun ? g_gx.clear_color : black);
+        pc_gpu_sdl_present();
+        pc_screenshot_frame(0, g_pc_render_w, g_pc_render_h); // reads the frame just presented
         pc_automated_frame();
         return;
     }

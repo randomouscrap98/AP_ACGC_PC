@@ -309,6 +309,22 @@ typedef struct {
 
 PCGXPipelineKey pc_gx_pipeline_key(const PCGXShaderVariant* shader);
 
+// The GX core on SDL_GPU (pc_gx_sdl.c, Vulkan backend). pc_gx.c records the frame's draws here, pc_gpu_sdl.c
+// replays them when presenting. Rectangles are GL style (bottom-left origin) like pc_gx.c computes them.
+int  pc_gx_sdl_init(SDL_GPUDevice* device, int w, int h); // 0 = failed (shaders missing, ...)
+void pc_gx_sdl_shutdown(void);
+// New frame into a w x h target, cleared to the colour (0-1 RGBA) and depth when it's drawn
+void pc_gx_sdl_begin_frame(int w, int h, const float clear[4], float clear_depth);
+void pc_gx_sdl_set_block(int block, const void* data, int size); // PC_GX_BLOCK_*: the block's current content
+void pc_gx_sdl_set_viewport(int x, int y, int w, int h, float nearz, float farz);
+void pc_gx_sdl_set_scissor(int x, int y, int w, int h);
+void pc_gx_sdl_draw(const PCGXPipelineKey* key, const PCGXVertex* verts, int count);
+// Adds the recorded draws to cmd (vertex upload, render pass into the offscreen target) and forgets them.
+// Returns the offscreen colour target and its size
+SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h);
+// The last rendered frame like pc_gpu_read_pixels (RGB rows bottom-up); NULL unless w x h is the target size
+unsigned char* pc_gx_sdl_read_pixels(int w, int h);
+
 /* TEV shader */
 PCGXShaderVariant* pc_gx_tev_get_variant(void);
 void   pc_gx_tev_init(void);

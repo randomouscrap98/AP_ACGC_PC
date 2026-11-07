@@ -86,7 +86,7 @@ void pc_screenshot_frame(PCGpuTarget source, int w, int h) {
 
     s_pixels = pc_gpu_read_pixels(source, w, h);
     if (s_pixels == NULL) {
-        pc_ap_overlay_toast(pc_gpu_is_gl() ? "Screenshot failed (out of memory)" : "Screenshots need OpenGL for now");
+        pc_ap_overlay_toast("Screenshot failed"); // out of memory, or Vulkan before the first frame
         SDL_SetAtomicInt(&s_state, SHOT_IDLE);
         return;
     }

@@ -35,6 +35,11 @@ LOC(4) out float v_fog_z;
 void main() {
     vec4 eyePos = u_modelview * vec4(a_position, 1.0);
     gl_Position = u_projection * eyePos;
+#ifdef VULKAN
+    // SDL_GPU depth is 0..1 (GL -1..1): same window depth and clipping as GL
+    gl_Position.z = (gl_Position.z + gl_Position.w) * 0.5;
+    gl_PointSize = 1.0; // undefined for points otherwise
+#endif
     v_fog_z = -eyePos.z;
     v_color = a_color0;
     v_normal = normalize(u_normal_mtx * a_normal);
