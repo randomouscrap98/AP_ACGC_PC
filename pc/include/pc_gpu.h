@@ -1,6 +1,6 @@
 // pc_gpu.h - the renderer calls the port makes outside the GX core (pc_gx*.c) and the render target.
 // One implementation per backend: pc_gpu_gl.c (OpenGL 3.3); the Vulkan backend (pc_gpu_sdl.c, pc_gx_sdl.c) has
-// a few of them so far, called from pc_gpu_gl.c. No GL types here.
+// the texture calls and read_pixels so far, called from pc_gpu_gl.c. No GL types here.
 #ifndef PC_GPU_H
 #define PC_GPU_H
 
@@ -53,6 +53,12 @@ PCGpuTexture pc_gpu_texture_create(int w, int h, PCGpuFormat format, const void*
 void pc_gpu_texture_upload(PCGpuTexture tex, int w, int h, PCGpuFormat format, const void* data, int data_size);
 void pc_gpu_texture_set_sampler(PCGpuTexture tex, PCGpuFilter filter, PCGpuWrap wrap_s, PCGpuWrap wrap_t);
 void pc_gpu_texture_destroy(PCGpuTexture tex);
+// The same on SDL_GPU (pc_gpu_sdl.c), called from the pc_gpu_texture_* functions on Vulkan
+int pc_gpu_sdl_format_supported(PCGpuFormat format);
+PCGpuTexture pc_gpu_sdl_texture_create(int w, int h, PCGpuFormat format, const void* data, int data_size);
+void pc_gpu_sdl_texture_upload(PCGpuTexture tex, int w, int h, PCGpuFormat format, const void* data, int data_size);
+void pc_gpu_sdl_texture_set_sampler(PCGpuTexture tex, PCGpuFilter filter, PCGpuWrap wrap_s, PCGpuWrap wrap_t);
+void pc_gpu_sdl_texture_destroy(PCGpuTexture tex);
 
 // The draw target, returns the previous one
 PCGpuTarget pc_gpu_set_draw_target(PCGpuTarget target);

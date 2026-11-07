@@ -53,6 +53,7 @@ void pc_gpu_device_info(char* out, int size) {
 }
 
 int pc_gpu_format_supported(PCGpuFormat format) {
+    if (!pc_gpu_is_gl()) return pc_gpu_sdl_format_supported(format);
     switch (format) {
         case PC_GPU_DXT1:
         case PC_GPU_DXT5:
@@ -94,11 +95,7 @@ static int upload_bound(int w, int h, PCGpuFormat format, const void* data, int 
 PCGpuTexture pc_gpu_texture_create(int w, int h, PCGpuFormat format, const void* data, int data_size) {
     GLuint tex;
 
-    // Vulkan (step 1, no textures yet): a unique non-zero handle so the callers' caches still work
-    if (!pc_gpu_is_gl()) {
-        static PCGpuTexture s_fake;
-        return ++s_fake;
-    }
+    if (!pc_gpu_is_gl()) return pc_gpu_sdl_texture_create(w, h, format, data, data_size);
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
     if (!upload_bound(w, h, format, data, data_size)) {
@@ -109,7 +106,10 @@ PCGpuTexture pc_gpu_texture_create(int w, int h, PCGpuFormat format, const void*
 }
 
 void pc_gpu_texture_upload(PCGpuTexture tex, int w, int h, PCGpuFormat format, const void* data, int data_size) {
-    if (!pc_gpu_is_gl()) return;
+    if (!pc_gpu_is_gl()) {
+        pc_gpu_sdl_texture_upload(tex, w, h, format, data, data_size);
+        return;
+    }
     glBindTexture(GL_TEXTURE_2D, tex);
     upload_bound(w, h, format, data, data_size);
 }
@@ -118,7 +118,10 @@ void pc_gpu_texture_set_sampler(PCGpuTexture tex, PCGpuFilter filter, PCGpuWrap 
     static const GLint wraps[] = { GL_CLAMP_TO_EDGE, GL_REPEAT, GL_MIRRORED_REPEAT };
     GLint gl_filter = filter == PC_GPU_LINEAR ? GL_LINEAR : GL_NEAREST;
 
-    if (!pc_gpu_is_gl()) return;
+    if (!pc_gpu_is_gl()) {
+        pc_gpu_sdl_texture_set_sampler(tex, filter, wrap_s, wrap_t);
+        return;
+    }
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
@@ -129,7 +132,11 @@ void pc_gpu_texture_set_sampler(PCGpuTexture tex, PCGpuFilter filter, PCGpuWrap 
 void pc_gpu_texture_destroy(PCGpuTexture tex) {
     GLuint name = tex;
 
-    if (name && pc_gpu_is_gl()) glDeleteTextures(1, &name);
+    if (!pc_gpu_is_gl()) {
+        pc_gpu_sdl_texture_destroy(tex);
+        return;
+    }
+    if (name) glDeleteTextures(1, &name);
 }
 
 PCGpuTarget pc_gpu_set_draw_target(PCGpuTarget target) {

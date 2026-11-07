@@ -548,8 +548,7 @@ void pc_gx_init(void) {
         quad_index_buf[q * 6 + 5] = base + 3;
     }
 
-    // Vulkan: no GL objects or shaders (pc_gx_sdl.c has its own); textures only get placeholder handles
-    // (pc_gpu_texture_create)
+    // Vulkan: no GL objects or shaders (pc_gx_sdl.c has its own; textures in pc_gpu_sdl.c)
     if (!pc_gpu_is_gl()) {
         s_config_stale = 1;
         pc_gx_texture_init();
@@ -1027,6 +1026,34 @@ static void pc_gx_update_blocks(unsigned int dirty, int uber) {
     }
 }
 
+// Puts the stages' textures on their units: TEV stages on 0-2, indirect stages on 3-6. A unit keeps its
+// texture while its stage has none
+static void pc_gx_bind_unit(int unit, PCGpuTexture tex) {
+    if (!pc_gpu_is_gl()) {
+        pc_gx_sdl_set_texture(unit, tex);
+        return;
+    }
+    pc_gx_active_texture_cached(GL_TEXTURE0 + unit);
+    pc_gx_bind_texture_profiled(GL_TEXTURE_2D, tex);
+}
+
+static void pc_gx_bind_textures(unsigned int dirty) {
+    if (dirty & (PC_GX_DIRTY_TEXTURES | PC_GX_DIRTY_TEV_STAGES)) {
+        for (int s = 0; s < PC_GX_MAX_TEV_STAGES && s < g_gx.num_tev_stages; s++) {
+            int tex_map = g_gx.tev_stages[s].tex_map;
+            if (tex_map >= 0 && tex_map < 8 && g_gx.gl_textures[tex_map] != 0)
+                pc_gx_bind_unit(s, g_gx.gl_textures[tex_map]);
+        }
+    }
+    if (dirty & (PC_GX_DIRTY_INDIRECT | PC_GX_DIRTY_TEXTURES)) {
+        for (int i = 0; i < g_gx.num_ind_stages && i < 4; i++) {
+            int ind_tex_map = g_gx.ind_order[i].tex_map;
+            if (ind_tex_map >= 0 && ind_tex_map < 8 && g_gx.gl_textures[ind_tex_map] != 0)
+                pc_gx_bind_unit(3 + i, g_gx.gl_textures[ind_tex_map]);
+        }
+    }
+}
+
 void pc_gx_flush_vertices(void) {
     int count = g_gx.current_vertex_idx - g_gx.pending_verts;
     if (count <= 0) return;
@@ -1035,6 +1062,7 @@ void pc_gx_flush_vertices(void) {
         PCGXPipelineKey key;
 
         pc_gx_update_blocks(g_gx.dirty, 1);
+        pc_gx_bind_textures(g_gx.dirty);
         key = pc_gx_pipeline_key(NULL);
         pc_automated_note_pipeline(&key);
         pc_gx_sdl_draw(&key, g_gx.vertex_buffer, count);
@@ -1083,29 +1111,7 @@ void pc_gx_flush_vertices(void) {
 
         pc_gx_update_blocks(dirty, var->uber);
 
-        if (dirty & (PC_GX_DIRTY_TEXTURES | PC_GX_DIRTY_TEV_STAGES)) {
-            for (int s = 0; s < PC_GX_MAX_TEV_STAGES && s < g_gx.num_tev_stages; s++) {
-                int tex_map = g_gx.tev_stages[s].tex_map;
-                if (tex_map >= 0 && tex_map < 8 && g_gx.gl_textures[tex_map] != 0) {
-                    pc_gx_active_texture_cached(GL_TEXTURE0 + s);
-                    pc_gx_bind_texture_profiled(GL_TEXTURE_2D, g_gx.gl_textures[tex_map]);
-                }
-            }
-        }
-
-        /* Indirect textures on units 3-6 */
-        if (dirty & (PC_GX_DIRTY_INDIRECT | PC_GX_DIRTY_TEXTURES)) {
-            for (int i = 0; i < g_gx.num_ind_stages && i < 4; i++) {
-                int ind_tex_map = g_gx.ind_order[i].tex_map;
-                if (ind_tex_map >= 0 && ind_tex_map < 8) {
-                    GLuint ind_tex = g_gx.gl_textures[ind_tex_map];
-                    if (ind_tex) {
-                        pc_gx_active_texture_cached(GL_TEXTURE3 + i);
-                        pc_gx_bind_texture_profiled(GL_TEXTURE_2D, ind_tex);
-                    }
-                }
-            }
-        }
+        pc_gx_bind_textures(dirty);
         pc_gx_active_texture_cached(GL_TEXTURE0);
 
         pc_profiler_add_time(PC_PROF_TIMER_UNIFORM_UPLOAD, uniform_start);

@@ -3,6 +3,7 @@
 #define PC_GX_INTERNAL_H
 
 #include "pc_platform.h"
+#include "pc_gpu.h"
 
 /* Define PC_GL_DEBUG to check for GL errors after significant calls */
 #ifdef PC_GL_DEBUG
@@ -319,11 +320,19 @@ void pc_gx_sdl_set_block(int block, const void* data, int size); // PC_GX_BLOCK_
 void pc_gx_sdl_set_viewport(int x, int y, int w, int h, float nearz, float farz);
 void pc_gx_sdl_set_scissor(int x, int y, int w, int h);
 void pc_gx_sdl_draw(const PCGXPipelineKey* key, const PCGXVertex* verts, int count);
+// Texture units like GL's (0-2 TEV stages, 3-4 indirect); a draw samples what they hold when it's recorded
+void pc_gx_sdl_set_texture(int unit, PCGpuTexture tex);
+void pc_gx_sdl_texture_destroyed(PCGpuTexture tex); // units holding it go back to none
 // Adds the recorded draws to cmd (vertex upload, render pass into the offscreen target) and forgets them.
 // Returns the offscreen colour target and its size
 SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h);
 // The last rendered frame like pc_gpu_read_pixels (RGB rows bottom-up); NULL unless w x h is the target size
 unsigned char* pc_gx_sdl_read_pixels(int w, int h);
+// pc_gpu_sdl.c textures: the current image + sampler of a handle (0 if none), staged uploads into cmd (NULL = a
+// command buffer of its own, submitted at once), releases of destroyed textures once the frame is replayed
+int pc_gpu_sdl_texture_get(PCGpuTexture tex, SDL_GPUTexture** out_tex, SDL_GPUSampler** out_sampler);
+void pc_gpu_sdl_flush_textures(SDL_GPUCommandBuffer* cmd);
+void pc_gpu_sdl_release_textures(void);
 
 /* TEV shader */
 PCGXShaderVariant* pc_gx_tev_get_variant(void);
