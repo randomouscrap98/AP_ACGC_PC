@@ -37,7 +37,7 @@ typedef enum {
 typedef enum { PC_GPU_NEAREST, PC_GPU_LINEAR } PCGpuFilter;
 typedef enum { PC_GPU_CLAMP, PC_GPU_REPEAT, PC_GPU_MIRROR } PCGpuWrap; // GX_CLAMP / GX_REPEAT / GX_MIRROR order
 
-// After the GL context exists: loads the functions, default state. 0 = failed
+// After the GL context exists: loads the functions, default state. 0 = failed or below GL 3.3
 int pc_gpu_init(void);
 // "vendor | renderer | version" for crash reports
 void pc_gpu_device_info(char* out, int size);

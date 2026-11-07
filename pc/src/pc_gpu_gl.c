@@ -23,7 +23,8 @@ static GLint s_max_texture_size;
 int pc_gpu_init(void) {
     GLint num_ext = 0;
 
-    if (!gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress)) return 0;
+    // Without a 3.3 driver (e.g. Windows' built-in GL 1.1) the context still works but the 3.3 functions are NULL
+    if (gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress) < GLAD_MAKE_VERSION(3, 3)) return 0;
 #ifdef PC_ENHANCEMENTS
     // GL's default, but MSAA can be turned on live (render target)
     glEnable(GL_MULTISAMPLE);
@@ -42,6 +43,10 @@ int pc_gpu_init(void) {
 void pc_gpu_device_info(char* out, int size) {
     if (!pc_gpu_is_gl()) {
         snprintf(out, (size_t)size, "SDL_GPU vulkan");
+        return;
+    }
+    if (glGetString == NULL) { // gladLoadGL found nothing
+        snprintf(out, (size_t)size, "?");
         return;
     }
     const char* vendor = (const char*)glGetString(GL_VENDOR);

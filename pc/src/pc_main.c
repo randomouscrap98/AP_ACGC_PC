@@ -67,6 +67,24 @@ int           g_pc_widescreen_stretch = 0;
 unsigned int pc_image_base = 0;
 unsigned int pc_image_end  = 0;
 
+static int s_vulkan_failed; // Vulkan was chosen but couldn't start (OpenGL is the fallback)
+
+// Startup can't go on: message box (stderr goes nowhere without --verbose)
+static void pc_platform_gpu_failed(const char* what, const char* detail) {
+    char msg[768];
+
+    if (!pc_gpu_is_gl() || s_vulkan_failed) {
+        snprintf(msg, sizeof(msg), "%s:\n%s\n\nThe game couldn't start Vulkan or OpenGL 3.3. Update your graphics driver.",
+                 what, detail);
+    } else {
+        snprintf(msg, sizeof(msg),
+                 "%s:\n%s\n\nThe game needs OpenGL 3.3. Update your graphics driver, or try the Vulkan renderer: "
+                 "edit settings.ini next to the game and set\n\nrenderer = 1",
+                 what, detail);
+    }
+    pc_fatal_error("Animal Crossing - Graphics error", msg);
+}
+
 // Hidden until placed. High pixel density: full pixels on Wayland (Windows / X11 have them anyway)
 static void pc_platform_create_window(void) {
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
@@ -74,9 +92,7 @@ static void pc_platform_create_window(void) {
     if (pc_gpu_is_gl()) flags |= SDL_WINDOW_OPENGL;
     g_pc_window = SDL_CreateWindow(PC_WINDOW_TITLE, g_pc_settings.window_width, g_pc_settings.window_height, flags);
     if (!g_pc_window) {
-        fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
-        SDL_Quit();
-        exit(1);
+        pc_platform_gpu_failed("Couldn't create the window", SDL_GetError());
     }
     SDL_SetWindowPosition(g_pc_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     if (g_pc_settings.fullscreen) pc_platform_set_fullscreen(g_pc_settings.fullscreen);
@@ -95,8 +111,7 @@ void pc_platform_init(void) {
     SDL_SetHint(SDL_HINT_APP_ID, "AnimalCrossingAP");
 #endif
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_AUDIO)) {
-        fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
-        exit(1);
+        pc_fatal_error("Animal Crossing - Startup error", SDL_GetError());
     }
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -111,6 +126,7 @@ void pc_platform_init(void) {
     // Vulkan unavailable: OpenGL in a new window (an SDL_GPU window can't get a GL context)
     if (!pc_gpu_is_gl() && !pc_gpu_sdl_init(g_pc_window)) {
         fprintf(stderr, "[GPU] Vulkan renderer unavailable, using OpenGL\n");
+        s_vulkan_failed = 1;
         SDL_DestroyWindow(g_pc_window);
         g_pc_renderer = PC_RENDERER_OPENGL;
         pc_platform_create_window();
@@ -124,18 +140,13 @@ void pc_platform_init(void) {
 
     g_pc_gl_context = SDL_GL_CreateContext(g_pc_window);
     if (!g_pc_gl_context) {
-        fprintf(stderr, "SDL_GL_CreateContext failed: %s\n", SDL_GetError());
-        SDL_DestroyWindow(g_pc_window);
-        SDL_Quit();
-        exit(1);
+        pc_platform_gpu_failed("Couldn't create an OpenGL 3.3 context", SDL_GetError());
     }
 
     if (!pc_gpu_init()) {
-        fprintf(stderr, "gladLoadGL failed\n");
-        SDL_GL_DestroyContext(g_pc_gl_context);
-        SDL_DestroyWindow(g_pc_window);
-        SDL_Quit();
-        exit(1);
+        char found[256];
+        pc_gpu_device_info(found, sizeof(found));
+        pc_platform_gpu_failed("OpenGL 3.3 isn't available, found", found);
     }
 
     SDL_GL_SetSwapInterval(g_pc_settings.vsync);
