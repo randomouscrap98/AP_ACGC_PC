@@ -540,6 +540,15 @@ void pc_ap_museumsanity_fish_habitat(const pc_ap_museumsanity* m, aSOG_gyoei_spa
   }
 }
 
+void pc_ap_museumsanity_fish_round(aSOG_gyoei_spawn_info_weight_f_c* rows, int n) {
+  for(int i = 0; i < n; i++) {
+    if(rows[i].spawn_weight > 0.0f) {
+      f32 w = (f32)(int)(rows[i].spawn_weight * PC_AP_FISH_WEIGHT_SCALE + 0.5f);
+      rows[i].spawn_weight = w < 1.0f ? 1.0f : w;
+    }
+  }
+}
+
 int pc_ap_museumsanity_fish_pass_open(const pc_ap_museumsanity* m, int pass) {
   if(m->fish_availability != AP_FISH_AVAIL_PROGRESSIVE || pass < 0) {
     return 1;

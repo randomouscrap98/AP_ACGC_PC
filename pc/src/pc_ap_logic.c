@@ -1567,6 +1567,7 @@ void pc_ap_fish_spawns(aSOG_gyoei_spawn_info_weight_f_c* rows, int n, u32 block_
     }
     pc_ap_museumsanity_fish_spawns(&g_ap.museum, wanted, rows, n);
     pc_ap_museumsanity_fish_habitat(&g_ap.museum, rows, n, block_type);
+    pc_ap_museumsanity_fish_round(rows, n);
   }
   // Fish passes: town only (island rows are tagged sea too, the island isn't part of it)
   if(!mFI_CheckInIsland()) {

@@ -77,6 +77,7 @@ typedef struct {
 // Normalized/dynamic fish: share of the spawns that lake-only fish get in the lake acre,
 // waterfall-only fish in the waterfall acre
 #define PC_AP_FISH_UNIQUE_SHARE 0.75f
+#define PC_AP_FISH_WEIGHT_SCALE 100.0f // pc_ap_museumsanity_fish_round: odds kept to 1/100 of a row's weight
 // Normalized/dynamic bugs: a spawn list totals at least this (of 100; vanilla winter is 17)
 #define PC_AP_BUG_MIN_TOTAL 50.0f
 
@@ -173,6 +174,10 @@ void pc_ap_museumsanity_fish_spawns(const pc_ap_museumsanity* m, const u8 wanted
 // unique rows and non-species rows are untouched; total kept.
 void pc_ap_museumsanity_fish_habitat(const pc_ap_museumsanity* m, aSOG_gyoei_spawn_info_weight_f_c* rows, int n,
                                      u32 block_type);
+// Normalized/dynamic odds, last: every row's weight x PC_AP_FISH_WEIGHT_SCALE, rounded to a whole number (at least
+// 1 if it was above 0). The game's pick (aSOG_gyoei_get_idx_sub) skips the last row when its float subtraction
+// rounds below 0; whole numbers keep it exact (research/fish_last_row_rounding.md).
+void pc_ap_museumsanity_fish_round(aSOG_gyoei_spawn_info_weight_f_c* rows, int n);
 // Fish Availability: nonzero if fish pass p is open (always unless progressive; p < 0 = nothing needed)
 int pc_ap_museumsanity_fish_pass_open(const pc_ap_museumsanity* m, int pass);
 // Fish Availability: nonzero if a spawn row (aGYO_TYPE_*, aSOG_SPAWN_AREA_*) may spawn: not progressive, not a
