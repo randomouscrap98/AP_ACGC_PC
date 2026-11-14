@@ -115,6 +115,9 @@ void pc_outdoor_ftr_update(struct game_s* game);
 // bg_item draw (after its own items): the models near the player, as the last update left them
 void pc_outdoor_ftr_draw(struct game_s* game);
 
+// play_cleanup, before the arena goes: forget the pieces' FTR_ACTORs (no dt: their allocations go with the arena)
+void pc_outdoor_ftr_scene_end(void);
+
 // Pure helpers (unit tests)
 // One frame (dt in 60 fps frames) of the appear animation; sets a->scale; returns the dust puffs due (0, 1 = the
 // first pair, 2 = the second). The animation ends (state NONE, scale 1) once the wobble is small

@@ -1,6 +1,7 @@
 #include "m_play.h"
 #ifdef TARGET_PC
 #include "pc_ap_logic.h"
+#include "pc_outdoor_ftr.h"
 #endif
 
 #include "evw_anime.h"
@@ -397,6 +398,9 @@ extern void play_cleanup(GAME* game) {
         my_malloc_current = NULL;
     }
 
+#ifdef TARGET_PC
+    pc_outdoor_ftr_scene_end(); // its furniture state points into this arena
+#endif
     zelda_CleanupArena();
 }
 

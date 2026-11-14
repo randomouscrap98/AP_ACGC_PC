@@ -1203,6 +1203,13 @@ static void pc_outdoor_ftr_sit_check(GAME* game, PLAYER_ACTOR* player, f32 dt) {
   }
 }
 
+// The unique-code pieces (house models) zelda_malloc their palette in ct: stale once the arena is re-made
+void pc_outdoor_ftr_scene_end(void) {
+  for(int i = 0; i < PC_OUTDOOR_FTR_RIGS; i++) {
+    s_rigs[i].used = FALSE;
+  }
+}
+
 void pc_outdoor_ftr_update(GAME* game) {
   PLAYER_ACTOR* player = pc_outdoor_ftr_player(game);
   f32 dt;
