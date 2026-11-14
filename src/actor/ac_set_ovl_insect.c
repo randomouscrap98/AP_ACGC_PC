@@ -972,13 +972,28 @@ static aSOI_term_list_c l_insect_island[aSOI_TERM_NUM] = {
   {  8, l_insect_isl_t6 },
 };
 
+/* Units an insect may spawn on: vanilla never the outer 2 rows/columns of the acre */
+#ifdef TARGET_PC
+// Easier Critter Catch can open them: per-acre mask from pc_ap_qol_insect_unit_mask (aSOI_ins_decide_insect)
+static u16 aSOI_ut_mask[UT_Z_NUM];
+#define aSOI_UT_ALLOWED(x, z) ((aSOI_ut_mask[(z)] >> (x)) & 1)
+#define aSOI_UT_FIRST 0
+#define aSOI_UT_END_X UT_X_NUM
+#define aSOI_UT_END_Z UT_Z_NUM
+#else
+#define aSOI_UT_ALLOWED(x, z) ((z) >= 2 && (z) < UT_Z_NUM - 2 && (x) >= 2 && (x) < UT_X_NUM - 2)
+#define aSOI_UT_FIRST 2
+#define aSOI_UT_END_X (UT_X_NUM - 2)
+#define aSOI_UT_END_Z (UT_Z_NUM - 2)
+#endif
+
 typedef struct insect_set_data_s {
   u8 type;
   u8 ut_x;
   u8 ut_z;
   u8 should_spawn;
   int extra_data;
-  u16 live_ut[UT_Z_NUM - 4];
+  u16 live_ut[aSOI_UT_END_Z - aSOI_UT_FIRST];
   int num_live_ut;
 } aSOI_set_data_c;
 
@@ -988,12 +1003,12 @@ static void aSOI_ins_clear_set_data(aSOI_set_data_c* set_data) {
   set_data->ut_z = -1;
   set_data->should_spawn = FALSE;
   set_data->extra_data = -1;
-  bzero(set_data->live_ut, (UT_Z_NUM - 4) * sizeof(u16));
+  bzero(set_data->live_ut, (aSOI_UT_END_Z - aSOI_UT_FIRST) * sizeof(u16));
   set_data->num_live_ut = 0;
 }
 
 static void aSOI_set_live_ut(aSOI_set_data_c* set_data, int ut_x, int ut_z, int set) {
-  set_data->live_ut[ut_z - 2] = (u16)(set_data->live_ut[ut_z - 2] & ~(1 << ut_x)) | (set << ut_x);
+  set_data->live_ut[ut_z - aSOI_UT_FIRST] = (u16)(set_data->live_ut[ut_z - aSOI_UT_FIRST] & ~(1 << ut_x)) | (set << ut_x);
 
   if (set == TRUE) {
     set_data->num_live_ut++;
@@ -1010,7 +1025,7 @@ static void aSOI_set_live_ut(aSOI_set_data_c* set_data, int ut_x, int ut_z, int 
 
 static int aSOI_get_live_ut_sub(aSOI_set_data_c* set_data, int ut_x, int ut_z) {
   int res = FALSE;
-  if ((set_data->live_ut[ut_z - 2] >> ut_x) & 1) {
+  if ((set_data->live_ut[ut_z - aSOI_UT_FIRST] >> ut_x) & 1) {
     res = TRUE;
   }
   return res;
@@ -1026,8 +1041,8 @@ static int aSOI_get_live_ut(aSOI_set_data_c* set_data, int* ut_x_out, int* ut_z_
     
   selected = (int)(fqrand() * (f32)set_data->num_live_ut);
 
-  for (z = 2; z < UT_Z_NUM - 2; z++) {
-    for (x = 2; x < UT_X_NUM - 2; x++) {
+  for (z = aSOI_UT_FIRST; z < aSOI_UT_END_Z; z++) {
+    for (x = aSOI_UT_FIRST; x < aSOI_UT_END_X; x++) {
       if (aSOI_get_live_ut_sub(set_data, x, z) == TRUE) {
         if (selected <= 0) {
           *ut_x_out = x;
@@ -1423,8 +1438,7 @@ static int aSOI_ins_field_fg_check_get(mActor_name_t* fg_items, u16* fg_deposit,
     for (ut_z = 0; ut_z < UT_Z_NUM; ut_z++) {
       int ut_x;
       for (ut_x = 0; ut_x < UT_X_NUM; ut_x++) {
-        if (ut_z >= 2 && ut_z < UT_Z_NUM - 2 && 
-            ut_x >= 2 && ut_x < UT_X_NUM - 2 &&
+        if (aSOI_UT_ALLOWED(ut_x, ut_z) &&
             min_item_no <= *fg_items && *fg_items <= max_item_no &&
             mFI_GetLineDeposit(fg_deposit, ut_x) == FALSE
         ) {
@@ -1501,7 +1515,7 @@ static int aSOI_ins_field_attr_check_get(mCoBG_Collision_u* collision_data, int 
       int ut_x;
 
       for (ut_x = 0; ut_x < UT_X_NUM; ut_x++) {
-        if (ut_z >= 2 && ut_z < UT_Z_NUM - 2 && ut_x >= 2 && ut_x < UT_X_NUM - 2) {
+        if (aSOI_UT_ALLOWED(ut_x, ut_z)) {
           res = aSOI_ins_field_attr_check_get_sub(collision_data, spawn_area);
         }
 
@@ -1554,7 +1568,7 @@ static int aSOI_ins_field_tree_check_get(mActor_name_t* fg_item) {
     for (ut_z = 0; ut_z < UT_Z_NUM; ut_z++) {
       int ut_x;
       for (ut_x = 0; ut_x < UT_X_NUM; ut_x++) {
-        if (ut_z >= 2 && ut_z < UT_Z_NUM - 2 && ut_x >= 2 && ut_x < UT_X_NUM - 2 && aSOI_tree_check(*fg_item)) {
+        if (aSOI_UT_ALLOWED(ut_x, ut_z) && aSOI_tree_check(*fg_item)) {
           valid = TRUE;
           break;
         }
@@ -1595,7 +1609,7 @@ static int aSOI_ins_field_attr_and_fg_check_get(mCoBG_Collision_u* collision_dat
     for (ut_z = 0; ut_z < UT_Z_NUM; ut_z++) {
       int ut_x;
       for (ut_x = 0; ut_x < UT_X_NUM; ut_x++) {
-        if (ut_z >= 2 && ut_z < UT_Z_NUM - 2 && ut_x >= 2 && ut_x < UT_X_NUM - 2) {
+        if (aSOI_UT_ALLOWED(ut_x, ut_z)) {
           res = aSOI_ins_field_attr_and_fg_check_get_sub(collision_data, fg_item, spawn_area);
         }
 
@@ -1950,12 +1964,12 @@ static void aSOI_make_live_ut(aSOI_set_data_c* set_data, int spawn_area, mActor_
 
   int ut_z;
   int ut_x;
-  mActor_name_t* fg_item_p = fg_item + 2 * UT_X_NUM;
-  mCoBG_Collision_u* collision_data_p = collision_data + 2 * UT_X_NUM;
+  mActor_name_t* fg_item_p = fg_item + aSOI_UT_FIRST * UT_X_NUM;
+  mCoBG_Collision_u* collision_data_p = collision_data + aSOI_UT_FIRST * UT_X_NUM;
 
-  for (ut_z = 2; ut_z < UT_Z_NUM - 2; ut_z++) {
+  for (ut_z = aSOI_UT_FIRST; ut_z < aSOI_UT_END_Z; ut_z++) {
     for (ut_x = 0; ut_x < UT_X_NUM; ut_x++) {
-      if (ut_z >= 2 && ut_z < UT_Z_NUM - 2 && ut_x >= 2 && ut_x < UT_X_NUM - 2) {
+      if (aSOI_UT_ALLOWED(ut_x, ut_z)) {
         switch (chk_live_area_data->spawn_category) {
           case aSOI_SPAWN_CATEGORY_FG_ITEM_RANGE:
           {
@@ -2018,6 +2032,22 @@ static void aSOI_ins_decide_insect(aSOI_set_data_c* set_data, aSetMgr_player_pos
     aSOI_chk_live_area_data[aSOI_SPAWN_AREA_ON_FLOWER].max_item_no = flower_max;
     aSOI_chk_live_area_data[aSOI_SPAWN_AREA_RAINING_ON_FLOWER].max_item_no = flower_max;
     aSOI_chk_live_area_data[aSOI_SPAWN_AREA_FLYING_NEAR_FLOWERS_OR_AROUND].max_item_no = flower_max;
+  }
+  {
+    // Easier Critter Catch: outer units away from the player and the side they came in from. The player's
+    // unit relative to this acre (+16 / -16 rounds down for the acre they came from too)
+    PLAYER_ACTOR* player = GET_PLAYER_ACTOR_NOW();
+    int player_ut_x = UT_X_NUM / 2;
+    int player_ut_z = UT_Z_NUM / 2;
+    f32 block_x;
+    f32 block_z;
+    if (player != NULL && mFI_BkNum2WposXZ(&block_x, &block_z, player_pos->next_bx, player_pos->next_bz)) {
+      xyz_t ppos = player->actor_class.world.position;
+      player_ut_x = (int)((ppos.x - block_x) / mFI_UT_WORLDSIZE_X_F + UT_X_NUM) - UT_X_NUM;
+      player_ut_z = (int)((ppos.z - block_z) / mFI_UT_WORLDSIZE_Z_F + UT_Z_NUM) - UT_Z_NUM;
+    }
+    pc_ap_qol_insect_unit_mask(player_pos->next_bx, player_pos->next_bz, player_pos->now_bx, player_pos->now_bz,
+                               player_ut_x, player_ut_z, aSOI_ut_mask);
   }
 #endif
 

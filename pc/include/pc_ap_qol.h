@@ -96,6 +96,15 @@ float pc_ap_qol_bee_speed_scale(void);
 // Nonzero when insects that spawn on flowers (ladybugs, mantises, snails, butterflies landing) also use
 // tulips (Easier Critter Catch). Vanilla only pansies and cosmos; hooked in aSOI_ins_decide_insect.
 int pc_ap_qol_flower_bugs_on_tulips(void);
+// Units of acre (bx, bz) where an insect may spawn, one bit per unit x in mask[z] (16 x 16). Vanilla: units
+// 2..13 on both axes (the outer 2 rows and columns never). With Easier Critter Catch the outer rows of a side
+// open too when the acre across it is a town acre (block x 1..5, z 1..6), the side isn't the one the player
+// came in from (acre from_bx, from_bz; the same acre = none), and only units at least
+// PC_AP_QOL_EDGE_BUG_DIST units from the player's unit (player_ut_x/z, relative to this acre, may be
+// outside 0..15). Hooked in aSOI_ins_decide_insect.
+#define PC_AP_QOL_EDGE_BUG_DIST 4
+void pc_ap_qol_insect_unit_mask(int bx, int bz, int from_bx, int from_bz, int player_ut_x, int player_ut_z,
+                                unsigned short mask[16]);
 
 // Nonzero when hidden bugs give hints: a dirt clod over a buried mole cricket (aIKR_hide) or in
 // front of a pill bug's rock (aIDG_hide), a small wiggle of the tree a bagworm or spider hides in

@@ -131,6 +131,48 @@ int pc_ap_qol_flower_bugs_on_tulips(void) {
   return pc_ap_qol_easier_critter_catch();
 }
 
+// A town acre the player can walk around in (not the border, railroad, sea or island)
+static int pc_ap_qol_town_acre(int bx, int bz) {
+  return bx >= 1 && bx <= 5 && bz >= 1 && bz <= 6;
+}
+
+void pc_ap_qol_insect_unit_mask(int bx, int bz, int from_bx, int from_bz, int player_ut_x, int player_ut_z,
+                                unsigned short mask[16]) {
+  // Which sides may use their outer 2 rows
+  int open_w = 0;
+  int open_e = 0;
+  int open_n = 0;
+  int open_s = 0;
+  if(pc_ap_qol_easier_critter_catch()) {
+    open_w = pc_ap_qol_town_acre(bx - 1, bz) && from_bx != bx - 1;
+    open_e = pc_ap_qol_town_acre(bx + 1, bz) && from_bx != bx + 1;
+    open_n = pc_ap_qol_town_acre(bx, bz - 1) && from_bz != bz - 1;
+    open_s = pc_ap_qol_town_acre(bx, bz + 1) && from_bz != bz + 1;
+  }
+  for(int z = 0; z < 16; z++) {
+    mask[z] = 0;
+    for(int x = 0; x < 16; x++) {
+      int ok;
+      if(x >= 2 && x <= 13 && z >= 2 && z <= 13) {
+        ok = 1; // vanilla area
+      } else {
+        // Every outer side this unit is on must be open (a corner is on two)
+        ok = 1;
+        if(x < 2 && !open_w) ok = 0;
+        if(x > 13 && !open_e) ok = 0;
+        if(z < 2 && !open_n) ok = 0;
+        if(z > 13 && !open_s) ok = 0;
+        int dx = x - player_ut_x;
+        int dz = z - player_ut_z;
+        if(dx * dx + dz * dz < PC_AP_QOL_EDGE_BUG_DIST * PC_AP_QOL_EDGE_BUG_DIST) ok = 0;
+      }
+      if(ok) {
+        mask[z] |= (unsigned short)(1 << x);
+      }
+    }
+  }
+}
+
 int pc_ap_qol_shops_always_open(void) {
   const ap_slotdata* sd = ap_getslotdata();
   return sd->valid && sd->shops_always_open;
