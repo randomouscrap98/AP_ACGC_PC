@@ -89,7 +89,7 @@ static const Item tab_gameplay_items[] = {
     { "Map divination",   ITEM_MAP_DIVINATION,   0, "Map shows dig spots and who's out or home" },
     { "No cockroaches",   ITEM_NO_COCKROACHES,   0, "Removes cockroaches when you start playing" },
     { "No fishing trash", ITEM_NO_FISHING_TRASH, 0, "No cans, boots or tires when fishing" },
-    { "Easier critters",  ITEM_EASIER_CRITTER_CATCH, 0, "Fish bite longer, bugs flee, bees chase slower" },
+    { "Easier critters",  ITEM_EASIER_CRITTER_CATCH, 0, "Easier fish, calmer bugs, more bug spots" },
     { "Hidden bug hints", ITEM_HIDDEN_BUG_HINTS, 0, "Dirt pops up, trees wiggle near hidden bugs" },
     { "Hidden item hints", ITEM_HIDDEN_ITEM_HINTS, 0, "Sparkles over the money rock and item trees" },
     { "Short shop talk",  ITEM_SHORT_SHOP_TALK,  0, "Nook keeps it short when you buy" },

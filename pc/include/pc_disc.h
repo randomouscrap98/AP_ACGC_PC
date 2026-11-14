@@ -9,6 +9,9 @@
  * Returns 1 on success, 0 if no disc image found. */
 int pc_disc_init(void);
 
+// Why the disc images found were rejected, one "<path>: <reason>" line each; "" if none was found or one opened.
+const char* pc_disc_error(void);
+
 /* Check if a disc image is open. */
 int pc_disc_is_open(void);
 

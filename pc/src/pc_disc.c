@@ -164,7 +164,7 @@ static u8* yaz0_decode(const u8* src, u32 src_size, u32* out_size) {
 
 static int gcm_verify(DiscFile* df) {
     u8 buf[4];
-    disc_read(df, 0x1C, buf, 4);
+    if (!disc_read(df, 0x1C, buf, 4)) return 0;
     return be32(buf) == GC_MAGIC;
 }
 
@@ -283,8 +283,59 @@ static int str_ends_ci(const char* s, const char* suffix) {
     return 1;
 }
 
-static int find_disc_image(char* out_path, int out_sz) {
+// Why each disc image found was rejected, one "<path>: <reason>" line each (shown in the "Missing ROM" box).
+static char g_disc_error[1024];
+
+static void disc_note_error(const char* path, const char* why) {
+    size_t len = strlen(g_disc_error);
+    if (len + 1 >= sizeof g_disc_error) return; // full: later files are dropped
+    snprintf(g_disc_error + len, sizeof g_disc_error - len, "%s%s: %s", len ? "\n" : "", path, why);
+}
+
+static int is_disc_name(const char* name) {
+    return str_ends_ci(name, ".ciso") || str_ends_ci(name, ".iso") || str_ends_ci(name, ".gcm");
+}
+
+// Formats Dolphin users often have that we can't read.
+static const char* unsupported_format(const char* name) {
+    if (str_ends_ci(name, ".rvz") || str_ends_ci(name, ".wia") || str_ends_ci(name, ".gcz"))
+        return "compressed Dolphin format, not supported. In Dolphin, right-click the game > Convert File > ISO";
+    if (str_ends_ci(name, ".nkit.iso"))
+        return "NKit image, not supported. Restore it to a full ISO with NKit first";
+    return NULL;
+}
+
+// Opens one candidate into g_disc. Returns 1 if it's a US Animal Crossing disc, else notes why and returns 0.
+static int disc_try(const char* path) {
+    u8 id[7];
+
+    if (!disc_open(&g_disc, path)) {
+        disc_note_error(path, "could not open the file");
+        return 0;
+    }
+    if (!gcm_verify(&g_disc)) {
+        disc_note_error(path, "not a GameCube disc image");
+        disc_close(&g_disc);
+        return 0;
+    }
+    memset(id, 0, sizeof id);
+    disc_read(&g_disc, 0, id, 6);
+    if (memcmp(id, "GAFE01", 6) != 0) {
+        char why[96];
+        snprintf(why, sizeof why, "game id %s, need GAFE01 (Animal Crossing, USA)", (const char*)id);
+        disc_note_error(path, why);
+        disc_close(&g_disc);
+        return 0;
+    }
+    if (g_pc_verbose) printf("[PC] Disc image: %s (%s, %s)\n",
+        path, g_disc.is_ciso ? "CISO" : "ISO/GCM", (const char*)id);
+    return 1;
+}
+
+// Tries every .ciso/.iso/.gcm in ".", "orig", "rom" until one is a US Animal Crossing disc.
+static int find_disc_image(void) {
     static const char* dirs[] = { ".", "orig", "rom", NULL };
+    char path[512];
     int d;
 
     for (d = 0; dirs[d]; d++) {
@@ -292,16 +343,21 @@ static int find_disc_image(char* out_path, int out_sz) {
         struct dirent* ent;
         if (!dp) continue;
         while ((ent = readdir(dp)) != NULL) {
-            if (str_ends_ci(ent->d_name, ".ciso") ||
-                str_ends_ci(ent->d_name, ".iso")  ||
-                str_ends_ci(ent->d_name, ".gcm")) {
-                if (strcmp(dirs[d], ".") == 0)
-                    snprintf(out_path, out_sz, "%s", ent->d_name);
-                else
-                    snprintf(out_path, out_sz, "%s/%s", dirs[d], ent->d_name);
+            const char* bad = unsupported_format(ent->d_name);
+            if (!bad && !is_disc_name(ent->d_name)) continue;
+            if (strcmp(dirs[d], ".") == 0)
+                snprintf(path, sizeof path, "%s", ent->d_name);
+            else
+                snprintf(path, sizeof path, "%s/%s", dirs[d], ent->d_name);
+            if (bad) {
+                disc_note_error(path, bad);
+                continue;
+            }
+            if (disc_try(path)) {
                 closedir(dp);
                 return 1;
             }
+            if (g_pc_verbose) printf("[PC] Skipped %s\n", path); // reason is in the error box text
         }
         closedir(dp);
     }
@@ -311,25 +367,12 @@ static int find_disc_image(char* out_path, int out_sz) {
 /* ---- public API ---- */
 
 int pc_disc_init(void) {
-    char path[512];
-
     if (g_disc_open) return 1;
-    if (!find_disc_image(path, sizeof(path))) return 0;
-    if (!disc_open(&g_disc, path)) return 0;
-
-    if (!gcm_verify(&g_disc)) {
-        if (g_pc_verbose) printf("[PC] %s: not a valid GC disc image\n", path);
-        disc_close(&g_disc);
+    g_disc_error[0] = '\0';
+    if (!find_disc_image()) {
         return 0;
     }
-
-    {
-        u8 id[7];
-        disc_read(&g_disc, 0, id, 6);
-        id[6] = '\0';
-        if (g_pc_verbose) printf("[PC] Disc image: %s (%s, %s)\n",
-            path, g_disc.is_ciso ? "CISO" : "ISO/GCM", id);
-    }
+    g_disc_error[0] = '\0';
 
     /* cache DOL info */
     g_dol_offset = gcm_dol_offset_read(&g_disc);
@@ -340,6 +383,10 @@ int pc_disc_init(void) {
 
     g_disc_open = 1;
     return 1;
+}
+
+const char* pc_disc_error(void) {
+    return g_disc_error;
 }
 
 int pc_disc_is_open(void) {
