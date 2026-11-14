@@ -1,7 +1,9 @@
 // The AP text client (apclient's ap_ui.h) in the pause menu: decides when it shows, feeds it SDL input and
 // starts SDL text input while its text line wants it. Everything else (window, log, sending) is in the DLL.
 #include "pc_ap_ui.h"
+#include "pc_ap_ui_render.h"
 #include "pc_gpu.h"
+#include "pc_gx_internal.h"
 #include "ap_archipelago.h"
 #include "ap_ui.h"
 
@@ -11,15 +13,14 @@
 #include "pc_settings_menu.h"
 
 static int s_started = 0;    // ap_ui_init done
-static int s_failed = 0;     // ap_ui_init failed (no GL 3.3?): never tried again
+static int s_failed = 0;     // ap_ui_init failed: never tried again
 static int s_active = 0;     // input went to it last time we checked
 static int s_text_input = 0; // we started SDL text input (so we stop it)
 static Uint64 s_last_ticks = 0;
 static char* s_clipboard = NULL;
 
-// Not on the Vulkan renderer yet: ImGui draws with GL
 static int pc_ap_ui_shown(void) {
-    return pc_gpu_is_gl() && g_pc_settings.ap_text_client && g_pc_paused && !pc_settings_menu_capture_active() &&
+    return g_pc_settings.ap_text_client && g_pc_paused && !pc_settings_menu_capture_active() &&
            ap_getconnectstate()->state != AP_CSTATE_OFFLINE;
 }
 
@@ -41,11 +42,6 @@ static void pc_ap_ui_text_input(int on) {
         SDL_StopTextInput(g_pc_window);
         s_text_input = 0;
     }
-}
-
-// SDL's GL lookup in the DLL's function type
-static void* pc_ap_ui_gl_proc(const char* name) {
-    return (void*)SDL_GL_GetProcAddress(name);
 }
 
 // Input stops going to it: nothing stays held, the text line lets go
@@ -135,10 +131,9 @@ void pc_ap_ui_draw(void) {
     }
     if (!s_started) {
         if (s_failed) return;
-        // GL functions through SDL, the same lookup the game's glad uses
-        if (!ap_ui_init(pc_ap_ui_gl_proc)) {
+        if (!ap_ui_init()) {
             s_failed = 1;
-            fprintf(stderr, "[AP UI] text client not started (needs OpenGL 3.3)\n");
+            fprintf(stderr, "[AP UI] text client not started\n");
             return;
         }
         ap_ui_set_clipboard(pc_ap_ui_clip_get, pc_ap_ui_clip_set);
@@ -160,14 +155,27 @@ void pc_ap_ui_draw(void) {
     float dt = (float)(now - s_last_ticks) / (float)SDL_GetPerformanceFrequency();
     s_last_ticks = now;
     // Into the window: the render target's present leaves its offscreen buffer bound for late draws
-    PCGpuTarget previous = pc_gpu_set_draw_target(0);
-    ap_ui_frame(g_pc_window_w, g_pc_window_h, dt);
-    pc_gpu_set_draw_target(previous);
+    const ap_ui_draw_data* dd = ap_ui_frame(g_pc_window_w, g_pc_window_h, dt);
+    if (!pc_gpu_is_gl()) {
+        pc_ap_ui_sdl_queue(dd); // drawn by pc_gpu_sdl_present after the frame
+    } else if (dd != NULL) {
+        PCGpuTarget previous = pc_gpu_set_draw_target(0);
+        pc_ap_ui_gl_render(dd);
+        pc_gx_restore_after_nes(); // GX state re-applied on the game's next draw
+        pc_gpu_set_draw_target(previous);
+    }
     pc_ap_ui_text_input(ap_ui_wants_text());
 }
 
 void pc_ap_ui_shutdown(void) {
-    if (s_started) ap_ui_shutdown();
+    if (s_started) {
+        ap_ui_shutdown();
+        if (pc_gpu_is_gl()) {
+            pc_ap_ui_gl_shutdown();
+        } else {
+            pc_ap_ui_sdl_shutdown();
+        }
+    }
     s_started = 0;
     if (s_clipboard != NULL) SDL_free(s_clipboard);
     s_clipboard = NULL;

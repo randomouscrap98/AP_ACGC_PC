@@ -9,9 +9,9 @@
 
 // At the top of the event loop: 1 = the event was the text client's (don't handle it)
 int pc_ap_ui_handle_event(const SDL_Event* event);
-// Last thing before the swap (window framebuffer bound)
+// GL: last thing before the swap (draws into the window). Vulkan: before pc_gpu_sdl_present (which draws it)
 void pc_ap_ui_draw(void);
-// Before the GL context goes away
+// Before the GL context / GPU device goes away
 void pc_ap_ui_shutdown(void);
 
 #endif

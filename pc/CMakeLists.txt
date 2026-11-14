@@ -268,6 +268,8 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_menu_util.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_overlay.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_ui.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_ui_gl.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_ui_sdl.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_spantext.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_loansanity.c
@@ -503,10 +505,10 @@ add_custom_command(
     COMMENT "Copying shader files to bin/shaders/"
 )
 # Vulkan renderer (pc_gpu_sdl.c): the uber shader (no PC_SPECIALIZED) as SPIR-V; glslangValidator -V defines VULKAN.
-# copy.*: Vulkan-only texture copy (EFB copies)
+# copy.*: Vulkan-only texture copy (EFB copies); ap_ui.*: the AP text client (pc_ap_ui_sdl.c)
 find_program(GLSLANG_VALIDATOR glslangValidator REQUIRED)
 set(AC_PC_SPIRV "")
-foreach(shader default.vert default.frag copy.vert copy.frag)
+foreach(shader default.vert default.frag copy.vert copy.frag ap_ui.vert ap_ui.frag)
     set(spv "${CMAKE_BINARY_DIR}/bin/shaders/${shader}.spv")
     add_custom_command(
         OUTPUT "${spv}"

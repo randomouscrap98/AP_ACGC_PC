@@ -302,6 +302,8 @@ extern int g_pc_gx_frame_begun;
 void pc_gx_clear_black(void);
 void pc_gx_texture_bind_cache_invalidate(void);
 void pc_gx_viewport_state_invalidate(void);
+// After drawing with GL behind GX's back (fixNES, the AP text client): rebind the game's GL objects, mark all GX state dirty
+void pc_gx_restore_after_nes(void);
 
 // Everything a Vulkan / SDL_GPU pipeline bakes in, for one draw, in GX terms (backend-neutral). GL sets its
 // state from it; a pipeline-based backend would look up its pipeline cache with it. Viewport, scissor and
@@ -364,6 +366,10 @@ int pc_gpu_sdl_texture_get(PCGpuTexture tex, SDL_GPUTexture** out_tex, SDL_GPUSa
 PCGpuTexture pc_gpu_sdl_texture_create_target(int w, int h);
 void pc_gpu_sdl_flush_textures(SDL_GPUCommandBuffer* cmd);
 void pc_gpu_sdl_release_textures(void);
+// The SDL_GPU device (NULL before pc_gpu_sdl_init / after shutdown)
+SDL_GPUDevice* pc_gpu_sdl_device(void);
+// SPIR-V shader from a file next to the exe (shaders/...spv), NULL + a log line if it fails
+SDL_GPUShader* pc_gx_sdl_load_shader(const char* path, SDL_GPUShaderStage stage, int samplers, int blocks);
 
 /* TEV shader */
 PCGXShaderVariant* pc_gx_tev_get_variant(void);

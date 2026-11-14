@@ -1,6 +1,6 @@
-// Archipelago text client window (ap_ui.h). Dear ImGui + its OpenGL 3 backend, with GL functions looked up
-// through the caller's loader. This file: setup, input, ap_ui.ini, the box and the window; it owns the parts'
-// state (ap_ui_log.h, ap_ui_cmdline.h, ap_ui_lists.h).
+// Archipelago text client window (ap_ui.h). Dear ImGui without a renderer backend: each frame's draw data and
+// texture requests go to the caller as plain C (ap_ui_draw_data). This file: setup, input, ap_ui.ini, the box and
+// the window, the draw data; it owns the parts' state (ap_ui_log.h, ap_ui_cmdline.h, ap_ui_lists.h).
 #include "ap_ui.h"
 #include "ap_archipelago.h"
 #include "ap_info.h"
@@ -16,8 +16,6 @@
 #include "ap_ui_font_symbols2.h"
 
 #include "imgui.h"
-#include "backends/imgui_impl_opengl3.h"
-#include "backends/imgui_impl_opengl3_loader.h" // imgl3wInit2
 
 #include "ini.h"
 
@@ -25,6 +23,7 @@
 #include <cctype>
 #include <cfloat>
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
 #include <fstream>
 #include <sstream>
@@ -39,7 +38,6 @@
 #define AP_UI_MARGIN 12.0f
 
 static bool g_ui_ready = false;
-static ap_ui_gl_proc_fn g_ui_gl_proc = NULL;
 static const char * (*g_ui_clip_get)(void) = NULL;
 static void (*g_ui_clip_set)(const char *) = NULL;
 
@@ -115,11 +113,96 @@ static void ui_save_changes(void) {
   g_ui_saved = text;
 }
 
-// ---- setup ----
+// ---- draw data (ap_ui.h) ----
 
-static GL3WglProc ui_gl_proc(const char * name) {
-  return (GL3WglProc)g_ui_gl_proc(name);
+// ap_ui_vertex is ImDrawVert, so the vertex arrays are handed out as they are
+static_assert(sizeof(ap_ui_vertex) == sizeof(ImDrawVert), "ap_ui_vertex size");
+static_assert(offsetof(ap_ui_vertex, u) == offsetof(ImDrawVert, uv), "ap_ui_vertex uv");
+static_assert(offsetof(ap_ui_vertex, rgba) == offsetof(ImDrawVert, col), "ap_ui_vertex col");
+static_assert(sizeof(ImDrawIdx) == sizeof(unsigned short), "16-bit indices");
+
+static ap_ui_draw_data g_ui_draw;
+static std::vector<ap_ui_tex_op> g_ui_tex_ops;
+static std::vector<ap_ui_list> g_ui_lists;
+static std::vector<ap_ui_cmd> g_ui_cmds;
+static int g_ui_next_tex = 1; // next texture id
+
+static void ui_tex_op(int op, int id, int x, int y, int w, int h, ImTextureData * tex) {
+  ap_ui_tex_op t;
+  t.op = op;
+  t.id = id;
+  t.x = x;
+  t.y = y;
+  t.w = w;
+  t.h = h;
+  t.pitch = tex->GetPitch();
+  t.pixels = op == AP_UI_TEX_DESTROY ? NULL : (const unsigned char *)tex->GetPixelsAt(x, y);
+  g_ui_tex_ops.push_back(t);
 }
+
+// ImGui's texture requests as tex ops, answered at once (the caller applies them before drawing). Like a backend's
+// UpdateTexture (imgui_impl_opengl3.cpp)
+static void ui_collect_textures(void) {
+  g_ui_tex_ops.clear();
+  for (ImTextureData * tex : ImGui::GetPlatformIO().Textures) {
+    if (tex->Status == ImTextureStatus_WantCreate) {
+      int id = g_ui_next_tex++;
+      ui_tex_op(AP_UI_TEX_CREATE, id, 0, 0, tex->Width, tex->Height, tex);
+      tex->SetTexID((ImTextureID)id);
+      tex->SetStatus(ImTextureStatus_OK);
+    } else if (tex->Status == ImTextureStatus_WantUpdates) {
+      for (const ImTextureRect& r : tex->Updates) { ui_tex_op(AP_UI_TEX_UPDATE, (int)tex->TexID, r.x, r.y, r.w, r.h, tex); }
+      tex->SetStatus(ImTextureStatus_OK);
+    } else if (tex->Status == ImTextureStatus_WantDestroy && tex->UnusedFrames > 0) {
+      ui_tex_op(AP_UI_TEX_DESTROY, (int)tex->TexID, 0, 0, 0, 0, tex);
+      tex->SetTexID(ImTextureID_Invalid);
+      tex->SetStatus(ImTextureStatus_Destroyed);
+    }
+  }
+}
+
+static const ap_ui_draw_data * ui_collect_draw_data(int width, int height) {
+  ui_collect_textures();
+  ImDrawData * dd = ImGui::GetDrawData();
+  // g_ui_cmds sized first: the lists point into it
+  size_t total = 0;
+  for (const ImDrawList * list : dd->CmdLists) { total += list->CmdBuffer.Size; }
+  g_ui_cmds.resize(total);
+  g_ui_lists.clear();
+  size_t n = 0;
+  for (const ImDrawList * list : dd->CmdLists) {
+    ap_ui_list l;
+    l.vtx = (const ap_ui_vertex *)list->VtxBuffer.Data;
+    l.vtx_count = list->VtxBuffer.Size;
+    l.idx = list->IdxBuffer.Data;
+    l.idx_count = list->IdxBuffer.Size;
+    l.cmds = g_ui_cmds.data() + n;
+    l.cmd_count = 0;
+    for (const ImDrawCmd& c : list->CmdBuffer) {
+      if (c.UserCallback != NULL || c.ElemCount == 0) { continue; } // ap_ui adds no callbacks
+      ap_ui_cmd& out = g_ui_cmds[n + l.cmd_count++];
+      out.clip[0] = c.ClipRect.x;
+      out.clip[1] = c.ClipRect.y;
+      out.clip[2] = c.ClipRect.z;
+      out.clip[3] = c.ClipRect.w;
+      out.texture = (int)c.GetTexID();
+      out.idx_offset = c.IdxOffset;
+      out.idx_count = c.ElemCount;
+      out.vtx_offset = c.VtxOffset;
+    }
+    n += list->CmdBuffer.Size;
+    g_ui_lists.push_back(l);
+  }
+  g_ui_draw.width = width;
+  g_ui_draw.height = height;
+  g_ui_draw.tex_ops = g_ui_tex_ops.data();
+  g_ui_draw.tex_op_count = (int)g_ui_tex_ops.size();
+  g_ui_draw.lists = g_ui_lists.data();
+  g_ui_draw.list_count = (int)g_ui_lists.size();
+  return &g_ui_draw;
+}
+
+// ---- setup ----
 
 static const char * ui_clip_get(ImGuiContext *) {
   return g_ui_clip_get ? g_ui_clip_get() : NULL;
@@ -137,22 +220,18 @@ static void ui_apply_clipboard(void) {
   pio.Platform_SetClipboardTextFn = ui_clip_set;
 }
 
-int ap_ui_init(ap_ui_gl_proc_fn gl_get_proc) {
+int ap_ui_init(void) {
   if (g_ui_ready) { return 1; }
-  if (gl_get_proc == NULL) { return 0; }
-  g_ui_gl_proc = gl_get_proc;
-  // The backend's loader with the caller's lookup (it then skips its own library loading)
-  if (imgl3wInit2(ui_gl_proc) != 0 || !imgl3wIsSupported(3, 3)) { return 0; }
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   io.IniFilename = NULL; // ap_ui.ini instead
   io.LogFilename = NULL;
   io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange; // the caller owns the cursor
-  if (!ImGui_ImplOpenGL3_Init("#version 330 core")) {
-    ImGui::DestroyContext();
-    return 0;
-  }
+  // The caller's renderer: texture requests (dynamic font atlas) and vtx_offset
+  io.BackendRendererName = "ap_ui";
+  io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures | ImGuiBackendFlags_RendererHasVtxOffset;
+  g_ui_next_tex = 1;
   // Noto Sans, then the symbol fonts merged in for what it lacks (first font with a glyph wins)
   ImFontConfig cfg;
   cfg.FontDataOwnedByAtlas = false; // static arrays
@@ -179,8 +258,10 @@ int ap_ui_init(ap_ui_gl_proc_fn gl_get_proc) {
 void ap_ui_shutdown(void) {
   if (!g_ui_ready) { return; }
   ui_save_changes();
-  ImGui_ImplOpenGL3_Shutdown();
   ImGui::DestroyContext();
+  g_ui_tex_ops.clear();
+  g_ui_lists.clear();
+  g_ui_cmds.clear();
   g_ui_ready = false;
 }
 
@@ -425,11 +506,11 @@ static void ui_window(const ImVec2& display) {
   if (!open) { g_ui.expanded = false; } // the title bar's X folds it back into the box
 }
 
-void ap_ui_frame(int width, int height, float dt) {
-  if (!g_ui_ready || width <= 0 || height <= 0) { return; }
+const ap_ui_draw_data * ap_ui_frame(int width, int height, float dt) {
+  if (!g_ui_ready || width <= 0 || height <= 0) { return NULL; }
   g_ui_any_text = false; // set again while the window draws its text fields
   ui_log_sync(&g_ui_log, &g_ui);
-  if (ap_getconnectstate()->state == AP_CSTATE_OFFLINE) { return; } // no server: nothing to show
+  if (ap_getconnectstate()->state == AP_CSTATE_OFFLINE) { return NULL; } // no server: nothing to show
   ImGuiIO& io = ImGui::GetIO();
   io.DisplaySize = ImVec2((float)width, (float)height);
   io.DeltaTime = dt > 0 ? dt : 1.0f / 60.0f;
@@ -440,7 +521,6 @@ void ap_ui_frame(int width, int height, float dt) {
   }
   if (g_ui.scale != g_ui_style_scale) { ui_apply_scale(g_ui.scale); }
 
-  ImGui_ImplOpenGL3_NewFrame();
   ImGui::NewFrame();
   if (g_ui_unfocus) {
     ImGui::SetWindowFocus(NULL); // also ends the text line's editing
@@ -453,8 +533,8 @@ void ap_ui_frame(int width, int height, float dt) {
     ui_box();
   }
   ImGui::Render();
-  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
   // Save once a change is done (not every frame of a drag)
   if (!ImGui::IsAnyMouseDown()) { ui_save_changes(); }
+  return ui_collect_draw_data(width, height);
 }

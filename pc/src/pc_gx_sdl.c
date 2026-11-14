@@ -149,7 +149,7 @@ static int grow(void** buf, int* cap, int need, size_t elem) {
     return 1;
 }
 
-static SDL_GPUShader* load_shader(const char* path, SDL_GPUShaderStage stage, int samplers, int blocks) {
+SDL_GPUShader* pc_gx_sdl_load_shader(const char* path, SDL_GPUShaderStage stage, int samplers, int blocks) {
     SDL_GPUShaderCreateInfo info = {0};
     size_t size = 0;
     void* code = SDL_LoadFile(path, &size);
@@ -335,10 +335,10 @@ static SDL_GPUGraphicsPipeline* copy_pipeline(SDL_GPUSampleCount samples) {
 
 int pc_gx_sdl_init(SDL_GPUDevice* device, int w, int h) {
     s_device = device;
-    s_vert = load_shader("shaders/default.vert.spv", SDL_GPU_SHADERSTAGE_VERTEX, 0, 1);
-    s_frag = load_shader("shaders/default.frag.spv", SDL_GPU_SHADERSTAGE_FRAGMENT, PC_GX_SDL_NUM_SAMPLERS, 2);
-    s_copy_vert = load_shader("shaders/copy.vert.spv", SDL_GPU_SHADERSTAGE_VERTEX, 0, 1);
-    s_copy_frag = load_shader("shaders/copy.frag.spv", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0);
+    s_vert = pc_gx_sdl_load_shader("shaders/default.vert.spv", SDL_GPU_SHADERSTAGE_VERTEX, 0, 1);
+    s_frag = pc_gx_sdl_load_shader("shaders/default.frag.spv", SDL_GPU_SHADERSTAGE_FRAGMENT, PC_GX_SDL_NUM_SAMPLERS, 2);
+    s_copy_vert = pc_gx_sdl_load_shader("shaders/copy.vert.spv", SDL_GPU_SHADERSTAGE_VERTEX, 0, 1);
+    s_copy_frag = pc_gx_sdl_load_shader("shaders/copy.frag.spv", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0);
     if (s_vert == NULL || s_frag == NULL || s_copy_vert == NULL || s_copy_frag == NULL) return 0;
     load_variants();
     load_known();

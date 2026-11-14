@@ -259,6 +259,7 @@ void pc_platform_update_window_size(void) {
 
 void pc_platform_swap_buffers(void) {
     if (!pc_gpu_is_gl()) {
+        pc_ap_ui_draw(); // queued for the present
         pc_gpu_sdl_present();
         pc_screenshot_frame(0, g_pc_render_w, g_pc_render_h); // reads the frame just presented
         pc_automated_frame();

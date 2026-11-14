@@ -111,11 +111,10 @@ foreach(entry IN LISTS AP_UI_FONTS)
     list(APPEND AP_UI_FONT_HEADERS "${font_out}")
 endforeach()
 
-# Dear ImGui (lib/imgui/VERSION.txt) for the text client (src/ap_ui.cpp): core + the OpenGL 3 backend
+# Dear ImGui (lib/imgui/VERSION.txt) for the text client (src/ap_ui.cpp): core only, the caller renders
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/imgui")
 set(IMGUI_SOURCES
-    ${IMGUI_DIR}/imgui.cpp ${IMGUI_DIR}/imgui_draw.cpp ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+    ${IMGUI_DIR}/imgui.cpp ${IMGUI_DIR}/imgui_draw.cpp ${IMGUI_DIR}/imgui_tables.cpp ${IMGUI_DIR}/imgui_widgets.cpp
 )
 
 add_library(ap_client SHARED src/ap_archipelago.cpp src/ap_log.cpp src/ap_slotdata.cpp src/ap_messages.cpp

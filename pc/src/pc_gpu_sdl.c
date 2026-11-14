@@ -1,6 +1,7 @@
 // pc_gpu_sdl.c - SDL_GPU backend (Vulkan): the device, the window's swapchain, presenting and textures. The
 // game's draws are recorded and replayed by pc_gx_sdl.c; GL-only code is skipped with pc_gpu_is_gl() checks.
 #include "pc_gpu.h"
+#include "pc_ap_ui_render.h"
 #include "pc_automated.h"
 #include "pc_gx_internal.h"
 #include "pc_settings.h"
@@ -44,6 +45,10 @@ int pc_gpu_sdl_init(SDL_Window* window) {
     }
     printf("[GPU] SDL_GPU device: %s\n", SDL_GetGPUDeviceDriver(s_device));
     return 1;
+}
+
+SDL_GPUDevice* pc_gpu_sdl_device(void) {
+    return s_device;
 }
 
 void pc_gpu_sdl_set_vsync(int on) {
@@ -100,6 +105,7 @@ void pc_gpu_sdl_present(void) {
     }
     frame = pc_gx_sdl_render(cmd, &fw, &fh);
     if (s_window == NULL) {
+        pc_ap_ui_sdl_render(cmd, NULL, SDL_GPU_TEXTUREFORMAT_INVALID, 0, 0); // its texture ops
         SDL_SubmitGPUCommandBuffer(cmd);
         return;
     }
@@ -119,6 +125,8 @@ void pc_gpu_sdl_present(void) {
             SDL_EndGPURenderPass(SDL_BeginGPURenderPass(cmd, &target, 1, NULL));
         }
     }
+    // AP text client over everything, at window resolution (queued by pc_ap_ui_draw)
+    pc_ap_ui_sdl_render(cmd, swapchain, SDL_GetGPUSwapchainTextureFormat(s_device, s_window), sw, sh);
     SDL_SubmitGPUCommandBuffer(cmd);
 }
 
