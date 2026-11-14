@@ -7,6 +7,7 @@
 #include "libc64/qrand.h"
 #ifdef TARGET_PC
 #include "pc_ap_logic.h"
+#include "pc_ap_qol.h"
 #include "m_player_lib.h"
 #endif
 #include "m_common_data.h"
@@ -2010,6 +2011,15 @@ static void aSOI_ins_decide_insect(aSOI_set_data_c* set_data, aSetMgr_player_pos
   fg_item = mFI_BkNumtoUtFGTop(player_pos->next_bx, player_pos->next_bz);
   deposit = mFI_GetDepositP(player_pos->next_bx, player_pos->next_bz);
   collision_data = mFI_GetBkNum2ColTop(player_pos->next_bx, player_pos->next_bz);
+#ifdef TARGET_PC
+  {
+    // Easier Critter Catch: flower bugs, snails and butterflies also spawn on tulips
+    mActor_name_t flower_max = pc_ap_qol_flower_bugs_on_tulips() ? FLOWER_TULIP2 : FLOWER_COSMOS2;
+    aSOI_chk_live_area_data[aSOI_SPAWN_AREA_ON_FLOWER].max_item_no = flower_max;
+    aSOI_chk_live_area_data[aSOI_SPAWN_AREA_RAINING_ON_FLOWER].max_item_no = flower_max;
+    aSOI_chk_live_area_data[aSOI_SPAWN_AREA_FLYING_NEAR_FLOWERS_OR_AROUND].max_item_no = flower_max;
+  }
+#endif
 
   for (i = aSOI_SPAWN_AREA_ON_TREE; i < aSOI_SPAWN_AREA_NUM; i++) {
     // Call chk_live_area proc to see if an insect with this spawn area can spawn in the acre

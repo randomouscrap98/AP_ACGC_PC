@@ -93,6 +93,9 @@ int pc_ap_qol_purple_butterfly_low(void);
 // Multiplier on a chasing bee's speed, 1 when off; hooked in aBEE_fly_move_common. The sting
 // distance is unchanged.
 float pc_ap_qol_bee_speed_scale(void);
+// Nonzero when insects that spawn on flowers (ladybugs, mantises, snails, butterflies landing) also use
+// tulips (Easier Critter Catch). Vanilla only pansies and cosmos; hooked in aSOI_ins_decide_insect.
+int pc_ap_qol_flower_bugs_on_tulips(void);
 
 // Nonzero when hidden bugs give hints: a dirt clod over a buried mole cricket (aIKR_hide) or in
 // front of a pill bug's rock (aIDG_hide), a small wiggle of the tree a bagworm or spider hides in
