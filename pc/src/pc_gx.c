@@ -3,6 +3,7 @@
 #include "pc_automated.h"
 #include "pc_profiler.h"
 #include "pc_render_target.h"
+#include "pc_settings.h"
 #include "pc_debug.h"
 #include "pc_gpu.h"
 #include <stddef.h>
@@ -649,10 +650,16 @@ void pc_gx_begin_frame(void) {
     memset(&pc_gx_frame_counts, 0, sizeof(pc_gx_frame_counts));
     g_pc_widescreen_stretch = 0;
     if (!pc_gpu_is_gl()) {
-        // Vulkan: the window-sized target is cleared when pc_gx_sdl.c replays the frame (no render scale yet)
+        // Vulkan: render scale / MSAA target like GL's pc_render_target_begin_frame; it's cleared when
+        // pc_gx_sdl.c replays the frame
 #ifdef PC_ENHANCEMENTS
-        g_pc_render_w = g_pc_window_w;
-        g_pc_render_h = g_pc_window_h;
+        {
+            int w, h;
+            pc_render_target_size(g_pc_window_w, g_pc_window_h, g_pc_settings.render_scale, pc_gx_sdl_max_dim(),
+                                  &w, &h);
+            pc_gx_sdl_prepare_target(g_pc_window_w, g_pc_window_h, g_pc_settings.msaa, w, h,
+                                     &g_pc_render_w, &g_pc_render_h);
+        }
         pc_gx_update_aspect();
 #endif
         pc_gx_viewport_state_invalidate();
@@ -907,6 +914,7 @@ PCGXPipelineKey pc_gx_pipeline_key(const PCGXShaderVariant* shader) {
 
     memset(&k, 0, sizeof(k)); // padding too: keys may be compared with memcmp
     k.shader = shader;
+    k.sdl_variant = -1;
     k.prim = g_gx.current_primitive;
     k.depth_test = g_gx.z_compare_enable;
     k.depth_func = g_gx.z_compare_func;
@@ -1060,13 +1068,23 @@ static void pc_gx_bind_textures(unsigned int dirty) {
 void pc_gx_flush_vertices(void) {
     int count = g_gx.current_vertex_idx - g_gx.pending_verts;
     if (count <= 0) return;
-    // Vulkan: the uber shader only (no TEV variants yet); pc_gx_sdl.c records the draw and merges runs itself
+    // Vulkan: build-time TEV variant when there is one, else the uber shader; pc_gx_sdl.c records the draw and
+    // merges runs itself
     if (!pc_gpu_is_gl()) {
+        static int s_variant = -1;
+        static int s_variant_known; // s_variant is for the current config (cleared by config dirty groups)
         PCGXPipelineKey key;
 
-        pc_gx_update_blocks(g_gx.dirty, 1);
+        if (!s_variant_known || (g_gx.dirty & PC_GX_SHADER_CONFIG_DIRTY)) {
+            PCGXShaderKey shader_key;
+            pc_gx_tev_build_key(&shader_key);
+            s_variant = g_pc_uber_shader_only ? -1 : pc_gx_sdl_variant(&shader_key);
+            s_variant_known = 1;
+        }
+        pc_gx_update_blocks(g_gx.dirty, s_variant < 0);
         pc_gx_bind_textures(g_gx.dirty);
         key = pc_gx_pipeline_key(NULL);
+        key.sdl_variant = s_variant;
         pc_automated_note_pipeline(&key);
         pc_gx_sdl_draw(&key, g_gx.vertex_buffer, count);
         pc_gx_draw_call_count++;

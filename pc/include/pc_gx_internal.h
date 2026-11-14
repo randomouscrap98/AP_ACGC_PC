@@ -280,6 +280,18 @@ typedef struct {
     int uber; // the uber program (also a failed variant compile): reads the GXConfig block
 } PCGXShaderVariant;
 
+extern int g_pc_uber_shader_only; // --uber-shader / uber render scenes: no TEV variants (pc_gx_tev.c)
+
+// The current GX state's shader key (pc_gx_tev.c); it only changes with these dirty groups
+void pc_gx_tev_build_key(PCGXShaderKey* k);
+#define PC_GX_SHADER_CONFIG_DIRTY \
+    (PC_GX_DIRTY_TEV_STAGES | PC_GX_DIRTY_SWAP_TABLES | PC_GX_DIRTY_ALPHA_CMP | \
+     PC_GX_DIRTY_LIGHTING | PC_GX_DIRTY_TEXTURES | PC_GX_DIRTY_INDIRECT | \
+     PC_GX_DIRTY_FOG)
+// The key's TEV config as GLSL constants (pc_gx_tev_source.c); length, -1 if cap is too small.
+// pc/tools/gen_tev_variants.py makes the same text at build time (Vulkan variants)
+int pc_gx_tev_const_block(char* buf, size_t cap, const PCGXShaderKey* k);
+
 /* --- Internal functions --- */
 void pc_gx_init(void);
 void pc_gx_shutdown(void);
@@ -296,6 +308,7 @@ void pc_gx_viewport_state_invalidate(void);
 // depth range stay dynamic and aren't in it.
 typedef struct {
     const PCGXShaderVariant* shader; // TEV variant (pc_gx_tev.c), lives until shutdown
+    int sdl_variant;                 // Vulkan: pc_gx_sdl_variant() index, -1 = uber shader
     int prim;                        // GX_TRIANGLES, GX_QUADS, GX_TRIANGLESTRIP, ...
     int depth_test;                  // z_compare_enable
     int depth_func;                  // GX_LESS, ... (only with depth_test)
@@ -315,11 +328,18 @@ PCGXPipelineKey pc_gx_pipeline_key(const PCGXShaderVariant* shader);
 int  pc_gx_sdl_init(SDL_GPUDevice* device, int w, int h); // 0 = failed (shaders missing, ...)
 void pc_gx_sdl_shutdown(void);
 // New frame into a w x h target, cleared to the colour (0-1 RGBA) and depth when it's drawn
+// The offscreen target for this frame: scale_w x scale_h (pc_render_target_size) with msaa samples (0 / 2 / 4 / 8,
+// lowered to what the GPU has); falls back to no MSAA, then the window size. out = the size it got
+void pc_gx_sdl_prepare_target(int win_w, int win_h, int msaa, int scale_w, int scale_h, int* out_w, int* out_h);
+int  pc_gx_sdl_max_dim(void); // size cap for pc_render_target_size
 void pc_gx_sdl_begin_frame(int w, int h, const float clear[4], float clear_depth);
 void pc_gx_sdl_set_block(int block, const void* data, int size); // PC_GX_BLOCK_*: the block's current content
 void pc_gx_sdl_set_viewport(int x, int y, int w, int h, float nearz, float farz);
 void pc_gx_sdl_set_scissor(int x, int y, int w, int h);
 void pc_gx_sdl_draw(const PCGXPipelineKey* key, const PCGXVertex* verts, int count);
+// The build-time variant (shaders/tev_variants.bin) for the key: its index, its shader made on first use;
+// -1 = none (or its shader failed): use the uber shader
+int  pc_gx_sdl_variant(const PCGXShaderKey* key);
 // Texture units like GL's (0-2 TEV stages, 3-4 indirect); a draw samples what they hold when it's recorded
 void pc_gx_sdl_set_texture(int unit, PCGpuTexture tex);
 void pc_gx_sdl_texture_destroyed(PCGpuTexture tex); // units holding it go back to none
@@ -331,8 +351,12 @@ void pc_gx_sdl_draw_texture(PCGpuTexture tex, int x, int y, int w, int h);
 // Adds the recorded draws to cmd (vertex upload, render pass into the offscreen target) and forgets them.
 // Returns the offscreen colour target and its size
 SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h);
-// The last rendered frame like pc_gpu_read_pixels (RGB rows bottom-up); NULL unless w x h is the target size
+// The last rendered frame like pc_gpu_read_pixels (RGB rows bottom-up); another w x h than the target is scaled
+// like the window shows it (render tests read the window size)
 unsigned char* pc_gx_sdl_read_pixels(int w, int h);
+// The rendered frame (fw x fh) into dst (dw x dh) the way it's shown in the window (pc_gpu_sdl.c)
+void pc_gpu_sdl_blit_frame(SDL_GPUCommandBuffer* cmd, SDL_GPUTexture* frame, int fw, int fh, SDL_GPUTexture* dst,
+                           Uint32 dw, Uint32 dh);
 // pc_gpu_sdl.c textures: the current image + sampler of a handle (0 if none), staged uploads into cmd (NULL = a
 // command buffer of its own, submitted at once), releases of destroyed textures once the frame is replayed
 int pc_gpu_sdl_texture_get(PCGpuTexture tex, SDL_GPUTexture** out_tex, SDL_GPUSampler** out_sampler);

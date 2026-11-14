@@ -1,12 +1,16 @@
 // pc_gx_sdl.c - the GX core's draws on SDL_GPU (Vulkan backend). pc_gx.c records every draw here during the
 // frame: vertices into one array, plus pipeline, uniform block snapshots, viewport and scissor. Presenting
 // replays the frame: one copy pass uploads the vertices, one render pass draws into an offscreen colour + depth
-// target (window size), then pc_gpu_sdl.c blits that to the window. Recording is needed because SDL_GPU can't
+// target (render scale size, multisampled with MSAA), then pc_gpu_sdl.c blits that to the window. Recording is needed because SDL_GPU can't
 // upload inside a render pass.
 // Textures come from pc_gpu_sdl.c (uploads staged before the render pass). EFB copies are entries in the draw
 // list: the render pass ends, copy.vert/frag draw the region into the copy's texture, the pass resumes.
 // pc_gpu_draw_texture (fixNES) is the same kind of entry, drawing a texture into the frame.
-// Not yet: render scale, MSAA, ImGui.
+// TEV variants: shaders/tev_variants.bin (pc/tools/gen_tev_variants.py, build time) holds SPIR-V for the shader
+// seed's keys; a draw whose key is there uses it, anything else the uber shader (GL compiles variants at runtime).
+// MSAA: every pass on the frame target ends with a resolve into s_resolve (SDL_GPU resolves only at the end of a
+// pass, and a multisampled texture can't be read); EFB copies, present and read_pixels use the resolved image.
+// Not yet: ImGui.
 #include "pc_gx_internal.h"
 #include "pc_gpu.h"
 #include <dolphin/gx/GXEnum.h>
@@ -14,11 +18,14 @@
 
 #define PC_GX_SDL_MAX_PIPELINES 256
 #define PC_GX_SDL_NUM_SAMPLERS  5 // u_texture0-2, u_ind_tex0-1 (default.frag)
+#define PC_GX_SDL_MAX_DIM       16384 // SDL_GPU can't report the real limit; a failed create falls back
+#define PC_GX_SDL_MAX_VARIANTS  1024
 
 typedef struct {
     SDL_GPUGraphicsPipeline* pipeline;
     SDL_GPUPrimitiveType prim;
     int quads;                  // GX_QUADS: drawn as triangles through the quad index buffer
+    int uber;                   // the uber shader: reads the GXConfig block (fragment uniform slot 1)
     int first, count;           // vertices in s_verts
     int block[PC_GX_NUM_BLOCKS]; // snapshot offsets in s_block_arena
     int viewport[4];            // GL style rectangles (bottom-left origin)
@@ -36,6 +43,7 @@ enum { DRAW_GX = 0, DRAW_EFB_COPY, DRAW_TEXTURE };
 
 typedef struct {
     PCGXPipelineKey key;
+    SDL_GPUSampleCount samples; // pipelines carry the target's sample count
     SDL_GPUGraphicsPipeline* pipeline;
 } Pipeline;
 
@@ -44,7 +52,7 @@ static SDL_GPUShader* s_vert;
 static SDL_GPUShader* s_frag;
 static SDL_GPUShader* s_copy_vert;
 static SDL_GPUShader* s_copy_frag;
-static SDL_GPUGraphicsPipeline* s_copy_pipeline;
+static SDL_GPUGraphicsPipeline* s_copy_pipeline[4]; // by SDL_GPUSampleCount (into the frame target with MSAA)
 static SDL_GPUTextureFormat s_depth_format;
 static SDL_GPUTexture* s_none; // 1x1 opaque black: a unit with no texture (GL samples an incomplete one so)
 static SDL_GPUSampler* s_sampler;
@@ -53,10 +61,27 @@ static SDL_GPUBuffer* s_quad_indices;
 static Pipeline s_pipelines[PC_GX_SDL_MAX_PIPELINES];
 static int s_pipeline_count;
 
-// Offscreen target, (re)made at render time when the frame size changes
-static SDL_GPUTexture* s_color;
+// Build-time TEV variants: the file stays loaded, shaders are made on first use
+typedef struct {
+    const unsigned char* key;  // sizeof(PCGXShaderKey) bytes in s_variant_file
+    const unsigned char* spirv;
+    Uint32 size;
+    SDL_GPUShader* shader;
+    int failed;                // shader create failed: uber shader instead
+} Variant;
+
+static unsigned char* s_variant_file;
+static Variant* s_variants;
+static int s_variant_count;
+
+// Offscreen target, (re)made by pc_gx_sdl_prepare_target when the size or MSAA changes
+static SDL_GPUTexture* s_color;   // multisampled with MSAA
 static SDL_GPUTexture* s_depth;
+static SDL_GPUTexture* s_resolve; // single-sample copy of s_color, only with MSAA
+static SDL_GPUSampleCount s_samples;
 static int s_target_w, s_target_h;
+// Last requested size + MSAA, so a failed create isn't retried every frame
+static int s_want_w, s_want_h, s_want_msaa;
 
 // GPU vertex buffer + its upload buffer, grown when a frame needs more
 static SDL_GPUBuffer* s_vbuf;
@@ -121,6 +146,84 @@ static SDL_GPUShader* load_shader(const char* path, SDL_GPUShaderStage stage, in
     return shader;
 }
 
+static Uint32 read_le32(const unsigned char* p) {
+    return (Uint32)p[0] | ((Uint32)p[1] << 8) | ((Uint32)p[2] << 16) | ((Uint32)p[3] << 24);
+}
+
+// Reads shaders/tev_variants.bin (format in pc/tools/gen_tev_variants.py). Missing or not for this build's key
+// layout = no variants, the uber shader draws everything
+static void load_variants(void) {
+    const char* path = "shaders/tev_variants.bin";
+    const Uint32 entry = (Uint32)sizeof(PCGXShaderKey) + 8;
+    size_t size = 0;
+    unsigned char* file = SDL_LoadFile(path, &size);
+    Uint32 count;
+
+    if (file == NULL) {
+        printf("[GPU] no %s: uber shader only\n", path);
+        return;
+    }
+    if (size < 16 || memcmp(file, "ACTV", 4) != 0 || read_le32(file + 4) != 1 ||
+        read_le32(file + 8) != sizeof(PCGXShaderKey) || (count = read_le32(file + 12)) > PC_GX_SDL_MAX_VARIANTS ||
+        16 + (size_t)count * entry > size) {
+        fprintf(stderr, "[GPU] %s is not for this build: uber shader only\n", path);
+        SDL_free(file);
+        return;
+    }
+    s_variants = calloc(count ? count : 1, sizeof(Variant));
+    if (s_variants == NULL) {
+        SDL_free(file);
+        return;
+    }
+    for (Uint32 i = 0; i < count; i++) {
+        const unsigned char* e = file + 16 + (size_t)i * entry;
+        Uint32 off = read_le32(e + sizeof(PCGXShaderKey));
+        Uint32 len = read_le32(e + sizeof(PCGXShaderKey) + 4);
+        if ((size_t)off + len > size) continue; // damaged entry: left out
+        s_variants[s_variant_count].key = e;
+        s_variants[s_variant_count].spirv = file + off;
+        s_variants[s_variant_count].size = len;
+        s_variant_count++;
+    }
+    s_variant_file = file;
+    printf("[GPU] %d TEV variants from %s\n", s_variant_count, path);
+}
+
+int pc_gx_sdl_variant(const PCGXShaderKey* key) {
+    for (int i = 0; i < s_variant_count; i++) {
+        Variant* v = &s_variants[i];
+        if (memcmp(v->key, key, sizeof(*key)) != 0) continue;
+        if (v->shader == NULL && !v->failed) {
+            SDL_GPUShaderCreateInfo info = {0};
+            info.code_size = v->size;
+            info.code = v->spirv;
+            info.entrypoint = "main";
+            info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+            info.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+            info.num_samplers = PC_GX_SDL_NUM_SAMPLERS;
+            info.num_uniform_buffers = 1; // GXFragment; PC_SPECIALIZED drops GXConfig
+            v->shader = SDL_CreateGPUShader(s_device, &info);
+            if (v->shader == NULL) {
+                fprintf(stderr, "[GPU] TEV variant %d: %s; uber shader instead\n", i, SDL_GetError());
+                v->failed = 1;
+            }
+        }
+        return v->failed ? -1 : i;
+    }
+    if (g_pc_verbose) {
+        // Once per key: configs worth adding to the shader seed (pc/tools/gen_shader_seed.py)
+        static PCGXShaderKey s_missed[64];
+        static int s_missed_count;
+        for (int i = 0; i < s_missed_count; i++) {
+            if (memcmp(&s_missed[i], key, sizeof(*key)) == 0) return -1;
+        }
+        if (s_missed_count < 64) s_missed[s_missed_count++] = *key;
+        printf("[GPU] TEV config not in tev_variants.bin (uber shader): stages=%d ind=%d fog=%d\n", key->num_stages,
+               key->num_ind, key->fog_enable);
+    }
+    return -1;
+}
+
 // One copy pass at init: the "no texture" texture and the quad index buffer
 static int upload_static(void) {
     Uint16 indices[PC_GX_MAX_VERTS / 4 * 6];
@@ -182,10 +285,13 @@ static int upload_static(void) {
     return 1;
 }
 
-// copy.vert/frag into an RGBA8 target: no vertex buffer, depth or blending
-static SDL_GPUGraphicsPipeline* make_copy_pipeline(void) {
+// copy.vert/frag into an RGBA8 target with that many samples: no vertex buffer, depth or blending. Made on first
+// use, NULL if that fails
+static SDL_GPUGraphicsPipeline* copy_pipeline(SDL_GPUSampleCount samples) {
     SDL_GPUGraphicsPipelineCreateInfo info = {0};
     SDL_GPUColorTargetDescription color = {0};
+
+    if (s_copy_pipeline[samples]) return s_copy_pipeline[samples];
 
     info.vertex_shader = s_copy_vert;
     info.fragment_shader = s_copy_frag;
@@ -195,7 +301,10 @@ static SDL_GPUGraphicsPipeline* make_copy_pipeline(void) {
     color.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     info.target_info.color_target_descriptions = &color;
     info.target_info.num_color_targets = 1;
-    return SDL_CreateGPUGraphicsPipeline(s_device, &info);
+    info.multisample_state.sample_count = samples;
+    s_copy_pipeline[samples] = SDL_CreateGPUGraphicsPipeline(s_device, &info);
+    if (s_copy_pipeline[samples] == NULL) fprintf(stderr, "[GPU] copy pipeline: %s\n", SDL_GetError());
+    return s_copy_pipeline[samples];
 }
 
 int pc_gx_sdl_init(SDL_GPUDevice* device, int w, int h) {
@@ -205,6 +314,7 @@ int pc_gx_sdl_init(SDL_GPUDevice* device, int w, int h) {
     s_copy_vert = load_shader("shaders/copy.vert.spv", SDL_GPU_SHADERSTAGE_VERTEX, 0, 1);
     s_copy_frag = load_shader("shaders/copy.frag.spv", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0);
     if (s_vert == NULL || s_frag == NULL || s_copy_vert == NULL || s_copy_frag == NULL) return 0;
+    load_variants();
 
     // GL's render target is depth 24 + stencil 8; not every GPU has it
     s_depth_format = SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT;
@@ -239,8 +349,7 @@ int pc_gx_sdl_init(SDL_GPUDevice* device, int w, int h) {
         info.size = PC_GX_MAX_VERTS / 4 * 6 * sizeof(Uint16);
         s_quad_indices = SDL_CreateGPUBuffer(device, &info);
     }
-    s_copy_pipeline = make_copy_pipeline();
-    if (s_none == NULL || s_sampler == NULL || s_quad_indices == NULL || s_copy_pipeline == NULL ||
+    if (s_none == NULL || s_sampler == NULL || s_quad_indices == NULL || copy_pipeline(SDL_GPU_SAMPLECOUNT_1) == NULL ||
         !upload_static()) {
         fprintf(stderr, "[GPU] pc_gx_sdl_init: %s\n", SDL_GetError());
         return 0;
@@ -249,15 +358,20 @@ int pc_gx_sdl_init(SDL_GPUDevice* device, int w, int h) {
     for (int b = 0; b < PC_GX_NUM_BLOCKS; b++) s_block_off[b] = -1;
     memset(s_unit, 0, sizeof(s_unit));
     // Black until the first frame begins
+    pc_gx_sdl_prepare_target(w, h, 0, w, h, &w, &h);
     pc_gx_sdl_begin_frame(w, h, (const float[4]){0.0f, 0.0f, 0.0f, 1.0f}, 1.0f);
     return 1;
 }
 
 static void release_target(void) {
+    // SDL keeps them alive until the GPU is done with frames already submitted
     if (s_color) SDL_ReleaseGPUTexture(s_device, s_color);
     if (s_depth) SDL_ReleaseGPUTexture(s_device, s_depth);
+    if (s_resolve) SDL_ReleaseGPUTexture(s_device, s_resolve);
     s_color = NULL;
     s_depth = NULL;
+    s_resolve = NULL;
+    s_samples = SDL_GPU_SAMPLECOUNT_1;
     s_target_w = s_target_h = 0;
 }
 
@@ -274,10 +388,21 @@ void pc_gx_sdl_shutdown(void) {
     if (s_sampler) SDL_ReleaseGPUSampler(s_device, s_sampler);
     if (s_vert) SDL_ReleaseGPUShader(s_device, s_vert);
     if (s_frag) SDL_ReleaseGPUShader(s_device, s_frag);
-    if (s_copy_pipeline) SDL_ReleaseGPUGraphicsPipeline(s_device, s_copy_pipeline);
+    for (int i = 0; i < s_variant_count; i++) {
+        if (s_variants[i].shader) SDL_ReleaseGPUShader(s_device, s_variants[i].shader);
+    }
+    free(s_variants);
+    SDL_free(s_variant_file);
+    s_variants = NULL;
+    s_variant_file = NULL;
+    s_variant_count = 0;
+    for (int i = 0; i < 4; i++) {
+        if (s_copy_pipeline[i]) SDL_ReleaseGPUGraphicsPipeline(s_device, s_copy_pipeline[i]);
+        s_copy_pipeline[i] = NULL;
+    }
     if (s_copy_vert) SDL_ReleaseGPUShader(s_device, s_copy_vert);
     if (s_copy_frag) SDL_ReleaseGPUShader(s_device, s_copy_frag);
-    s_copy_pipeline = NULL;
+    s_want_w = s_want_h = s_want_msaa = 0;
     s_copy_vert = s_copy_frag = NULL;
     s_vbuf = NULL;
     s_vtransfer = NULL;
@@ -405,9 +530,10 @@ static SDL_GPUGraphicsPipeline* get_pipeline(const PCGXPipelineKey* key, SDL_GPU
     SDL_GPUColorTargetBlendState* blend = &color.blend_state;
     SDL_GPUGraphicsPipeline* pipeline;
 
-    if (s_last && memcmp(&s_last->key, key, sizeof(*key)) == 0) return s_last->pipeline;
+    if (s_last && s_last->samples == s_samples && memcmp(&s_last->key, key, sizeof(*key)) == 0)
+        return s_last->pipeline;
     for (int i = 0; i < s_pipeline_count; i++) {
-        if (memcmp(&s_pipelines[i].key, key, sizeof(*key)) == 0) {
+        if (s_pipelines[i].samples == s_samples && memcmp(&s_pipelines[i].key, key, sizeof(*key)) == 0) {
             s_last = &s_pipelines[i];
             return s_last->pipeline;
         }
@@ -423,7 +549,7 @@ static SDL_GPUGraphicsPipeline* get_pipeline(const PCGXPipelineKey* key, SDL_GPU
     vbuf.pitch = sizeof(PCGXVertex);
     vbuf.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
     info.vertex_shader = s_vert;
-    info.fragment_shader = s_frag;
+    info.fragment_shader = key->sdl_variant >= 0 ? s_variants[key->sdl_variant].shader : s_frag;
     info.vertex_input_state.vertex_buffer_descriptions = &vbuf;
     info.vertex_input_state.num_vertex_buffers = 1;
     info.vertex_input_state.vertex_attributes = attrs;
@@ -470,14 +596,23 @@ static SDL_GPUGraphicsPipeline* get_pipeline(const PCGXPipelineKey* key, SDL_GPU
     info.target_info.num_color_targets = 1;
     info.target_info.depth_stencil_format = s_depth_format;
     info.target_info.has_depth_stencil_target = true;
+    info.multisample_state.sample_count = s_samples;
 
-    pipeline = SDL_CreateGPUGraphicsPipeline(s_device, &info);
+    {
+        Uint64 t0 = SDL_GetPerformanceCounter();
+        pipeline = SDL_CreateGPUGraphicsPipeline(s_device, &info);
+        double ms = (double)(SDL_GetPerformanceCounter() - t0) * 1000.0 / (double)SDL_GetPerformanceFrequency();
+        // Slow = the driver compiled the shader (first use without a driver cache entry): a hitch
+        if (g_pc_verbose && ms > 2.0)
+            printf("[GPU] pipeline %d (variant %d) took %.1f ms\n", s_pipeline_count, key->sdl_variant, ms);
+    }
     if (pipeline == NULL) {
         fprintf(stderr, "[GPU] SDL_CreateGPUGraphicsPipeline: %s\n", SDL_GetError());
         return NULL;
     }
     s_last = &s_pipelines[s_pipeline_count++];
     s_last->key = *key;
+    s_last->samples = s_samples;
     s_last->pipeline = pipeline;
     return pipeline;
 }
@@ -549,6 +684,7 @@ void pc_gx_sdl_draw(const PCGXPipelineKey* key, const PCGXVertex* verts, int cou
         d->pipeline = pipeline;
         d->prim = prim;
         d->quads = quads;
+        d->uber = key->sdl_variant < 0;
         d->first = s_vert_count;
         d->count = 0;
         d->kind = DRAW_GX;
@@ -617,21 +753,26 @@ static void target_rect(const int gl[4], int out[4]) {
 
 // Draws the source rectangle uv (left, top, right, bottom in texture coordinates) of src into the viewport
 // (x, y, w, h from the top left) of dst, alpha 1. Its own render pass: clear = dst cleared to black first, else
-// the rest of dst is undefined. Overwrites vertex uniform slot 0
+// the rest of dst is undefined. dst_samples = dst's sample count; multisampled dst is resolved into resolve at the
+// end. Overwrites vertex uniform slot 0
 static void copy_texture(SDL_GPUCommandBuffer* cmd, SDL_GPUTexture* src, SDL_GPUSampler* sampler, const float uv[4],
-                         SDL_GPUTexture* dst, const int viewport[4], int clear) {
+                         SDL_GPUTexture* dst, SDL_GPUSampleCount dst_samples, SDL_GPUTexture* resolve,
+                         const int viewport[4], int clear) {
     SDL_GPUColorTargetInfo target = {0};
     SDL_GPUTextureSamplerBinding binding = { src, sampler };
     SDL_GPUViewport vp = { (float)viewport[0], (float)viewport[1], (float)viewport[2], (float)viewport[3], 0, 1 };
+    SDL_GPUGraphicsPipeline* pipeline = copy_pipeline(dst_samples);
     SDL_GPURenderPass* pass;
 
+    if (pipeline == NULL) return;
     target.texture = dst;
     target.clear_color = (SDL_FColor){ 0.0f, 0.0f, 0.0f, 1.0f };
     target.load_op = clear ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_DONT_CARE;
-    target.store_op = SDL_GPU_STOREOP_STORE;
+    target.store_op = resolve ? SDL_GPU_STOREOP_RESOLVE_AND_STORE : SDL_GPU_STOREOP_STORE;
+    target.resolve_texture = resolve;
     pass = SDL_BeginGPURenderPass(cmd, &target, 1, NULL);
     if (pass == NULL) return;
-    SDL_BindGPUGraphicsPipeline(pass, s_copy_pipeline);
+    SDL_BindGPUGraphicsPipeline(pass, pipeline);
     SDL_SetGPUViewport(pass, &vp);
     SDL_BindGPUFragmentSamplers(pass, 0, &binding, 1);
     SDL_PushGPUVertexUniformData(cmd, 0, uv, 4 * sizeof(float));
@@ -639,32 +780,85 @@ static void copy_texture(SDL_GPUCommandBuffer* cmd, SDL_GPUTexture* src, SDL_GPU
     SDL_EndGPURenderPass(pass);
 }
 
-// The offscreen target at the frame size; a new one starts cleared
-static int ensure_target(void) {
+// MSAA setting (0 / 2 / 4 / 8) -> the most samples up to it that colour and depth targets both support
+static SDL_GPUSampleCount pick_samples(int msaa) {
+    static const SDL_GPUSampleCount counts[] = { SDL_GPU_SAMPLECOUNT_8, SDL_GPU_SAMPLECOUNT_4, SDL_GPU_SAMPLECOUNT_2 };
+    static const int sizes[] = { 8, 4, 2 };
+
+    for (int i = 0; i < 3; i++) {
+        if (msaa < sizes[i]) continue;
+        if (SDL_GPUTextureSupportsSampleCount(s_device, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, counts[i]) &&
+            SDL_GPUTextureSupportsSampleCount(s_device, s_depth_format, counts[i]))
+            return counts[i];
+    }
+    return SDL_GPU_SAMPLECOUNT_1;
+}
+
+// Makes the offscreen target; 0 (and nothing made) if any texture fails
+static int create_target(int w, int h, SDL_GPUSampleCount samples) {
     SDL_GPUTextureCreateInfo info = {0};
 
-    if (s_color && s_target_w == s_frame_w && s_target_h == s_frame_h) return 1;
-    release_target();
     info.type = SDL_GPU_TEXTURETYPE_2D;
     info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
-    info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER; // blit source
-    info.width = (Uint32)s_frame_w;
-    info.height = (Uint32)s_frame_h;
+    info.width = (Uint32)w;
+    info.height = (Uint32)h;
     info.layer_count_or_depth = 1;
     info.num_levels = 1;
+    info.sample_count = samples;
+    // Without MSAA it's also the blit / copy source; a multisampled texture can only be resolved
+    info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET |
+                 (samples == SDL_GPU_SAMPLECOUNT_1 ? SDL_GPU_TEXTUREUSAGE_SAMPLER : 0);
     s_color = SDL_CreateGPUTexture(s_device, &info);
     info.format = s_depth_format;
     info.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
     s_depth = SDL_CreateGPUTexture(s_device, &info);
-    if (s_color == NULL || s_depth == NULL) {
-        fprintf(stderr, "[GPU] render target %dx%d: %s\n", s_frame_w, s_frame_h, SDL_GetError());
+    if (samples != SDL_GPU_SAMPLECOUNT_1) {
+        info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+        info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        info.sample_count = SDL_GPU_SAMPLECOUNT_1;
+        s_resolve = SDL_CreateGPUTexture(s_device, &info);
+    }
+    if (s_color == NULL || s_depth == NULL || (samples != SDL_GPU_SAMPLECOUNT_1 && s_resolve == NULL)) {
+        fprintf(stderr, "[GPU] render target %dx%d samples=%d: %s\n", w, h, 1 << samples, SDL_GetError());
         release_target();
         return 0;
     }
-    s_target_w = s_frame_w;
-    s_target_h = s_frame_h;
-    s_clear_pending = 1;
+    s_samples = samples;
+    s_target_w = w;
+    s_target_h = h;
+    s_clear_pending = 1; // a new target starts cleared
     return 1;
+}
+
+void pc_gx_sdl_prepare_target(int win_w, int win_h, int msaa, int scale_w, int scale_h, int* out_w, int* out_h) {
+    if (scale_w != s_want_w || scale_h != s_want_h || msaa != s_want_msaa) {
+        SDL_GPUSampleCount samples = pick_samples(msaa);
+
+        s_want_w = scale_w;
+        s_want_h = scale_h;
+        s_want_msaa = msaa;
+        release_target();
+        // Same fallbacks as GL: without MSAA, then window size
+        if (!create_target(scale_w, scale_h, samples) &&
+            (samples == SDL_GPU_SAMPLECOUNT_1 || !create_target(scale_w, scale_h, SDL_GPU_SAMPLECOUNT_1)) &&
+            !create_target(SDL_min(win_w, PC_GX_SDL_MAX_DIM), SDL_min(win_h, PC_GX_SDL_MAX_DIM),
+                           SDL_GPU_SAMPLECOUNT_1)) {
+            fprintf(stderr, "[GPU] no render target, frames stay black\n");
+        }
+        if (g_pc_verbose) printf("[GPU] window %dx%d, render target %dx%d samples=%d\n", win_w, win_h, s_target_w,
+                                 s_target_h, s_color ? 1 << s_samples : 0);
+    }
+    *out_w = s_color ? s_target_w : SDL_max(win_w, 1);
+    *out_h = s_color ? s_target_h : SDL_max(win_h, 1);
+}
+
+int pc_gx_sdl_max_dim(void) {
+    return PC_GX_SDL_MAX_DIM;
+}
+
+// The target's single-sample image (what EFB copies, present and read_pixels read)
+static SDL_GPUTexture* readable_target(void) {
+    return s_resolve ? s_resolve : s_color;
 }
 
 // Copies the frame's vertices into the GPU vertex buffer (grown first if needed)
@@ -724,7 +918,7 @@ SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h) {
 
     // Textures first: the frame's draws read them
     pc_gpu_sdl_flush_textures(cmd);
-    if (!ensure_target()) {
+    if (s_color == NULL) {
         reset_recording();
         pc_gpu_sdl_release_textures();
         return NULL;
@@ -734,7 +928,7 @@ SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h) {
     // Nothing new: the target already holds the image
     if (s_draw_count == 0 && !s_clear_pending) {
         pc_gpu_sdl_release_textures();
-        return s_color;
+        return readable_target();
     }
     if (s_vert_count > 0 && !upload_vertices(cmd)) s_draw_count = 0;
 
@@ -743,7 +937,9 @@ SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h) {
     color.texture = s_color;
     color.clear_color = (SDL_FColor){ s_clear[0], s_clear[1], s_clear[2], s_clear[3] };
     color.load_op = s_clear_pending ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_LOAD;
-    color.store_op = SDL_GPU_STOREOP_STORE;
+    // MSAA: each pass resolves at its end (the multisampled image is kept for the rest of the frame)
+    color.store_op = s_resolve ? SDL_GPU_STOREOP_RESOLVE_AND_STORE : SDL_GPU_STOREOP_STORE;
+    color.resolve_texture = s_resolve;
     depth.texture = s_depth;
     depth.clear_depth = s_clear_depth;
     depth.load_op = color.load_op;
@@ -783,15 +979,16 @@ SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h) {
             pass = NULL;
             if (d->kind == DRAW_EFB_COPY) {
                 // The rectangle over all of the copy (its row 0 = the top row); same size, so nearest = an exact
-                // copy (GL blits with GL_NEAREST)
+                // copy (GL blits with GL_NEAREST). With MSAA from the image resolved when the pass ended (all of it;
+                // GL resolves only the rectangle, but copies are rare)
                 float uv[4] = { (float)rect[0] / s_target_w, (float)rect[1] / s_target_h,
                                 (float)(rect[0] + rect[2]) / s_target_w, (float)(rect[1] + rect[3]) / s_target_h };
                 int all[4] = { 0, 0, rect[2], rect[3] };
-                copy_texture(cmd, s_color, s_sampler, uv, d->other, all, 0);
+                copy_texture(cmd, readable_target(), s_sampler, uv, d->other, SDL_GPU_SAMPLECOUNT_1, NULL, all, 0);
             } else {
                 // pc_gpu_draw_texture: whole frame black, the texture in the rectangle
                 const float uv[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-                copy_texture(cmd, d->other, d->other_sampler, uv, s_color, rect, 1);
+                copy_texture(cmd, d->other, d->other_sampler, uv, s_color, s_samples, s_resolve, rect, 1);
             }
             continue;
         }
@@ -831,10 +1028,14 @@ SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h) {
         if (d->block[PC_GX_BLOCK_FRAGMENT] != last_block[PC_GX_BLOCK_FRAGMENT])
             SDL_PushGPUFragmentUniformData(cmd, 0, s_block_arena + d->block[PC_GX_BLOCK_FRAGMENT],
                                            (Uint32)s_block_size[PC_GX_BLOCK_FRAGMENT]);
-        if (d->block[PC_GX_BLOCK_CONFIG] != last_block[PC_GX_BLOCK_CONFIG])
+        // Only the uber shader has the config slot; a push stays for later uber draws in the command buffer
+        if (d->uber && d->block[PC_GX_BLOCK_CONFIG] != last_block[PC_GX_BLOCK_CONFIG]) {
             SDL_PushGPUFragmentUniformData(cmd, 1, s_block_arena + d->block[PC_GX_BLOCK_CONFIG],
                                            (Uint32)s_block_size[PC_GX_BLOCK_CONFIG]);
-        memcpy(last_block, d->block, sizeof(last_block));
+            last_block[PC_GX_BLOCK_CONFIG] = d->block[PC_GX_BLOCK_CONFIG];
+        }
+        last_block[PC_GX_BLOCK_VERTEX] = d->block[PC_GX_BLOCK_VERTEX];
+        last_block[PC_GX_BLOCK_FRAGMENT] = d->block[PC_GX_BLOCK_FRAGMENT];
 
         if (d->quads) {
             SDL_DrawGPUIndexedPrimitives(pass, (Uint32)(d->count / 4 * 6), 1, 0, d->first, 0);
@@ -846,7 +1047,7 @@ SDL_GPUTexture* pc_gx_sdl_render(SDL_GPUCommandBuffer* cmd, int* w, int* h) {
     reset_recording();
     pc_gpu_sdl_release_textures(); // nothing recorded refers to them any more
     s_clear_pending = 0;
-    return s_color;
+    return readable_target();
 }
 
 unsigned char* pc_gx_sdl_read_pixels(int w, int h) {
@@ -855,26 +1056,40 @@ unsigned char* pc_gx_sdl_read_pixels(int w, int h) {
     SDL_GPUCommandBuffer* cmd;
     SDL_GPUCopyPass* copy;
     SDL_GPUFence* fence;
+    SDL_GPUTexture* scaled = NULL; // w x h copy when that isn't the target size (the window, for render tests)
     const unsigned char* src;
     unsigned char* pixels;
 
-    if (s_color == NULL || w != s_target_w || h != s_target_h) return NULL;
+    if (s_color == NULL || w <= 0 || h <= 0) return NULL;
+    if (w != s_target_w || h != s_target_h) {
+        SDL_GPUTextureCreateInfo info = {0};
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+        info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        info.width = (Uint32)w;
+        info.height = (Uint32)h;
+        info.layer_count_or_depth = 1;
+        info.num_levels = 1;
+        scaled = SDL_CreateGPUTexture(s_device, &info);
+        if (scaled == NULL) return NULL;
+    }
     pixels = malloc((size_t)w * h * 3);
-    if (pixels == NULL) return NULL;
     tinfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
     tinfo.size = (Uint32)(w * h * 4);
-    tb = SDL_CreateGPUTransferBuffer(s_device, &tinfo);
+    tb = pixels ? SDL_CreateGPUTransferBuffer(s_device, &tinfo) : NULL;
     cmd = tb ? SDL_AcquireGPUCommandBuffer(s_device) : NULL;
     if (cmd == NULL) {
         if (tb) SDL_ReleaseGPUTransferBuffer(s_device, tb);
+        if (scaled) SDL_ReleaseGPUTexture(s_device, scaled);
         free(pixels);
         return NULL;
     }
+    if (scaled) pc_gpu_sdl_blit_frame(cmd, readable_target(), s_target_w, s_target_h, scaled, (Uint32)w, (Uint32)h);
     copy = SDL_BeginGPUCopyPass(cmd);
     {
         SDL_GPUTextureRegion region = {0};
         SDL_GPUTextureTransferInfo dst = {0};
-        region.texture = s_color;
+        region.texture = scaled ? scaled : readable_target();
         region.w = (Uint32)w;
         region.h = (Uint32)h;
         region.d = 1;
@@ -887,6 +1102,7 @@ unsigned char* pc_gx_sdl_read_pixels(int w, int h) {
         SDL_WaitForGPUFences(s_device, true, &fence, 1);
         SDL_ReleaseGPUFence(s_device, fence);
     }
+    if (scaled) SDL_ReleaseGPUTexture(s_device, scaled);
     src = SDL_MapGPUTransferBuffer(s_device, tb, false);
     if (src == NULL) {
         SDL_ReleaseGPUTransferBuffer(s_device, tb);

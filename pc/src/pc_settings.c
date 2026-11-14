@@ -354,7 +354,7 @@ void pc_settings_save(void) {
     fprintf(f, "# Texture filtering: 0 = nearest-neighbor, 1 = use the game's filtering\n");
     fprintf(f, "texture_filtering = %d\n", g_pc_settings.texture_filtering);
     fprintf(f, "\n");
-    fprintf(f, "# Renderer: 0 = OpenGL, 1 = Vulkan (in development: draws nothing yet). Takes effect on restart\n");
+    fprintf(f, "# Renderer: 0 = OpenGL, 1 = Vulkan (falls back to OpenGL if Vulkan can't start). Takes effect on restart\n");
     fprintf(f, "renderer = %d\n", g_pc_settings.renderer);
     fprintf(f, "\n");
     fprintf(f, "[Enhancements]\n");

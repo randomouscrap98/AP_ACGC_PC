@@ -234,6 +234,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_debug.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gx.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gx_tev.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gx_tev_source.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gx_texture.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gpu_gl.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_gpu_sdl.c
@@ -516,6 +517,25 @@ foreach(shader default.vert default.frag copy.vert copy.frag)
     )
     list(APPEND AC_PC_SPIRV "${spv}")
 endforeach()
+# TEV variants for Vulkan: SPIR-V per pc_shader_seed.h key (pc/tools/gen_tev_variants.py); other configs use the
+# uber shader. Without python3 the file isn't made and Vulkan uses the uber shader for everything
+find_program(AC_PC_PYTHON3 python3)
+if(AC_PC_PYTHON3)
+    set(tev_variants "${CMAKE_BINARY_DIR}/bin/shaders/tev_variants.bin")
+    add_custom_command(
+        OUTPUT "${tev_variants}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bin/shaders"
+        COMMAND ${AC_PC_PYTHON3} "${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_tev_variants.py"
+                "${CMAKE_CURRENT_SOURCE_DIR}/include/pc_shader_seed.h" "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.frag"
+                "${GLSLANG_VALIDATOR}" "${tev_variants}" "${CMAKE_BINARY_DIR}/tev_variants"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_tev_variants.py"
+                "${CMAKE_CURRENT_SOURCE_DIR}/include/pc_shader_seed.h" "${CMAKE_CURRENT_SOURCE_DIR}/shaders/default.frag"
+        COMMENT "Compiling TEV shader variants to SPIR-V"
+    )
+    list(APPEND AC_PC_SPIRV "${tev_variants}")
+else()
+    message(STATUS "python3 not found: no Vulkan TEV variants (uber shader only)")
+endif()
 add_custom_target(ac_pc_shaders ALL
     DEPENDS "${CMAKE_BINARY_DIR}/bin/shaders/default.vert" "${CMAKE_BINARY_DIR}/bin/shaders/default.frag"
             ${AC_PC_SPIRV}
@@ -561,8 +581,8 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/shaders/"
     FILES_MATCHING PATTERN "*.vert" PATTERN "*.frag"
     PATTERN "copy.*" EXCLUDE # Vulkan only: SPIR-V below
 )
-# Vulkan renderer: the SPIR-V built above
+# Vulkan renderer: the SPIR-V built above (+ TEV variants)
 install(DIRECTORY "${CMAKE_BINARY_DIR}/bin/shaders/"
     DESTINATION bin/shaders
-    FILES_MATCHING PATTERN "*.spv"
+    FILES_MATCHING PATTERN "*.spv" PATTERN "tev_variants.bin"
 )

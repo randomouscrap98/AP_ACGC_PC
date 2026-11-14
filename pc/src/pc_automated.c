@@ -11,6 +11,7 @@
 #include "pc_dirs.h"
 #include "pc_screenshot.h"
 #include "pc_settings.h"
+#include "pc_render_target.h"
 #include "pc_gx_internal.h"
 #include "m_kankyo.h"
 #include "m_play.h"
@@ -82,12 +83,15 @@ static const RTScene s_scenes[] = {
     { .name = "town_snow", .town = 1, .frame = 300, .month = 1, .day = 20, .year = 2027, .snow = 1 },
     { .name = "town_msaa4", .town = 1, .frame = 300, .msaa = 4 },
     { .name = "town_scale1", .town = 1, .frame = 300, .scale = 1 },  // 480 lines, scaled up to the window
+    // Integer: same as town at render_check's 1280x960; with RC_WINDOW=1100x800 640x480 centred on black bars
+    { .name = "town_integer", .town = 1, .frame = 300, .scale = PC_RENDER_SCALE_INTEGER },
     { .name = "house", .town = 1, .frame = 300, .act = RT_HOUSE },  // first room (size S)
     { .name = "nook", .town = 1, .frame = 300, .act = RT_SHOP },  // Nook's Cranny (new town)
     { .name = "museum", .town = 1, .frame = 300, .act = RT_MUSEUM },  // entrance hall
     { .name = "pause", .town = 1, .frame = 120, .act = RT_PAUSE },  // PC pause menu over the town
     { .name = "map", .town = 1, .frame = 120, .act = RT_MAP },  // town map
     { .name = "inventory", .town = 1, .frame = 120, .act = RT_INVENTORY },
+    { .name = "inventory_msaa4", .town = 1, .frame = 120, .act = RT_INVENTORY, .msaa = 4 },  // EFB copy with MSAA
     { .name = "letter", .town = 1, .frame = 120, .act = RT_LETTER },  // a letter being read (stationery + text)
     // A row of tulips, then pansies, in front of the player: ladybug, mantis, snail on each row
     { .name = "flower_bugs", .town = 1, .frame = 90, .act = RT_FLOWER_BUGS },

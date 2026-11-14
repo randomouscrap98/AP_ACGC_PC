@@ -4,6 +4,7 @@
 #include "pc_automated.h"
 #include "pc_gx_internal.h"
 #include "pc_settings.h"
+#include "pc_render_target.h"
 
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -59,6 +60,33 @@ void pc_gpu_sdl_set_vsync(int on) {
         fprintf(stderr, "[GPU] SDL_SetGPUSwapchainParameters failed: %s\n", SDL_GetError());
 }
 
+void pc_gpu_sdl_blit_frame(SDL_GPUCommandBuffer* cmd, SDL_GPUTexture* frame, int fw, int fh, SDL_GPUTexture* dst,
+                           Uint32 dw, Uint32 dh) {
+    SDL_GPUBlitInfo blit = {0};
+    int same = (Uint32)fw == dw && (Uint32)fh == dh;
+
+    // Render scale size -> window: linear like GL's glBlitFramebuffer (nearest when the same size)
+    blit.source.texture = frame;
+    blit.source.w = (Uint32)fw;
+    blit.source.h = (Uint32)fh;
+    blit.destination.texture = dst;
+    blit.destination.w = dw;
+    blit.destination.h = dh;
+    blit.load_op = SDL_GPU_LOADOP_DONT_CARE;
+    blit.filter = same ? SDL_GPU_FILTER_NEAREST : SDL_GPU_FILTER_LINEAR;
+    // Integer render scale: smaller than the window, centred 1:1 on black (like pc_render_target_present)
+    if (g_pc_settings.render_scale == PC_RENDER_SCALE_INTEGER && !same && (Uint32)fw <= dw && (Uint32)fh <= dh) {
+        blit.destination.x = (dw - (Uint32)fw) / 2;
+        blit.destination.y = (dh - (Uint32)fh) / 2;
+        blit.destination.w = (Uint32)fw;
+        blit.destination.h = (Uint32)fh;
+        blit.load_op = SDL_GPU_LOADOP_CLEAR; // the bars (the Vulkan backend clears all of dst first)
+        blit.clear_color = (SDL_FColor){0.0f, 0.0f, 0.0f, 1.0f};
+        blit.filter = SDL_GPU_FILTER_NEAREST;
+    }
+    SDL_BlitGPUTexture(cmd, &blit);
+}
+
 void pc_gpu_sdl_present(void) {
     SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(s_device);
     SDL_GPUTexture* swapchain = NULL;
@@ -81,17 +109,7 @@ void pc_gpu_sdl_present(void) {
     // NULL swapchain = nothing to draw into this frame (minimized window): just submit
     if (swapchain != NULL) {
         if (frame != NULL) {
-            // The frame is window sized; scaled only while a resize hasn't reached the next frame yet
-            SDL_GPUBlitInfo blit = {0};
-            blit.source.texture = frame;
-            blit.source.w = (Uint32)fw;
-            blit.source.h = (Uint32)fh;
-            blit.destination.texture = swapchain;
-            blit.destination.w = sw;
-            blit.destination.h = sh;
-            blit.load_op = SDL_GPU_LOADOP_DONT_CARE;
-            blit.filter = (Uint32)fw == sw && (Uint32)fh == sh ? SDL_GPU_FILTER_NEAREST : SDL_GPU_FILTER_LINEAR;
-            SDL_BlitGPUTexture(cmd, &blit);
+            pc_gpu_sdl_blit_frame(cmd, frame, fw, fh, swapchain, sw, sh);
         } else {
             SDL_GPUColorTargetInfo target = {0};
             target.texture = swapchain;

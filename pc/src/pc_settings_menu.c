@@ -74,7 +74,7 @@ static const Item tab_video_items[] = {
     { "Render scale", ITEM_RENDER_SCALE, 0, NULL },
     { "Texture filter", ITEM_TEXTURE_FILTERING, 0, NULL },
     { "Textures",   ITEM_TEXTURES, 1, NULL },
-    { "Renderer",   ITEM_RENDERER, 1, "Vulkan is in development: draws nothing yet" },
+    { "Renderer",   ITEM_RENDERER, 1, "Vulkan is still in development" },
     { "AP text client", ITEM_AP_TEXT_CLIENT, 0, NULL },
 };
 
