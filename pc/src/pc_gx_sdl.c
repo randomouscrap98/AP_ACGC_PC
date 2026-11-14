@@ -8,15 +8,20 @@
 // pc_gpu_draw_texture (fixNES) is the same kind of entry, drawing a texture into the frame.
 // TEV variants: shaders/tev_variants.bin (pc/tools/gen_tev_variants.py, build time) holds SPIR-V for the shader
 // seed's keys; a draw whose key is there uses it, anything else the uber shader (GL compiles variants at runtime).
+// Precompile (Settings "Precompile shaders"): every new pipeline is appended to vulkan_pipelines.bin; when the
+// target is made, the pipelines from that file and pc_vk_pipeline_seed.h (pc/tools/gen_vk_pipeline_seed.py) are
+// created for its sample count, so the driver's shader compiles happen at startup instead of mid-play.
 // MSAA: every pass on the frame target ends with a resolve into s_resolve (SDL_GPU resolves only at the end of a
 // pass, and a multisampled texture can't be read); EFB copies, present and read_pixels use the resolved image.
 // Not yet: ImGui.
 #include "pc_gx_internal.h"
 #include "pc_gpu.h"
+#include "pc_settings.h"
+#include "pc_vk_pipeline_seed.h"
 #include <dolphin/gx/GXEnum.h>
 #include <stddef.h>
 
-#define PC_GX_SDL_MAX_PIPELINES 256
+#define PC_GX_SDL_MAX_PIPELINES 1024 // per sample count in use; precompiling stops at 3/4
 #define PC_GX_SDL_NUM_SAMPLERS  5 // u_texture0-2, u_ind_tex0-1 (default.frag)
 #define PC_GX_SDL_MAX_DIM       16384 // SDL_GPU can't report the real limit; a failed create falls back
 #define PC_GX_SDL_MAX_VARIANTS  1024
@@ -73,6 +78,27 @@ typedef struct {
 static unsigned char* s_variant_file;
 static Variant* s_variants;
 static int s_variant_count;
+
+// A pipeline as bytes (no padding or endianness): uber flag, the variant's PCGXShaderKey (zeros for uber), then
+// the SDL primitive and the PCGXPipelineKey fields. Same layout in vulkan_pipelines.bin and the seed header
+#define REC_UBER   0
+#define REC_KEY    1
+#define REC_STATE  (REC_KEY + (int)sizeof(PCGXShaderKey))
+#define REC_STATES 11
+#define REC_SIZE   (REC_STATE + REC_STATES)
+#define PIPELINE_FILE       "vulkan_pipelines.bin"
+#define PIPELINE_FILE_MAGIC 0x50564341u // ACVP
+
+typedef struct {
+    unsigned char b[REC_SIZE];
+} PipelineRec;
+
+static PipelineRec* s_known;    // seed + file: precompiled, and never appended again
+static int s_known_count, s_known_cap;
+static int s_precompiling;      // pipelines made now aren't recorded
+static int s_precompiled[4];    // per SDL_GPUSampleCount
+static int s_in_init;           // the init target (MSAA off) isn't the real one: no precompile yet
+static void load_known(void);
 
 // Offscreen target, (re)made by pc_gx_sdl_prepare_target when the size or MSAA changes
 static SDL_GPUTexture* s_color;   // multisampled with MSAA
@@ -315,6 +341,7 @@ int pc_gx_sdl_init(SDL_GPUDevice* device, int w, int h) {
     s_copy_frag = load_shader("shaders/copy.frag.spv", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0);
     if (s_vert == NULL || s_frag == NULL || s_copy_vert == NULL || s_copy_frag == NULL) return 0;
     load_variants();
+    load_known();
 
     // GL's render target is depth 24 + stencil 8; not every GPU has it
     s_depth_format = SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT;
@@ -358,7 +385,9 @@ int pc_gx_sdl_init(SDL_GPUDevice* device, int w, int h) {
     for (int b = 0; b < PC_GX_NUM_BLOCKS; b++) s_block_off[b] = -1;
     memset(s_unit, 0, sizeof(s_unit));
     // Black until the first frame begins
+    s_in_init = 1; // the real target (settings' MSAA) comes with the first frame: precompile then
     pc_gx_sdl_prepare_target(w, h, 0, w, h, &w, &h);
+    s_in_init = 0;
     pc_gx_sdl_begin_frame(w, h, (const float[4]){0.0f, 0.0f, 0.0f, 1.0f}, 1.0f);
     return 1;
 }
@@ -391,6 +420,10 @@ void pc_gx_sdl_shutdown(void) {
     for (int i = 0; i < s_variant_count; i++) {
         if (s_variants[i].shader) SDL_ReleaseGPUShader(s_device, s_variants[i].shader);
     }
+    free(s_known);
+    s_known = NULL;
+    s_known_count = s_known_cap = 0;
+    memset(s_precompiled, 0, sizeof(s_precompiled));
     free(s_variants);
     SDL_free(s_variant_file);
     s_variants = NULL;
@@ -515,6 +548,109 @@ static SDL_GPUCompareOp compare_op(int gx) {
     }
 }
 
+// The pipeline as a record; 0 if a value doesn't fit a byte (not recorded then)
+static int to_record(const PCGXPipelineKey* key, SDL_GPUPrimitiveType prim, PipelineRec* rec) {
+    const int states[REC_STATES] = { (int)prim, key->prim, key->depth_test, key->depth_func, key->depth_write,
+                                     key->color_write, key->alpha_write, key->cull, key->blend, key->blend_src,
+                                     key->blend_dst };
+
+    memset(rec, 0, sizeof(*rec));
+    rec->b[REC_UBER] = key->sdl_variant < 0;
+    if (key->sdl_variant >= 0) memcpy(&rec->b[REC_KEY], s_variants[key->sdl_variant].key, sizeof(PCGXShaderKey));
+    for (int i = 0; i < REC_STATES; i++) {
+        if (states[i] < 0 || states[i] > 255) return 0;
+        rec->b[REC_STATE + i] = (unsigned char)states[i];
+    }
+    return 1;
+}
+
+// The record back as a pipeline key (the same one pc_gx.c builds for such a draw); 0 if it's not sane
+static int from_record(const PipelineRec* rec, PCGXPipelineKey* key, SDL_GPUPrimitiveType* prim) {
+    const unsigned char* st = &rec->b[REC_STATE];
+
+    if (rec->b[REC_UBER] > 1 || st[0] > SDL_GPU_PRIMITIVETYPE_POINTLIST) return 0;
+    memset(key, 0, sizeof(*key)); // like pc_gx_pipeline_key: padding too
+    key->shader = NULL;
+    if (rec->b[REC_UBER]) {
+        key->sdl_variant = -1;
+    } else {
+        PCGXShaderKey shader_key;
+        memcpy(&shader_key, &rec->b[REC_KEY], sizeof(shader_key));
+        key->sdl_variant = pc_gx_sdl_variant(&shader_key); // -1 (uber) if this build doesn't have it, like a draw
+    }
+    *prim = (SDL_GPUPrimitiveType)st[0];
+    key->prim = st[1];
+    key->depth_test = st[2];
+    key->depth_func = st[3];
+    key->depth_write = st[4];
+    key->color_write = st[5];
+    key->alpha_write = st[6];
+    key->cull = st[7];
+    key->blend = st[8];
+    key->blend_src = st[9];
+    key->blend_dst = st[10];
+    return 1;
+}
+
+static int known_has(const PipelineRec* rec) {
+    for (int i = 0; i < s_known_count; i++) {
+        if (memcmp(&s_known[i], rec, sizeof(*rec)) == 0) return 1;
+    }
+    return 0;
+}
+
+static void known_add(const PipelineRec* rec) {
+    if (known_has(rec) || !grow((void**)&s_known, &s_known_cap, s_known_count + 1, sizeof(PipelineRec))) return;
+    s_known[s_known_count++] = *rec;
+}
+
+// The seed and vulkan_pipelines.bin into s_known (also with precompiling off: they mustn't be appended again).
+// A file for another record size is replaced on the next append; a torn last record is ignored
+static void load_known(void) {
+    FILE* f;
+    Uint32 hdr[2];
+    PipelineRec rec;
+
+    if (PC_VK_PIPELINE_SEED_REC_SIZE == REC_SIZE) {
+        for (int i = 0; i < PC_VK_PIPELINE_SEED_COUNT; i++) {
+            memcpy(rec.b, pc_vk_pipeline_seed[i], REC_SIZE);
+            known_add(&rec);
+        }
+    } else {
+        fprintf(stderr, "[GPU] pc_vk_pipeline_seed.h record size changed: regenerate with gen_vk_pipeline_seed.py\n");
+    }
+    f = fopen(PIPELINE_FILE, "rb");
+    if (f == NULL) return;
+    if (fread(hdr, sizeof(hdr), 1, f) == 1 && hdr[0] == PIPELINE_FILE_MAGIC && hdr[1] == REC_SIZE) {
+        while (fread(&rec, sizeof(rec), 1, f) == 1) known_add(&rec);
+    } else {
+        fclose(f);
+        remove(PIPELINE_FILE);
+        printf("[GPU] %s format changed, discarded\n", PIPELINE_FILE);
+        return;
+    }
+    fclose(f);
+}
+
+// A pipeline made during play that neither the seed nor the file had: appended for the next start
+static void record_new(const PCGXPipelineKey* key, SDL_GPUPrimitiveType prim) {
+    PipelineRec rec;
+    FILE* f;
+
+    if (s_precompiling || !g_pc_settings.precompile_shaders || !to_record(key, prim, &rec) || known_has(&rec)) return;
+    known_add(&rec);
+    f = fopen(PIPELINE_FILE, "r+b");
+    if (f == NULL) {
+        Uint32 hdr[2] = { PIPELINE_FILE_MAGIC, REC_SIZE };
+        f = fopen(PIPELINE_FILE, "wb");
+        if (f == NULL) return;
+        fwrite(hdr, sizeof(hdr), 1, f);
+    }
+    fseek(f, 0, SEEK_END);
+    fwrite(&rec, sizeof(rec), 1, f);
+    fclose(f);
+}
+
 // The pipeline for the key, made on first use (same state as pc_gx.c sets on GL)
 static SDL_GPUGraphicsPipeline* get_pipeline(const PCGXPipelineKey* key, SDL_GPUPrimitiveType prim) {
     static Pipeline* s_last;
@@ -603,7 +739,7 @@ static SDL_GPUGraphicsPipeline* get_pipeline(const PCGXPipelineKey* key, SDL_GPU
         pipeline = SDL_CreateGPUGraphicsPipeline(s_device, &info);
         double ms = (double)(SDL_GetPerformanceCounter() - t0) * 1000.0 / (double)SDL_GetPerformanceFrequency();
         // Slow = the driver compiled the shader (first use without a driver cache entry): a hitch
-        if (g_pc_verbose && ms > 2.0)
+        if (g_pc_verbose && ms > 2.0 && !s_precompiling)
             printf("[GPU] pipeline %d (variant %d) took %.1f ms\n", s_pipeline_count, key->sdl_variant, ms);
     }
     if (pipeline == NULL) {
@@ -614,7 +750,26 @@ static SDL_GPUGraphicsPipeline* get_pipeline(const PCGXPipelineKey* key, SDL_GPU
     s_last->key = *key;
     s_last->samples = s_samples;
     s_last->pipeline = pipeline;
+    record_new(key, prim);
     return pipeline;
+}
+
+// Creates the known pipelines for the current target's sample count (once per count)
+static void precompile_pipelines(void) {
+    Uint64 t0 = SDL_GetPerformanceCounter();
+    int before = s_pipeline_count;
+
+    if (!g_pc_settings.precompile_shaders || s_precompiled[s_samples]) return;
+    s_precompiled[s_samples] = 1;
+    s_precompiling = 1;
+    for (int i = 0; i < s_known_count && s_pipeline_count < PC_GX_SDL_MAX_PIPELINES * 3 / 4; i++) {
+        PCGXPipelineKey key;
+        SDL_GPUPrimitiveType prim;
+        if (from_record(&s_known[i], &key, &prim)) get_pipeline(&key, prim);
+    }
+    s_precompiling = 0;
+    printf("[GPU] precompiled %d pipelines (samples=%d) in %.0f ms\n", s_pipeline_count - before, 1 << s_samples,
+           (double)(SDL_GetPerformanceCounter() - t0) * 1000.0 / (double)SDL_GetPerformanceFrequency());
 }
 
 // Appends n vertices to the frame; the index of the first, -1 if out of memory
@@ -848,6 +1003,8 @@ void pc_gx_sdl_prepare_target(int win_w, int win_h, int msaa, int scale_w, int s
         if (g_pc_verbose) printf("[GPU] window %dx%d, render target %dx%d samples=%d\n", win_w, win_h, s_target_w,
                                  s_target_h, s_color ? 1 << s_samples : 0);
     }
+    // Once per sample count (also when the first real frame keeps the init target)
+    if (s_color && !s_in_init) precompile_pipelines();
     *out_w = s_color ? s_target_w : SDL_max(win_w, 1);
     *out_h = s_color ? s_target_h : SDL_max(win_h, 1);
 }

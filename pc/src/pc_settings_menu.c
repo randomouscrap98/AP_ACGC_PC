@@ -31,6 +31,7 @@ enum {
     ITEM_TEXTURE_FILTERING,
     ITEM_TEXTURES,
     ITEM_RENDERER,
+    ITEM_PRECOMPILE_SHADERS,
     ITEM_AP_TEXT_CLIENT,
     ITEM_RESETTI,
     ITEM_SHOP_VISITOR,
@@ -75,6 +76,7 @@ static const Item tab_video_items[] = {
     { "Texture filter", ITEM_TEXTURE_FILTERING, 0, NULL },
     { "Textures",   ITEM_TEXTURES, 1, NULL },
     { "Renderer",   ITEM_RENDERER, 1, "Vulkan is still in development" },
+    { "Precompile", ITEM_PRECOMPILE_SHADERS, 1, "Shaders at startup: no stutter on new effects" },
     { "AP text client", ITEM_AP_TEXT_CLIENT, 0, NULL },
 };
 
@@ -506,6 +508,9 @@ static void item_cycle(int id, int dir) {
         case ITEM_AP_TEXT_CLIENT:
             s_pending.ap_text_client = !s_pending.ap_text_client;
             break;
+        case ITEM_PRECOMPILE_SHADERS:
+            s_pending.precompile_shaders = !s_pending.precompile_shaders;
+            break;
         case ITEM_MASTER_VOLUME: {
             int v = s_pending.master_volume + (dir > 0 ? 10 : -10);
             if (v < 0)   v = 0;
@@ -650,6 +655,9 @@ static void item_format(int id, char* buf, size_t n) {
         case ITEM_AP_TEXT_CLIENT:
             snprintf(buf, n, "%s", s_pending.ap_text_client ? "< On >" : "< Off >");
             break;
+        case ITEM_PRECOMPILE_SHADERS:
+            snprintf(buf, n, "%s", s_pending.precompile_shaders ? "< On >" : "< Off >");
+            break;
         case ITEM_MASTER_VOLUME:
             snprintf(buf, n, "< %d%% >", s_pending.master_volume);
             break;
@@ -700,6 +708,7 @@ static int item_changed(int id) {
         case ITEM_SHORT_SHOP_TALK: return s_pending.short_shop_talk != g_pc_settings.short_shop_talk;
         case ITEM_LESS_MAIL:     return s_pending.less_mail     != g_pc_settings.less_mail;
         case ITEM_AP_TEXT_CLIENT: return s_pending.ap_text_client != g_pc_settings.ap_text_client;
+        case ITEM_PRECOMPILE_SHADERS: return s_pending.precompile_shaders != g_pc_settings.precompile_shaders;
         case ITEM_MASTER_VOLUME: return s_pending.master_volume != g_pc_settings.master_volume;
         case ITEM_STICK_DEADZONE:  return s_pending.stick_deadzone  != g_pc_settings.stick_deadzone;
         case ITEM_CSTICK_DEADZONE: return s_pending.cstick_deadzone != g_pc_settings.cstick_deadzone;
@@ -715,6 +724,7 @@ static int item_differs_from_startup(int id) {
     switch (id) {
         case ITEM_TEXTURES: return g_pc_settings.preload_textures != s_startup.preload_textures;
         case ITEM_RENDERER: return g_pc_settings.renderer != s_startup.renderer;
+        case ITEM_PRECOMPILE_SHADERS: return g_pc_settings.precompile_shaders != s_startup.precompile_shaders;
     }
     return 0;
 }

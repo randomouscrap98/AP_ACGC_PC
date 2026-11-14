@@ -16,6 +16,7 @@ PCSettings g_pc_settings = {
     .render_scale  = PC_RENDER_SCALE_AUTO,
     .texture_filtering = 1,
     .renderer      = 0,
+    .precompile_shaders = 1,
     .preload_textures = 0,
     .disable_resetti = 1,
     .disable_shop_visitor_req = 1,
@@ -74,6 +75,10 @@ static const char* DEFAULT_SETTINGS =
     "\n"
     "# Renderer: 0 = OpenGL, 1 = Vulkan (falls back to OpenGL if Vulkan can't start). Takes effect on restart\n"
     "renderer = 0\n"
+    "\n"
+    "# Precompile shaders: 1 = build the shaders seen so far at startup (no stutter the first time an effect shows up),\n"
+    "# 0 = build them when first used. Takes effect on restart\n"
+    "precompile_shaders = 1\n"
     "\n"
     "[Enhancements]\n"
     "# Preload HD textures at startup: 0 = off (load on demand), 1 = preload, 2 = preload + cache file (fastest)\n"
@@ -190,6 +195,8 @@ static void apply_setting(const char* key, const char* value) {
         if (val == 0 || val == 1) g_pc_settings.texture_filtering = val;
     } else if (strcmp(key, "renderer") == 0) {
         if (val == 0 || val == 1) g_pc_settings.renderer = val;
+    } else if (strcmp(key, "precompile_shaders") == 0) {
+        if (val == 0 || val == 1) g_pc_settings.precompile_shaders = val;
     } else if (strcmp(key, "preload_textures") == 0) {
         if (val >= 0 && val <= 2) g_pc_settings.preload_textures = val;
     } else if (strcmp(key, "disable_resetti") == 0) {
@@ -356,6 +363,10 @@ void pc_settings_save(void) {
     fprintf(f, "\n");
     fprintf(f, "# Renderer: 0 = OpenGL, 1 = Vulkan (falls back to OpenGL if Vulkan can't start). Takes effect on restart\n");
     fprintf(f, "renderer = %d\n", g_pc_settings.renderer);
+    fprintf(f, "\n");
+    fprintf(f, "# Precompile shaders: 1 = build the shaders seen so far at startup (no stutter the first time an effect shows up),\n");
+    fprintf(f, "# 0 = build them when first used. Takes effect on restart\n");
+    fprintf(f, "precompile_shaders = %d\n", g_pc_settings.precompile_shaders);
     fprintf(f, "\n");
     fprintf(f, "[Enhancements]\n");
     fprintf(f, "# Preload HD textures at startup: 0 = off (load on demand), 1 = preload, 2 = preload + cache file (fastest)\n");

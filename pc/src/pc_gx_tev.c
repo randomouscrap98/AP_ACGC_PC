@@ -1,5 +1,6 @@
 #include "pc_gx_internal.h"
 #include "pc_shader_seed.h"
+#include "pc_settings.h"
 
 int g_pc_uber_shader_only = 0; /* --uber-shader: disable specialization */
 
@@ -270,7 +271,8 @@ static PCGXShaderVariant* compile_variant(const PCGXShaderKey* k) {
          * so the failing compile isn't retried every flush */
         fprintf(stderr, "WARNING: shader variant compile failed, using uber shader\n");
         prog = default_program;
-    } else if (!s_precompiling) {
+    } else if (!s_precompiling && g_pc_settings.precompile_shaders) {
+        // (off: the cache isn't read at boot, so seed / known keys would be appended again every run)
         key_cache_append(k);
     }
     if (prog != default_program && g_pc_verbose) {
@@ -354,7 +356,8 @@ static int key_is_sane(const PCGXShaderKey* k) {
 }
 
 static void pc_gx_tev_precompile_cached(void) {
-    if (g_pc_uber_shader_only) return;
+    // Settings "Precompile shaders" off: variants compile on first use (shader_cache.bin still records new ones)
+    if (g_pc_uber_shader_only || !g_pc_settings.precompile_shaders) return;
 
     int loaded = 0;
     Uint32 t0 = SDL_GetTicks();
