@@ -68,7 +68,7 @@ typedef struct {
 } CrashModule;
 
 static char s_os[128] = "?";
-static char s_gl[384] = "?";
+static char s_gpu[384] = "?";
 static CrashFrame s_frame;
 static CrashScene s_scenes[CRASH_SCENES];
 static int s_scene_count; // total ever, ring index = count % CRASH_SCENES
@@ -338,8 +338,8 @@ static void crash_write_log(void) {
 }
 
 static void crash_write_header(void) {
-  crash_write("Animal Crossing AP crash report\r\nversion %s\r\nos %s\r\ngl %s\r\n\r\n", PC_AP_VERSION, s_os,
-              s_gl);
+  crash_write("Animal Crossing AP crash report\r\nversion %s\r\nos %s\r\ngpu %s\r\n\r\n", PC_AP_VERSION, s_os,
+              s_gpu);
 }
 
 // Platform part 2: the handler and setup
@@ -579,7 +579,7 @@ static void crash_init_os(void) {
 
 void pc_crash_init_info(void) {
   crash_init_os();
-  pc_gpu_device_info(s_gl, sizeof(s_gl));
+  pc_gpu_device_info(s_gpu, sizeof(s_gpu));
   s_module_count_init = crash_collect_modules(s_modules_init);
 #ifdef _WIN32
   // Again, in case SDL or the GL driver installed their own

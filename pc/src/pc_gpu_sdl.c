@@ -43,8 +43,31 @@ int pc_gpu_sdl_init(SDL_Window* window) {
             return 0;
         }
     }
-    printf("[GPU] SDL_GPU device: %s\n", SDL_GetGPUDeviceDriver(s_device));
+    {
+        char info[384];
+        pc_gpu_sdl_device_info(info, sizeof(info));
+        printf("[GPU] SDL_GPU device: %s\n", info);
+    }
     return 1;
+}
+
+void pc_gpu_sdl_device_info(char* out, int size) {
+    SDL_PropertiesID props;
+    const char* name;
+    const char* driver;
+    const char* version;
+    const char* info;
+
+    if (s_device == NULL) {
+        snprintf(out, (size_t)size, "vulkan (no device)");
+        return;
+    }
+    props = SDL_GetGPUDeviceProperties(s_device);
+    name = SDL_GetStringProperty(props, SDL_PROP_GPU_DEVICE_NAME_STRING, "?");
+    driver = SDL_GetStringProperty(props, SDL_PROP_GPU_DEVICE_DRIVER_NAME_STRING, "?");
+    version = SDL_GetStringProperty(props, SDL_PROP_GPU_DEVICE_DRIVER_VERSION_STRING, "?");
+    info = SDL_GetStringProperty(props, SDL_PROP_GPU_DEVICE_DRIVER_INFO_STRING, "?");
+    snprintf(out, (size_t)size, "%s | %s | %s %s | %s", SDL_GetGPUDeviceDriver(s_device), name, driver, version, info);
 }
 
 SDL_GPUDevice* pc_gpu_sdl_device(void) {

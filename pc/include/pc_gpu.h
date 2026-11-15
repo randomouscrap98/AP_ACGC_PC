@@ -22,6 +22,8 @@ void pc_gpu_sdl_present(void);
 // Swapchain present mode: vsync, else immediate (or mailbox where immediate is missing)
 void pc_gpu_sdl_set_vsync(int on);
 void pc_gpu_sdl_shutdown(void);
+// "vulkan | device | driver version | driver info" (what SDL reports; "?" for a missing part)
+void pc_gpu_sdl_device_info(char* out, int size);
 
 typedef unsigned int PCGpuTexture; // 0 = none (GL: the texture name)
 typedef unsigned int PCGpuTarget;  // something drawn into / read from; 0 = the window (GL: the framebuffer name)

@@ -42,7 +42,7 @@ int pc_gpu_init(void) {
 
 void pc_gpu_device_info(char* out, int size) {
     if (!pc_gpu_is_gl()) {
-        snprintf(out, (size_t)size, "SDL_GPU vulkan");
+        pc_gpu_sdl_device_info(out, size);
         return;
     }
     if (glGetString == NULL) { // gladLoadGL found nothing
