@@ -1575,6 +1575,10 @@ void pc_ap_fish_spawns(aSOG_gyoei_spawn_info_weight_f_c* rows, int n, u32 block_
   }
 }
 
+int pc_ap_insect_hour(int hour) {
+  return pc_ap_time_frozen() ? pc_ap_timesanity_insect_hour(hour) : hour;
+}
+
 void pc_ap_insect_spawns(aSOI_insect_spawn_info_f_c* rows, int n) {
   // The journal needs a player (none on the title demo)
   if(Common_Get(now_private) == NULL) {

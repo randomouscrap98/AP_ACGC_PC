@@ -35,6 +35,16 @@ int pc_ap_timesanity_slot_of_hour(int hour) {
   return PC_AP_SLOT_NUM - 1;
 }
 
+int pc_ap_timesanity_insect_hour(int hour) {
+  if(hour == 8) {
+    return 7;
+  }
+  if(hour == 16) {
+    return 17;
+  }
+  return hour;
+}
+
 int pc_ap_timesanity_start(const pc_ap_timesanity* t, lbRTC_time_c* start) {
   if(!t->frozen) {
     return 0;

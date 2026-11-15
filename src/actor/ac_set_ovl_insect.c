@@ -1061,6 +1061,9 @@ static int aSOI_get_live_ut(aSOI_set_data_c* set_data, int* ut_x_out, int* ut_z_
 
 static int aSOI_hour_to_term(int hour) {
   int term = aSOI_TERM0;
+#ifdef TARGET_PC
+  hour = pc_ap_insect_hour(hour); // Timesanity: bands lined up with the time slots
+#endif
   if (hour >= aSOI_TERM1_START_HR) {
     if (hour < aSOI_TERM2_START_HR) {
       term = aSOI_TERM1;

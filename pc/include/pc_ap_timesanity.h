@@ -54,6 +54,10 @@ void pc_ap_timesanity_init(pc_ap_timesanity* t, const ap_slotdata* sd);
 int pc_ap_timesanity_slot_first_hour(int slot);
 // Time slot an hour (0-23) is in. Night wraps past midnight: 21-23 and 0-3.
 int pc_ap_timesanity_slot_of_hour(int hour);
+// Hour that picks the bug spawn band (aSOI_hour_to_term) under Timesanity: the game's 8 AM-3:59 PM band reaches one
+// hour into Morning and its 4 PM band (day bugs) one hour into Evening, too short for the critter logic (2 hours,
+// dump_museum.py MIN_HOURS); 8 AM uses the 4-7 AM band and 4 PM the 5-6 PM band instead. Other hours as they are
+int pc_ap_timesanity_insect_hour(int hour);
 
 // The frozen clock's start date: start year, starting month, day 1, first hour of
 // the starting slot. Returns 0 and leaves start alone when the clock isn't frozen.

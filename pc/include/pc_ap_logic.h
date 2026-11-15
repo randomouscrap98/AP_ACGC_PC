@@ -162,6 +162,9 @@ struct insect_spawn_info_f_s;
 // block_type: the acre's mRF_BLOCKKIND_* flags
 void pc_ap_fish_spawns(struct gyoei_spawn_info_weight_f_s* rows, int n, u32 block_type);
 void pc_ap_insect_spawns(struct insect_spawn_info_f_s* rows, int n);
+// Hour for picking the bug spawn band (aSOI_hour_to_term): pc_ap_timesanity_insect_hour under Timesanity (each
+// slot spawns what the critter logic expects), otherwise the hour as is
+int pc_ap_insect_hour(int hour);
 // Exhibit plaques, after the game copied the donator's name into free string 0: replaces
 // it with the AP player who sent the item (8 chars). Nothing for vanilla exhibits.
 void pc_ap_museum_plaque_name(mActor_name_t item);
