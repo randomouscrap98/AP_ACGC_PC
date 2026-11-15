@@ -135,6 +135,11 @@ void pc_platform_init(void) {
         pc_platform_update_window_size();
         pc_gx_init();
         pc_texture_pack_init();
+#ifdef PC_ENHANCEMENTS
+        if (g_pc_settings.preload_textures) {
+            pc_texture_pack_preload_all();
+        }
+#endif
         return;
     }
 
