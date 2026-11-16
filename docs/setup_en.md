@@ -25,7 +25,8 @@ The Linux version is a 32-bit program. It needs glibc 2.36 or newer (Ubuntu 24.0
 newer) and these 32-bit system libraries; everything else is built in:
 
 - the OpenGL driver for your graphics card
-- X11 (the game also runs on Wayland desktops through XWayland)
+- X11. On Wayland desktops the game runs natively if the 32-bit Wayland and xkbcommon libraries are installed,
+  otherwise through XWayland.
 - PulseAudio or ALSA, for sound (without them the game runs silently). PipeWire desktops use the PulseAudio one.
 
 If Steam is installed, you most likely have them already. Otherwise:
