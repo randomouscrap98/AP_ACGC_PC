@@ -41,6 +41,19 @@ If Steam is installed, you most likely have them already. Otherwise:
 Start the game with `./AnimalCrossing` from its folder (or double-click it). On Wayland, run
 `./install-desktop-entry.sh` once to add it to your app launcher with its icon.
 
+### Graphics: OpenGL or Vulkan
+
+The game draws with OpenGL by default. Settings > Video > Renderer switches to Vulkan (still in development);
+it takes effect after a restart. If Vulkan can't start, the game falls back to OpenGL. 
+Try Vulkan if you see graphics glitches, poor performance or growing memory use with OpenGL.
+You can also set `renderer = 1` (Vulkan) or `renderer = 0` (OpenGL)
+in `settings.ini`, or start the game with `--renderer vulkan` / `--renderer opengl` for one run.
+
+On Linux, Vulkan needs the 32-bit Vulkan loader and driver: Arch `lib32-vulkan-icd-loader` plus
+`lib32-vulkan-radeon` (AMD), `lib32-vulkan-intel` (Intel) or `lib32-nvidia-utils` (NVIDIA); Debian/Ubuntu
+`libvulkan1:i386 mesa-vulkan-drivers:i386` (NVIDIA: the driver's `:i386` package); Fedora
+`vulkan-loader.i686 mesa-vulkan-drivers.i686`.
+
 ## Creating Your Options File
 
 Use the Options Creator inside the Archipelago Launcher. Set a slot

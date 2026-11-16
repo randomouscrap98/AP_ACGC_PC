@@ -484,7 +484,15 @@ set(AP_MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/../apworld/animal_crossing/archipela
 file(READ ${AP_MANIFEST} AP_MANIFEST_JSON)
 string(JSON PC_AP_VERSION GET "${AP_MANIFEST_JSON}" world_version)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${AP_MANIFEST})
-target_compile_definitions(ac_pc PRIVATE PC_AP_VERSION="${PC_AP_VERSION}")
+# Release candidate suffix ("rc1"), only from generate_release.sh; empty = plain version.
+# PC_AP_VERSION stays x.y.z for seed matching, PC_AP_VERSION_FULL ("0.6.0-rc1") is what players see
+set(PC_VERSION_SUFFIX "" CACHE STRING "Version suffix, e.g. rc1 (empty for releases)")
+if(PC_VERSION_SUFFIX)
+    set(PC_AP_VERSION_FULL "${PC_AP_VERSION}-${PC_VERSION_SUFFIX}")
+else()
+    set(PC_AP_VERSION_FULL "${PC_AP_VERSION}")
+endif()
+target_compile_definitions(ac_pc PRIVATE PC_AP_VERSION="${PC_AP_VERSION}" PC_AP_VERSION_FULL="${PC_AP_VERSION_FULL}")
 
 set_target_properties(ac_pc PROPERTIES
     OUTPUT_NAME "AnimalCrossing"

@@ -217,13 +217,13 @@ static f32 pc_ap_draw_version(struct game_s* game) {
 
   // Offline: no apworld to compare with
   if(ap_getconnectstate()->state == AP_CSTATE_OFFLINE || !sd->valid) {
-    snprintf(output, sizeof(output), "v%s", PC_AP_VERSION);
+    snprintf(output, sizeof(output), "v%s", PC_AP_VERSION_FULL);
   } else if(strcmp(sd->world_version, PC_AP_VERSION) == 0) {
-    snprintf(output, sizeof(output), AP_CTRL_GREEN "v%s", PC_AP_VERSION);
+    snprintf(output, sizeof(output), AP_CTRL_GREEN "v%s", PC_AP_VERSION_FULL);
   } else if(apo_version_compatible(sd->world_version)) {
-    snprintf(output, sizeof(output), "v%s" AP_CTRL_GRAY " (%s)", PC_AP_VERSION, seed);
+    snprintf(output, sizeof(output), "v%s" AP_CTRL_GRAY " (%s)", PC_AP_VERSION_FULL, seed);
   } else {
-    snprintf(output, sizeof(output), AP_CTRL_RED "v%s (%s)", PC_AP_VERSION, seed);
+    snprintf(output, sizeof(output), AP_CTRL_RED "v%s (%s)", PC_AP_VERSION_FULL, seed);
   }
   if(g_pc_debug.enabled) {
     size_t len = strlen(output);

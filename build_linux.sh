@@ -34,7 +34,8 @@ export PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig
 cmake -S pc -B "$BUILD_DIR" \
   -DCMAKE_TOOLCHAIN_FILE="$PWD/pc/cmake/Toolchain-linux32.cmake" \
   -DCMAKE_PREFIX_PATH="$SDL3_DIR" \
-  -DOPENSSL_ROOT_DIR="$OPENSSL_DIR"
+  -DOPENSSL_ROOT_DIR="$OPENSSL_DIR" \
+  -DPC_VERSION_SUFFIX="${PC_VERSION_SUFFIX:-}"
 
 if [ "$CLEAN" = 1 ]; then
   cmake --build "$BUILD_DIR" --target clean

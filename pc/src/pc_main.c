@@ -559,6 +559,7 @@ int main(int argc, char* argv[]) {
         setvbuf(stdout, NULL, _IONBF, 0);
         setvbuf(stderr, NULL, _IONBF, 0);
     }
+    printf("[PC] Animal Crossing AP %s\n", PC_AP_VERSION_FULL);
     if (g_pc_debug.enabled) {
         printf("[PC] debug mode (--debug): logs/ actor_probe.txt, butterfly_probe.txt, fog_probe.txt%s\n",
                g_pc_verbose || g_pc_profile_enabled ? "" : ", this log (debug_log.txt)");

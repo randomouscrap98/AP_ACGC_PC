@@ -338,7 +338,7 @@ static void crash_write_log(void) {
 }
 
 static void crash_write_header(void) {
-  crash_write("Animal Crossing AP crash report\r\nversion %s\r\nos %s\r\ngpu %s\r\n\r\n", PC_AP_VERSION, s_os,
+  crash_write("Animal Crossing AP crash report\r\nversion %s\r\nos %s\r\ngpu %s\r\n\r\n", PC_AP_VERSION_FULL, s_os,
               s_gpu);
 }
 
