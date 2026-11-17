@@ -257,6 +257,16 @@ static void apo_append(char* out, size_t size, const char* fmt, ...) {
   va_end(args);
 }
 
+// Append one tracker line (newline first unless it's the first line), gold when done
+static void apo_line(char* out, size_t size, int done, const char* fmt, ...) {
+  char line[96];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(line, sizeof(line), fmt, args);
+  va_end(args);
+  apo_append(out, size, "%s%s%s%s", out[0] ? "\n" : "", done ? AP_CTRL_GOLD : "", line, done ? AP_CTRL_WHITE : "");
+}
+
 // Museumsanity: donation items received (what the goal counts), then checks sent per AP category
 static void apo_append_museum(char* out, size_t size) {
   static const struct { int cat; const char* name; } cats[] = {
@@ -276,7 +286,8 @@ static void apo_append_museum(char* out, size_t size) {
   // Donation items only exist with the Museum goal
   int goal = pc_ap_museum_goal();
   if(goal > 0) {
-    apo_append(out, size, "\nMuseum: %d / %d", pc_ap_museum_received(counts), goal);
+    int received = pc_ap_museum_received(counts);
+    apo_line(out, size, received >= goal, "Museum: %d / %d", received, goal);
   }
   for(int i = 0; i < (int)(sizeof(cats) / sizeof(cats[0])); i++) {
     int checks;
@@ -289,18 +300,20 @@ static void apo_append_museum(char* out, size_t size) {
       available = pc_ap_museum_critters_available(cats[i].cat);
     }
     if(checks > 0 && available >= 0) {
-      apo_append(out, size, "\n%s: %d / %d / %d", cats[i].name, checked, available, checks);
+      apo_line(out, size, checked >= checks, "%s: %d / %d / %d", cats[i].name, checked, available, checks);
     } else if(checks > 0) {
-      apo_append(out, size, "\n%s: %d / %d", cats[i].name, checked, checks);
+      apo_line(out, size, checked >= checks, "%s: %d / %d", cats[i].name, checked, checks);
     }
   }
 }
 
-// One line of letters, white if its bit in owned is set, gray if not
+// One line of letters, white if its bit in owned is set, gray if not; all gold when all are owned
 static void apo_append_owned(char* out, size_t size, const char* label, const char* const* names, int n, int owned) {
-  apo_append(out, size, "\n%s:", label);
+  int all = (owned & ((1 << n) - 1)) == (1 << n) - 1;
+  const char* have = all ? AP_CTRL_GOLD : AP_CTRL_WHITE;
+  apo_append(out, size, "\n%s%s:", have, label);
   for(int i = 0; i < n; i++) {
-    apo_append(out, size, "%s%s", (owned & (1 << i)) ? AP_CTRL_WHITE : AP_CTRL_GRAY, names[i]);
+    apo_append(out, size, "%s%s", (owned & (1 << i)) ? have : AP_CTRL_GRAY, names[i]);
   }
   apo_append(out, size, AP_CTRL_WHITE);
 }
@@ -326,12 +339,12 @@ static void pc_ap_draw_tracker(struct game_s* game) {
   if(sd->valid && pc_ap_accepting()) {
     if(pc_ap_loans_enabled()) {
       int loan_amount = pc_ap_loan_amount(pc_ap_house_stage());
-      apo_append(output, sizeof(output),
-        "Loans Paid: %d / %d\nHouse Unlocks: %d / %d\nLoan: %d / %d\nPending credit: %d",
-        pc_ap_loans_paid(), AP_LOAN_NUM,
-        pc_ap_houses_received(), AP_LOAN_NUM - 1,
-        loan_amount - (int)Now_Private->inventory.loan, loan_amount,
-        pc_ap_bells_pending());
+      apo_line(output, sizeof(output), pc_ap_loans_paid() >= AP_LOAN_NUM, "Loans Paid: %d / %d",
+               pc_ap_loans_paid(), AP_LOAN_NUM);
+      apo_line(output, sizeof(output), pc_ap_houses_received() >= AP_LOAN_NUM - 1, "House Unlocks: %d / %d",
+               pc_ap_houses_received(), AP_LOAN_NUM - 1);
+      apo_append(output, sizeof(output), "\nLoan: %d / %d\nPending credit: %d",
+                 loan_amount - (int)Now_Private->inventory.loan, loan_amount, pc_ap_bells_pending());
     } else {
       apo_append(output, sizeof(output), "Pending credit: %d", pc_ap_bells_pending());
     }
@@ -339,20 +352,23 @@ static void pc_ap_draw_tracker(struct game_s* game) {
     int favors_open = pc_ap_favors_open();
     if(pc_ap_favors_total() > 0 && favors_open >= 0) {
       int sent = pc_ap_favors_done() < favors_open ? pc_ap_favors_done() : favors_open;
-      apo_append(output, sizeof(output), "\nFavors: %d / %d / %d", sent, favors_open, pc_ap_favors_total());
+      apo_line(output, sizeof(output), sent >= pc_ap_favors_total(), "Favors: %d / %d / %d", sent, favors_open,
+               pc_ap_favors_total());
     } else if(pc_ap_favors_total() > 0) {
-      apo_append(output, sizeof(output), "\nFavors: %d / %d", pc_ap_favors_done(), pc_ap_favors_total());
+      apo_line(output, sizeof(output), pc_ap_favors_done() >= pc_ap_favors_total(), "Favors: %d / %d",
+               pc_ap_favors_done(), pc_ap_favors_total());
     }
     apo_append_museum(output, sizeof(output));
     if(pc_ap_catalog_pools_total() > 0) {
-      apo_append(output, sizeof(output), "\nCatalog Pools: %d / %d", pc_ap_catalog_pools_open(),
-                 pc_ap_catalog_pools_total());
+      apo_line(output, sizeof(output), pc_ap_catalog_pools_open() >= pc_ap_catalog_pools_total(),
+               "Catalog Pools: %d / %d", pc_ap_catalog_pools_open(), pc_ap_catalog_pools_total());
       // Catalog: in the catalog / items of the open pools / all items
-      apo_append(output, sizeof(output), "\nCatalog: %d / %d / %d", pc_ap_catalog_registered(),
-                 pc_ap_catalog_items_open(), pc_ap_catalog_items_total());
+      apo_line(output, sizeof(output), pc_ap_catalog_registered() >= pc_ap_catalog_items_total(),
+               "Catalog: %d / %d / %d", pc_ap_catalog_registered(), pc_ap_catalog_items_open(),
+               pc_ap_catalog_items_total());
       if(pc_ap_catalog_goal() > 0) {
-        apo_append(output, sizeof(output), "\nCatalog Goal: %d / %d", pc_ap_catalog_registered(),
-                   pc_ap_catalog_goal());
+        apo_line(output, sizeof(output), pc_ap_catalog_registered() >= pc_ap_catalog_goal(),
+                 "Catalog Goal: %d / %d", pc_ap_catalog_registered(), pc_ap_catalog_goal());
       }
     }
     // Trees: sent / checks of the fruit the player has / all checks
@@ -366,7 +382,8 @@ static void pc_ap_draw_tracker(struct game_s* game) {
           available += per_fruit;
         }
       }
-      apo_append(output, sizeof(output), "\nTrees: %d / %d / %d", sent, available, per_fruit * PC_AP_FRUITS);
+      apo_line(output, sizeof(output), sent >= per_fruit * PC_AP_FRUITS, "Trees: %d / %d / %d", sent, available,
+               per_fruit * PC_AP_FRUITS);
     }
     // Shells: sent / checks of the owned months (all without Timesanity) / all checks
     if(pc_ap_shells_per_month() > 0) {
@@ -379,7 +396,8 @@ static void pc_ap_draw_tracker(struct game_s* game) {
           available += per_month;
         }
       }
-      apo_append(output, sizeof(output), "\nShells: %d / %d / %d", sent, available, per_month * 12);
+      apo_line(output, sizeof(output), sent >= per_month * 12, "Shells: %d / %d / %d", sent, available,
+               per_month * 12);
     }
     apo_append_unlocks(output, sizeof(output));
   } else {

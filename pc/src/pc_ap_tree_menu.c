@@ -38,15 +38,15 @@ void pc_ap_tree_menu_draw(const pc_ap_tree_menu* m, struct game_s* game) {
 
   for(int f = 0; f < PC_AP_FRUITS; f++) {
     f32 y = pc_menu_list_y(&m->list, f);
-    int r = 150, g = 150, b = 150, a = 200;
+    uint32_t c = PC_COL_MISSING;
     int owned = pc_ap_trees_fruit_owned(f);
     if(found[f] >= per_fruit) {
-      r = g = b = a = 255;
-      pc_menu_draw_star(game, x_star, y, r, g, b, a, scale);
+      c = PC_COL_HAVE;
+      pc_menu_draw_star(game, x_star, y, PC_RGBA(c), scale);
     }
     snprintf(text, sizeof(text), "%s", pc_ap_tree_menu_names[f]);
     pc_menu_fixtext(text);
-    pc_menu_draw_left(game, text, x_name, y, r, g, b, a, scale);
+    pc_menu_draw_left(game, text, x_name, y, PC_RGBA(c), scale);
     // Found checks always show (they can't be undone); a fruit not received yet says so
     if(owned || found[f] > 0) {
       snprintf(text, sizeof(text), "%d / %d", found[f], per_fruit);
@@ -54,6 +54,6 @@ void pc_ap_tree_menu_draw(const pc_ap_tree_menu* m, struct game_s* game) {
       snprintf(text, sizeof(text), "(Locked)");
     }
     pc_menu_fixtext(text);
-    pc_menu_draw_left(game, text, x_count, y, r, g, b, a, scale);
+    pc_menu_draw_left(game, text, x_count, y, PC_RGBA(c), scale);
   }
 }

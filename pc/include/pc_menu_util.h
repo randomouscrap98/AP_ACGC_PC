@@ -13,6 +13,19 @@ struct graph_s;
 
 #define PC_MENU_SCALE_SELECTED 1.15f
 
+// I just like css colors ok??
+// 0xRRGGBBAA -> r, g, b, a
+#define PC_RGBA_R(c) (int)(((c) >> 24) & 0xFF)
+#define PC_RGBA_G(c) (int)(((c) >> 16) & 0xFF)
+#define PC_RGBA_B(c) (int)(((c) >>  8) & 0xFF)
+#define PC_RGBA_A(c) (int)( (c)        & 0xFF)
+#define PC_RGBA(c) PC_RGBA_R(c), PC_RGBA_G(c), PC_RGBA_B(c), PC_RGBA_A(c)
+
+// Progress colors shared by the AP pages and the tracker (0xRRGGBBAA)
+#define PC_COL_MISSING 0x969696C8u // gray: not had yet
+#define PC_COL_HAVE    0xFFFFFFFFu // white: had
+#define PC_COL_DONE    0xFFD700FFu // gold: complete
+
 // Menu input, from keys / pad (pc_pause_menu.c translates SDL events)
 typedef enum {
   PC_MENU_NONE,

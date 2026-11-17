@@ -60,24 +60,19 @@ static void pc_ap_ftr_menu_line(const pc_ap_ftr_menu* m, struct game_s* game, in
   f32 y = pc_menu_list_y(&m->list, i);
   int received = pc_ap_ftr_received(m->items[i]);
   int done = in_house >= m->needed[i];
-  int r = 150, g = 150, b = 150, a = 200;
-  if(done) {
-    r = 255, g = 215, b = 0, a = 255;
-  } else if(received) {
-    r = g = b = a = 255;
-  }
+  uint32_t c = done ? PC_COL_DONE : received ? PC_COL_HAVE : PC_COL_MISSING;
   char text[16];
 
   if(done || received) {
     char sym[2] = { (char)(done ? CHAR_SYMBOL_KEY : CHAR_SYMBOL_STAR), 0 };
-    pc_menu_draw_left(game, sym, x_star, y, r, g, b, a, scale);
+    pc_menu_draw_left(game, sym, x_star, y, PC_RGBA(c), scale);
   }
-  pc_menu_draw_left(game, m->names[i], x_name, y, r, g, b, a, scale);
+  pc_menu_draw_left(game, m->names[i], x_name, y, PC_RGBA(c), scale);
 
   if(m->chess) {
     snprintf(text, sizeof(text), "%d / %d", in_house, m->needed[i]);
     pc_menu_fixtext(text);
-    pc_menu_draw_left(game, text, x_count, y, r, g, b, a, scale);
+    pc_menu_draw_left(game, text, x_count, y, PC_RGBA(c), scale);
   }
 }
 

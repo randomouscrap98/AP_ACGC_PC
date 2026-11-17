@@ -132,18 +132,13 @@ static void pc_ap_fossil_menu_line(const pc_ap_fossil_menu* m, struct game_s* ga
   f32 scale = 0.9f;
   f32 y = pc_menu_list_y(&m->list, line);
   int idx = m->lines[line].value;
-  int r = 150, g = 150, b = 150, a = 200;
   int status = pc_ap_fossil_status(idx);
-  if(status == 1) {
-    r = g = b = a = 255;
-  } else if(status >= 2) {
-    r = 255, g = 215, b = 0, a = 255;
-  }
+  uint32_t c = status >= 2 ? PC_COL_DONE : status == 1 ? PC_COL_HAVE : PC_COL_MISSING;
 
   if(status > 0) {
-    pc_menu_draw_star(game, x_star, y, r, g, b, a, scale);
+    pc_menu_draw_star(game, x_star, y, PC_RGBA(c), scale);
   }
-  pc_menu_draw_left(game, m->names[idx], x_name, y, r, g, b, a, scale);
+  pc_menu_draw_left(game, m->names[idx], x_name, y, PC_RGBA(c), scale);
 }
 
 void pc_ap_fossil_menu_draw(const pc_ap_fossil_menu* m, struct game_s* game) {

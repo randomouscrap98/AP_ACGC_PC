@@ -121,6 +121,7 @@ AP_API int ap_pop_toast(char * buf, size_t len);
 #define AP_CTRL_BLUE   "\x04"
 #define AP_CTRL_YELLOW "\x05"
 #define AP_CTRL_GRAY   "\x06"
+#define AP_CTRL_GOLD   "\x07"
 #define AP_CTRL_NEWLINE "\n"
 
 #ifdef __cplusplus

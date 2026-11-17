@@ -15,6 +15,7 @@ static const uint32_t s_span_colors[] = {
   0x70A0FFFF, // AP_CTRL_BLUE
   0xFFAA20FF, // AP_CTRL_YELLOW
   0x777777FF, // AP_CTRL_GRAY
+  PC_COL_DONE, // AP_CTRL_GOLD
 };
 #define _SPAN_NCOLORS (int)(sizeof(s_span_colors) / sizeof(s_span_colors[0]))
 

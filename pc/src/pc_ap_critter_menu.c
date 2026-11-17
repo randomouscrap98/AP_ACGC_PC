@@ -174,19 +174,14 @@ static void pc_ap_critter_menu_line(const pc_ap_critter_menu* m, struct game_s* 
   f32 y = pc_menu_list_y(&m->list, line);
   int idx = m->lines[line].value;
   const pc_ap_critter_data* d = pc_ap_critter_menu_data(m, idx);
-  int r = 150, g = 150, b = 150, a = 200;
   int status = pc_ap_critter_status(m->cat, idx);
-  if(status == 1) {
-    r = g = b = a = 255;
-  } else if(status >= 2) {
-    r = 255, g = 215, b = 0, a = 255;
-  }
+  uint32_t c = status >= 2 ? PC_COL_DONE : status == 1 ? PC_COL_HAVE : PC_COL_MISSING;
   char text[16];
 
   if(status > 0) {
-    pc_menu_draw_star(game, x_star, y, r, g, b, a, scale);
+    pc_menu_draw_star(game, x_star, y, PC_RGBA(c), scale);
   }
-  pc_menu_draw_left(game, m->names[idx], x_name, y, r, g, b, a, scale);
+  pc_menu_draw_left(game, m->names[idx], x_name, y, PC_RGBA(c), scale);
 
   int half = pc_ap_critter_menu_half(d->slots[m->month], pc_ap_critter_menu_reach_slots(m->month));
   int slots = d->slots[m->month][half < 0 ? 0 : half];
@@ -194,7 +189,7 @@ static void pc_ap_critter_menu_line(const pc_ap_critter_menu* m, struct game_s* 
     if(slots & (1 << s)) {
       snprintf(text, sizeof(text), "%s", l_slot_names[s]);
       pc_menu_fixtext(text);
-      pc_menu_draw_left(game, text, x_slot + s * slot_w, y, r, g, b, a, scale);
+      pc_menu_draw_left(game, text, x_slot + s * slot_w, y, PC_RGBA(c), scale);
     }
   }
 
@@ -205,12 +200,12 @@ static void pc_ap_critter_menu_line(const pc_ap_critter_menu* m, struct game_s* 
       snprintf(text, sizeof(text), "16-%d", lbRTC_GetDaysByMonth(Common_Get(time.rtc_time).year, m->month + 1));
     }
     pc_menu_fixtext(text);
-    pc_menu_draw_left(game, text, x_range, y, r, g, b, a, scale);
+    pc_menu_draw_left(game, text, x_range, y, PC_RGBA(c), scale);
   }
 
   if(d->weather != PC_AP_WEATHER_ANY) {
     char sym[2] = { (char)(d->weather == PC_AP_WEATHER_RAIN_ONLY ? CHAR_SYMBOL_DROPLET : CHAR_SYMBOL_SUN), 0 };
-    pc_menu_draw_left(game, sym, x_weather, y, r, g, b, a, scale);
+    pc_menu_draw_left(game, sym, x_weather, y, PC_RGBA(c), scale);
   }
 }
 

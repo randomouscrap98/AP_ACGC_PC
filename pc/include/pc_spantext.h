@@ -4,6 +4,7 @@
 #define PC_SPANTEXT_H
 
 #include "pc_platform.h"
+#include "pc_menu_util.h" // PC_RGBA, PC_COL_*
 #include "ap_archipelago.h" // AP_CTRL_* codes
 
 #ifdef __cplusplus
@@ -11,14 +12,6 @@ extern "C" {
 #endif
 
 struct game_s;
-
-// I just like css colors ok??
-// 0xRRGGBBAA -> r, g, b, a
-#define PC_RGBA_R(c) (int)(((c) >> 24) & 0xFF)
-#define PC_RGBA_G(c) (int)(((c) >> 16) & 0xFF)
-#define PC_RGBA_B(c) (int)(((c) >>  8) & 0xFF)
-#define PC_RGBA_A(c) (int)( (c)        & 0xFF)
-#define PC_RGBA(c) PC_RGBA_R(c), PC_RGBA_G(c), PC_RGBA_B(c), PC_RGBA_A(c)
 
 #define PC_SPAN_FONTHEIGHT 16.0f
 #define PC_SPAN_PAD        1.5f  // box padding above and below the text
