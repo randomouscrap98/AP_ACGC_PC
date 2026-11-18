@@ -415,6 +415,10 @@ int pc_ap_favors_checked(void) {
   return pc_ap_favorsanity_checked(&g_ap.favors);
 }
 
+int pc_ap_favors_ahead(void) {
+  return pc_ap_favorsanity_ahead(&g_ap.favors);
+}
+
 int pc_ap_favors_total(void) {
   return g_ap.favors.count;
 }

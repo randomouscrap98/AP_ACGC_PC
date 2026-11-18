@@ -355,7 +355,7 @@ static void apo_append_goals(char* out, size_t size, int goals) {
     int done = pc_ap_goal_done(AP_GOAL_FROGGY);
     apo_goal_line(out, size, done, "Froggy Chair: %d / 1", done);
   }
-  // Pieces placed / needed; a red X while the basement (also needed) isn't built
+  // Pieces placed / needed; a red X when they're all placed but the basement (also needed) isn't built
   static const struct { int goal; int chess; const char* name; } sets[] = {
     { AP_GOAL_FURNITURE_SET, 0, "Furniture Set" },
     { AP_GOAL_CHESS_SET, 1, "Chess Set" },
@@ -365,7 +365,7 @@ static void apo_append_goals(char* out, size_t size, int goals) {
       int placed, needed;
       int basement = pc_ap_ftr_goal_progress(sets[i].chess, &placed, &needed);
       apo_goal_line(out, size, pc_ap_goal_done(sets[i].goal), "%s: %d / %d%s", sets[i].name, placed, needed,
-                    basement ? "" : AP_CTRL_RED " X" AP_CTRL_WHITE);
+                    basement || placed < needed ? "" : AP_CTRL_RED " X" AP_CTRL_WHITE);
     }
   }
 }
@@ -388,13 +388,17 @@ static void pc_ap_draw_tracker(struct game_s* game) {
       apo_line(output, sizeof(output), "Pending credit: %d", pc_ap_bells_pending());
     }
     // Favor pools: checked / checks in the open pools / all checks. Checked can pass open: other
-    // players' collects check any id
+    // players' collects check any id. Red +N: ids checked past the first gap (desync)
     int favors_open = pc_ap_favors_open();
+    char ahead[32] = "";
+    if(pc_ap_favors_total() > 0 && pc_ap_favors_ahead() > 0) {
+      snprintf(ahead, sizeof(ahead), AP_CTRL_RED " +%d" AP_CTRL_WHITE, pc_ap_favors_ahead());
+    }
     if(pc_ap_favors_total() > 0 && favors_open >= 0) {
-      apo_line(output, sizeof(output), "Favors: %d / %d / %d", pc_ap_favors_checked(), favors_open,
-               pc_ap_favors_total());
+      apo_line(output, sizeof(output), "Favors: %d / %d / %d%s", pc_ap_favors_checked(), favors_open,
+               pc_ap_favors_total(), ahead);
     } else if(pc_ap_favors_total() > 0) {
-      apo_line(output, sizeof(output), "Favors: %d / %d", pc_ap_favors_checked(), pc_ap_favors_total());
+      apo_line(output, sizeof(output), "Favors: %d / %d%s", pc_ap_favors_checked(), pc_ap_favors_total(), ahead);
     }
     apo_append_museum(output, sizeof(output));
     if(pc_ap_catalog_pools_total() > 0) {

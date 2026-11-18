@@ -69,6 +69,17 @@ int pc_ap_favorsanity_checked(const pc_ap_favorsanity* f) {
   return f->count - ap_unchecked_count(PC_AP_LOC_FAVOR_BASE + 1, PC_AP_LOC_FAVOR_BASE + f->count);
 }
 
+int pc_ap_favorsanity_ahead(const pc_ap_favorsanity* f) {
+  if(f->count <= 0) {
+    return 0;
+  }
+  int64_t first = ap_first_unchecked(PC_AP_LOC_FAVOR_BASE + 1, PC_AP_LOC_FAVOR_BASE + f->count);
+  if(first < 0) {
+    return 0; // all checked
+  }
+  return pc_ap_favorsanity_checked(f) - (int)(first - PC_AP_LOC_FAVOR_BASE - 1);
+}
+
 int pc_ap_favorsanity_open(const pc_ap_favorsanity* f) {
   if(f->per_pool <= 0) {
     return f->count;

@@ -41,6 +41,9 @@ void pc_ap_favorsanity_save(const pc_ap_favorsanity* f, struct ini_t* ini);
 
 // Favor checks the server has (or we sent this session), any id, collected ones too
 int pc_ap_favorsanity_checked(const pc_ap_favorsanity* f);
+// Desync: favor ids checked past the first unchecked one (collected or released ahead of
+// the player's favors), 0 when the checked ids have no gap
+int pc_ap_favorsanity_ahead(const pc_ap_favorsanity* f);
 // Favor checks in the open pools (at most count)
 int pc_ap_favorsanity_open(const pc_ap_favorsanity* f);
 // One more favor done. Returns the id to send, or -1 when banked
