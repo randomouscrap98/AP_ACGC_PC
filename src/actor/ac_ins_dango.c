@@ -264,6 +264,9 @@ static void aIDG_stop(ACTOR* actor, GAME* game) {
  * the camera, a rock hides its own center) every few seconds, when the player is near, with
  * churning clods around that spot in between (pc_ap_qol_churn_clod, camera side only). Spread
  * over frames by its unit (no per-bug state). */
+// How far in front of the rock center the clods come up (a unit is 40; 20 = the rock's front edge)
+#define aIDG_PC_HINT_FRONT 12.0f
+
 static void aIDG_pc_hint(ACTOR* actor, GAME* game) {
     aINS_INSECT_ACTOR* insect = (aINS_INSECT_ACTOR*)actor;
     xyz_t pos;
@@ -274,13 +277,13 @@ static void aIDG_pc_hint(ACTOR* actor, GAME* game) {
     }
     frame = ((GAME_PLAY*)game)->game_frame + insect->ut_x * 7 + insect->ut_z * 13;
     if (frame % PC_AP_QOL_CHURN_PERIOD == 0) {
-        pc_ap_qol_churn_clod(game, actor->world.position.x, actor->world.position.z + 20.0f, TRUE);
+        pc_ap_qol_churn_clod(game, actor->world.position.x, actor->world.position.z + aIDG_PC_HINT_FRONT, TRUE);
     }
     if (frame % PC_AP_QOL_CLOD_PERIOD != 0) {
         return;
     }
     pos = actor->world.position;
-    pos.z += 20.0f;
+    pos.z += aIDG_PC_HINT_FRONT;
     eEC_CLIP->effect_make_proc(eEC_EFFECT_DIG_MUD, pos, 2, 0, game, RSV_NO, 0, 0x4000 | 3);
 }
 #endif
