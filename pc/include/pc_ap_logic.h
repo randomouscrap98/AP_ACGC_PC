@@ -82,8 +82,8 @@ int pc_ap_house_permit_pending(void);
 // The current player's house, or NULL (title screen, visiting another town)
 struct home_s* pc_ap_my_home(void);
 
-// Favors done (local or server, whichever is higher; see pc_ap_favorsanity.h)
-int pc_ap_favors_done(void);
+// Favor checks the server has, any id (collected ones too; see pc_ap_favorsanity.h)
+int pc_ap_favors_checked(void);
 // Number of Favor checks (favorsanity)
 int pc_ap_favors_total(void);
 // Favor checks in the open pools, -1 without pools (old slot_data)

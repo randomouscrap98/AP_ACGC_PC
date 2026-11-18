@@ -387,13 +387,14 @@ static void pc_ap_draw_tracker(struct game_s* game) {
     } else {
       apo_line(output, sizeof(output), "Pending credit: %d", pc_ap_bells_pending());
     }
-    // Favor pools: sent / checks in the open pools / all checks (done past the open pools is banked)
+    // Favor pools: checked / checks in the open pools / all checks. Checked can pass open: other
+    // players' collects check any id
     int favors_open = pc_ap_favors_open();
     if(pc_ap_favors_total() > 0 && favors_open >= 0) {
-      int sent = pc_ap_favors_done() < favors_open ? pc_ap_favors_done() : favors_open;
-      apo_line(output, sizeof(output), "Favors: %d / %d / %d", sent, favors_open, pc_ap_favors_total());
+      apo_line(output, sizeof(output), "Favors: %d / %d / %d", pc_ap_favors_checked(), favors_open,
+               pc_ap_favors_total());
     } else if(pc_ap_favors_total() > 0) {
-      apo_line(output, sizeof(output), "Favors: %d / %d", pc_ap_favors_done(), pc_ap_favors_total());
+      apo_line(output, sizeof(output), "Favors: %d / %d", pc_ap_favors_checked(), pc_ap_favors_total());
     }
     apo_append_museum(output, sizeof(output));
     if(pc_ap_catalog_pools_total() > 0) {

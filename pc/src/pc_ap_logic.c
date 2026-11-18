@@ -411,8 +411,8 @@ int pc_ap_house_permit_pending(void) {
                                          s->basement_ordered, pc_ap_house_offer_allowed());
 }
 
-int pc_ap_favors_done(void) {
-  return pc_ap_favorsanity_done(&g_ap.favors);
+int pc_ap_favors_checked(void) {
+  return pc_ap_favorsanity_checked(&g_ap.favors);
 }
 
 int pc_ap_favors_total(void) {
@@ -1385,8 +1385,8 @@ void pc_ap_tick(GAME_PLAY* play) {
   while((id = pc_ap_loansanity_next_check(&g_ap.loans, paid, &it)) >= 0) {
     ap_send_location(id);
   }
-  // Favor 1..done in open pools: covers favors saved while offline that never reached the
-  // server, and banked ones once their pool opens
+  // Favor ids this save sent (saved while disconnected = never reached the server), then banked
+  // favors while an open id is unchecked
   it = 0;
   while((id = pc_ap_favorsanity_next_check(&g_ap.favors, &it)) >= 0) {
     ap_send_location(id);

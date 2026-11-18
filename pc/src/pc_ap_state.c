@@ -59,6 +59,8 @@ int pc_ap_state_upgrade(ini_t * ini) {
   int version = pc_ap_ini_get_int(ini, NULL, PC_AP_STATE_KEY_VERSION, 1);
   if(version > PC_AP_STATE_VERSION) { return 0; }
   // Steps go here, oldest first: if (version < 2) { ...v1 -> v2... }
+  // v3 -> v4: [favors] done -> banked + sent needs the server's checked list, so
+  // pc_ap_favorsanity.c does it (old_done) once connected
   return 1;
 }
 
