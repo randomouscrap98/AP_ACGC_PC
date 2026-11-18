@@ -43,6 +43,25 @@ void pc_menu_dim_rect(GRAPH* graph, int alpha) {
     CLOSE_DISP(graph);
 }
 
+void pc_menu_fill_rect(GRAPH* graph, f32 x, f32 y, f32 w, f32 h, uint32_t color) {
+  Gfx* gfx;
+  OPEN_DISP(graph);
+  gfx = NOW_FONT_DISP;
+  gDPPipeSync(gfx++);
+  gDPSetOtherMode(gfx++,
+      G_AD_DISABLE | G_CD_MAGICSQ | G_CK_NONE | G_TC_FILT |
+      G_TF_POINT | G_TT_NONE | G_TL_TILE | G_TD_CLAMP |
+      G_TP_NONE | G_CYC_1CYCLE | G_PM_NPRIMITIVE,
+      G_AC_NONE | G_ZS_PRIM | G_RM_XLU_SURF | G_RM_XLU_SURF2);
+  gDPSetCombineMode(gfx++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+  gDPSetPrimColor(gfx++, 0, 0, PC_RGBA_R(color), PC_RGBA_G(color), PC_RGBA_B(color), PC_RGBA_A(color));
+  gfx = gfx_gSPTextureRectangle1(gfx, (int)(x * 4), (int)(y * 4), (int)((x + w) * 4), (int)((y + h) * 4), 0, 0, 0,
+                                 0, 0);
+  gDPPipeSync(gfx++);
+  SET_FONT_DISP(gfx);
+  CLOSE_DISP(graph);
+}
+
 // Corner strips per virtual pixel of radius (rect coords are in quarter pixels). Each strip is
 // its own rectangle draw (emu64 doesn't batch them), so this stays low.
 #define PC_MENU_BOX_STRIPS_PER_PX 2

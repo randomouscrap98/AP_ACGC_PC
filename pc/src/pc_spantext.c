@@ -24,10 +24,19 @@ static int pc_span_is_code(char c) {
   return u > 0 && u < _SPAN_NCOLORS;
 }
 
+// Line breaks: lines down; 1 = new line, 1.5 = new line after a half-line gap (PC_SPAN_GAPLINE), 0 = not a break
+static f32 pc_span_break(char c) {
+  if(c == AP_CTRL_NEWLINE[0]) return 1.0f;
+  if(c == PC_SPAN_GAPLINE[0] || c == PC_SPAN_RULELINE[0]) return 1.5f;
+  return 0.0f;
+}
+
 // Walks the text piece by piece (each piece one color, one line). Draws when game != NULL,
 // otherwise only measures; alpha (0-1) scales every color's alpha. Clips each line at the
-// right edge when clip is set. Returns the width of the widest line.
-static f32 pc_span_walk(struct game_s* game, const char* text, f32 x, f32 y, f32 scale, int clip, f32 alpha) {
+// right edge when clip is set. Rules (PC_SPAN_RULELINE) run from rule_x0 to rule_x1.
+// Returns the width of the widest line.
+static f32 pc_span_walk(struct game_s* game, const char* text, f32 x, f32 y, f32 scale, int clip, f32 alpha,
+                        f32 rule_x0, f32 rule_x1) {
   char piece[_SPAN_MAXPIECE];
   uint32_t color = s_span_colors[1];
   f32 start = x;
@@ -36,10 +45,17 @@ static f32 pc_span_walk(struct game_s* game, const char* text, f32 x, f32 y, f32
   int skip = 0; // rest of this line was clipped
 
   while(*text) {
-    if(*text == AP_CTRL_NEWLINE[0]) {
+    if(pc_span_break(*text) > 0) {
       if(x - start > widest) widest = x - start;
+      if(game != NULL && *text == PC_SPAN_RULELINE[0]) {
+        // Middle of the half-line gap below this line
+        f32 mid = y + PC_SPAN_FONTHEIGHT * scale * 1.25f;
+        uint32_t rule = (color & 0xFFFFFF00u) | (uint32_t)(PC_RGBA_A(color) * alpha);
+        f32 thick = PC_SPAN_RULE_THICK * scale;
+        pc_menu_fill_rect(game->graph, rule_x0, mid - thick * 0.5f, rule_x1 - rule_x0, thick, rule);
+      }
       x = start;
-      y += PC_SPAN_FONTHEIGHT * scale;
+      y += PC_SPAN_FONTHEIGHT * scale * pc_span_break(*text);
       skip = 0;
       text++;
       continue;
@@ -56,7 +72,7 @@ static f32 pc_span_walk(struct game_s* game, const char* text, f32 x, f32 y, f32
 
     // Copy up to the next code or newline
     int n = 0;
-    while(text[n] && text[n] != AP_CTRL_NEWLINE[0] && !pc_span_is_code(text[n]) &&
+    while(text[n] && pc_span_break(text[n]) == 0 && !pc_span_is_code(text[n]) &&
           n < (int)sizeof(piece) - 1) {
       piece[n] = text[n];
       n++;
@@ -81,19 +97,21 @@ static f32 pc_span_walk(struct game_s* game, const char* text, f32 x, f32 y, f32
 }
 
 f32 pc_span_width(const char* text, f32 scale) {
-  return pc_span_walk(NULL, text, 0, 0, scale, 0, 1.0f);
+  return pc_span_walk(NULL, text, 0, 0, scale, 0, 1.0f, 0, 0);
 }
 
 f32 pc_span_height(const char* text, f32 scale) {
-  int lines = 1;
+  f32 lines = 1;
   for(; *text; text++) {
-    if(*text == AP_CTRL_NEWLINE[0]) lines++;
+    lines += pc_span_break(*text);
   }
   return lines * PC_SPAN_FONTHEIGHT * scale;
 }
 
 f32 pc_span_draw(struct game_s* game, const char* text, f32 x, f32 y, f32 scale) {
-  return pc_span_walk(game, text, x, y, scale, 1, 1.0f);
+  // Rules as wide as the text (measured with the same clipping)
+  f32 w = pc_span_walk(NULL, text, x, y, scale, 1, 1.0f, 0, 0);
+  return pc_span_walk(game, text, x, y, scale, 1, 1.0f, x, x + w);
 }
 
 f32 pc_span_boxtext(struct game_s* game, const char* text, f32 x, f32 y, f32 scale) {
@@ -102,10 +120,10 @@ f32 pc_span_boxtext(struct game_s* game, const char* text, f32 x, f32 y, f32 sca
 
 f32 pc_span_boxtext_alpha(struct game_s* game, const char* text, f32 x, f32 y, f32 scale, f32 alpha) {
   // Measure with the same clipping, so the box matches what gets drawn
-  f32 w = pc_span_walk(NULL, text, x, y, scale, 1, 1.0f);
+  f32 w = pc_span_walk(NULL, text, x, y, scale, 1, 1.0f, 0, 0);
   f32 h = pc_span_height(text, scale) + PC_SPAN_PAD * 2;
   pc_menu_dim_box(game->graph, x - PC_SPAN_PAD_X, y - PC_SPAN_PAD, w + PC_SPAN_PAD_X * 2, h, PC_SPAN_RADIUS,
                   (int)(PC_SPAN_ALPHA * alpha));
-  pc_span_walk(game, text, x, y, scale, 1, alpha);
+  pc_span_walk(game, text, x, y, scale, 1, alpha, x, x + w);
   return h;
 }

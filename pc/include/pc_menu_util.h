@@ -53,6 +53,8 @@ void pc_menu_set_font_matrix(struct graph_s* graph);
 void pc_menu_dim_rect(struct graph_s* graph, int alpha);
 // Translucent black box in 320x240 coords with rounded corners (radius 0 = square)
 void pc_menu_dim_box(struct graph_s* graph, f32 x, f32 y, f32 w, f32 h, f32 radius, int alpha);
+// Solid rectangle in 320x240 coords, color 0xRRGGBBAA (alpha blended)
+void pc_menu_fill_rect(struct graph_s* graph, f32 x, f32 y, f32 w, f32 h, uint32_t color);
 
 /* Yellow when selected, grey otherwise. */
 void pc_menu_row_colors(int selected, int* r, int* g, int* b, int* a);

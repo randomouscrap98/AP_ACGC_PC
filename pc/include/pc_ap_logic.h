@@ -114,8 +114,11 @@ void pc_ap_favor_done(void);
 void pc_ap_tick(struct game_play_s* play);
 // pc_ap_accepting + no submenu, no demo (talk, door, event, save), no scene wipe
 int pc_ap_in_game(struct game_play_s* play);
-// All goals set in slot_data are done (statue ordered, museum_goal_count donation items received,
-// froggy chair in the current player's catalog, catalog_goal_count open-pool items in it)
+// One goal (an AP_GOAL_* bit) is done: statue ordered, museum_goal_count donation items received,
+// froggy chair in the current player's catalog, catalog_goal_count open-pool items in it, the
+// furniture / chess set in the house with the basement. 0 off the own town (no pc_ap_my_home).
+int pc_ap_goal_done(int goal);
+// All goals set in slot_data are done
 int pc_ap_goals_done(void);
 // K.K.'s song starts (aNTT_roll1_init, every performance is the staff roll): the only place the
 // goal is sent, once all goals are done. Own town only (pc_ap_goals_done needs pc_ap_my_home).
@@ -261,6 +264,9 @@ int pc_ap_ftr_set_count(void);
 mActor_name_t pc_ap_ftr_set_piece(int i);
 int pc_ap_ftr_chess_on(void);
 int pc_ap_ftr_received(mActor_name_t piece);
+// Tracker: pieces placed toward the chess (chess = 1) or set goal and how many it needs
+// (pc_ap_furniture_progress); returns 1 if the basement is built. All 0 off the own town.
+int pc_ap_ftr_goal_progress(int chess, int* placed, int* needed);
 // Villager hand-overs (favor rewards, trade offers): item if allowed, else a roll of
 // the same shop category as source (AP_CATALOG_SOURCE_*); a starter shirt if that's empty
 mActor_name_t pc_ap_catalog_safe_item(mActor_name_t item, int source);

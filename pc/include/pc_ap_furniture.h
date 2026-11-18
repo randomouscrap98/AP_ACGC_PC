@@ -58,6 +58,10 @@ int pc_ap_furniture_count(const struct home_s* home, mActor_name_t item);
 // The goals, each also needs the basement. 1 when that goal is off.
 int pc_ap_furniture_set_done(const pc_ap_furniture* f, const struct home_s* home);
 int pc_ap_furniture_chess_done(const pc_ap_furniture* f, const struct home_s* home);
+// Tracker: pieces placed toward the chess (chess = 1) or set goal, each capped at how many
+// that piece needs, and how many the goal needs in all. Basement not counted.
+void pc_ap_furniture_progress(const pc_ap_furniture* f, const struct home_s* home, int chess, int* placed,
+                              int* needed);
 
 #ifdef __cplusplus
 }

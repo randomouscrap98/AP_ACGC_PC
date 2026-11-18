@@ -13,6 +13,12 @@ extern "C" {
 
 struct game_s;
 
+// Exe-only code after the AP_CTRL_* colors: a new line with half a line of empty space before it
+#define PC_SPAN_GAPLINE "\x08"
+// Same as PC_SPAN_GAPLINE, plus a thin line in the current color across the gap (as wide as the text)
+#define PC_SPAN_RULELINE "\x0B"
+#define PC_SPAN_RULE_THICK 1.0f // in font pixels (scale units each)
+
 #define PC_SPAN_FONTHEIGHT 16.0f
 #define PC_SPAN_PAD        1.5f  // box padding above and below the text
 #define PC_SPAN_PAD_X      3.0f  // and left and right (room for the rounded corners)

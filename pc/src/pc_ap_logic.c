@@ -464,37 +464,40 @@ int pc_ap_bells_pending(void) {
   return pc_ap_credit_pending(&g_ap.credit);
 }
 
-int pc_ap_goals_done(void) {
-  int goal = ap_getslotdata()->goal;
+int pc_ap_goal_done(int goal) {
   mHm_hs_c* home = pc_ap_my_home();
   if(home == NULL) {
     return 0;
   }
-  if(goal & AP_GOAL_STATUE) {
-    mHm_rmsz_c* size = &home->size_info;
-    if(!size->statue_ordered && size->next_size != mHm_HOMESIZE_STATUE && size->size != mHm_HOMESIZE_STATUE) {
-      return 0;
+  switch(goal) {
+    case AP_GOAL_STATUE: {
+      mHm_rmsz_c* size = &home->size_info;
+      return size->statue_ordered || size->next_size == mHm_HOMESIZE_STATUE || size->size == mHm_HOMESIZE_STATUE;
     }
+    case AP_GOAL_MUSEUM:
+      return pc_ap_museumsanity_received(&g_ap.museum) >= g_ap.museum.goal_count;
+    case AP_GOAL_CATALOG:
+      return pc_ap_catalog_registered() >= g_ap.catalog.goal_count;
+    case AP_GOAL_FROGGY:
+      // The current player's catalog (pc_ap_my_home above means there is one)
+      return mSP_CollectCheck(FTR_START(FTR_ARI_ISU01));
+    case AP_GOAL_FURNITURE_SET:
+      return pc_ap_furniture_set_done(&g_ap.furniture, home);
+    case AP_GOAL_CHESS_SET:
+      return pc_ap_furniture_chess_done(&g_ap.furniture, home);
   }
-  if(goal & AP_GOAL_MUSEUM) {
-    if(pc_ap_museumsanity_received(&g_ap.museum) < g_ap.museum.goal_count) {
-      return 0;
-    }
-  }
-  if(goal & AP_GOAL_CATALOG) {
-    if(pc_ap_catalog_registered() < g_ap.catalog.goal_count) {
-      return 0;
-    }
-  }
-  if(goal & AP_GOAL_FROGGY) {
-    // The current player's catalog (pc_ap_my_home above means there is one)
-    if(!mSP_CollectCheck(FTR_START(FTR_ARI_ISU01))) {
-      return 0;
-    }
-  }
-  // Pieces placed in the house (both 1 when their goal is off)
-  if(!pc_ap_furniture_set_done(&g_ap.furniture, home) || !pc_ap_furniture_chess_done(&g_ap.furniture, home)) {
+  return 0;
+}
+
+int pc_ap_goals_done(void) {
+  int goal = ap_getslotdata()->goal;
+  if(pc_ap_my_home() == NULL) {
     return 0;
+  }
+  for(int bit = 1; bit <= AP_GOAL_CHESS_SET; bit <<= 1) {
+    if((goal & bit) && !pc_ap_goal_done(bit)) {
+      return 0;
+    }
   }
   return goal != 0;
 }
@@ -663,6 +666,16 @@ int pc_ap_ftr_chess_on(void) {
 
 int pc_ap_ftr_received(mActor_name_t piece) {
   return ap_item_count(piece) > 0;
+}
+
+int pc_ap_ftr_goal_progress(int chess, int* placed, int* needed) {
+  mHm_hs_c* home = pc_ap_my_home();
+  if(home == NULL) {
+    *placed = *needed = 0;
+    return 0;
+  }
+  pc_ap_furniture_progress(&g_ap.furniture, home, chess, placed, needed);
+  return home->flags.has_basement;
 }
 
 int pc_ap_ftr_count_select(const mActor_name_t* list, int* selected_idx, int uncollected_only) {

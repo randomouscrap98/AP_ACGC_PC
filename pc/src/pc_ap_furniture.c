@@ -143,3 +143,17 @@ int pc_ap_furniture_chess_done(const pc_ap_furniture* f, const struct home_s* ho
   }
   return 1;
 }
+
+void pc_ap_furniture_progress(const pc_ap_furniture* f, const struct home_s* home, int chess, int* placed,
+                              int* needed) {
+  int n = chess ? PC_AP_CHESS_KINDS : f->set_count;
+  *placed = 0;
+  *needed = 0;
+  for(int i = 0; i < n; i++) {
+    mActor_name_t piece = chess ? pc_ap_chess_pieces[i] : f->set[i];
+    int need = chess ? pc_ap_chess_needed[i] : 1;
+    int count = pc_ap_furniture_count(home, piece);
+    *placed += count < need ? count : need;
+    *needed += need;
+  }
+}

@@ -267,7 +267,7 @@ static void apo_line(char* out, size_t size, int done, const char* fmt, ...) {
   apo_append(out, size, "%s%s%s%s", out[0] ? "\n" : "", done ? AP_CTRL_GOLD : "", line, done ? AP_CTRL_WHITE : "");
 }
 
-// Museumsanity: donation items received (what the goal counts), then checks sent per AP category
+// Museumsanity: checks sent per AP category (the Museum goal is in the goal section)
 static void apo_append_museum(char* out, size_t size) {
   static const struct { int cat; const char* name; } cats[] = {
     { mMmd_CATEGORY_FOSSIL, "Fossils" },
@@ -275,19 +275,12 @@ static void apo_append_museum(char* out, size_t size) {
     { mMmd_CATEGORY_FISH, "Fish" },
     { mMmd_CATEGORY_ART, "Paintings" },
   };
-  int counts[mMmd_CATEGORY_NUM];
   int total = 0;
   for(int c = 0; c < mMmd_CATEGORY_NUM; c++) {
     total += pc_ap_museum_category_size(c);
   }
   if(total == 0) {
     return; // museumsanity off
-  }
-  // Donation items only exist with the Museum goal
-  int goal = pc_ap_museum_goal();
-  if(goal > 0) {
-    int received = pc_ap_museum_received(counts);
-    apo_line(out, size, received >= goal, "Museum: %d / %d", received, goal);
   }
   for(int i = 0; i < (int)(sizeof(cats) / sizeof(cats[0])); i++) {
     int checks;
@@ -311,7 +304,7 @@ static void apo_append_museum(char* out, size_t size) {
 static void apo_append_owned(char* out, size_t size, const char* label, const char* const* names, int n, int owned) {
   int all = (owned & ((1 << n) - 1)) == (1 << n) - 1;
   const char* have = all ? AP_CTRL_GOLD : AP_CTRL_WHITE;
-  apo_append(out, size, "\n%s%s:", have, label);
+  apo_append(out, size, "\n%s%s:", all ? AP_CTRL_GOLD : "", label);
   for(int i = 0; i < n; i++) {
     apo_append(out, size, "%s%s", (owned & (1 << i)) ? have : AP_CTRL_GRAY, names[i]);
   }
@@ -332,19 +325,57 @@ static void apo_append_unlocks(char* out, size_t size) {
   }
 }
 
+// Goal section: one line per goal the seed has, gold once that goal is done (pc_ap_goal_done)
+static void apo_append_goals(char* out, size_t size, int goals) {
+  if(goals & AP_GOAL_STATUE) {
+    apo_line(out, size, pc_ap_goal_done(AP_GOAL_STATUE), "Loan Goal: %d / %d", pc_ap_loans_paid(), AP_LOAN_NUM);
+  }
+  if(goals & AP_GOAL_MUSEUM) {
+    int counts[mMmd_CATEGORY_NUM];
+    apo_line(out, size, pc_ap_goal_done(AP_GOAL_MUSEUM), "Museum Goal: %d / %d", pc_ap_museum_received(counts),
+             pc_ap_museum_goal());
+  }
+  if(goals & AP_GOAL_CATALOG) {
+    apo_line(out, size, pc_ap_goal_done(AP_GOAL_CATALOG), "Catalog Goal: %d / %d", pc_ap_catalog_registered(),
+             pc_ap_catalog_goal());
+  }
+  if(goals & AP_GOAL_FROGGY) {
+    int done = pc_ap_goal_done(AP_GOAL_FROGGY);
+    apo_line(out, size, done, "Froggy Chair: %d / 1", done);
+  }
+  // Pieces placed / needed; a red X while the basement (also needed) isn't built
+  static const struct { int goal; int chess; const char* name; } sets[] = {
+    { AP_GOAL_FURNITURE_SET, 0, "Furniture Set" },
+    { AP_GOAL_CHESS_SET, 1, "Chess Set" },
+  };
+  for(int i = 0; i < 2; i++) {
+    if(goals & sets[i].goal) {
+      int placed, needed;
+      int basement = pc_ap_ftr_goal_progress(sets[i].chess, &placed, &needed);
+      apo_line(out, size, pc_ap_goal_done(sets[i].goal), "%s: %d / %d%s", sets[i].name, placed, needed,
+               basement ? "" : AP_CTRL_RED " X" AP_CTRL_WHITE);
+    }
+  }
+}
+
 static void pc_ap_draw_tracker(struct game_s* game) {
   const ap_slotdata* sd = ap_getslotdata();
-  char output[768];
+  char output[1024];
   output[0] = '\0';
   if(sd->valid && pc_ap_accepting()) {
     if(pc_ap_loans_enabled()) {
       int loan_amount = pc_ap_loan_amount(pc_ap_house_stage());
-      apo_line(output, sizeof(output), pc_ap_loans_paid() >= AP_LOAN_NUM, "Loans Paid: %d / %d",
-               pc_ap_loans_paid(), AP_LOAN_NUM);
+      // With the Statue goal this is the goal section's Loan Goal line
+      if(!(sd->goal & AP_GOAL_STATUE)) {
+        apo_line(output, sizeof(output), pc_ap_loans_paid() >= AP_LOAN_NUM, "Loans Paid: %d / %d",
+                 pc_ap_loans_paid(), AP_LOAN_NUM);
+      }
       apo_line(output, sizeof(output), pc_ap_houses_received() >= AP_LOAN_NUM - 1, "House Unlocks: %d / %d",
                pc_ap_houses_received(), AP_LOAN_NUM - 1);
-      apo_append(output, sizeof(output), "\nLoan: %d / %d\nPending credit: %d",
-                 loan_amount - (int)Now_Private->inventory.loan, loan_amount, pc_ap_bells_pending());
+      // Gold once paid off (waiting on the next upgrade)
+      apo_line(output, sizeof(output), Now_Private->inventory.loan == 0, "Loan: %d / %d",
+               loan_amount - (int)Now_Private->inventory.loan, loan_amount);
+      apo_line(output, sizeof(output), 0, "Pending credit: %d", pc_ap_bells_pending());
     } else {
       apo_append(output, sizeof(output), "Pending credit: %d", pc_ap_bells_pending());
     }
@@ -366,10 +397,6 @@ static void pc_ap_draw_tracker(struct game_s* game) {
       apo_line(output, sizeof(output), pc_ap_catalog_registered() >= pc_ap_catalog_items_total(),
                "Catalog: %d / %d / %d", pc_ap_catalog_registered(), pc_ap_catalog_items_open(),
                pc_ap_catalog_items_total());
-      if(pc_ap_catalog_goal() > 0) {
-        apo_line(output, sizeof(output), pc_ap_catalog_registered() >= pc_ap_catalog_goal(),
-                 "Catalog Goal: %d / %d", pc_ap_catalog_registered(), pc_ap_catalog_goal());
-      }
     }
     // Trees: sent / checks of the fruit the player has / all checks
     if(pc_ap_trees_per_fruit() > 0) {
@@ -400,6 +427,13 @@ static void pc_ap_draw_tracker(struct game_s* game) {
                per_month * 12);
     }
     apo_append_unlocks(output, sizeof(output));
+    // Goal section below the checks: half a line apart, a gray rule in the gap
+    char goals[256];
+    goals[0] = '\0';
+    apo_append_goals(goals, sizeof(goals), sd->goal);
+    if(goals[0]) {
+      apo_append(output, sizeof(output), AP_CTRL_GRAY PC_SPAN_RULELINE AP_CTRL_WHITE "%s", goals);
+    }
   } else {
     snprintf(output, sizeof(output), "Waiting on save...");
   }
