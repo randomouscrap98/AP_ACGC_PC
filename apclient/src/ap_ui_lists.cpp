@@ -332,7 +332,9 @@ void ui_checks_tab(ui_checks * t) {
     ImGui::TextDisabled("No locations yet (connect to the server).");
     return;
   }
-  ImGui::Text("%d checks left of %d", (int)t->missing, (int)(t->missing + t->done));
+  int total = (int)(t->missing + t->done);
+  // Percent done, one decimal (groups non-empty, so total > 0)
+  ImGui::Text("%d checks left of %d (%.1f%%)", (int)t->missing, total, 100.0 * (double)t->done / (double)total);
   std::string q = t->search;
   ImGui::BeginChild("##groups");
   for (const auto& g : t->groups) {
