@@ -1143,6 +1143,15 @@ static int BIT_actor_tree_cutcount_check(GAME* game, int ut_x, int ut_z) {
 }
 
 static void bg_item_tree_fruit_drop(mActor_name_t fg_item, int ut_x, int ut_z, xyz_t* drop_pos) {
+#if defined(BUGFIXES)
+    // Tree bugs also spawn on fruit, money, furniture, Bells and Christmas-lights trees, but only a plain tree's
+    // shake woke them: a bagworm/spider in a lights or fruit tree could never come out. Wake them on any tree
+    // (bee trees don't come through here from a shake)
+    if (!IS_ITEM_BEE_TREE(fg_item) && Common_Get(clip).insect_clip != NULL &&
+        Common_Get(clip).insect_clip->set_pl_act_tim_proc != NULL) {
+        Common_Get(clip).insect_clip->set_pl_act_tim_proc(aINS_PL_ACT_SHAKE_TREE, ut_x, ut_z);
+    }
+#endif
     if (fg_item == TREE || fg_item == CEDAR_TREE || fg_item == GOLD_TREE) {
         if (Common_Get(clip).insect_clip != NULL && Common_Get(clip).insect_clip->set_pl_act_tim_proc != NULL) {
             Common_Get(clip).insect_clip->set_pl_act_tim_proc(aINS_PL_ACT_SHAKE_TREE, ut_x, ut_z);
