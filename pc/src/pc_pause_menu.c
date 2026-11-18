@@ -2,6 +2,7 @@
 #include "pc_pause_menu.h"
 #include "pc_settings_menu.h"
 #include "pc_menu_util.h"
+#include "pc_menu_input.h"
 #include "pc_menu_repeat.h"
 #include "pc_text_draw.h"
 #include "pc_ap_time_menu.h"
@@ -406,38 +407,6 @@ static void handle_action(pc_menu_action act) {
     }
 }
 
-static pc_menu_action translate_key(SDL_Keycode k) {
-    switch (k) {
-        case SDLK_UP:
-        case SDLK_W:        return PC_MENU_UP;
-        case SDLK_DOWN:
-        case SDLK_S:        return PC_MENU_DOWN;
-        case SDLK_LEFT:
-        case SDLK_A:        return PC_MENU_LEFT;
-        case SDLK_RIGHT:
-        case SDLK_D:        return PC_MENU_RIGHT;
-        case SDLK_RETURN:
-        case SDLK_KP_ENTER:
-        case SDLK_SPACE:    return PC_MENU_CONFIRM;
-        case SDLK_ESCAPE:   return PC_MENU_CANCEL;
-    }
-    return PC_MENU_NONE;
-}
-
-static pc_menu_action translate_pad_button(int button) {
-    switch (button) {
-        case SDL_GAMEPAD_BUTTON_DPAD_UP:    return PC_MENU_UP;
-        case SDL_GAMEPAD_BUTTON_DPAD_DOWN:  return PC_MENU_DOWN;
-        case SDL_GAMEPAD_BUTTON_DPAD_LEFT:  return PC_MENU_LEFT;
-        case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: return PC_MENU_RIGHT;
-        case SDL_GAMEPAD_BUTTON_EAST:       return PC_MENU_CONFIRM; // Nintendo A position
-        case SDL_GAMEPAD_BUTTON_SOUTH:
-        case SDL_GAMEPAD_BUTTON_BACK:
-        case SDL_GAMEPAD_BUTTON_START:      return PC_MENU_CANCEL;
-    }
-    return PC_MENU_NONE;
-}
-
 /* Left-stick nav with a per-axis latch so one push = one step. */
 #define STICK_NAV_PRESS   18000
 #define STICK_NAV_RELEASE 12000
@@ -497,11 +466,11 @@ int pc_pause_menu_handle_event(const SDL_Event* e) {
         case SDL_EVENT_KEY_DOWN:
         case SDL_EVENT_KEY_UP:
             if (e->key.repeat) return 1; /* our own repeat (pc_menu_repeat) */
-            input(translate_key(e->key.key), e->key.key, e->type == SDL_EVENT_KEY_DOWN);
+            input(pc_menu_input_key(e->key.key, e->key.scancode), e->key.key, e->type == SDL_EVENT_KEY_DOWN);
             return 1; /* swallow all keys while paused */
         case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
         case SDL_EVENT_GAMEPAD_BUTTON_UP:
-            input(translate_pad_button(e->gbutton.button), HELD_PAD + e->gbutton.button,
+            input(pc_menu_input_pad_button(e->gbutton.button), HELD_PAD + e->gbutton.button,
                   e->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN);
             return 1;
         case SDL_EVENT_GAMEPAD_AXIS_MOTION: {

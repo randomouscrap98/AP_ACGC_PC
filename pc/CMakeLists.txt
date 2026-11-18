@@ -282,6 +282,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_treesanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_storage.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_storage_menu.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_menu_input.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_menu_repeat.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_window_size.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_settings.c
