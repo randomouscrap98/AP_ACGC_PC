@@ -61,8 +61,7 @@ int pc_ap_qol_hidden_item_hints(void) {
 }
 
 // Tall and as wide as the sparkle spread, so every sparkle starts and falls inside the model. Found with a
-// one-off vertex scan of all furniture models (ignore/docs/research/shop_sparkle_hidden_ftr.md); the other
-// tall ones have gaps the sparkles show through.
+// one-off vertex scan of all furniture models; the other tall ones have gaps the sparkles show through.
 int pc_ap_qol_sparkle_wide(unsigned short item) {
   int idx;
 

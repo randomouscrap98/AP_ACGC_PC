@@ -1,9 +1,9 @@
 // Planting ground marks (Settings > Gameplay "Plant vision", pc_settings.planting_marks): empty town squares
 // within 2 of the player get a translucent mark on the ground when a sapling planted there wouldn't grow into a
 // tree: a red X where it dies (the ground kills it, or a tree next to it does), a yellow ! where it stays small.
-// Same rules as the daily growth (m_all_grow_ovl.c mAGrw_GrowPlant / mAGrw_CheckNearTree, research
-// ignore/docs/research/sapling_death.md). Drawn as two bg_item draw types (pc_planting_draw.c_inc), so the marks
-// follow the item draw table, rebuilt on every fg change. Nothing saved.
+// Same rules as the daily growth (m_all_grow_ovl.c mAGrw_GrowPlant / mAGrw_CheckNearTree).
+// Drawn as two bg_item draw types (pc_planting_draw.c_inc), so the marks follow the item draw table, rebuilt
+// on every fg change. Nothing saved.
 #ifndef PC_PLANTING_H
 #define PC_PLANTING_H
 

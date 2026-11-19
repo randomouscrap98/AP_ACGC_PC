@@ -6,8 +6,7 @@
 // on the rest); pickup from any of its units takes the piece and clears its placeholders.
 // Furniture with a plain or skeleton-animated model, and unique-code furniture on the allow-list
 // (pc_outdoor_ftr_allow.c: checked to work without a room); the rest (drawers, stereos, NES...) only drops as a leaf.
-// Decomp hooks are behind PC_OUTDOOR_FTR (pc/CMakeLists.txt). Research + decisions:
-// ignore/docs/research/outdoor_furniture.md.
+// Decomp hooks are behind PC_OUTDOOR_FTR (pc/CMakeLists.txt).
 #ifndef PC_OUTDOOR_FTR_H
 #define PC_OUTDOOR_FTR_H
 

@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-// slot_data format this client reads (apworld SLOT_DATA_VERSION). Bump rules: ignore/docs/reference.md "Versions"
+// slot_data format this client reads (apworld SLOT_DATA_VERSION). Bump rules: SLOT_DATA_VERSION in apworld/animal_crossing/world.py
 #define AP_SLOTDATA_VERSION 5
 
 #define AP_LOAN_NUM     5 // starting, medium, basement, large, upper (upgrade order)

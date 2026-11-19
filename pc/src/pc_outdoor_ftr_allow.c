@@ -1,6 +1,5 @@
-// Outdoor furniture: unique-code (vtable) furniture that may be placed outdoors. Each was placed in the Wine harness
-// (ignore/tests/ui_shot/ftr_run.py --grid) and looked right with no room actor and no bank; the rest of the vtable
-// furniture only drops as a leaf. Screenshots + the list of what was checked: ignore/docs/research/outdoor_furniture.md.
+// Outdoor furniture: unique-code (vtable) furniture that may be placed outdoors. Each was placed outdoors in a test
+// run and looked right with no room actor and no bank; the rest of the vtable furniture only drops as a leaf.
 #include "pc_outdoor_ftr.h"
 #include "ac_furniture.h"
 

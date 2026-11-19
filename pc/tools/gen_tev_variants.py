@@ -9,7 +9,7 @@ time; the game uses the uber shader for any other config.
     gen_tev_variants.py --print-consts <pc_shader_seed.h>     (test: the const block of every key)
 
 The const block must match pc_gx_tev_const_block() in pc/src/pc_gx_tev_source.c character for character
-(ignore/tests checks it). Output file, little endian:
+(a unit test compares them). Output file, little endian:
     "ACTV", u32 version (1), u32 key size, u32 count,
     count x { key bytes, u32 offset, u32 size } (offset from the start of the file),
     SPIR-V blobs.

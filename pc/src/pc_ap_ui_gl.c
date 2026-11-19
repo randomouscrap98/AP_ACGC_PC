@@ -1,6 +1,6 @@
 // The AP text client's draw data (ap_ui.h) on OpenGL 3.3: like Dear ImGui's OpenGL 3 backend, without its state
-// save/restore (the caller resets the game's GL state afterwards). Only needs glad (also built by
-// ignore/tests/ui_shot).
+// save/restore (the caller resets the game's GL state afterwards). Only needs glad, so a
+// test harness can build it without the game.
 #include "pc_ap_ui_render.h"
 #include <glad/gl.h>
 #include <stddef.h>

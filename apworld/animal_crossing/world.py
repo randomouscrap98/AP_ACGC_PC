@@ -32,9 +32,12 @@ from .game_items import ITEM_NAME_TO_ID as GAME_ITEMS
 from .options import AnimalCrossingOptions
 
 GAME_NAME = "Animal Crossing"
-# slot_data format (the client's AP_SLOTDATA_VERSION). Bump on any change the client reads (new key, new ids,
-# removed/renamed key, changed meaning; new keys also get an upgrade step: slot_data_upgrades.json); not for
-# apworld-only changes. Rules: ignore/docs/reference.md "Versions"
+# slot_data format (the client's AP_SLOTDATA_VERSION; old seeds keep working, a newer seed is refused by an older
+# client). Bump on any change the client reads: new key, new item/location ids, removed/renamed key, changed
+# meaning/units/format. Not for apworld-only changes (logic, defaults, descriptions) or client-only fixes.
+# Once per release: the first such change on a release branch bumps by 1, later ones ride along.
+# Every new key gets an "added" step in slot_data_upgrades.json with the value meaning the old behaviour.
+# Ids are append-only and names are kept; yaml option keys are never removed (a rename keeps the old key hidden).
 SLOT_DATA_VERSION = 5
 # Universal Tracker: slot_data keys named like an option but holding something else (villager indices, the pools,
 # a tool name), so they're not restored as options

@@ -1,5 +1,5 @@
 # Wraps the apworld's slot_data_upgrades.json in a C++ raw string, so the DLL applies the same steps as the apworld.
-# Usage: cmake -DIN=<json> -DOUT=<header> -P embed_upgrades.cmake (apclient/CMakeLists.txt, ignore/tests/run.sh)
+# Usage: cmake -DIN=<json> -DOUT=<header> -P embed_upgrades.cmake (apclient/CMakeLists.txt)
 file(READ "${IN}" json)
 file(WRITE "${OUT}.tmp" "// Generated from slot_data_upgrades.json by embed_upgrades.cmake, don't edit\n"
     "static const char AP_SLOTDATA_UPGRADES_JSON[] = R\"json(${json})json\";\n")
