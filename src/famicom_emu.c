@@ -138,7 +138,7 @@ extern void famicom_emu_init(GAME* game) {
     void* manager;
     const GXRenderModeObj* render;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     { extern int g_pc_nes_active; g_pc_nes_active = 1; }
 #endif
 
@@ -210,7 +210,7 @@ extern void famicom_emu_cleanup(GAME* game) {
     }
     sAdo_SubGameEnd();
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     { extern int g_pc_nes_active; g_pc_nes_active = 0; }
 #endif
 }

@@ -5,6 +5,8 @@
 # Run from an Archipelago checkout: python -m worlds.animal_crossing.gc_client [--connect host:port]
 # Needs dolphin-memory-engine. Only DolphinRAM touches it, so another RAM bridge can replace that class.
 import asyncio
+import json
+import os
 import struct
 import traceback
 from typing import Any, Optional
@@ -19,7 +21,7 @@ MEM1_SIZE = 0x1800000
 
 MAGIC = struct.pack(">II", 0x41434150, 0x4D424F58)  # "ACAP" "MBOX"
 TAIL = 0x454E4421  # "END!"
-VERSION = 2  # GC_AP_MAILBOX_VERSION
+VERSION = 3  # GC_AP_MAILBOX_VERSION
 
 # Header fields: u32 each, in the order of gc_ap_mailbox (index * 4 = offset); tests/test_gc_mailbox checks them
 H_VERSION, H_SIZE = 2, 3
@@ -30,12 +32,19 @@ H_TOASTS_OFF, H_TOAST_MAX, H_TOAST_LEN, H_NAMES_OFF, H_NAME_MAX, H_NAME_LEN = 20
 H_GAME_TICK, H_SEND_HEAD, H_GOAL, H_TOAST_TAIL = 26, 27, 28, 29
 H_CLIENT_TICK, H_CLIENT_STATE, H_SEND_TAIL, H_ITEM_COUNT, H_CHECKED_COUNT = 30, 31, 32, 33, 34
 H_SLOTDATA_READY, H_TOAST_HEAD, H_TEAM, H_SLOT = 35, 36, 37, 38
-HEADER_WORDS = 39
+H_GSET_OFF, H_GSET_MAX, H_GSET_GAME_GEN, H_GSET_CLIENT_GEN = 39, 40, 41, 42
+HEADER_WORDS = 43
 H_SEED, SEED_LEN = HEADER_WORDS * 4, 64
 H_STATUS, STATUS_LEN = H_SEED + SEED_LEN, 96
 H_HOST, HOST_LEN = H_STATUS + STATUS_LEN, 64
 H_SLOTNAME, SLOTNAME_LEN = H_HOST + HOST_LEN, 17
 ITEM_SIZE = 8  # gc_ap_item: u32 id, s16 sender, u8 flags, u8 pad
+
+# The game's global settings (Settings > Gameplay / Overlay; no settings file on a console), by mailbox index:
+# GC_AP_GSET_* order, append-only. Stored by name in GSET_FILE.
+GSET_NAMES = ["no_cockroaches", "no_fishing_trash", "easier_critter_catch", "hidden_bug_hints", "hidden_item_hints",
+              "short_shop_talk", "ap_status_always", "ap_tracker_always", "ap_toast_seconds", "ap_toast_max"]
+GSET_FILE = "animal_crossing_gc_settings.json"
 
 CSTATE_CONNECTING, CSTATE_CONNECTED, CSTATE_SLOTREFUSED = 1, 3, -1  # AP_CSTATE_* (ap_archipelago.h)
 CTRL_WHITE, CTRL_GREEN, CTRL_RED = "\x01", "\x02", "\x03"  # AP_CTRL_* overlay colours
@@ -138,6 +147,18 @@ class Mailbox:
         self.ram.write(self.addr + self.h[H_ITEMS_OFF] + have * ITEM_SIZE, data)
         self.put(H_ITEM_COUNT, len(items))
 
+    def get_gsettings(self) -> dict[str, int]:
+        n = min(self.h[H_GSET_MAX], len(GSET_NAMES))
+        values = struct.unpack(">%di" % n, self.ram.read(self.addr + self.h[H_GSET_OFF], n * 4))
+        return dict(zip(GSET_NAMES, values))
+
+    def put_gsettings(self, stored: dict[str, int]) -> None:
+        # Names the game knows; the others keep the game's value
+        n = min(self.h[H_GSET_MAX], len(GSET_NAMES))
+        for i, name in enumerate(GSET_NAMES[:n]):
+            if isinstance(stored.get(name), int):
+                self.ram.write(self.addr + self.h[H_GSET_OFF] + i * 4, struct.pack(">i", stored[name]))
+
     def append_checked(self, ids: list[int], have: int) -> None:
         ids = ids[:self.h[H_CHECKED_MAX]]
         if have >= len(ids):
@@ -145,6 +166,37 @@ class Mailbox:
         self.ram.write(self.addr + self.h[H_CHECKED_OFF] + have * 4, struct.pack(">%dI" % (len(ids) - have),
                                                                                   *ids[have:]))
         self.put(H_CHECKED_COUNT, len(ids))
+
+
+def gsettings_path() -> str:
+    try:
+        import Utils
+        return Utils.user_path(GSET_FILE)
+    except ImportError:
+        return GSET_FILE
+
+
+def load_gsettings() -> dict[str, int]:
+    try:
+        with open(gsettings_path(), encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_gsettings(values: dict[str, int]) -> None:
+    data = load_gsettings()
+    data.update(values)  # names this game doesn't know (a newer client's) stay
+    path = gsettings_path()
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=1, sort_keys=True)
+        os.replace(tmp, path)
+        logger.info("Saved the game's settings to %s", path)
+    except OSError as e:
+        logger.error("Couldn't save the game's settings to %s: %s", path, e)
 
 
 def c_text(text: str, size: int) -> bytes:
@@ -180,6 +232,8 @@ class ACGCContext(CommonContext):
         self.client_tick = 0
         self.slot_data: Optional[dict[str, Any]] = None
         self.toasts: list[str] = []  # waiting for the mailbox
+        self.gset_client_gen = 0  # gset_client_gen we last wrote (the game zeroes it when it restarts)
+        self.gset_game_gen: Optional[int] = None  # gset_game_gen last stored (None: not looked yet)
 
     async def server_auth(self, password_requested: bool = False) -> None:
         if password_requested and not self.password:
@@ -247,10 +301,26 @@ class ACGCContext(CommonContext):
         m.put_text(H_STATUS, STATUS_LEN, "")
         return True
 
+    # The game's global settings: stored here, written back at every game start; no server needed
+    def sync_gsettings(self, m: Mailbox) -> None:
+        game_gen = m.get(H_GSET_GAME_GEN)
+        if self.gset_game_gen is None or m.get(H_GSET_CLIENT_GEN) != self.gset_client_gen:
+            # This client just came, or the game started again (it zeroes gset_client_gen): what the player
+            # applied in the game before wins, else the stored values go in
+            if game_gen != 0:
+                save_gsettings(m.get_gsettings())
+            m.put_gsettings(load_gsettings())
+            self.gset_client_gen = (m.get(H_GSET_CLIENT_GEN) + 1) & 0xFFFFFFFF or 1
+            m.put(H_GSET_CLIENT_GEN, self.gset_client_gen)
+        elif game_gen != self.gset_game_gen:
+            save_gsettings(m.get_gsettings())  # Apply in the game
+        self.gset_game_gen = game_gen
+
     def sync(self) -> None:
         m = self.mbox
         self.client_tick = (self.client_tick + 1) & 0xFFFFFFFF or 1
         m.put(H_CLIENT_TICK, self.client_tick)
+        self.sync_gsettings(m)
         connected = self.slot is not None and self.seed_name is not None and self.slot_data is not None
         host = self.server_address or ""
         m.put_text(H_HOST, HOST_LEN, host.split("://")[-1])
@@ -318,6 +388,7 @@ async def dolphin_sync_task(ctx: ACGCContext) -> None:
                     logger.info("Found the game's mailbox at %08X", ctx.mbox.addr)
                     ctx.dolphin_status = "Connected to the game in Dolphin"
                     ctx.mbox_slot_key = None
+                    ctx.gset_game_gen = None
                 else:
                     ctx.dolphin_status = "Dolphin is running, but no AP game found in it (yet)"
                     sleep = 1

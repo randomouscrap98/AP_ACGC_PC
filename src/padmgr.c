@@ -7,6 +7,9 @@
 #ifdef TARGET_PC
 #include "dolphin/pad.h"
 #endif
+#if defined(AP_HOOKS) && !defined(TARGET_PC)
+#include "gc_ap_hooks.h"
+#endif
 
 static int frame = 0;
 padmgr padmgr_class;
@@ -408,6 +411,9 @@ extern void padmgr_RequestPadData(pad_t* pad, int flag) {
     padmgr_UpdatePC();
 #endif
     padmgr_RequestPadData_NonLock(pad, flag);
+#if defined(AP_HOOKS) && !defined(TARGET_PC)
+    gc_ap_pause_pads(pad, this->num_controllers); /* GC pause menu: B+Z, menu input, game input held off */
+#endif
     padmgr_UnlockContData();
 }
 

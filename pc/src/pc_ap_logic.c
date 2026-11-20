@@ -28,6 +28,7 @@
 #include "m_house.h"
 #include "m_event.h"
 #include "m_private.h"
+#include "pc_pause_menu.h"
 #include "m_play.h"
 #include "m_demo.h"
 #include "m_submenu.h"
@@ -86,6 +87,7 @@ extern int mSP_ItemNo2GoodsListCategory(mActor_name_t item_no);
 // starts the same player, leave player select
 enum {
   PC_AP_RELOAD_NONE,
+  PC_AP_RELOAD_SAVING,        // GC: the card save steps in play frames first (pc_ap_reload_save_tick)
   PC_AP_RELOAD_FADE,          // fading out of the town, waiting for trademark_init
   PC_AP_RELOAD_TITLE,         // saved with the new date, trademark hands over to player select
   PC_AP_RELOAD_PLAYER_SELECT, // player select's villager should start player
@@ -108,6 +110,7 @@ typedef struct {
   int keep_date;     // Save: no date change, toast the result at the end
   int saved;         // the save worked (for that toast)
   int player;        // player_no to start again
+  int presaved;      // GC: saved in play frames already (trademark_init only moves on)
 } pc_ap_reload;
 
 typedef struct {
@@ -1228,19 +1231,55 @@ int pc_ap_storage_take_item(int idx) {
   return pc_ap_storage_take(&g_ap.storage, Common_Get(player_no), Now_Private, idx);
 }
 
-// Fade out of the town, then save and load again (pc_ap_time_reload_save). date NULL = keep the date.
-static void pc_ap_reload_start(GAME_PLAY* play, const lbRTC_time_c* date) {
+// Before the save: the new date (unless Save only) and the save villager's preparations
+static void pc_ap_reload_prepare(void) {
+  pc_ap_overlay_screen_cover(1);
+  if(!g_ap.reload.keep_date) {
+    pc_ap_time_set_date(&g_ap.reload.date);
+  }
+  // Like aNRST_before_save. After set_date: it mails/deletes fish records against the clock.
+  Save_Set(cheated_flag, FALSE);
+  Save_Set(npc_force_go_home, FALSE);
+  mNtc_set_auto_nwrite_data();
+}
+
+// The save villager's quit (aNRST_think_title): fade to black, then the trademark scene
+static void pc_ap_reload_fade(GAME_PLAY* play) {
   g_ap.reload.step = PC_AP_RELOAD_FADE;
+  play->fb_wipe_type = WIPE_TYPE_FADE_BLACK;
+  play->fb_fade_type = FADE_TYPE_OUT_RETURN_TITLE;
+}
+
+// Save and load again. PC: fade out of the town, save in trademark_init (pc_ap_time_reload_save, synchronous).
+// GC: the card save is a per-frame step machine using the play arena, so it runs in play frames first
+// (pc_ap_reload_save_tick), then the fade. date NULL = keep the date.
+static void pc_ap_reload_start(GAME_PLAY* play, const lbRTC_time_c* date) {
   g_ap.reload.keep_date = date == NULL;
   if(date != NULL) {
     g_ap.reload.date = *date;
   }
   g_ap.reload.player = Common_Get(player_no);
-  // The save villager's quit (aNRST_think_title): fade to black, then the trademark scene
-  play->fb_wipe_type = WIPE_TYPE_FADE_BLACK;
-  play->fb_fade_type = FADE_TYPE_OUT_RETURN_TITLE;
-  mPlib_request_main_invade_type1((GAME*)play);
+  g_ap.reload.presaved = 0;
+  mPlib_request_main_invade_type1((GAME*)play); // the player stands still from here
   Actor_info_save_actor(play);
+  if(pc_ap_plat_save_in_play()) {
+    g_ap.reload.step = PC_AP_RELOAD_SAVING;
+    pc_ap_reload_prepare();
+  } else {
+    pc_ap_reload_fade(play);
+  }
+}
+
+// GC: one step of the town save per play frame, like the save villager (aNRST_save); then the fade
+static void pc_ap_reload_save_tick(GAME_PLAY* play) {
+  int chan = 0;
+  int res = mCD_SaveHome_bg(0, &chan);
+  if(res == mCD_TRANS_ERR_BUSY) {
+    return;
+  }
+  g_ap.reload.saved = res == mCD_TRANS_ERR_NONE;
+  g_ap.reload.presaved = 1;
+  pc_ap_reload_fade(play);
 }
 
 // Applies a pending Date & Time or Save request. Runs before pc_ap_tick's gate and re-checks
@@ -1285,16 +1324,11 @@ void pc_ap_time_reload_save(void) {
   if(g_ap.reload.step != PC_AP_RELOAD_FADE) {
     return;
   }
-  pc_ap_overlay_screen_cover(1);
-  if(!g_ap.reload.keep_date) {
-    pc_ap_time_set_date(&g_ap.reload.date);
+  if(!g_ap.reload.presaved) {
+    pc_ap_reload_prepare();
+    // Mode 0 = the quit save. Synchronous on PC (pc_m_card.c).
+    g_ap.reload.saved = mCD_SaveHome_bg(0, NULL) == mCD_TRANS_ERR_NONE;
   }
-  // Like aNRST_before_save. After set_date: it mails/deletes fish records against the clock.
-  Save_Set(cheated_flag, FALSE);
-  Save_Set(npc_force_go_home, FALSE);
-  mNtc_set_auto_nwrite_data();
-  // Mode 0 = the quit save. Synchronous on PC (pc_m_card.c).
-  g_ap.reload.saved = mCD_SaveHome_bg(0, NULL) == mCD_TRANS_ERR_NONE;
   if(!g_ap.reload.saved) {
     OSReport("[AP] Date & Time reload: save failed, loading the last save\n");
   }
@@ -1305,8 +1339,10 @@ void pc_ap_time_reload_save(void) {
 // What the title's Start press does, then player select
 static void pc_ap_time_reload_title(GAME* game) {
   mEv_SetTitleDemo(mEv_TITLEDEMO_NONE);
+  pc_ap_plat_reload_arena(game, 1);          // GC: the card load needs a zelda_arena
   title_action_data_init_start_select(NULL); // loads the save just written
   aAL_title_decide_p_sel_npc();              // after the load: picks one of its villagers
+  pc_ap_plat_reload_arena(game, 0);
   Common_Set(transition.wipe_type, WIPE_TYPE_FADE_BLACK);
   Save_Set(scene_no, SCENE_PLAYERSELECT_2);
   g_ap.reload.step = PC_AP_RELOAD_PLAYER_SELECT;
@@ -1368,6 +1404,17 @@ static void pc_ap_time_reload_update(void) {
       pc_ap_overlay_toast(g_ap.reload.saved ? "Game saved" : "Save failed");
     }
   }
+}
+
+int pc_ap_play_hold(GAME_PLAY* play) {
+  if(g_pc_paused) {
+    return 1;
+  }
+  if(g_ap.reload.step == PC_AP_RELOAD_SAVING) {
+    pc_ap_reload_save_tick(play);
+    return 1;
+  }
+  return 0;
 }
 
 void pc_ap_tick(GAME_PLAY* play) {

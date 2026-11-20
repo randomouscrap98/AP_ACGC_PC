@@ -7,6 +7,8 @@
 #include "pc_ap_logic.h"
 #include "pc_text_draw.h"
 #include "dolphin/os.h"
+#include "game.h"
+#include "m_malloc.h"
 
 #include <stdio.h>
 
@@ -36,6 +38,23 @@ void pc_ap_plat_saved(int ok) {
 
 int pc_ap_plat_take_player(void) {
   return -1;
+}
+
+int pc_ap_plat_save_in_play(void) {
+  return 1; // mCD_SaveHome_bg: one step per frame, work area from the play arena (gone by trademark_init)
+}
+
+void pc_ap_plat_reload_arena(struct game_s* game, int on) {
+  // play_init's carve: everything left in the game's THA (trademark: GAME_HYRAL_SIZE, barely used); freed with the
+  // game state. Cleaned up again before the next state's init, which builds its own.
+  if(on) {
+    u32 freebytes = game_getFreeBytes(game);
+    u32 alloc = (u32)THA_alloc16(&game->tha, freebytes);
+    u32 aligned = ALIGN_NEXT(alloc, 16);
+    zelda_InitArena((void*)aligned, freebytes - (aligned - alloc));
+  } else {
+    zelda_CleanupArena();
+  }
 }
 
 int pc_ap_plat_title_ready(void) {

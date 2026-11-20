@@ -117,6 +117,10 @@ void pc_ap_favor_done(void);
 // (after Nook's job, retried while the mailbox is full, dropped if that loan
 // got paid off first), syncs the museum display with the received donation items.
 void pc_ap_tick(struct game_play_s* play);
+// Start of Game_play_move: 1 = the world doesn't move this frame (return at once). The pause menu is open, or (GC)
+// the Date & Time / Save reload's card save steps here: with the new date already set, a moving town reacts to the
+// jump (the scene restarts and rebuilds zelda_arena under the running card write), so it holds still until saved.
+int pc_ap_play_hold(struct game_play_s* play);
 // pc_ap_accepting + no submenu, no demo (talk, door, event, save), no scene wipe
 int pc_ap_in_game(struct game_play_s* play);
 // One goal (an AP_GOAL_* bit) is done: statue ordered, museum_goal_count donation items received,

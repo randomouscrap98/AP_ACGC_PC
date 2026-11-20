@@ -1,8 +1,14 @@
-#include "pc_platform.h"
-#include "pc_pause_menu.h"
 #include "pc_settings_menu.h"
-#include "pc_menu_util.h"
+#ifdef TARGET_PC
+#include "pc_platform.h"
 #include "pc_menu_input.h"
+#else
+#include "pc_ap_platform.h" // pc_ap_plat_ms
+#include "gc_ap_hooks.h"     // gc_ap_pause_pads
+#include "libu64/pad.h"
+#endif
+#include "pc_pause_menu.h"
+#include "pc_menu_util.h"
 #include "pc_menu_repeat.h"
 #include "pc_text_draw.h"
 #include "pc_ap_time_menu.h"
@@ -130,7 +136,9 @@ static void lists_update(void) {
     }
     list_add(&main_list, MAIN_SAVE);
     list_add(&main_list, MAIN_SETTINGS);
-    list_add(&main_list, MAIN_QUIT);
+#ifdef TARGET_PC
+    list_add(&main_list, MAIN_QUIT); // GC: no quitting a console game from a menu
+#endif
     main_list.sel = list_find(&main_list, prev_main);
 
     ap_list.count = 0;
@@ -319,8 +327,10 @@ static void list_activate(MainItem item) {
 
 static void confirm_activate(void) {
     if (confirm_sel == 1) {
+#ifdef TARGET_PC
         printf("[PAUSE] Quit confirmed\n");
         g_pc_running = 0;
+#endif
     } else {
         cur_page = PAGE_MAIN;
         main_list.sel = list_find(&main_list, MAIN_QUIT);
@@ -407,6 +417,7 @@ static void handle_action(pc_menu_action act) {
     }
 }
 
+#ifdef TARGET_PC
 /* Left-stick nav with a per-axis latch so one push = one step. */
 #define STICK_NAV_PRESS   18000
 #define STICK_NAV_RELEASE 12000
@@ -433,6 +444,7 @@ static int translate_pad_axis(int axis, int value, pc_menu_action* dir) {
     *dir = *latch < 0 ? neg : *latch > 0 ? pos : PC_MENU_NONE;
     return *latch != old;
 }
+#endif
 
 static int is_direction(pc_menu_action act) {
     return act == PC_MENU_UP || act == PC_MENU_DOWN || act == PC_MENU_LEFT || act == PC_MENU_RIGHT;
@@ -455,10 +467,16 @@ static void input(pc_menu_action act, int src, int down) {
 
 // Once per drawn frame: the held direction through the repeat
 static void pause_tick(void) {
+#ifdef TARGET_PC
     pc_menu_action act = pc_menu_repeat_tick(&s_repeat, s_held);
+#else
+    // GC: fixed timing (no settings.ini), PC's defaults
+    pc_menu_action act = pc_menu_repeat_update(&s_repeat, s_held, pc_ap_plat_ms(), 400, 70);
+#endif
     if (act != PC_MENU_NONE) handle_action(act);
 }
 
+#ifdef TARGET_PC
 int pc_pause_menu_handle_event(const SDL_Event* e) {
     if (!g_pc_paused) return 0;
 
@@ -484,6 +502,84 @@ int pc_pause_menu_handle_event(const SDL_Event* e) {
     }
     return 0;
 }
+#else
+// GC pad adapter: pad 1 (N64-style buttons in pad_t, as the game sees them). B+Z opens the menu (the second
+// button pressed while the first is held, either order); while paused A / B / Start / d-pad / stick drive it
+// like the PC pad. Every pad's input is held from the game while paused and, after closing, until all buttons
+// are let go (the PC drain in padmgr.c).
+#define GC_STICK_PRESS   48 // stick range about +-80
+#define GC_STICK_RELEASE 32
+
+static const struct {
+    u16 button;
+    pc_menu_action act;
+} s_gc_buttons[] = {
+    { BUTTON_A, PC_MENU_CONFIRM }, { BUTTON_B, PC_MENU_CANCEL }, { BUTTON_START, PC_MENU_CANCEL },
+    { BUTTON_DUP, PC_MENU_UP },    { BUTTON_DDOWN, PC_MENU_DOWN }, { BUTTON_DLEFT, PC_MENU_LEFT },
+    { BUTTON_DRIGHT, PC_MENU_RIGHT },
+};
+
+// Per-axis latch as on PC; feeds input() on a change. src = HELD_AXIS + axis (0 = x, 1 = y)
+static void gc_stick_axis(int axis, int value, int* latch) {
+    pc_menu_action neg = axis == 0 ? PC_MENU_LEFT : PC_MENU_DOWN; // stick y is up-positive
+    pc_menu_action pos = axis == 0 ? PC_MENU_RIGHT : PC_MENU_UP;
+    int old = *latch;
+    if (*latch != 0) {
+        if (value > -GC_STICK_RELEASE && value < GC_STICK_RELEASE) *latch = 0;
+    } else if (value <= -GC_STICK_PRESS) {
+        *latch = -1;
+    } else if (value >= GC_STICK_PRESS) {
+        *latch = 1;
+    }
+    if (*latch == old) return;
+    if (*latch != 0) input(*latch < 0 ? neg : pos, HELD_AXIS + axis, 1);
+    else if (s_held_src == HELD_AXIS + axis) s_held = PC_MENU_NONE;
+}
+
+void gc_ap_pause_pads(void* pads, int count) {
+    static u16 last;
+    static int latch_x, latch_y;
+    pad_t* pad = (pad_t*)pads;
+    u16 now = pad[0].now.button;
+    u16 pressed = now & ~last;
+    int i;
+
+    if (!g_pc_paused) {
+        // B+Z: both held now, and one of them is new this frame
+        if ((now & (BUTTON_B | BUTTON_Z)) == (BUTTON_B | BUTTON_Z) && (pressed & (BUTTON_B | BUTTON_Z))) {
+            pc_pause_menu_toggle();
+            latch_x = latch_y = 0;
+            pressed = 0; // the opening press doesn't act in the menu
+        }
+    }
+    if (g_pc_paused) {
+        for (i = 0; i < (int)(sizeof(s_gc_buttons) / sizeof(s_gc_buttons[0])); i++) {
+            u16 b = s_gc_buttons[i].button;
+            if ((pressed & b) || ((last & b) && !(now & b))) {
+                input(s_gc_buttons[i].act, HELD_PAD + b, (now & b) != 0);
+            }
+            if (!g_pc_paused) break; // Resume / B closed it
+        }
+        if (g_pc_paused) {
+            gc_stick_axis(0, pad[0].now.stick_x, &latch_x);
+            gc_stick_axis(1, pad[0].now.stick_y, &latch_y);
+        }
+    }
+    last = now;
+
+    // Hold input from the game: paused, or draining after Resume until every button is up
+    if (g_pc_pause_input_drain) {
+        int any = 0;
+        for (i = 0; i < count; i++) any |= pad[i].now.button;
+        if (!any) g_pc_pause_input_drain = 0;
+    }
+    if (g_pc_paused || g_pc_pause_input_drain) {
+        for (i = 0; i < count; i++) {
+            memset(&pad[i], 0, sizeof(pad[i]));
+        }
+    }
+}
+#endif
 
 /* Drawing */
 

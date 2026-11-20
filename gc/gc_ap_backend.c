@@ -86,6 +86,8 @@ void gc_ap_mailbox_frame(void) {
     m->names_off = (u32)((u8*)m->names - (u8*)m);
     m->name_max = GC_AP_NAME_MAX;
     m->name_len = GC_AP_NAME_LEN;
+    m->gset_off = (u32)((u8*)m->gset - (u8*)m);
+    m->gset_max = GC_AP_GSET_NUM;
     m->tail = GC_AP_TAIL;
     m->magic[1] = GC_AP_MAGIC1;
     m->magic[0] = GC_AP_MAGIC0;
@@ -98,6 +100,7 @@ void gc_ap_mailbox_frame(void) {
     gc_ap_client_quiet++;
   }
   gc_ap_checked_sync();
+  gc_ap_gsettings_frame();
 }
 
 static int gc_ap_client_alive(void) {

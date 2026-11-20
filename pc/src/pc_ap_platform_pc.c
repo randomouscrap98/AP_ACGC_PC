@@ -38,6 +38,13 @@ int pc_ap_plat_title_ready(void) {
   return 1; // saves are per slot already (saves/ap_<seed>_<team>_<player>)
 }
 
+int pc_ap_plat_save_in_play(void) {
+  return 0; // pc_m_card.c saves synchronously
+}
+
+void pc_ap_plat_reload_arena(struct game_s* game, int on) {
+}
+
 int pc_ap_plat_take_player(void) {
   return pc_automated_take_player(); // -1 unless a render test loads a save
 }

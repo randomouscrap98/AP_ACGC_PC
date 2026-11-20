@@ -1,7 +1,9 @@
 #include "pc_menu_repeat.h"
+#ifdef TARGET_PC
 #include "pc_settings.h"
 
 #include <SDL3/SDL.h>
+#endif
 
 pc_menu_action pc_menu_repeat_update(pc_menu_repeat* r, pc_menu_action held, unsigned now_ms, unsigned delay_ms,
                                      unsigned rate_ms) {
@@ -18,7 +20,9 @@ pc_menu_action pc_menu_repeat_update(pc_menu_repeat* r, pc_menu_action held, uns
   return held;
 }
 
+#ifdef TARGET_PC // GC: callers pass the time themselves (pc_ap_plat_ms, fixed delay / rate)
 pc_menu_action pc_menu_repeat_tick(pc_menu_repeat* r, pc_menu_action held) {
   return pc_menu_repeat_update(r, held, SDL_GetTicks(), (unsigned)g_pc_settings.menu_repeat_delay,
                                (unsigned)g_pc_settings.menu_repeat_rate);
 }
+#endif

@@ -1,15 +1,23 @@
+// Settings page: pause menu (PC and GC) and the PC title menu. GC has the Gameplay (the options that work there),
+// Overlay and AP tabs only; the PC-only rows, the keybindings editor and the restart page are behind TARGET_PC.
 #include "pc_settings_menu.h"
 #include "pc_settings.h"
-#include "pc_render_target.h"
-#include "pc_keybindings.h"
 #include "pc_menu_util.h"
 #include "pc_text_draw.h"
 #include "pc_menu_list.h"
 #include "pc_ap_logic.h"
 #include "pc_ap_settings.h"
+#ifdef TARGET_PC
+#include "pc_render_target.h"
+#include "pc_keybindings.h"
 #include "pc_window_size.h"
 #include "pc_gpu.h"
 #include "pc_platform.h" // g_pc_running, g_pc_restart_requested
+#define SETTINGS_LOG printf
+#else
+#include "dolphin/os.h"
+#define SETTINGS_LOG OSReport
+#endif
 
 #include "graph.h"
 #include "m_font.h"
@@ -52,6 +60,10 @@ enum {
     ITEM_STICK_DEADZONE,
     ITEM_CSTICK_DEADZONE,
     ITEM_BINDINGS,
+    ITEM_AP_STATUS_ALWAYS,
+    ITEM_AP_TRACKER_ALWAYS,
+    ITEM_AP_TOAST_SECONDS,
+    ITEM_AP_TOAST_MAX,
     ITEM_AP_FIRST, /* + PC_AP_SET_* */
 };
 
@@ -66,6 +78,7 @@ typedef struct {
     const char* help; // one line at the bottom while selected (game font: no '/', '+', ';'), NULL = none
 } Item;
 
+#ifdef TARGET_PC
 static const Item tab_video_items[] = {
     { "Display",    ITEM_DISPLAY,  0, NULL },
     { "Window size", ITEM_WINDOW_SIZE, 0, "Only used in windowed mode" },
@@ -77,7 +90,6 @@ static const Item tab_video_items[] = {
     { "Textures",   ITEM_TEXTURES, 1, NULL },
     { "Renderer",   ITEM_RENDERER, 1, "Vulkan is still in development" },
     { "Precompile", ITEM_PRECOMPILE_SHADERS, 1, "Shaders at startup: no stutter on new effects" },
-    { "AP text client", ITEM_AP_TEXT_CLIENT, 0, NULL },
 };
 
 static const Item tab_gameplay_items[] = {
@@ -97,7 +109,30 @@ static const Item tab_gameplay_items[] = {
     { "Short shop talk",  ITEM_SHORT_SHOP_TALK,  0, "Nook keeps it short when you buy" },
     { "Less mail",        ITEM_LESS_MAIL,        0, "Remove HRA ads, letters from home, etc" },
 };
+#else
+// GC: the options whose code is in the GC build (the rest: plan.md, later)
+static const Item tab_gameplay_items[] = {
+    { "No cockroaches",   ITEM_NO_COCKROACHES,   0, "Removes cockroaches when you start playing" },
+    { "No fishing trash", ITEM_NO_FISHING_TRASH, 0, "No cans, boots or tires when fishing" },
+    { "Easier critters",  ITEM_EASIER_CRITTER_CATCH, 0, "Easier fish, calmer bugs, more bug spots" },
+    { "Hidden bug hints", ITEM_HIDDEN_BUG_HINTS, 0, "Dirt pops up, trees wiggle near hidden bugs" },
+    { "Hidden item hints", ITEM_HIDDEN_ITEM_HINTS, 0, "Sparkles over the money rock and item trees" },
+    { "Short shop talk",  ITEM_SHORT_SHOP_TALK,  0, "Nook keeps it short when you buy" },
+};
+#endif
 
+// AP overlay (status line, tracker, toasts); the AP text client is a PC window
+static const Item tab_overlay_items[] = {
+    { "Status line",  ITEM_AP_STATUS_ALWAYS,  0, "AP connection line: always, or in menus only" },
+    { "Tracker",      ITEM_AP_TRACKER_ALWAYS, 0, "Checks and goals: always, or in menus only" },
+    { "Toast time",   ITEM_AP_TOAST_SECONDS,  0, "How long item messages stay on screen" },
+    { "Toast count",  ITEM_AP_TOAST_MAX,      0, "Item messages on screen at once" },
+#ifdef TARGET_PC
+    { "AP text client", ITEM_AP_TEXT_CLIENT,  0, "The AP box in the pause menu" },
+#endif
+};
+
+#ifdef TARGET_PC
 static const Item tab_audio_items[] = {
     { "Master volume", ITEM_MASTER_VOLUME, 0, NULL },
 };
@@ -107,6 +142,7 @@ static const Item tab_controls_items[] = {
     { "C-stick deadzone", ITEM_CSTICK_DEADZONE, 0, NULL },
     { "Keybindings",      ITEM_BINDINGS,        0, NULL },
 };
+#endif
 
 /* Settings > AP: the per-save QoL settings (pc_ap_settings.h) */
 #define AP_ITEM(lbl, set) { lbl, ITEM_AP_FIRST + (set), 0, NULL }
@@ -151,10 +187,13 @@ typedef struct {
 
 #define TAB_ITEMS(a) (a), (int)(sizeof(a) / sizeof((a)[0]))
 static const Tab s_tabs[] = {
+#ifdef TARGET_PC
     { "Video",    TAB_ITEMS(tab_video_items) },
     { "Audio",    TAB_ITEMS(tab_audio_items) },
     { "Controls", TAB_ITEMS(tab_controls_items) },
+#endif
     { "Gameplay", TAB_ITEMS(tab_gameplay_items) },
+    { "Overlay",  TAB_ITEMS(tab_overlay_items) },
     { "AP",       TAB_ITEMS(tab_ap_items) }, // last: grayed out and skipped until available
 };
 #define TAB_COUNT ((int)(sizeof(s_tabs) / sizeof(s_tabs[0])))
@@ -204,6 +243,7 @@ static int    s_back_sel = BACK_CHOICE_APPLY;
 static int    s_restart_sel = 0;
 static int    s_in_game = 0;
 
+#ifdef TARGET_PC
 /* --- Bindings editor (SUB_BINDINGS) state --- */
 typedef struct {
     const char* label;
@@ -327,6 +367,7 @@ static void sanitize_glyphs(char* s) {
         if (!glyph_ok((unsigned char)*s)) *s = '?';
     }
 }
+#endif
 
 /* Startup snapshot + restart-required flag. Some settings (texture
  * pack preload mode) only take effect on process restart. More might appear.*/
@@ -352,6 +393,10 @@ static int window_size_changed(void) {
 
 static int pc_dirty(void) {
     return
+        (s_pending.ap_status_always  != g_pc_settings.ap_status_always) ||
+        (s_pending.ap_tracker_always != g_pc_settings.ap_tracker_always) ||
+        (s_pending.ap_toast_seconds  != g_pc_settings.ap_toast_seconds) ||
+        (s_pending.ap_toast_max      != g_pc_settings.ap_toast_max) ||
         window_size_changed() ||
         (s_pending.fullscreen       != g_pc_settings.fullscreen) ||
         (s_pending.vsync            != g_pc_settings.vsync) ||
@@ -406,6 +451,7 @@ static void item_cycle(int id, int dir) {
         return;
     }
     switch (id) {
+#ifdef TARGET_PC
         case ITEM_DISPLAY: {
             int v = s_pending.fullscreen + (dir > 0 ? 1 : 2);
             s_pending.fullscreen = v % 3;
@@ -460,6 +506,7 @@ static void item_cycle(int id, int dir) {
         case ITEM_RENDERER:
             s_pending.renderer = s_pending.renderer == PC_RENDERER_OPENGL ? PC_RENDERER_VULKAN : PC_RENDERER_OPENGL;
             break;
+#endif
         case ITEM_RESETTI:
             s_pending.disable_resetti = !s_pending.disable_resetti;
             break;
@@ -532,6 +579,28 @@ static void item_cycle(int id, int dir) {
         case ITEM_BINDINGS:
             /* opened via confirm, left/right does nothing */
             break;
+        case ITEM_AP_STATUS_ALWAYS:
+            s_pending.ap_status_always = !s_pending.ap_status_always;
+            break;
+        case ITEM_AP_TRACKER_ALWAYS:
+            s_pending.ap_tracker_always = !s_pending.ap_tracker_always;
+            break;
+        case ITEM_AP_TOAST_SECONDS: {
+            // 0 = no toasts; a value from settings.ini that isn't a step goes to the next one
+            static const int steps[] = { 0, 3, 5, 8, 10, 15, 20, 30, 60 };
+            int count = sizeof(steps) / sizeof(steps[0]);
+            int idx = 0;
+            for (int i = 0; i < count; i++) if (s_pending.ap_toast_seconds >= steps[i]) idx = i;
+            if (dir > 0) idx = (idx + 1) % count;
+            else if (s_pending.ap_toast_seconds == steps[idx]) idx = (idx + count - 1) % count;
+            s_pending.ap_toast_seconds = steps[idx];
+        } break;
+        case ITEM_AP_TOAST_MAX: {
+            int v = s_pending.ap_toast_max + (dir > 0 ? 1 : -1);
+            if (v < 1)  v = 16;
+            if (v > 16) v = 1;
+            s_pending.ap_toast_max = v;
+        } break;
     }
     recompute_dirty();
 }
@@ -563,6 +632,7 @@ static void item_format(int id, char* buf, size_t n) {
         return;
     }
     switch (id) {
+#ifdef TARGET_PC
         case ITEM_DISPLAY:
             snprintf(buf, n, "%s",
                 s_pending.fullscreen == 0 ? "< Windowed >" :
@@ -605,6 +675,7 @@ static void item_format(int id, char* buf, size_t n) {
         case ITEM_RENDERER:
             snprintf(buf, n, "%s", s_pending.renderer == PC_RENDERER_VULKAN ? "< Vulkan >" : "< OpenGL >");
             break;
+#endif
         case ITEM_RESETTI:
             /* disable_resetti flips the polarity - show the user-facing side. */
             snprintf(buf, n, "%s", s_pending.disable_resetti ? "< Disabled >" : "< Enabled >");
@@ -670,6 +741,19 @@ static void item_format(int id, char* buf, size_t n) {
         case ITEM_BINDINGS:
             snprintf(buf, n, "Edit...");
             break;
+        case ITEM_AP_STATUS_ALWAYS:
+            snprintf(buf, n, "%s", s_pending.ap_status_always ? "< Always >" : "< Menus >");
+            break;
+        case ITEM_AP_TRACKER_ALWAYS:
+            snprintf(buf, n, "%s", s_pending.ap_tracker_always ? "< Always >" : "< Menus >");
+            break;
+        case ITEM_AP_TOAST_SECONDS:
+            if (s_pending.ap_toast_seconds > 0) snprintf(buf, n, "< %d sec >", s_pending.ap_toast_seconds);
+            else                                snprintf(buf, n, "< Off >");
+            break;
+        case ITEM_AP_TOAST_MAX:
+            snprintf(buf, n, "< %d >", s_pending.ap_toast_max);
+            break;
         default:
             buf[0] = '\0';
             break;
@@ -713,6 +797,10 @@ static int item_changed(int id) {
         case ITEM_STICK_DEADZONE:  return s_pending.stick_deadzone  != g_pc_settings.stick_deadzone;
         case ITEM_CSTICK_DEADZONE: return s_pending.cstick_deadzone != g_pc_settings.cstick_deadzone;
         case ITEM_BINDINGS:      return 0; /* bindings save themselves */
+        case ITEM_AP_STATUS_ALWAYS:  return s_pending.ap_status_always  != g_pc_settings.ap_status_always;
+        case ITEM_AP_TRACKER_ALWAYS: return s_pending.ap_tracker_always != g_pc_settings.ap_tracker_always;
+        case ITEM_AP_TOAST_SECONDS:  return s_pending.ap_toast_seconds  != g_pc_settings.ap_toast_seconds;
+        case ITEM_AP_TOAST_MAX:      return s_pending.ap_toast_max      != g_pc_settings.ap_toast_max;
     }
     return 0;
 }
@@ -762,15 +850,16 @@ static void apply_pending(void) {
     if (!s_pending_dirty) return;
 
     if (ap_dirty()) {
-        if (!pc_ap_settings_apply(&s_ap_pending)) printf("[SETTINGS] couldn't write the AP settings file\n");
+        if (!pc_ap_settings_apply(&s_ap_pending)) SETTINGS_LOG("[SETTINGS] couldn't write the AP settings file\n");
         s_ap_current = s_ap_pending;
     }
     if (!pc_dirty()) {
         s_pending_dirty = 0;
-        printf("[SETTINGS] applied\n");
+        SETTINGS_LOG("[SETTINGS] applied\n");
         return;
     }
 
+#ifdef TARGET_PC
     int renderer_changed = s_pending.renderer != g_pc_settings.renderer;
     // The windowed size follows the window (resizing) unless the Window size row picked one
     int resize = window_size_changed();
@@ -787,11 +876,19 @@ static void apply_pending(void) {
     s_pending_dirty = 0;
     recompute_restart_needed();
     pc_settings_save();
-    printf("[SETTINGS] applied\n");
+    SETTINGS_LOG("[SETTINGS] applied\n");
     if (renderer_changed) {
         s_sub = SUB_CONFIRM_RESTART;
         s_restart_sel = 0;
     }
+#else
+    // GC: pc_settings_save hands them to the client through the mailbox (gc_ap_port.c), which stores them
+    g_pc_settings = s_pending;
+    pc_settings_apply();
+    s_pending_dirty = 0;
+    pc_settings_save();
+    SETTINGS_LOG("[SETTINGS] applied\n");
+#endif
 }
 
 /* =========================================================================
@@ -812,8 +909,10 @@ void pc_settings_menu_enter(void) {
     s_sel = -1;           /* start cursor on the tab row */
     list_reset();
     s_sub = SUB_SETTINGS;
+#ifdef TARGET_PC
     s_capture = 0;
     s_capture_grace = 0;
+#endif
     s_active = 1;
 }
 
@@ -830,12 +929,14 @@ int pc_settings_menu_active(void) {
 
 int pc_settings_menu_nav_up(void) {
     if (!s_active) return 0;
+#ifdef TARGET_PC
     if (s_sub == SUB_BINDINGS) {
         if (s_capture) return 1;
         if (s_bind_sel > 0) s_bind_sel--;
         bind_fix_scroll_and_col();
         return 1;
     }
+#endif
     if (s_sub != SUB_SETTINGS) return 1;
     /* Clamp at the top - no wrap. */
     if (s_sel == 0)      s_sel = -1;            /* first item -> tab row */
@@ -846,12 +947,14 @@ int pc_settings_menu_nav_up(void) {
 
 int pc_settings_menu_nav_down(void) {
     if (!s_active) return 0;
+#ifdef TARGET_PC
     if (s_sub == SUB_BINDINGS) {
         if (s_capture) return 1;
         if (s_bind_sel < BIND_IDX_BACK) s_bind_sel++;
         bind_fix_scroll_and_col();
         return 1;
     }
+#endif
     if (s_sub != SUB_SETTINGS) return 1;
     /* Clamp at the bottom - no wrap. */
     if (s_sel == -1)             s_sel = 0;     /* tab row -> first item */
@@ -864,6 +967,7 @@ int pc_settings_menu_nav_down(void) {
  * switching on the tab row, and value cycling on a selected item. */
 static int nav_horizontal(int dir) {
     if (!s_active) return 0;
+#ifdef TARGET_PC
     if (s_sub == SUB_BINDINGS) {
         if (s_capture) return 1;
         if (s_bind_sel < BIND_ROW_COUNT) {
@@ -872,6 +976,7 @@ static int nav_horizontal(int dir) {
         }
         return 1;
     }
+#endif
     if (s_sub == SUB_CONFIRM_BACK) {
         s_back_sel = (s_back_sel + dir + BACK_CHOICE_COUNT) % BACK_CHOICE_COUNT;
         return 1;
@@ -902,6 +1007,7 @@ int pc_settings_menu_nav_right(void) { return nav_horizontal(+1); }
 
 int pc_settings_menu_confirm(void) {
     if (!s_active) return 0;
+#ifdef TARGET_PC
     if (s_sub == SUB_BINDINGS) {
         if (s_capture) return 1;
         if (s_bind_sel < BIND_ROW_COUNT) {
@@ -914,6 +1020,7 @@ int pc_settings_menu_confirm(void) {
         }
         return 1;
     }
+#endif
     if (s_sub == SUB_CONFIRM_BACK) {
         if (s_back_sel == BACK_CHOICE_KEEP_EDITING) {
             s_sub = SUB_SETTINGS;
@@ -928,6 +1035,7 @@ int pc_settings_menu_confirm(void) {
         return 0;
     }
     if (s_sub == SUB_CONFIRM_RESTART) {
+#ifdef TARGET_PC
         if (!s_in_game && s_restart_sel == 0) {
             printf("[SETTINGS] restarting for the renderer change\n");
             g_pc_restart_requested = 1;
@@ -935,6 +1043,7 @@ int pc_settings_menu_confirm(void) {
             s_active = 0;
             return 0;
         }
+#endif
         s_sub = SUB_SETTINGS;
         return 1;
     }
@@ -944,8 +1053,11 @@ int pc_settings_menu_confirm(void) {
         list_follow();
     } else if (s_sel < cur_item_count()) {
         int id = s_tabs[s_tab].items[s_sel].id;
+#ifdef TARGET_PC
         if (id == ITEM_BINDINGS) bind_enter_page();
-        else                     item_cycle(id, +1);
+        else
+#endif
+            item_cycle(id, +1);
     } else if (s_sel == idx_apply()) {
         apply_pending();
     } else if (s_sel == idx_back()) {
@@ -962,11 +1074,13 @@ int pc_settings_menu_confirm(void) {
 
 int pc_settings_menu_cancel(void) {
     if (!s_active) return 0;
+#ifdef TARGET_PC
     if (s_sub == SUB_BINDINGS) {
         if (s_capture) { capture_finish(0); return 1; }
         s_sub = SUB_SETTINGS;
         return 1;
     }
+#endif
     if (s_sub == SUB_CONFIRM_BACK || s_sub == SUB_CONFIRM_RESTART) {
         /* Esc = cancel the confirm - snap back to the settings page. */
         s_sub = SUB_SETTINGS;
@@ -983,9 +1097,12 @@ int pc_settings_menu_cancel(void) {
 
 void pc_settings_menu_tick(void) {
     if (!s_active) return;
+#ifdef TARGET_PC
     if (s_capture_grace > 0) s_capture_grace--;
+#endif
 }
 
+#ifdef TARGET_PC
 /* --- Keybinding capture --- */
 
 int pc_settings_menu_capture_active(void) {
@@ -1050,6 +1167,15 @@ int pc_settings_menu_handle_capture_event(const SDL_Event* e) {
     }
     return 0;
 }
+#else
+int pc_settings_menu_capture_active(void) {
+    return 0;
+}
+
+int pc_settings_menu_capture_blocking(void) {
+    return 0;
+}
+#endif
 
 /* =========================================================================
  * Drawing
@@ -1081,7 +1207,13 @@ static void draw_tab_row(struct game_s* game, f32 y) {
         widths[t] = pc_text_width(s_tabs[t].name);
         total += widths[t];
     }
-    total += gap_px * (count - 1);
+    // Narrower gaps when the names need the room (6 tabs on PC), 16 px margins
+    int gap = gap_px;
+    if (count > 1 && total + gap * (count - 1) > (int)SCREEN_WIDTH_F - 32) {
+        gap = ((int)SCREEN_WIDTH_F - 32 - total) / (count - 1);
+        if (gap < 6) gap = 6;
+    }
+    total += gap * (count - 1);
 
     f32 x = (SCREEN_WIDTH_F - (f32)total) * 0.5f;
     for (int t = 0; t < count; t++) {
@@ -1098,7 +1230,7 @@ static void draw_tab_row(struct game_s* game, f32 y) {
          * marks it). Inactive tabs render normal too. */
         f32 s = (active && on_tab_row) ? PC_MENU_SCALE_SELECTED : 1.0f;
         pc_text_draw(game, name, x, y, r, g, b, a, s);
-        x += (f32)widths[t] + (f32)gap_px;
+        x += (f32)widths[t] + (f32)gap;
     }
 }
 
@@ -1173,7 +1305,11 @@ static void draw_settings_page(struct game_s* game) {
 
     /* AP tab: what the selected setting does, else where they're kept */
     if (tab->items == tab_ap_items) {
+#ifdef TARGET_PC
         const char* help = "Saved for this town only";
+#else
+        const char* help = "Saved for this town with your next save"; // the card file (gc_ap_state_card.c)
+#endif
         if (s_sel >= 0 && s_sel < tab->count) help = s_ap_help[tab->items[s_sel].id - ITEM_AP_FIRST];
         pc_menu_draw_centered(game, help, bky + line_h + 6.0f, 150, 150, 150, 220, 1.0f);
         return;
@@ -1204,6 +1340,7 @@ static void draw_back_confirm_page(struct game_s* game) {
     pc_menu_draw_three_choice(game, choices, s_back_sel, 160.0f);
 }
 
+#ifdef TARGET_PC
 // After applying a renderer change
 static void draw_restart_page(struct game_s* game) {
     int r, g, b, a;
@@ -1311,12 +1448,15 @@ static void draw_bindings_page(struct game_s* game) {
         pc_menu_draw_centered(game, "Confirm to rebind", 218.0f, 150, 150, 150, 180, 1.0f);
     }
 }
+#endif
 
 void pc_settings_menu_draw(struct game_s* game, int with_dim_backdrop) {
     if (!s_active || !game || !game->graph) return;
     if (with_dim_backdrop) pc_menu_dim_rect(game->graph, 180);
     if (s_sub == SUB_SETTINGS)          draw_settings_page(game);
+#ifdef TARGET_PC
     else if (s_sub == SUB_BINDINGS)     draw_bindings_page(game);
     else if (s_sub == SUB_CONFIRM_RESTART) draw_restart_page(game);
+#endif
     else                                draw_back_confirm_page(game);
 }

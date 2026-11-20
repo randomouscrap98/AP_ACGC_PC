@@ -559,11 +559,8 @@ static void Game_play_move(GAME* game) {
     GAME_PLAY* play = (GAME_PLAY*)game;
     int pause;
 
-#ifdef TARGET_PC
-    {
-        extern int g_pc_paused;
-        if (g_pc_paused) return;
-    }
+#ifdef AP_HOOKS
+    if (pc_ap_play_hold(play)) return; /* pause menu, or the AP reload's card save */
 #endif
 
     game->doing_point = 0;
