@@ -45,16 +45,24 @@ int pc_ap_overlay_toggle(void) {
 
 #define _APO_MAXSTRING  128
 #define _APO_SCALE      0.5f
-#define _APO_SCREENPAD  2.0f // screen edge to box edge, the same on every side
+#ifdef TARGET_PC
+#define _APO_SCREENPAD_X 2.0f // screen edge to box edge
+#define _APO_SCREENPAD_Y 2.0f
+#else
+// GC: the game shows only part of the 640x480 frame in play (JW_UpdateVideoMode: video_pan 20, 6, 598 x 464),
+// so the edges are 10 / 11 (left / right) and 3 / 5 (top / bottom) of these 320x240 units in; 2 more past that
+#define _APO_SCREENPAD_X 13.0f
+#define _APO_SCREENPAD_Y 7.0f
+#endif
 #define _APO_WIDTH      320.0f
 #define _APO_HEIGHT     240.0f
 
 // Text position for a box against each edge (the box adds PC_SPAN_PAD_X / PC_SPAN_PAD around it)
-#define _APO_LEFT          (_APO_SCREENPAD + PC_SPAN_PAD_X)
-#define _APO_TOP           (_APO_SCREENPAD + PC_SPAN_PAD)
-#define _APO_RIGHT(text)   (_APO_WIDTH - _APO_SCREENPAD - PC_SPAN_PAD_X - pc_span_width(text, _APO_SCALE))
+#define _APO_LEFT          (_APO_SCREENPAD_X + PC_SPAN_PAD_X)
+#define _APO_TOP           (_APO_SCREENPAD_Y + PC_SPAN_PAD)
+#define _APO_RIGHT(text)   (_APO_WIDTH - _APO_SCREENPAD_X - PC_SPAN_PAD_X - pc_span_width(text, _APO_SCALE))
 // grows upward with more lines
-#define _APO_BOTTOM(text)  (_APO_HEIGHT - _APO_SCREENPAD - PC_SPAN_PAD - pc_span_height(text, _APO_SCALE))
+#define _APO_BOTTOM(text)  (_APO_HEIGHT - _APO_SCREENPAD_Y - PC_SPAN_PAD - pc_span_height(text, _APO_SCALE))
 
 #define _APO_TOAST_SLOTS 16
 #define _APO_TOAST_GAP   1.0f // between stacked toast boxes
