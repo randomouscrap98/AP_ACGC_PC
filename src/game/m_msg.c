@@ -11,6 +11,8 @@
 #include "sys_matrix.h"
 #ifdef TARGET_PC
 #include "pc_bswap.h"
+#endif
+#ifdef AP_HOOKS
 #include "pc_settings.h"
 
 // Instant text fill paused at a quest order until the quest manager takes it: the order may fill strings

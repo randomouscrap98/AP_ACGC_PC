@@ -9,7 +9,7 @@
 #include "m_player_lib.h"
 #include "sys_matrix.h"
 #include "m_actor_shadow.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_settings.h"
 #endif
 

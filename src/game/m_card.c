@@ -1,6 +1,7 @@
 #include "m_card.h"
 #ifdef AP_HOOKS
 #include "gc_ap_hooks.h"
+#include "pc_settings.h"
 #endif
 
 #include "card.h"
@@ -3299,6 +3300,12 @@ static void mCD_SetResetCode(Private_c* priv) {
 
 static void mCD_SetResetInfo(Private_c* priv) {
     Common_Set(reset_flag, FALSE);
+#ifdef AP_HOOKS
+    // Resetti setting off: no penalty and no reset count (the reset code is still armed; PC: pc_m_card.c)
+    if (g_pc_settings.disable_resetti) {
+        return;
+    }
+#endif
     if (mCD_CheckResetCode(priv) == FALSE) {
 
         /* No reset penalty if zurumode 2 is enabled */

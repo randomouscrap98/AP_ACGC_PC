@@ -4,7 +4,7 @@
 #include "m_common_data.h"
 #include "m_scene_table.h"
 #include "m_handbill.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_settings.h"
 #endif
 
@@ -91,13 +91,6 @@ static void mMkRm_NoMarkLetter_Hint(int arrange_idx, int player_no) {
   int free_hint_num = 0;
   int i;
 
-  #ifdef TARGET_PC
-  // Less Mail: no HRA hint letters
-  if (g_pc_settings.less_mail) {
-    return;
-  }
-  #endif
-
   #ifndef IMPROVEMENTS
   u32 all_mark = 0;
   for (i = 0; i < mMkRm_HINT_NUM; i++) {
@@ -107,6 +100,12 @@ static void mMkRm_NoMarkLetter_Hint(int arrange_idx, int player_no) {
   u32 all_mark = (1 << mMkRm_HINT_NUM) - 1; // lol
   #endif
 
+  #ifdef AP_HOOKS
+  // Less Mail: no HRA hint letters (after the declarations: MWCC builds this file as C89)
+  if (g_pc_settings.less_mail) {
+    return;
+  }
+  #endif
 
   if (hint_info_bitfield[0] == all_mark) {
     hint_info_bitfield[0] = 0; // clear all hints

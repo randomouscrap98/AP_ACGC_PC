@@ -112,12 +112,16 @@ static const Item tab_gameplay_items[] = {
 #else
 // GC: the options whose code is in the GC build (the rest: plan.md, later)
 static const Item tab_gameplay_items[] = {
+    { "Resetti",          ITEM_RESETTI,          0, "Mr. Resetti after quitting without saving" },
+    { "Instant text",     ITEM_INSTANT_TEXT,     0, "A or B shows the rest of a text page at once" },
+    { "Bite sound",       ITEM_BITE_SOUND,       0, "Sounds when a fish nibbles and bites" },
     { "No cockroaches",   ITEM_NO_COCKROACHES,   0, "Removes cockroaches when you start playing" },
     { "No fishing trash", ITEM_NO_FISHING_TRASH, 0, "No cans, boots or tires when fishing" },
     { "Easier critters",  ITEM_EASIER_CRITTER_CATCH, 0, "Easier fish, calmer bugs, more bug spots" },
     { "Hidden bug hints", ITEM_HIDDEN_BUG_HINTS, 0, "Dirt pops up, trees wiggle near hidden bugs" },
     { "Hidden item hints", ITEM_HIDDEN_ITEM_HINTS, 0, "Sparkles over the money rock and item trees" },
     { "Short shop talk",  ITEM_SHORT_SHOP_TALK,  0, "Nook keeps it short when you buy" },
+    { "Less mail",        ITEM_LESS_MAIL,        0, "Remove HRA ads, letters from home, etc" },
 };
 #endif
 

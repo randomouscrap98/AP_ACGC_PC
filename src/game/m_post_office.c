@@ -15,7 +15,7 @@
 #include "libultra/libultra.h"
 #include "m_common_data.h"
 #include "m_scene_table.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_settings.h"
 #endif
 
@@ -343,7 +343,7 @@ static void mPO_delivery_one_address_event_leaflet(int house_no) {
             break;
     }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* Less Mail: no event leaflets (Nook's sale day, Crazy Redd's) */
     if (g_pc_settings.less_mail) {
         return;

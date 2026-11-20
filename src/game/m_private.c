@@ -882,7 +882,7 @@ static int mPr_SendMotherMailPost(PersonalID_c* pid, int player_no, mActor_name_
     mail = &l_mpr_mail;
     home = Save_GetPointer(homes[mHS_get_arrange_idx(player_no)]);
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     // Less Mail: no letter from Mom without a present (counts as sent, like vanilla's bookkeeping expects)
     if (g_pc_settings.less_mail && present == EMPTY_NO) {
         return TRUE;
@@ -1276,7 +1276,7 @@ extern void mPr_SendForeingerAnimalMail(Private_c* priv) {
     if (mLd_PlayerManKindCheck() == FALSE) {
         if (anm_mem->npc_id != RSV_NO && ITEM_NAME_GET_TYPE(anm_mem->npc_id) == NAME_TYPE_NPC &&
             mPO_get_keep_mail_sum() < mPO_MAIL_STORAGE_SIZE) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
             // Less Mail: no letter from a villager who moved to another town; still forget them
             if (g_pc_settings.less_mail) {
                 mPr_ClearAnimalMemory(anm_mem);

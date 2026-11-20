@@ -43,7 +43,8 @@ ITEM_SIZE = 8  # gc_ap_item: u32 id, s16 sender, u8 flags, u8 pad
 # The game's global settings (Settings > Gameplay / Overlay; no settings file on a console), by mailbox index:
 # GC_AP_GSET_* order, append-only. Stored by name in GSET_FILE.
 GSET_NAMES = ["no_cockroaches", "no_fishing_trash", "easier_critter_catch", "hidden_bug_hints", "hidden_item_hints",
-              "short_shop_talk", "ap_status_always", "ap_tracker_always", "ap_toast_seconds", "ap_toast_max"]
+              "short_shop_talk", "ap_status_always", "ap_tracker_always", "ap_toast_seconds", "ap_toast_max",
+              "disable_resetti", "instant_text", "bite_sound", "less_mail"]
 GSET_FILE = "animal_crossing_gc_settings.json"
 
 CSTATE_CONNECTING, CSTATE_CONNECTED, CSTATE_SLOTREFUSED = 1, 3, -1  # AP_CSTATE_* (ap_archipelago.h)

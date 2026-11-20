@@ -2,6 +2,8 @@
 ignore/
 .clangd
 /release/
+# GameCube patch deltas, made by generate_release.sh (gc_patch.py make)
+/apworld/animal_crossing/data/gc/
 
 # IDE folders
 .idea/

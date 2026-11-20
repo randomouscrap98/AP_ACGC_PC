@@ -39,6 +39,10 @@ static const gc_ap_gset gc_ap_gsets[GC_AP_GSET_NUM] = {
     [GC_AP_GSET_AP_TRACKER_ALWAYS] = { &g_pc_settings.ap_tracker_always, 0, 1 },
     [GC_AP_GSET_AP_TOAST_SECONDS] = { &g_pc_settings.ap_toast_seconds, 0, 600 },
     [GC_AP_GSET_AP_TOAST_MAX] = { &g_pc_settings.ap_toast_max, 1, 16 },
+    [GC_AP_GSET_DISABLE_RESETTI] = { &g_pc_settings.disable_resetti, 0, 1 },
+    [GC_AP_GSET_INSTANT_TEXT] = { &g_pc_settings.instant_text, 0, 1 },
+    [GC_AP_GSET_BITE_SOUND] = { &g_pc_settings.bite_sound, 0, 1 },
+    [GC_AP_GSET_LESS_MAIL] = { &g_pc_settings.less_mail, 0, 1 },
 };
 
 static int gc_ap_gset_published;  // gset[] holds the game's values (first frame)
