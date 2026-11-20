@@ -503,6 +503,10 @@ static void aFD_MakeMarinScrollInfo(ACTOR* actorx, GAME* game) {
     FIELD_DRAW_ACTOR* field_draw = (FIELD_DRAW_ACTOR*)actorx;
     aFD_marin_info_c* marin_info = &field_draw->marin_info;
     int frame;
+    f32 frame_f;
+    f32 wave_radian;
+    f32 wave_cos;
+    f32 beach_cos;
 
     marin_info->anim_frame += (f32)game->graph->dt_num_60fps_frames;
     while (marin_info->anim_frame >= 300.0f) {
@@ -510,10 +514,10 @@ static void aFD_MakeMarinScrollInfo(ACTOR* actorx, GAME* game) {
     }
 
     frame = (int)marin_info->anim_frame;
-    f32 frame_f = (f32)frame;
-    f32 wave_radian = (frame_f / 300.0f) * F_PI * 2.0f;
-    f32 wave_cos = cosf_table(wave_radian);
-    f32 beach_cos = cosf_table((wave_radian - 1.2f) + (f32)GETREG(MYKREG, 53) * 0.01f);
+    frame_f = (f32)frame;
+    wave_radian = (frame_f / 300.0f) * F_PI * 2.0f;
+    wave_cos = cosf_table(wave_radian);
+    beach_cos = cosf_table((wave_radian - 1.2f) + (f32)GETREG(MYKREG, 53) * 0.01f);
 
     marin_info->frame = frame;
     marin_info->tile0_scroll = (int)(marin_info->anim_frame * -0.42666667f) - 7;

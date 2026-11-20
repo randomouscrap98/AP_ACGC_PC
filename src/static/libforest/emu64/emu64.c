@@ -3646,7 +3646,10 @@ void emu64::dl_G_SETTILE_DOLPHIN() {
     int wrap_t = (w0 >> 8) & 0x3;
     int shift_s = (w0 >> 4) & 0xF;
     int shift_t = w0 & 0xF;
-    Gsettile_dolphin decoded = {};
+    Gsettile_dolphin decoded;
+
+    // not "= {}": MWCC puts the zero template in .sbss2, which the GC link script has no section for
+    bzero(&decoded, sizeof(decoded));
     decoded.cmd = G_SETTILE_DOLPHIN;
     decoded.dol_fmt = dol_fmt;
     decoded.tile = tile;

@@ -26,12 +26,13 @@ void fbdemo_fade_move(fbdemo_fade* this, int rate) {
   static f32 fade_timer_accum = 0.0f;
   static f32 fade_frame_accum = 0.0f;
   f32 dt = (f32)gamePT->graph->dt_num_60fps_frames;
+  int steps;
   f32 ftimer;
   int alpha;
 
   if (this->timer != 0) {
     fade_timer_accum += dt;
-    int steps = (int)fade_timer_accum;
+    steps = (int)fade_timer_accum;
     fade_timer_accum -= (f32)steps;
     while (steps > 0 && this->timer > 0) {
       this->timer -= 1;
@@ -42,7 +43,7 @@ void fbdemo_fade_move(fbdemo_fade* this, int rate) {
 
   if (this->type != 7) {
     fade_frame_accum += (f32)rate * dt;
-    int steps = (int)fade_frame_accum;
+    steps = (int)fade_frame_accum;
     fade_frame_accum -= (f32)steps;
     this->frame += steps;
     if (this->frame >= Common_Get(transition).fade_rate) {

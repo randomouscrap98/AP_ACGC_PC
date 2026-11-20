@@ -127,7 +127,7 @@ static void eBushHappa_mv(eEC_Effect_c* effect, GAME* game) {
 
     if (effect->effect_specific[2] == 1) {
         f32 val = 2.0f * sin_s(effect->effect_specific[3]);
-        float decay = powf(sqrtf(0.95f), dt);
+        float decay = DTCONV_FRAMES(sqrtf(0.95f), dt);
 
         effect->offset.x = val;
         effect->offset.y = 0.0f;

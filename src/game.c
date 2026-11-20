@@ -1,8 +1,8 @@
 #include "game.h"
 
+#include "pc_diag.h"
 #ifdef TARGET_PC
 #include "pc_platform.h"
-#include "pc_diag.h"
 extern int g_pc_model_viewer;
 extern int g_pc_sound_test;
 #endif

@@ -25,10 +25,10 @@
 #include "sys_dynamic.h"
 #include "sys_ucode.h"
 #include "zurumode.h"
+#include "pc_diag.h"
 #ifdef TARGET_PC
 #include "pc_model_viewer.h"
 #include "pc_sound_test.h"
-#include "pc_diag.h"
 #include "pc_platform.h"
 #include "pc_pause_menu.h"
 #include "pc_ap_overlay.h"
@@ -133,6 +133,7 @@ extern void graph_dt(GRAPH* this) {
 
 int graph_dt_60hz_ticks(GAME* game, float* accum) {
     int max_ticks = 4;
+    int ticks;
 
 #ifdef TARGET_PC
     if (g_pc_speedhack_enabled) {
@@ -141,7 +142,7 @@ int graph_dt_60hz_ticks(GAME* game, float* accum) {
 #endif
 
     *accum += (float)game->graph->dt_num_60fps_frames;
-    int ticks = (int)*accum;
+    ticks = (int)*accum;
     *accum -= (float)ticks;
     if (ticks > max_ticks) ticks = max_ticks;
     return ticks;
@@ -485,6 +486,13 @@ extern void graph_proc(void* arg) {
                 dt_num_60fps_frames = 4.0;
                 delta_time = dt_num_60fps_frames / 60.0;
             }
+
+#ifndef TARGET_PC
+            // GC: fixed step, one 60 Hz frame per game frame (vanilla timing). Measured in Dolphin: real dt is
+            // ~1.0 with spikes on slow frames, which would let dt-scaled code run ahead of the rest.
+            delta_time = FRAMES_TO_SECONDS(1.0f);
+            dt_num_60fps_frames = 1.0;
+#endif
 
 #ifdef TARGET_PC
             if (g_pc_speedhack_enabled) {

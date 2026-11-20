@@ -91,7 +91,7 @@ static void eSuisou_Awa_mv(eEC_Effect_c* effect, GAME* game) {
     } else {
         effect->scale.x = eEC_CLIP->calc_adjust_proc((s16)effect->lifetime, 76, 80, effect->offset.x, 0.0f);
         effect->scale.y = effect->scale.z = effect->scale.x;
-        effect->velocity.y *= powf(sqrtf(0.84f), dt);
+        effect->velocity.y *= DTCONV_FRAMES(sqrtf(0.84f), dt);
         effect->effect_specific[0] += (s16)(effect->effect_specific[1] * dt);
         effect->effect_specific[2] += (s16)(effect->effect_specific[3] * dt);
         if (effect->arg0 == 2) {

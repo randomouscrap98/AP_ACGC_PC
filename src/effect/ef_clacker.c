@@ -72,8 +72,9 @@ static void eClacker_mv(eEC_Effect_c* effect, GAME* game) {
     if (t >= 12.0f) {
         effect->effect_specific[2] += (s16)((f32)game->graph->dt_num_60fps_frames * 100.0f);
         if (effect->effect_specific[2] >= 800) {
-            effect->effect_specific[2] -= 800;
             xyz_t pos = effect->position;
+
+            effect->effect_specific[2] -= 800;
             pos.x += RANDOM2_F(100.0f);
             pos.y += RANDOM2_F(30.0f);
             pos.z += RANDOM2_F(100.0f);
@@ -87,7 +88,7 @@ static void eClacker_mv(eEC_Effect_c* effect, GAME* game) {
     }
     if (t >= 4.0f) {
         f32 dt = (f32)game->graph->dt_num_60fps_frames;
-        f32 decay = powf(sqrtf(0.9f), dt);
+        f32 decay = DTCONV_FRAMES(sqrtf(0.9f), dt);
         effect->velocity.x += effect->acceleration.x * dt;
         effect->velocity.y += effect->acceleration.y * dt;
         effect->velocity.z += effect->acceleration.z * dt;

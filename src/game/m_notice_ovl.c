@@ -8,13 +8,12 @@
 #include "m_font.h"
 #include "m_quest.h"
 #include "sys_matrix.h"
-#include "libc/math.h"
 
 static mNT_Ovl_c notice_ovl_data;
 
 static f32 mNT_add_calc_dt(f32* value, f32 target, f32 rate, f32 max_step, f32 min_step) {
     f32 dt = (f32)gamePT->graph->dt_num_60fps_frames;
-    f32 dt_rate = 1.0f - powf(1.0f - rate, dt);
+    f32 dt_rate = 1.0f - DTCONV_FRAMES(1.0f - rate, dt);
 
     return add_calc(value, target, dt_rate, max_step * dt, min_step * dt);
 }

@@ -535,13 +535,14 @@ void Matrix_softcv3_load(s_xyz* src, f32 x, f32 y, f32 z) {
 
 Mtx* _MtxF_to_Mtx(MtxF* src, Mtx* dest) {
     u16* m1 = (u16*)&dest->m[0][0];
-    const f32 values[16] = {
-        src->xx, src->yx, src->zx, src->wx,
-        src->xy, src->yy, src->zy, src->wy,
-        src->xz, src->yz, src->zz, src->wz,
-        src->xw, src->yw, src->zw, src->ww
-    };
+    f32 values[16];
     int i;
+
+    // C89: no non-constant aggregate initializers in MWCC
+    values[0] = src->xx; values[1] = src->yx; values[2] = src->zx; values[3] = src->wx;
+    values[4] = src->xy; values[5] = src->yy; values[6] = src->zy; values[7] = src->wy;
+    values[8] = src->xz; values[9] = src->yz; values[10] = src->zz; values[11] = src->wz;
+    values[12] = src->xw; values[13] = src->yw; values[14] = src->zw; values[15] = src->ww;
 
     for (i = 0; i < 16; i += 2) {
         int fp0 = values[i + 0] * 0x10000;

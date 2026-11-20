@@ -340,7 +340,9 @@ def Rel(lib_name: str, objects: List[Object]) -> Dict[str, Any]:
 
 
 Matching = True  # Object matches and should be linked
-NonMatching = False  # Object does not match and should not be linked
+# Object does not match and should not be linked. AP_ACGC_PC (0.7.0 GC build): --non-matching links these
+# from source too, so the whole game is built from our tree (no original-object fallback).
+NonMatching = config.non_matching
 Equivalent = (
     config.non_matching
 )  # Object should be linked when configured with --non-matching

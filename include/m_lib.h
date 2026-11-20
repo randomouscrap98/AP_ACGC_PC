@@ -61,8 +61,16 @@ extern "C" {
 #define DIFF_USHORT_ANGLE(x, y) ((u16)((x) - (y)))
 
 // fixed timestep -> delta time conversions
+#ifdef TARGET_PC
 #define DTCONV(v, dt) powf(v, GRAPH_BASE_FRAME_RATE * (dt)) // raw dt in seconds
 #define DTCONV_GRAPH(v, graph) powf(v, (graph)->dt_num_60fps_frames) // used with GRAPH*
+#define DTCONV_FRAMES(v, frames) powf(v, frames) // frames = a copy of dt_num_60fps_frames
+#else
+// GC: dt is a fixed 1.0 frame per game frame (vanilla timing), so v^1 = v; MSL has no powf
+#define DTCONV(v, dt) (v)
+#define DTCONV_GRAPH(v, graph) (v)
+#define DTCONV_FRAMES(v, frames) (v)
+#endif
 #define DTCONV_GAME(v, game) DTCONV_GRAPH(v, (game)->graph) // used with GAME*
 
 #define DTCONV_CALC_LAMBDA(v) (GRAPH_BASE_FRAME_RATE * logf(v)) // calculate dt exponential lambda, cache result

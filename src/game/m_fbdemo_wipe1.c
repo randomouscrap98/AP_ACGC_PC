@@ -63,11 +63,12 @@ fbdemo_wipe1* fbdemo_wipe1_init(fbdemo_wipe1* this) {
 void fbdemo_wipe1_move(fbdemo_wipe1* this, int rate) {
   static f32 wipe1_accum = 0.0f;
   f32 dt = (f32)gamePT->graph->dt_num_60fps_frames;
+  int steps;
   f32 inc = ((f32)Common_Get(transition).wipe_rate * 3.0f * dt) / (f32)rate;
 
   if (this->direction != 0) {
     wipe1_accum += inc;
-    int steps = (int)wipe1_accum;
+    steps = (int)wipe1_accum;
     wipe1_accum -= (f32)steps;
     this->texY += steps;
     if (this->texY >= (int)(153 * (1 << 2))) {
@@ -76,7 +77,7 @@ void fbdemo_wipe1_move(fbdemo_wipe1* this, int rate) {
     }
   } else {
     wipe1_accum += inc;
-    int steps = (int)wipe1_accum;
+    steps = (int)wipe1_accum;
     wipe1_accum -= (f32)steps;
     this->texY -= steps;
     if (this->texY <= (int)(83.25f * (1 << 2))) {

@@ -117,7 +117,7 @@ static void eSoba_Yuge_ct(eEC_Effect_c* effect, GAME* game, void* ct_arg) {
 
 static void eSoba_Yuge_mv(eEC_Effect_c* effect, GAME* game) {
     f32 dt = (f32)game->graph->dt_num_60fps_frames;
-    f32 decay = powf(GETREG(TAKREG, 0x39) * 0.001f + 0.95f, dt);
+    f32 decay = DTCONV_FRAMES(GETREG(TAKREG, 0x39) * 0.001f + 0.95f, dt);
     effect->velocity.x += effect->acceleration.x * dt;
     effect->velocity.y += effect->acceleration.y * dt;
     effect->velocity.z += effect->acceleration.z * dt;

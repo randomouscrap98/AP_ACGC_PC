@@ -69,8 +69,9 @@ static void eReset_Hole_mv(eEC_Effect_c* effect, GAME* game) {
         {
             effect->effect_specific[2] += (s16)((f32)game->graph->dt_num_60fps_frames * 100.0f);
             if (effect->effect_specific[2] >= 800) {
-                effect->effect_specific[2] -= 800;
                 int rotate_180 = ((effect->effect_specific[1] & 1) == 0);
+
+                effect->effect_specific[2] -= 800;
                 for (i = 0; i < 3; i++) {
                     static s16 angle_tbl[] = { DEG2SHORT_ANGLE(0.0f), DEG2SHORT_ANGLE(135.0f), DEG2SHORT_ANGLE(270.0f) };
                     xyz_t pos = effect->position;
@@ -98,8 +99,9 @@ static void eReset_Hole_mv(eEC_Effect_c* effect, GAME* game) {
         if (effect->lifetime > 8.0f) {
             effect->effect_specific[3] += (s16)((f32)game->graph->dt_num_60fps_frames * 100.0f);
             if (effect->effect_specific[3] >= 800) {
-                effect->effect_specific[3] -= 800;
                 int rotate_180 = ((effect->effect_specific[1] & 1) == 0);
+
+                effect->effect_specific[3] -= 800;
                 for (i = 0; i < 3; i++) {
                     static s16 angle_tbl[] = { DEG2SHORT_ANGLE(0.0f), DEG2SHORT_ANGLE(135.0f), DEG2SHORT_ANGLE(270.0f) };
                     xyz_t pos = effect->position;

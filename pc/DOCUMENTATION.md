@@ -139,7 +139,7 @@ User provides disc image (.ciso/.iso/.gcm)
 | `pc/include/pc_disc.h` | Disc image I/O and FST lookup API |
 | `pc/include/pc_assets.h` | Asset loader init and per-asset load API |
 | `pc/include/pc_types.h` | Platform type definitions |
-| `pc/include/pc_diag.h` | Diagnostic output macros (PC_DIAG) |
+| `include/pc_diag.h` | Diagnostic output macros (PC_DIAG) |
 
 ### Critical Decomp Modifications
 

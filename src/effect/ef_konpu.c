@@ -106,7 +106,7 @@ static void eKONP_mv(eEC_Effect_c* effect, GAME* game) {
     effect->position.z += effect->velocity.z * dt;
 
     if (effect->arg0 != 0) {
-        f32 decay = powf(sqrtf(0.8f), dt);
+        f32 decay = DTCONV_FRAMES(sqrtf(0.8f), dt);
         effect->velocity.x *= decay;
         effect->velocity.y *= decay;
         effect->velocity.z *= decay;

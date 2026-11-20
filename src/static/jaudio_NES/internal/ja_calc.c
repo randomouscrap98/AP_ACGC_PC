@@ -1,6 +1,7 @@
 #include "jaudio_NES/ja_calc.h"
 
 #include "PowerPC_EABI_Support/Msl/MSL_C/PPC_EABI/cmath_gcn.h"
+#include "MSL_C/math.h" // GC: global sinf (cmath_gcn.h only has std::sinf)
 // #include "std/Math.h"
 // #include "dolphin/math.h"
 // #include "stl/math.h"

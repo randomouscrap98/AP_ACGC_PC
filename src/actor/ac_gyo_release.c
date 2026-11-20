@@ -267,7 +267,7 @@ static int aGYR_check_timer(ACTOR* actorx, GAME* game) {
             scale_rate = 0.98f;
         }
 
-        scale_rate = powf(scale_rate, dt);
+        scale_rate = DTCONV_FRAMES(scale_rate, dt);
         actorx->scale.x *= scale_rate;
         actorx->scale.y = actorx->scale.z = actorx->scale.x;
         gyo_release->shadow_scale *= scale_rate;

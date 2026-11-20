@@ -50,7 +50,7 @@ static void eTape_ct(eEC_Effect_c* effect, GAME* game, void* ct_arg) {
 static void eTape_mv(eEC_Effect_c* effect, GAME* game) {
     if (effect->lifetime < 74.0f) {
         f32 dt = (f32)game->graph->dt_num_60fps_frames;
-        f32 decay = powf(sqrtf(0.9f), dt);
+        f32 decay = DTCONV_FRAMES(sqrtf(0.9f), dt);
         effect->velocity.x += effect->acceleration.x * dt;
         effect->velocity.y += effect->acceleration.y * dt;
         effect->velocity.z += effect->acceleration.z * dt;

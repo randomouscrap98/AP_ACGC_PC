@@ -68,10 +68,11 @@ extern Gfx ef_yukihane01_00_modelT[];
 static void eYukihane_dw(eEC_Effect_c* effect, GAME* game) {
     f32 k = (16.0f - effect->lifetime) * 0.5f;
     s16 frame;
+    f32 scale;
+
     if (k < 0.0f) k = 0.0f;
     if (k > 7.0f) k = 7.0f;
     frame = (s16)k;
-    f32 scale;
 
     OPEN_DISP(game->graph);
 

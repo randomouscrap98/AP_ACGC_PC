@@ -52,11 +52,12 @@ static void eHanabiDummy_mv(eEC_Effect_c* effect, GAME* game) {
     f32 t = (f32)eHanabiDummy_TIMER - effect->lifetime;
 
     if (effect->effect_specific[1] < 1 && t >= 10.0f) {
-        effect->effect_specific[1] = 1;
         static rgba_t dummy_light[eHanabiDummy_TYPE_NUM] = {
             { 50, 30, 20, 255 }, { 20, 60, 20, 255 }, { 40, 10, 60, 255 },
             { 40, 20, 20, 255 }, { 20, 40, 20, 255 }, { 60, 60, 30, 255 },
         };
+
+        effect->effect_specific[1] = 1;
 
         eEC_CLIP->decide_light_power_proc(&light_color, dummy_light[eHanabiDummy_TYPE_ARG], effect->position, game,
                                           eHanabiDummy_MAX_POWER, eHanabiDummy_MIN_POWER, eHanabiDummy_MAX_DIST);

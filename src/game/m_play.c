@@ -43,8 +43,8 @@
 #include "m_player_lib.h"
 #include "m_skin_matrix.h"
 #include "padmgr.h"
-#ifdef TARGET_PC
 #include "pc_diag.h"
+#ifdef TARGET_PC
 #include "pc_platform.h"
 #endif
 

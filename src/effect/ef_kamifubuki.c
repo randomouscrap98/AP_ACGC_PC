@@ -59,7 +59,7 @@ static void eKamifubuki_ct(eEC_Effect_c* effect, GAME* game, void* ct_arg) {
 
 static void eKamifubuki_mv(eEC_Effect_c* effect, GAME* game) {
     f32 dt = (f32)game->graph->dt_num_60fps_frames;
-    f32 decay = powf(sqrtf(0.9f), dt);
+    f32 decay = DTCONV_FRAMES(sqrtf(0.9f), dt);
 
     effect->position.x += effect->velocity.x * dt;
     effect->position.y += effect->velocity.y * dt;

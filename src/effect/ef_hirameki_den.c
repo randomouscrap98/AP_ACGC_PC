@@ -63,11 +63,16 @@ static void eHiramekiD_dw(eEC_Effect_c* effect, GAME* game) {
         if (k > 1.0f) k = 1.0f;
         {
             int i = (int)k;
+            int j;
+            f32 frac;
+            u8 p_r;
+            u8 p_gb;
+
             if (i > 1) i = 1;
-            int j = (i < 1) ? i + 1 : i;
-            f32 frac = k - (f32)i;
-            u8 p_r = (u8)(eHiramekiD_01f_primR_envRG[i] + (eHiramekiD_01f_primR_envRG[j] - eHiramekiD_01f_primR_envRG[i]) * frac);
-            u8 p_gb = (u8)(eHiramekiD_01f_primGB[i] + (eHiramekiD_01f_primGB[j] - eHiramekiD_01f_primGB[i]) * frac);
+            j = (i < 1) ? i + 1 : i;
+            frac = k - (f32)i;
+            p_r = (u8)(eHiramekiD_01f_primR_envRG[i] + (eHiramekiD_01f_primR_envRG[j] - eHiramekiD_01f_primR_envRG[i]) * frac);
+            p_gb = (u8)(eHiramekiD_01f_primGB[i] + (eHiramekiD_01f_primGB[j] - eHiramekiD_01f_primGB[i]) * frac);
             prim_r = p_r;
             env_r = p_r;
             prim_g = p_gb;

@@ -84,7 +84,7 @@ static void Airplane_Actor_draw(ACTOR* actor, GAME* game) {
 }
 
 static void aAp_RubberMove(f32* now, f32 target, f32 step, GAME* game) {
-    f32 dt_step = 1.0f - powf(1.0f - step, (f32)game->graph->dt_num_60fps_frames);
+    f32 dt_step = 1.0f - DTCONV_FRAMES(1.0f - step, (f32)game->graph->dt_num_60fps_frames);
 
     *now += dt_step * (target - *now);
 }
@@ -105,11 +105,13 @@ static void aAp_GroundFriction(ACTOR* actor, GAME* game) {
         aAp_RubberMove(&airplane->speed, 0.0f, 0.6f, game);
 
         if (airplane->speed < 1.0f) {
+            int ticks;
+            int t;
+
             airplane->speed = 0.0f;
             airplane->status = aAp_STATUS_STOP_FLY_MOVE;
 
-            int ticks = graph_dt_60hz_ticks(game, &airplane->ground_effect_accum);
-            int t;
+            ticks = graph_dt_60hz_ticks(game, &airplane->ground_effect_accum);
             for (t = 0; t < ticks; t++) {
                 if (airplane->ground_timer >= 5) {
                     airplane->ground_timer = 0;

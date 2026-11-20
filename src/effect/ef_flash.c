@@ -106,8 +106,9 @@ static void eFlashC_ct(eEC_Effect_c* effect, GAME* game, void* ct_arg) {
 static void eFlashC_mv(eEC_Effect_c* effect, GAME* game) {
     effect->effect_specific[1] += (s16)((f32)game->graph->dt_num_60fps_frames * 100.0f);
     if (effect->effect_specific[1] >= 800) {
-        effect->effect_specific[1] -= 800;
         int size;
+
+        effect->effect_specific[1] -= 800;
 
         switch (Save_Get(scene_no)) {
             case SCENE_MY_ROOM_S:

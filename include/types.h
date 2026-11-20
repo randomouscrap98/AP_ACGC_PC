@@ -82,7 +82,8 @@ typedef u32 unknown;
 #define NULL 0
 #endif
 #endif
-#if !defined(__cplusplus) && !defined(TARGET_PC)
+// MWCC C++ has no nullptr keyword either (PC: C++11 / pc headers provide it)
+#if !defined(TARGET_PC)
 #define nullptr 0
 #endif
 

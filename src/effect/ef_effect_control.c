@@ -353,63 +353,83 @@ int eEC_ShouldEffectDie(const eEC_Effect_c* effect) {
 
 /* Effects flagged here get _mv every real frame with dt-scaled motion.
  * Timer/lifetime still ticks at 60Hz in pass 2. */
-static const u8 eEC_smooth_motion[eEC_EFFECT_NUM] = {
-    [eEC_EFFECT_DUST]            = 1,
-    [eEC_EFFECT_BUSH_HAPPA]      = 1,
-    [eEC_EFFECT_BUSH_YUKI]       = 1,
-    [eEC_EFFECT_KAZE_HAPPA]      = 1,
-    [eEC_EFFECT_NAMIDA]          = 1,
-    [eEC_EFFECT_IMPACT_STAR]     = 1,
-    [eEC_EFFECT_KIGAE_LIGHT]     = 1,
-    [eEC_EFFECT_KONPU]           = 1,
-    [eEC_EFFECT_NEBOKE_AKUBI]    = 1,
-    [eEC_EFFECT_NEBOKE_AWA]      = 1,
-    [eEC_EFFECT_LOVELOVE2]       = 1,
-    [eEC_EFFECT_LOVELOVE_HEART]  = 1,
-    [eEC_EFFECT_KIKUZU]          = 1,
-    [eEC_EFFECT_ASE_CH]          = 1,
-    [eEC_EFFECT_KASAMIZUTAMA]    = 1,
-    [eEC_EFFECT_HALLOWEEN_SMOKE] = 1,
-    [eEC_EFFECT_YUKIHANE]        = 1,
-    [eEC_EFFECT_STEAM]           = 1,
-    [eEC_EFFECT_FURO_YUGE]       = 1,
-    [eEC_EFFECT_SOBA_YUGE]       = 1,
-    [eEC_EFFECT_TUMBLE_DUST]     = 1,
-    [eEC_EFFECT_DIG_MUD]         = 1,
-    [eEC_EFFECT_KPUN]            = 1,
-    [eEC_EFFECT_PUN_YUGE]        = 1,
-    [eEC_EFFECT_SANDSPLASH]      = 1,
-    [eEC_EFFECT_KISHA_KEMURI]    = 1,
-    [eEC_EFFECT_COIN]            = 1,
-    [eEC_EFFECT_DIG_HOLE]        = 1,
-    [eEC_EFFECT_GOKI]            = 1,
-    [eEC_EFFECT_RESET_HOLE]      = 1,
-    [eEC_EFFECT_TAMAIRE]         = 1,
-    [eEC_EFFECT_BREAK_AXE]       = 1,
-    [eEC_EFFECT_HANABIRA]        = 1,
-    [eEC_EFFECT_KAMIFUBUKI]      = 1,
-    [eEC_EFFECT_TURI_SUITEKI]    = 1,
-    [eEC_EFFECT_SHOOTING]        = 1,
-    [eEC_EFFECT_SHOOTING_SET]    = 1,
-    [eEC_EFFECT_MAKE_HEM]        = 1,
-    [eEC_EFFECT_MAKE_HEM_KIRA]   = 1,
-    [eEC_EFFECT_MAKE_HEM_LIGHT]  = 1,
-    [eEC_EFFECT_KAGU_HAPPA]      = 1,
-    [eEC_EFFECT_YOUNG_TREE]      = 1,
-    [eEC_EFFECT_NIGHT13_MOON]    = 1,
-    [eEC_EFFECT_NIGHT15_MOON]    = 1,
-    [eEC_EFFECT_TURI_MIZU]       = 1,
-    [eEC_EFFECT_TUMBLE_BODYPRINT] = 1,
-    [eEC_EFFECT_SUISOU_AWA]      = 1,
-    [eEC_EFFECT_TURI_HAMON]      = 1,
-    [eEC_EFFECT_DOYON]           = 1,
-    [eEC_EFFECT_CAR_LIGHT]       = 1,
-    [eEC_EFFECT_DOUZOU_LIGHT]    = 1,
-    [eEC_EFFECT_AMI_MIZU]        = 1,
+// C89 (MWCC has no designated initializers): ids listed, table filled on first use
+static const s16 eEC_smooth_motion_list[] = {
+    eEC_EFFECT_DUST,
+    eEC_EFFECT_BUSH_HAPPA,
+    eEC_EFFECT_BUSH_YUKI,
+    eEC_EFFECT_KAZE_HAPPA,
+    eEC_EFFECT_NAMIDA,
+    eEC_EFFECT_IMPACT_STAR,
+    eEC_EFFECT_KIGAE_LIGHT,
+    eEC_EFFECT_KONPU,
+    eEC_EFFECT_NEBOKE_AKUBI,
+    eEC_EFFECT_NEBOKE_AWA,
+    eEC_EFFECT_LOVELOVE2,
+    eEC_EFFECT_LOVELOVE_HEART,
+    eEC_EFFECT_KIKUZU,
+    eEC_EFFECT_ASE_CH,
+    eEC_EFFECT_KASAMIZUTAMA,
+    eEC_EFFECT_HALLOWEEN_SMOKE,
+    eEC_EFFECT_YUKIHANE,
+    eEC_EFFECT_STEAM,
+    eEC_EFFECT_FURO_YUGE,
+    eEC_EFFECT_SOBA_YUGE,
+    eEC_EFFECT_TUMBLE_DUST,
+    eEC_EFFECT_DIG_MUD,
+    eEC_EFFECT_KPUN,
+    eEC_EFFECT_PUN_YUGE,
+    eEC_EFFECT_SANDSPLASH,
+    eEC_EFFECT_KISHA_KEMURI,
+    eEC_EFFECT_COIN,
+    eEC_EFFECT_DIG_HOLE,
+    eEC_EFFECT_GOKI,
+    eEC_EFFECT_RESET_HOLE,
+    eEC_EFFECT_TAMAIRE,
+    eEC_EFFECT_BREAK_AXE,
+    eEC_EFFECT_HANABIRA,
+    eEC_EFFECT_KAMIFUBUKI,
+    eEC_EFFECT_TURI_SUITEKI,
+    eEC_EFFECT_SHOOTING,
+    eEC_EFFECT_SHOOTING_SET,
+    eEC_EFFECT_MAKE_HEM,
+    eEC_EFFECT_MAKE_HEM_KIRA,
+    eEC_EFFECT_MAKE_HEM_LIGHT,
+    eEC_EFFECT_KAGU_HAPPA,
+    eEC_EFFECT_YOUNG_TREE,
+    eEC_EFFECT_NIGHT13_MOON,
+    eEC_EFFECT_NIGHT15_MOON,
+    eEC_EFFECT_TURI_MIZU,
+    eEC_EFFECT_TUMBLE_BODYPRINT,
+    eEC_EFFECT_SUISOU_AWA,
+    eEC_EFFECT_TURI_HAMON,
+    eEC_EFFECT_DOYON,
+    eEC_EFFECT_CAR_LIGHT,
+    eEC_EFFECT_DOUZOU_LIGHT,
+    eEC_EFFECT_AMI_MIZU,
 };
+
+static u8 eEC_smooth_motion[eEC_EFFECT_NUM];
+
+static void eEC_InitSmoothMotion(void) {
+    static int done = FALSE;
+    int i;
+
+    if (done) {
+        return;
+    }
+
+    for (i = 0; i < (int)ARRAY_COUNT(eEC_smooth_motion_list); i++) {
+        eEC_smooth_motion[eEC_smooth_motion_list[i]] = 1;
+    }
+    done = TRUE;
+}
 
 static void eEC_AllEffectMove(GAME* game) {
     const float dt = (float)game->graph->dt_num_60fps_frames;
+    int step, steps;
+
+    eEC_InitSmoothMotion();
 
     /* Pass 1: smooth-motion effects, _mv every real frame. Also decrement
      * lifetime for ALL effects so dt-correct death is uniform. */
@@ -429,8 +449,6 @@ static void eEC_AllEffectMove(GAME* game) {
     }
 
     /* Pass 2: 60Hz accumulator drives non-smooth _mv plus timer/death. */
-    int step, steps;
-
     eEC_dt_accum += (float)game->graph->dt_num_60fps_frames;
     steps = (int)eEC_dt_accum;
     eEC_dt_accum -= (float)steps;

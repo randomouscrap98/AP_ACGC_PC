@@ -133,7 +133,7 @@ static void eDT_mv(eEC_Effect_c* effect, GAME* game) {
         effect->scale.y = effect->scale.x;
         effect->scale.z = effect->scale.x;
     } else if (effect->arg1 == 0 || effect->arg1 == 9) {
-        float decay = powf(sqrtf(0.85f), dt);
+        float decay = DTCONV_FRAMES(sqrtf(0.85f), dt);
         effect->velocity.x *= decay;
         effect->velocity.y *= decay;
         effect->velocity.z *= decay;
@@ -191,17 +191,25 @@ static void eDT_dw(eEC_Effect_c* effect, GAME* game) {
     /* Continuous 30fps-table position via lifetime (real-time frames).
      * Lerps prim_f and alpha for a smooth cross-fade. */
     float k = (18.0f - effect->lifetime) * 0.5f;
+    int i;
+    int j;
+    float t;
+    int tex0;
+    int tex1;
+    u8 prim_f;
+    u8 a;
+
     if (k < 0.0f) k = 0.0f;
     if (k > 9.0f) k = 9.0f;
-    int i = (int)k;
+    i = (int)k;
     if (i > 9) i = 9;
-    int j = (i < 9) ? i + 1 : i;
-    float t = k - (float)i;
+    j = (i < 9) ? i + 1 : i;
+    t = k - (float)i;
 
-    int tex0 = eDT_2tile_texture_idx[i].tex0;
-    int tex1 = eDT_2tile_texture_idx[i].tex1;
-    u8 prim_f = (u8)(eDT_prim_f[i]   + (eDT_prim_f[j]   - eDT_prim_f[i])   * t);
-    u8 a      = (u8)(eDT_AlphaPtn[i] + (eDT_AlphaPtn[j] - eDT_AlphaPtn[i]) * t);
+    tex0 = eDT_2tile_texture_idx[i].tex0;
+    tex1 = eDT_2tile_texture_idx[i].tex1;
+    prim_f = (u8)(eDT_prim_f[i]   + (eDT_prim_f[j]   - eDT_prim_f[i])   * t);
+    a      = (u8)(eDT_AlphaPtn[i] + (eDT_AlphaPtn[j] - eDT_AlphaPtn[i]) * t);
 
     OPEN_DISP(game->graph);
 

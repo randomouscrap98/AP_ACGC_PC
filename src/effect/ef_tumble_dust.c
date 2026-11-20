@@ -98,8 +98,8 @@ static void eTumbleDust_ct(eEC_Effect_c* effect, GAME* game, void* ct_arg) {
 static void eTumbleDust_mv(eEC_Effect_c* effect, GAME* game) {
     if (effect->lifetime <= 30.0f) {
         f32 dt = (f32)game->graph->dt_num_60fps_frames;
-        f32 d80 = powf(sqrtf(0.8f), dt);
-        f32 d95 = powf(sqrtf(0.95f), dt);
+        f32 d80 = DTCONV_FRAMES(sqrtf(0.8f), dt);
+        f32 d95 = DTCONV_FRAMES(sqrtf(0.95f), dt);
 
         effect->velocity.x += effect->acceleration.x * dt;
         effect->velocity.y += effect->acceleration.y * dt;

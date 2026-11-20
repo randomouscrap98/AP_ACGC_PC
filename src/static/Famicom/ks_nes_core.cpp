@@ -2636,9 +2636,7 @@ int ksNesReset(ksNesCommonWorkObj* wp, ksNesStateObj* sp, u32 flags, u8* chrramp
     /* On PC, fixNES handles NES emulation — ksNesReset just needs to succeed */
     (void)wp; (void)sp; (void)flags; (void)chrramp; (void)bbramp;
     return 0;
-}
 #else
-{
     u8* wramp;
     uint uVar1;
     uint uVar2;
@@ -2935,8 +2933,8 @@ int ksNesReset(ksNesCommonWorkObj* wp, ksNesStateObj* sp, u32 flags, u8* chrramp
     os_tick = OSGetTick();
     sp->os_tick = os_tick;
     return 0; // return success.
-}
 #endif /* !TARGET_PC */
+}
 
 #ifndef TARGET_PC
 void ksNesEmuFrame(ksNesCommonWorkObj* wp, ksNesStateObj* sp, u32 flags) {
