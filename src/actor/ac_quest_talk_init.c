@@ -7,8 +7,10 @@
 #include "m_string.h"
 #include "libultra/libultra.h"
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
+#endif
+#ifdef TARGET_PC
 #include "pc_ap_catalogsanity.h"
 #include "pc_ap_qol.h"
 #endif
@@ -2073,7 +2075,7 @@ static void aQMgr_actor_talk_fin_quest_reward(QUEST_MANAGER_ACTOR* manager) {
     aQMgr_target_c* target = &manager->target;
     aQMgr_regist_c* regist = &manager->regist[manager->regist_idx];
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     // Once per completed favor, also when the reward waits for full pockets
     pc_ap_favor_done();
 #endif

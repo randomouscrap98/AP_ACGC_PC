@@ -47,6 +47,8 @@ add_compile_definitions(
     _LANGUAGE_C    # Required for N64 GBI/ultratypes headers
     PC_ENHANCEMENTS   # Optional visual improvements (MSAA, etc). Remove to get pure PC port.
     KEYBOARD_TYPING   # Physical keyboard typing in text editor. Remove for platforms without keyboards.
+    AP_HOOKS          # AP hook sites in src/ (pc_ap_logic.h). Also on the GC build (configure.py --non-matching),
+                      # where gc/ implements them; sites still under TARGET_PC are PC-only for now.
     PC_OUTDOOR_FTR    # Outdoor furniture (item menu "Place", pc_outdoor_ftr.c). Remove to turn it off: the decomp
                       # hooks go, outdoor furniture is leaves again; the sidecar keeps the placed list for later.
 )

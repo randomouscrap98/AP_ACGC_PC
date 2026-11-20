@@ -1,6 +1,8 @@
 #include "m_play.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
+#endif
+#ifdef TARGET_PC
 #include "pc_outdoor_ftr.h"
 #endif
 
@@ -618,7 +620,7 @@ static void Game_play_move(GAME* game) {
     banti_move(play);
     game->doing_point = 5;
     title_demo_move(play);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_ap_tick(play);
 #endif
     game->doing_point = 0;

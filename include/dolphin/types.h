@@ -21,11 +21,7 @@ typedef float  f32;
 typedef double f64 PC_ALIGN8;
 
 typedef char *Ptr;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t; // Manually added
-#else
-#include <stdint.h>
-#endif
+#include <stdint.h> // GC: include/libc/stdint.h (uintptr_t was typedef'd here)
 
 typedef int BOOL;
 

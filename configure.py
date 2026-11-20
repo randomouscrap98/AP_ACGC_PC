@@ -293,6 +293,12 @@ else:
     config.linker_version = "GC/1.3.2"
     foresta_compiler = "GC/1.3.2"
 
+# AP build (0.7.0): the non-matching build compiles the AP hook sites in src/ (AP_HOOKS, shared with PC) and the
+# GC AP code in gc/ (Rel "ap_gc" below, added to foresta.rel by link_order_callback)
+AP_GC_UNITS = ["gc_ap_backend.c", "gc_ap_probe.c"]
+if config.non_matching:
+    cflags_foresta.extend(["-d AP_HOOKS", "-i pc/include", "-i apclient/include", "-i gc/include"])
+
 
 # Helper function for Dolphin libraries
 def DolphinLib(lib_name: str, objects: List[Object]) -> Dict[str, Any]:
@@ -979,6 +985,10 @@ config.libs = [
             Object(Matching, "TwoHeadArena.c"),
             Object(Matching, "zurumode.c"),
         ],
+    ),
+    Rel(
+        "ap_gc",
+        [Object(config.non_matching, name, src_dir="gc") for name in AP_GC_UNITS],
     ),
     Rel(
         "actor",
@@ -5201,12 +5211,11 @@ def link_order_callback(module_id: int, objects: List[str]) -> List[str]:
     # Don't modify the link order for matching builds
     if not config.non_matching:
         return objects
-    if module_id == 0:  # DOL
-        return objects + ["dummy.c"]
+    if module_id == 1:  # foresta.rel: the GC AP units (not in splits.txt)
+        return objects + AP_GC_UNITS
     return objects
 
-# Uncomment to enable the link order callback.
-# config.link_order_callback = link_order_callback
+config.link_order_callback = link_order_callback
 
 
 # Optional extra categories for progress tracking
