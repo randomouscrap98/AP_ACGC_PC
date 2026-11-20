@@ -11,7 +11,7 @@
 #include "m_field_info.h"
 #include "m_random_field_h.h"
 #include "m_common_data.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
 
@@ -69,7 +69,7 @@ static
 void mMsm_GetFossil(mActor_name_t* fossil) {
     static int hit_table[mMsm_FOSSIL_TYPE_NUM] = { FALSE, TRUE };
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     if (pc_ap_pick_fossil(fossil)) {
         return;
     }
@@ -565,7 +565,7 @@ extern void mMsm_DepositFossil(u8 deposit_record, int fossil_count, u16* cancel_
     u8 already_deposited = mMsm_GetDepositBlockNum(deposit_record);
     u8 available_blocks;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* Progressive fossils before any series item: bury none (appraisal mail still goes out) */
     if (!pc_ap_fossils_spawn()) {
         fossil_count = mMsm_DEPOSIT_FOSSIL_MAX;

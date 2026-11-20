@@ -143,8 +143,10 @@ enum {
     bIT_DRAW_TYPE_DIARY,
     bIT_DRAW_TYPE_FORK,
     bIT_DRAW_TYPE_FISH2,
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     bIT_DRAW_TYPE_AP_BEACH, /* AP Shellsanity (pc_ap_beach_draw.c_inc) */
+#endif
+#ifdef TARGET_PC
     bIT_DRAW_TYPE_PC_PLANT_DIES,    /* planting ground marks (pc_planting_draw.c_inc) */
     bIT_DRAW_TYPE_PC_PLANT_STUNTED,
 #endif

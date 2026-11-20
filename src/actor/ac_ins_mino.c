@@ -11,7 +11,7 @@
 #include "m_name_table.h"
 #include "m_common_data.h"
 #include "m_player_lib.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #include "m_play.h"
 #include "m_field_info.h"
@@ -283,7 +283,7 @@ static void aIMN_let_escape(ACTOR* actorx, GAME* game) {
     }
 }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 /* Hidden Bug Hints: the tree the bagworm/spider hides in does the small wiggle (as when the
  * player bumps into it, no sound) every few seconds, when the player is near. Spread over
  * frames by its tree's unit (no per-bug state). */

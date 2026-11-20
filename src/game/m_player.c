@@ -27,8 +27,10 @@
 #include "ac_set_ovl_gyoei.h"
 #include "m_vibctl.h"
 #include "m_debug.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
+#endif
+#ifdef TARGET_PC
 #include "pc_outdoor_ftr.h"
 #endif
 

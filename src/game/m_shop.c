@@ -12,7 +12,7 @@
 #include "m_room_type.h"
 #include "m_fg_type.h"
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_settings.h"
 #include "pc_ap_qol.h"
 #include "pc_ap_logic.h"
@@ -166,7 +166,7 @@ static void mSP_SetSeasonFTR(mActor_name_t* item_table, int count) {
 
     if (count > 0 && month == lbRTC_DECEMBER) {
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         // Christmas trees only the week before Christmas under Timesanity: a frozen month means every visit is in
         // December, and they'd take up to every furniture slot of the smaller shops
         if (pc_ap_time_frozen() ? (day >= 18 && day <= 24) : day <= 24) {
@@ -532,7 +532,7 @@ extern void mSP_SelectRandomItem_New(GAME* game, mActor_name_t* goods_table, int
             mActor_name_t** goods_seg_p = mSP_goods_seg_inf[category];
             int i = 0;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
             /* AP Catalogsanity: pool items only through its picker */
             if (pc_ap_catalog_pick(goods_table, goods_count, goods_exist_table, goods_exist_count, category,
                                    list_type, uncollected_only, goods_seg_p)) {
@@ -556,7 +556,7 @@ extern void mSP_SelectRandomItem_New(GAME* game, mActor_name_t* goods_table, int
                                                    list_type == mSP_LIST_B || list_type == mSP_LIST_C)) {
                     list_item_count = mSP_CountElementInClothList_collect(item_list_p, &selected_idx, uncollected_only);
                 } else {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                     /* AP set goals: their pieces only once received */
                     if (pc_ap_ftr_blocking()) {
                         list_item_count = pc_ap_ftr_count_select(item_list_p, &selected_idx, uncollected_only);
@@ -876,7 +876,7 @@ static void mSP_MakeRandomGoodsList(GAME* game, int* count, mActor_name_t* goods
     Shop_c* shop = Save_GetPointer(shop);
     mActor_name_t rare;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* AP Catalogsanity: Nook is a source for everything rolled below */
     pc_ap_catalog_source(PC_AP_CATALOG_SOURCE_NOOK);
 #endif
@@ -931,7 +931,7 @@ static void mSP_MakeRandomGoodsList(GAME* game, int* count, mActor_name_t* goods
                              mSP_LISTTYPE_ABC, FALSE);
     count[0] += goods_count[mSP_GOODS_TYPE_WALL];
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_ap_catalog_source(PC_AP_CATALOG_SOURCE_NONE);
 #endif
 }
@@ -954,7 +954,7 @@ static void mSP_SelectTool(mActor_name_t* goods_list, int* count, int tool_num, 
     static int table[4] = { ITM_SHOVEL, ITM_NET, ITM_ROD, ITM_AXE };
 
     int tools_added = 0;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     int allowed[4];
 #endif
     u16 paint_idx = Save_Get(shop).shop_info.paint_color;
@@ -974,7 +974,7 @@ static void mSP_SelectTool(mActor_name_t* goods_list, int* count, int tool_num, 
         tool_max = 4; /* shove, net, rod, axe */
     }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* AP: only tools received (Tools in Pool); fewer tools also caps tool_num below */
     tool_max = pc_ap_shop_tools(table, (int)tool_max, allowed);
 #endif
@@ -990,7 +990,7 @@ static void mSP_SelectTool(mActor_name_t* goods_list, int* count, int tool_num, 
     */
     while (tools_added < tool_num) {
         int idx = RANDOM_F(tool_max);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         mActor_name_t tool = allowed[idx];
 #else
         mActor_name_t tool = table[idx];
@@ -1045,7 +1045,7 @@ static void mSP_SelectPlant(mActor_name_t* goods_list, int* count, int flower_co
     }
 
     for (i = sapling_count; i > 0; i--) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         /* AP Treesanity: plain sapling slots sometimes sell fruit (slot 0 first) */
         goods_list[count[0]] = pc_ap_shop_sapling(sapling_count - i);
 #else
@@ -1344,14 +1344,16 @@ extern void mSP_ExchangeLineUp_InGame(GAME* game) {
 extern void mSP_PlusSales(u32 sum) {
     Save_Get(shop).sales_sum += sum;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     // AP Nook Store Upgrades, sales mode: clamp at our thresholds instead
-    u32 ap_cap;
-    if (pc_ap_shop_sales_cap(mSP_GetShopLevel(), &ap_cap)) {
-        if (Save_Get(shop).sales_sum > ap_cap) {
-            Save_Get(shop).sales_sum = ap_cap;
+    {
+        u32 ap_cap;
+        if (pc_ap_shop_sales_cap(mSP_GetShopLevel(), &ap_cap)) {
+            if (Save_Get(shop).sales_sum > ap_cap) {
+                Save_Get(shop).sales_sum = ap_cap;
+            }
+            return;
         }
-        return;
     }
 #endif
 
@@ -1402,7 +1404,7 @@ extern int mSP_RenewShopLevel() {
 extern int mSP_GetRealShopLevel() {
     u32 sales_sum = mSP_GetSalesSum();
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     // AP Nook Store Upgrades (items, sales or catalog); -1 = vanilla below
     int ap_level = pc_ap_shop_real_level(mSP_GetShopLevel(), sales_sum);
     if (ap_level >= 0) {
@@ -1868,7 +1870,7 @@ extern int mSP_ShopOpen() {
             lbRTC_Sub_hh(&start_time_pre, 1);
             lbRTC_Add_hh(&end_time_post, 1);
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
             if (!pc_ap_qol_shops_always_open())
 #endif
             {
@@ -1907,7 +1909,7 @@ extern int mSP_ShopOpen() {
         return mSP_SHOP_STATUS_RENEW;
     }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     if (pc_ap_qol_shops_always_open()) {
         return mSP_SHOP_STATUS_OPEN;
     }
@@ -2189,7 +2191,7 @@ static int mSP_GetNonePossessionItemCount_InList(mActor_name_t* list, int catego
             }
 
             if (((collect_bitfield[collect_idx >> 5] >> (collect_idx & 0x1F)) & 1) == 0
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 /* AP set goals: a piece not received yet counts as owned (callers fall back) */
                 && !pc_ap_ftr_blocked(list_p[0])
 #endif
@@ -2224,7 +2226,7 @@ static mActor_name_t mSP_GetNonePossessionItem_InList(mActor_name_t* list, int c
             }
 
             if (((collect_bitfield[collect_idx >> 5] >> (collect_idx & 0x1F)) & 1) == 0
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 && !pc_ap_ftr_blocked(list_p[0])
 #endif
             ) {

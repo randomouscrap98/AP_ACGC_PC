@@ -305,7 +305,7 @@ static void aNGD_approach(NPC_GUIDE_ACTOR* guide, GAME_PLAY* play) {
 }
 
 static void aNGD_set_talk_info_talk_start_wait(ACTOR* actorx) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     // Timesanity: skip the time question (0x2AC6) and start on the sit question, which
     // pc_ap_msg_patch trims to "Excuse me... you mind if I sit here?"
     if (pc_ap_time_frozen()) {
@@ -327,7 +327,7 @@ static void aNGD_talk_start_wait(NPC_GUIDE_ACTOR* guide, GAME_PLAY* play) {
         if (mDemo_Check_ListenAble() == FALSE &&
             chase_angle(&actorx->shape_info.rotation.y, actorx->player_angle_y, aNPC_dt_angle_step(0x400)) == TRUE) {
             guide->camera_eyes_flag = FALSE;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
             // Timesanity: the talk starts on the sit question (above), so wait for its answer
             // like after "That's right!"
             if (pc_ap_time_frozen()) {
@@ -835,7 +835,7 @@ static void aNGD_scene_change_wait_init(NPC_GUIDE_ACTOR* guide, GAME_PLAY* play)
         town_day++; // add one to prevent conflict with Fireworks Festival (4th of July)
     }
     Save_Set(town_day, town_day);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_ap_newgame_town();
 #endif
 

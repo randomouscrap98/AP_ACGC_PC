@@ -3,7 +3,7 @@
 #include "lb_rtc.h"
 #include "m_common_data.h"
 #include "libc64/qrand.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #endif
 
@@ -58,7 +58,7 @@ static void Kabu_decide_trade_market() {
   f32 chosen = fqrand(); /* [0.0f, 1.0f) */
   int i;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
   // No Falling Stalks: roll only within A + B, keeping their odds to each other
   if (pc_ap_qol_no_falling_stalks()) {
     chosen *= next_type_market[0] + next_type_market[1];

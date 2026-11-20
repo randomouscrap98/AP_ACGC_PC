@@ -59,7 +59,7 @@ static void Player_actor_setup_main_Notice_net(ACTOR* actor, GAME* game) {
 
             if (idx != aINS_INSECT_TYPE_SPIRIT) {
                 mSM_COLLECT_INSECT_SET(idx);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 pc_ap_caught(item);
 #endif
             }

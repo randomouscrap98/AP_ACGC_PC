@@ -332,6 +332,9 @@ AP_GC_UNITS = [
     ("pc/src", "pc_menu_util.c"),
     ("pc/src", "pc_text_draw.c"),
     ("pc/src", "pc_spantext.c"),
+    ("pc/src", "pc_ap_newgame.c"),
+    ("pc/src", "pc_ap_villagers.c"),
+    ("pc/src", "pc_ap_beach_logo.c"),
 ]
 AP_GC_CFLAGS = ["-lang=c99", "-d AP_GC_UNIT", "-i apclient/lib/ini"]
 AP_GC_COMPILER = "GC/3.0a5"

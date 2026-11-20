@@ -6,7 +6,7 @@
 #include "sys_matrix.h"
 #include "ac_my_room.h"
 #include "m_malloc.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #include "pc_ap_qol.h"
 #include "ef_effect_control.h"
@@ -421,7 +421,7 @@ static void Shop_Goods_Actor_dt(ACTOR* actorx, GAME* game) {
     }
 }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 // Hidden Item Hints: a small sparkle (as over the money rock) every second over each good on the floor or
 // the shelves that would send a Catalogsanity check. Spread over frames by its unit, like the tree hints.
 // Furniture bigger than one unit sparkles anywhere over the units it covers.

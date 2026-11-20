@@ -2179,8 +2179,10 @@ static bg_item_draw_part_c shell_c_part = {
     shell_DL_table, 1, shell_c_list_table, 0, NULL, 0.0f, NULL, NULL,
 };
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_beach_draw.c_inc"
+#endif
+#ifdef TARGET_PC
 #include "pc_planting_draw.c_inc"
 #endif
 
@@ -2759,8 +2761,10 @@ static bg_item_draw_part_table_c draw_part_table_a[] = {
     { &diary_part, 1 },              // bIT_DRAW_TYPE_DIARY
     { &fork_part, 1 },               // bIT_DRAW_TYPE_FORK
     { &fish_part, 0 },               // bIT_DRAW_TYPE_FISH2
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     { &ap_beach_part, 2 },           // bIT_DRAW_TYPE_AP_BEACH
+#endif
+#ifdef TARGET_PC
     { &pc_planting_dies_part, 0 },   // bIT_DRAW_TYPE_PC_PLANT_DIES
     { &pc_planting_stunted_part, 0 }, // bIT_DRAW_TYPE_PC_PLANT_STUNTED
 #endif

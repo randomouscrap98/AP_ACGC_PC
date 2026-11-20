@@ -12,8 +12,9 @@
 #include "m_bgm.h"
 #include "m_timeIn_ovl.h"
 #include "dolphin/os/OSRtc.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
+#include "dolphin/os.h"
 #endif
 
 enum {
@@ -56,7 +57,7 @@ static void aNPS2_actor_init(ACTOR* actorx, GAME* game);
 static void aNPS2_actor_move(ACTOR* actorx, GAME* game);
 static void aNPS2_actor_draw(ACTOR* actorx, GAME* game);
 static void aNPS2_actor_save(ACTOR* actorx, GAME* game);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 static void aNPS2_pc_reload(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play);
 #endif
 
@@ -180,7 +181,7 @@ static void aNPS2_actor_move(ACTOR* actorx, GAME* game) {
     NPC_P_SEL2_ACTOR* p_sel2 = (NPC_P_SEL2_ACTOR*)actorx;
     GAME_PLAY* play = (GAME_PLAY*)game;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     aNPS2_pc_reload(p_sel2, play); /* before the talk request in move_proc */
 #endif
     CLIP(npc_clip)->move_proc(actorx, game);

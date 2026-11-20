@@ -641,7 +641,7 @@ static void aNPS2_setup_voice_ok(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
     }
 }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 // Skip "who are you?" and continue as the first player (so no "I'm new").
 // Message 30 is the reply to "still want to play?" when travelling: a short
 // "all right, I'll get things ready" into loading, which also fits as the
@@ -730,7 +730,7 @@ static void aNPS2_whats_happen(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
                     break;
             }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
             // Offline files get the normal "who are you?"
             if (idx == 1 && !pc_ap_offline()) {
                 aNPS2_pc_continue_first_player(p_sel2, play);
@@ -814,7 +814,7 @@ static void aNPS2_chk_option2(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
                 mMsg_SET_CONTINUE_MSG_NUM(msg_no);
                 break;
             case mChoice_CHOICE2:
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 // Timesanity drops "Set clock" from the message (pc_ap_msg_patch), so choice 2 is "never mind"
                 if (pc_ap_time_frozen()) {
                     next_talk_idx = aNPS2_TALK_WHATS_HAPPEN;
@@ -1228,7 +1228,7 @@ static void aNPS2_game_start_wait(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
             }
 
             aNPS2_time_check();
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
             pc_ap_time_normalize_start();
 #endif
             if (p_sel2->talk_idx == aNPS2_TALK_START_TYPE0) {
@@ -1269,7 +1269,7 @@ static void aNPS2_game_start_wait(NPC_P_SEL2_ACTOR* p_sel2, GAME_PLAY* play) {
     }
 }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 static int aNPS2_pc_reload_loading = FALSE;
 
 // Date & Time reload (pc_ap_logic.c): no talk, starts the stashed player right away.

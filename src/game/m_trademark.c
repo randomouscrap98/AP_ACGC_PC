@@ -31,7 +31,7 @@
 #include "libc64/qrand.h"
 #include "m_common_data.h"
 #include "m_play.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
 
@@ -316,7 +316,7 @@ extern void trademark_init(GAME* game) {
     GAME_TRADEMARK* trademark = (GAME_TRADEMARK*)game;
     GRAPH* g = game->graph;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_ap_time_reload_save(); /* Date & Time reload: save with the new date, before the reset */
 #endif
     common_data_reinit();
@@ -367,7 +367,7 @@ extern void trademark_init(GAME* game) {
     mVibctl_init0();
     mFRm_clear_err_info();
     mEv_SetTitleDemo(mTD_demono_get());
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_ap_time_reload_takeover(game); /* Date & Time reload: load + player select instead of the logo */
 #endif
 }

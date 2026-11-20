@@ -1,4 +1,4 @@
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #include "pc_ap_qol.h"
 #endif
@@ -1636,7 +1636,7 @@ static void aNSC_set_talk_info_start_wait(ACTOR* actorx) {
         size->pad_1 = 0;
         if (size->basement_ordered == TRUE) {
             size->basement_ordered = FALSE;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
             next_loan = pc_ap_loan_amount(2);
 #else
             next_loan = aNSC_LOAN_BASEMENT;
@@ -1645,11 +1645,11 @@ static void aNSC_set_talk_info_start_wait(ACTOR* actorx) {
             msg_no = aNSC_MSG_BASEMENT_BUILT;
         } else {
             int i = size->size - 1;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
             static const int ap_loan_idx[4] = { 1, 3, 4, -1 }; // medium, large, upper, statue (-1 -> 0)
 #endif
             msg_no = rehouse_msg[i];
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
             next_loan = pc_ap_loan_amount(ap_loan_idx[i]);
 #else
             next_loan = rehouse_loan[i];
@@ -1768,7 +1768,7 @@ static void aNSC_start_wait(NPC_SHOP_COMMON_ACTOR* shop_common, GAME_PLAY* play)
             mHm_rmsz_c* size = &Save_Get(homes)[idx].size_info;
             if (Now_Private->inventory.loan == 0 && size->renew == FALSE && size->size < 3 &&
                 size->size == size->next_size && size->basement_ordered == FALSE
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 // AP: the next upgrade needs another Progressive House
                 && pc_ap_house_offer_allowed()
 #endif
@@ -2492,7 +2492,7 @@ static void aNSC_sell_answer0(NPC_SHOP_COMMON_ACTOR* shop_common, GAME_PLAY* pla
                     }
                 }
             }
-#if defined(TARGET_PC) && !defined(aNSC_MAMEDANUKI)
+#if defined(AP_HOOKS) && !defined(aNSC_MAMEDANUKI)
             // Short Shop Talk: ticket given (or mailed) silently and no tool or signboard tutorial (net, axe,
             // shovel, rod, sign: same follow-up action), plain "<price> Bells it is!"
             if (pc_ap_qol_short_shop_talk() &&
@@ -2575,7 +2575,7 @@ static void aNSC_show_item_check(NPC_SHOP_COMMON_ACTOR* shop_common, GAME_PLAY* 
                 break;
         }
 
-#if defined(TARGET_PC) && !defined(aNSC_MAMEDANUKI)
+#if defined(AP_HOOKS) && !defined(aNSC_MAMEDANUKI)
         // Short Shop Talk: after trying on / seeing it (or not), the plain price offer
         if (pc_ap_qol_short_shop_talk() && msg_no != aNSC_MSG_WAIT && msg_no != aNSC_MSG_BUY_CANCEL) {
             msg_no = aNSC_MSG_BUY_ONE_OFFER;

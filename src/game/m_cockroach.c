@@ -6,7 +6,7 @@
 #include "m_field_info.h"
 #include "m_scene_table.h"
 #include "m_common_data.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #endif
 
@@ -219,7 +219,7 @@ extern void mCkRh_DecideNowGokiFamilyCount(int player_no) {
         *goki_num = mCkRh_GokiFamilyCount2Good(count + (int)*goki_num);
     }
 #endif
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_ap_qol_cockroaches();
 #endif
 }

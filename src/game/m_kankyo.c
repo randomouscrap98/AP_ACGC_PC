@@ -8,7 +8,7 @@
 #include "m_npc_schedule.h"
 #include "m_player_lib.h"
 #include "libultra/libultra.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
 

@@ -7,7 +7,7 @@
 #include "m_lib.h"
 #include "m_melody.h"
 #include "m_player_lib.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
 
@@ -382,7 +382,7 @@ static void mBGMClock_ct(mBGMClock* clock) {
 /* mBGMDemo */
 
 static void mBGMDemo_make_scene_bgm(mBGMDemo* demo) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     if (pc_ap_time_reloading()) {
         return; /* Date & Time reload: player select stays silent behind the screen cover */
     }

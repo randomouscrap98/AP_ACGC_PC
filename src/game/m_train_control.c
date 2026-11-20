@@ -13,11 +13,11 @@
 #include "m_name_table.h"
 #include "m_collision_bg.h"
 #include "m_random_field.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 // Every use is the common clock: time played while the clock is frozen, so the train still runs.
 // Its day too, so the train's midnight wrap (train_day) happens when that clock wraps
 #define mTRC_RTC_TIME_SECONDS(rtc_time) ((void)(rtc_time), (u32)pc_ap_clock_day_seconds())

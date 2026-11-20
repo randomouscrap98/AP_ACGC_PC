@@ -11,7 +11,7 @@
 #include "m_snowman.h"
 #include "m_shop.h"
 #include "m_scene_table.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #include "pc_ap_logic.h"
 #include "pc_ap_catalogsanity.h"
@@ -327,7 +327,7 @@ static int mAGrw_CheckSpoilKabuTime(lbRTC_time_c* grow_time, lbRTC_time_c* now) 
     int days = 0;
     int spoil = FALSE;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     // Date & Time change: the decision made on the real old -> new date (grow_time is the
     // rewritten "day before", which would spoil on every Monday)
     if (pc_ap_time_take_turnip_spoil(&spoil)) {
@@ -995,7 +995,7 @@ static void mAGrw_SetTreeBlockLine(int block_x, mActor_name_t* target_table) {
 static void mAGrw_SetHoneycombTree(u8 honeycomb_record) {
     u8 block_num = mMsm_GetDepositBlockNum(honeycomb_record);
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* Bug Availability: no bees before the Bee's bug pass */
     if (!pc_ap_bee_trees_allowed()) {
         return;
@@ -3061,7 +3061,7 @@ static void mAGrw_ZuruSpoilKabuIslandFgItem(Island_c* island) {
 }
 
 static void mAGrw_ZuruSpoilKabu(lbRTC_time_c* now_time) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     if (pc_ap_qol_turnips_never_spoil()) {
         return;
     }
@@ -3109,7 +3109,7 @@ extern void mAGrw_RenewalFgItem_ovl(lbRTC_time_c* now_time, int* deposit_haniwa)
     if (Save_Get(scene_no) == SCENE_FG) {
         flower_time = mAGrw_CheckFlowerTime(now_time);
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         if (pc_ap_qol_no_weeds()) {
             Save_Set(clear_grass, TRUE);
         }
@@ -3184,18 +3184,18 @@ extern void mAGrw_RenewalFgItem_ovl(lbRTC_time_c* now_time, int* deposit_haniwa)
                     }
 
                     mAGrw_SetCarp(last_grow_time);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                     /* AP Catalogsanity: the daily lost and found item */
                     pc_ap_catalog_source(AP_CATALOG_SOURCE_LOST_FOUND);
 #endif
                     mPB_force_set_keep_item();
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                     pc_ap_catalog_source(PC_AP_CATALOG_SOURCE_NONE);
                     /* AP Catalogsanity: the daily dump items */
                     pc_ap_catalog_source(AP_CATALOG_SOURCE_DUMP);
 #endif
                     mAGrw_SetItemDump(&dump_info);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                     pc_ap_catalog_source(PC_AP_CATALOG_SOURCE_NONE);
 #endif
                     lbRTC_TimeCopy(last_grow_time, now_time);

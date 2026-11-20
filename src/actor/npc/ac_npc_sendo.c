@@ -7,7 +7,7 @@
 #include "libultra/libultra.h"
 #include "GBA2/gba2.h"
 #include "m_ledit_ovl.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
 

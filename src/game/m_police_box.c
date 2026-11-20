@@ -11,7 +11,7 @@
 #include "m_lib.h"
 #include "m_shop.h"
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #include "pc_ap_shellsanity.h"
 #endif
@@ -79,7 +79,7 @@ extern int mPB_get_keep_item_sum() {
  * @param item_no The item to add
  **/
 extern void mPB_keep_item(mActor_name_t item_no) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* AP Shellsanity / Treesanity: beach and tree items are never kept (another one turns up later) */
     if (pc_ap_ground_item(item_no)) {
         return;
@@ -137,7 +137,7 @@ extern void mPB_keep_all_item_in_block(int blk_x, int blk_z) {
 
         /* only accept items in the 0x1XXX, 2XXX, and 3XXX range */
         item_type = ITEM_NAME_GET_TYPE(item);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         /* AP Shellsanity / Treesanity: a beach or tree item is removed, never kept (another one turns up later) */
         if (pc_ap_ground_item(item)) {
             *block_items = EMPTY_NO;
@@ -229,7 +229,7 @@ static mActor_name_t mPB_get_force_set_item_goods() {
 static mActor_name_t mPB_get_force_set_item_item() {
     static mActor_name_t category_table[6] = { ITM_NET, ITM_AXE, ITM_SHOVEL, ITM_ROD, ITM_SAPLING, ITM_CEDAR_SAPLING };
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* AP: tools not received yet (Tools in Pool) become saplings */
     return pc_ap_lost_found_item(category_table[(int)(fqrand() * 6.0f)]);
 #else

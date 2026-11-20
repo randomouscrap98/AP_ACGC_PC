@@ -56,7 +56,7 @@ static void Player_actor_setup_main_Pickup(ACTOR* actorx, GAME* game) {
     /* bells go straight to wallet when the whole amount fits; otherwise the bag is picked up normally */
     {
         u32 bell_amount = mPr_GetAmountForMoneyItem(item);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         /* AP Shellsanity / Treesanity: a beach or tree item sends its check and never goes into the
            pockets (putaway_money then just means "nothing entered a pocket") */
         if (pc_ap_ground_pickup(item)) {

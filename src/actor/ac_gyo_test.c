@@ -3,7 +3,7 @@
 #include "m_common_data.h"
 #include "m_player_lib.h"
 #include "ac_uki.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #endif
 
@@ -283,7 +283,7 @@ static s16 aGTT_Get_flow_angle(ACTOR* actorx) {
 }
 
 static s16 aGTT_Get_flow_angle_rv(ACTOR* actorx) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     if (pc_ap_qol_sea_fish_face_shore() && actorx->bg_collision_check.result.unit_attribute == mCoBG_ATTRIBUTE_SEA) {
         return aGTT_Get_flow_angle(actorx); // the sea flows toward the beach
     }
@@ -367,7 +367,7 @@ static int aGTT_player_near(ACTOR* actorx, GAME* game) {
     if (
         // clang-format off
         ((dist < 110.0f && mPlib_get_player_actor_main_index(game) == mPlayer_INDEX_DASH
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
           && pc_ap_qol_fish_run_scare()
 #endif
          ) ||
@@ -602,7 +602,7 @@ static void aGTT_touch(ACTOR* actorx, GAME* game) {
 
                     // If a free space exists, 1/20 chance of switching the fish out for trash
                     if (mPlib_Get_space_putin_item() >= 0 && aGTT_random_check(20.0f) != 0
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                         && !pc_ap_qol_no_fishing_trash()
 #endif
                     ) {
@@ -822,7 +822,7 @@ static void aGTT_touch_init(aGYO_CTRL_ACTOR* gyo) {
 
 static void aGTT_bite_init(aGYO_CTRL_ACTOR* gyo) {    
     gyo->work0 = (int)(aGYO_bite_time[aGYO_get_uki_type()][gyoei_type[gyo->gyo_type].bite_time] * 2.0f);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     gyo->work0 += pc_ap_qol_bite_window_bonus();
 #endif
     gyo->swork0 = 3;

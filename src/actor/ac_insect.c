@@ -9,7 +9,7 @@
 #include "m_skin_matrix.h"
 #include "sys_matrix.h"
 #include "m_rcp.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #endif
 

@@ -6106,7 +6106,7 @@ static void Player_actor_Reset_able_hand_all_item_in_demo(ACTOR* actorx, int mai
 }
 
 /* PC: also used for Hidden Bug Hints (ac_ins_mino.c) */
-#ifndef TARGET_PC
+#if !defined(TARGET_PC) && !defined(AP_HOOKS)
 static
 #endif
 void Player_actor_Set_EffectBgTree(GAME* game, mActor_name_t item, s16 bg_ef_type, int ut_x, int ut_z) {

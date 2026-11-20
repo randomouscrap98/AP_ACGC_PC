@@ -1,10 +1,12 @@
 #ifdef TARGET_PC
+#include "pc_planting.h"
+#include "pc_outdoor_ftr.h"
+#endif
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #include "pc_ap_catalogsanity.h"
 #include "pc_ap_shellsanity.h"
 #include "pc_ap_qol.h"
-#include "pc_planting.h"
-#include "pc_outdoor_ftr.h"
 /* AP Shellsanity / Treesanity: beach and tree items get the shells' random position offset */
 #define bIT_IS_SHELL(item) (((item) >= ITM_SHELL0 && (item) <= ITM_SHELL7) || pc_ap_ground_item(item))
 /* AP Treesanity: drop_fruit's AP items for fruit_set, dropped at the first spots */
@@ -902,7 +904,7 @@ static int fruit_set(mActor_name_t fg_item, int ut_x, int ut_z, s16 num, int dro
         drop_pos.y = mCoBG_GetBgY_OnlyCenter_FromWpos2(drop_pos, -1.0f);
         drop.actorx_p = parent_actor;
         drop.fg_item = fg_item;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         if (i < bIT_pc_ap_drops) {
             drop.fg_item = bIT_pc_ap_drop_item;
         }
@@ -1077,12 +1079,12 @@ static void drop_fruit(mActor_name_t fg_item, int ut_x, int ut_z, xyz_t* drop_po
                     }
                 }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 /* AP Catalogsanity: furniture tree */
                 pc_ap_catalog_source(AP_CATALOG_SOURCE_TREES);
 #endif
                 mSP_SelectRandomItem_New(NULL, &ftr_item, 1, NULL, 0, mSP_KIND_FURNITURE, list, FALSE);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 pc_ap_catalog_source(PC_AP_CATALOG_SOURCE_NONE);
 #endif
                 fruit_set(ftr_item, ut_x, ut_z, fg_ytable[i].drop_count, 0, drop_pos, parent_actor);
@@ -1095,12 +1097,12 @@ static void drop_fruit(mActor_name_t fg_item, int ut_x, int ut_z, xyz_t* drop_po
                     }
                 }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 /* AP Treesanity: a bearing tree drops its AP items first, then its fruit */
                 bIT_pc_ap_drops = pc_ap_tree_drop(fg_item, &bIT_pc_ap_drop_item);
 #endif
                 fruit_set(drop_item, ut_x, ut_z, fg_ytable[i].drop_count, 0, drop_pos, parent_actor);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 bIT_pc_ap_drops = 0;
 #endif
             }
@@ -2641,7 +2643,7 @@ static void bg_item_common_classifyitemDataTable(const GAME_PLAY* const play, bg
                     bg_item_type_data_c type_data;
                     flag = TRUE;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                     /* AP Treesanity: a tree bearing AP items is drawn bare (bIT_pc_tree_ap_draw adds them) */
                     fg_no2fg_type(pc_ap_tree_draw_fg(*fg_p), &type_data, col, type_data_table);
 #else
@@ -2649,16 +2651,16 @@ static void bg_item_common_classifyitemDataTable(const GAME_PLAY* const play, bg
 #endif
                     if (deposit == NULL || ((*deposit >> ut_x) & 1) == 0 || type_data.type == bIT_DRAW_TYPE_FISH2) {
                         if (*fg_p != EMPTY_NO) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                             fg_no2fg_type(pc_ap_tree_draw_fg(*fg_p), &type_data, col, type_data_table);
-#ifdef PC_OUTDOOR_FTR
+#else
+                            fg_no2fg_type(*fg_p, &type_data, col, type_data_table);
+#endif
+#if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
                             /* Outdoor furniture: drawn as its model (pc_outdoor_ftr_draw), no leaf */
                             if (pc_outdoor_ftr_at(*fg_p, base_ut_x + ut_x, base_ut_z + ut_z)) {
                                 flag = FALSE;
                             }
-#endif
-#else
-                            fg_no2fg_type(*fg_p, &type_data, col, type_data_table);
 #endif
                         } else {
                             flag = FALSE;
@@ -3011,7 +3013,7 @@ static void bg_item_common_draw_check(GAME_PLAY* play, bg_item_common_c* common,
     }
 }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 // Hidden Item Hints: trees that drop furniture, a present or the golden shovel when shaken (not the 100 Bell ones)
 static int bIT_pc_is_item_tree(mActor_name_t fg) {
     return fg == TREE_FTR || fg == CEDAR_TREE_FTR || fg == GOLD_TREE_FTR || fg == TREE_PRESENT ||
@@ -3325,7 +3327,7 @@ static void bIT_actor_pit_draw(GAME* game, bg_item_common_info_c* common_info, b
     }
 }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 // Hidden Bug Hints: a hive in every bee tree, at vanilla's shake drop spot (left side, pos_part_honey_comb[0])
 // but less far forward (z 7.5, like the top fruit's; vanilla's is 17.5 toward the camera)
 static void bIT_pc_bee_hint_draw(GAME* game, bg_item_common_c* common) {

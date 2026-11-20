@@ -6,7 +6,7 @@
 #include "m_private.h"
 #include "m_event.h"
 #include "m_common_data.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
 
@@ -75,7 +75,7 @@ extern void Balloon_move(GAME_PLAY* play) {
       return;
   }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
   min = pc_ap_clock_minute(); // minutes of play while the clock is frozen
 #else
   min = Common_Get(time.rtc_time.min);

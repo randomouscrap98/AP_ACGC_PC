@@ -289,7 +289,7 @@ static mActor_name_t aEGH_not_collect_get() {
   int i;
   int total_count;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
   /* AP Catalogsanity: Wisp's pick (new pool items as a source, never locked ones); Treesanity: the
      peach only if the player has it */
   if (pc_ap_wisp_item(item_list, aEGH_ITEM_LIST_NUM, &item)) {

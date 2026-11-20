@@ -10,7 +10,7 @@
 #ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_catalogsanity.h"
 #include "pc_ap_qol.h"
 #endif
@@ -431,7 +431,7 @@ static int aQMgr_actor_check_occur(u32 type, u32 kind, Animal_c* animal, int hom
                     }
                     break;
                 case mQst_CONTEST_KIND_FISH:
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                     // Tools in Pool: only once the fishing rod is received
                     occur = pc_ap_tool_allowed(ITM_ROD);
 #else
@@ -439,7 +439,7 @@ static int aQMgr_actor_check_occur(u32 type, u32 kind, Animal_c* animal, int hom
 #endif
                     break;
                 case mQst_CONTEST_KIND_INSECT:
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                     // Tools in Pool: only once the net is received
                     if (!pc_ap_tool_allowed(ITM_NET)) {
                         break;
@@ -512,7 +512,7 @@ static int aQMgr_actor_decide_quest(QUEST_MANAGER_ACTOR* manager) {
         } else if (target->quest_info.quest_type == mQst_QUEST_TYPE_DELIVERY) {
             aQMgr_actor_set_client_quest_info(manager);
         }
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     } else if (pc_ap_qol_more_favors() || mQst_GetRandom(4) != 0) {
 #else
     } else if (mQst_GetRandom(4) != 0) {
@@ -524,12 +524,15 @@ static int aQMgr_actor_decide_quest(QUEST_MANAGER_ACTOR* manager) {
         aQMgr_actor_decide_quest_type_kind(&type, &kind);
         occur = aQMgr_actor_check_occur(type, kind, client_animal, client_animal->home_info.block_x,
                                         client_animal->home_info.block_z);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         // More Favors: re-roll kinds that can't happen now (season, contest taken)
-        for (int tries = 0; occur != TRUE && tries < 16 && pc_ap_qol_more_favors(); tries++) {
-            aQMgr_actor_decide_quest_type_kind(&type, &kind);
-            occur = aQMgr_actor_check_occur(type, kind, client_animal, client_animal->home_info.block_x,
-                                            client_animal->home_info.block_z);
+        {
+            int tries;
+            for (tries = 0; occur != TRUE && tries < 16 && pc_ap_qol_more_favors(); tries++) {
+                aQMgr_actor_decide_quest_type_kind(&type, &kind);
+                occur = aQMgr_actor_check_occur(type, kind, client_animal, client_animal->home_info.block_x,
+                                                client_animal->home_info.block_z);
+            }
         }
 #endif
 
@@ -1196,17 +1199,17 @@ static void aQMgr_actor_set_reward(QUEST_MANAGER_ACTOR* manager) {
             target->reward_item = ITM_CLOTH001;
         }
     } else {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         /* AP Catalogsanity: favor reward */
         pc_ap_catalog_source(AP_CATALOG_SOURCE_FAVORS);
 #endif
         mQst_GetGoods_common(&target->reward_item, &animal->id, target->reward_kind, NULL, 0, mSP_LISTTYPE_ABC);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         pc_ap_catalog_source(PC_AP_CATALOG_SOURCE_NONE);
 #endif
     }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* AP Catalogsanity: whatever the reward is (worn shirt, house furniture, ...), no pool item not in the catalog */
     {
         mActor_name_t safe = pc_ap_catalog_safe_item(target->reward_item, AP_CATALOG_SOURCE_FAVORS);
@@ -1604,7 +1607,7 @@ static void aQMgr_actor_talk_select_talk(QUEST_MANAGER_ACTOR* manager) {
                             target_flag = FALSE;
                         }
                     }
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 // More Favors: no "asked recently" cooldown
                 } else if (pc_ap_qol_more_favors() || mNpc_CheckQuestRequest(animal_idx) == TRUE) {
 #else

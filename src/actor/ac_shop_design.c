@@ -2,7 +2,7 @@
 
 #include "m_common_data.h"
 #include "m_name_table.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #endif
 
@@ -380,7 +380,7 @@ static int aSD_ReportGoodsSales(int ux, int uz) {
         SHOP_DESIGN_ACTOR* shop_design = Common_Get(clip).shop_design_clip->design_actor;
 
         mSP_PlusSales(price);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         // QoL Shop Never Sells Out: the item stays on the shelf (like stationery); grab bags stay limited
         if (pc_ap_qol_shop_never_sells_out() && item != ITM_HUKUBUKURO_BAG) {
             if (item >= ITM_CLOTH_START && item <= ITM_CLOTH_END && Common_Get(clip).shop_manekin_clip != NULL) {

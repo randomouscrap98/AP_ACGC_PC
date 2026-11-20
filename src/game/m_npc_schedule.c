@@ -1,7 +1,7 @@
 #include "m_npc_schedule.h"
 
 #include "m_common_data.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #endif
 
@@ -167,7 +167,7 @@ static void mNPS_schedule_manager_sub(mNPS_schedule_c* schedule, int forced_tick
   }
 
   schedule->saved_type = schedule_entry->type;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
   if (schedule->saved_type == mNPS_SCHED_SLEEP && pc_ap_qol_villagers_never_sleep()) {
     schedule->saved_type = mNPS_SCHED_IN_HOUSE;
   }

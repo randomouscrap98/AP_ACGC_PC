@@ -12,7 +12,7 @@
 #include "m_event.h"
 #include "m_kankyo.h"
 #include "m_time.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #include "m_player_lib.h"
 #endif
@@ -1743,7 +1743,7 @@ static int aSOG_gyoei_set_with_list(aSOG_set_data_c* set_data, SET_MANAGER* set_
     for (i = 0; i < aSetMgr_GYOEI_NUM; i++) {
       bcopy(keep->spawn_weights + i, copy_range + i, sizeof(aSOG_gyoei_spawn_info_weight_f_c));
     }
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_ap_fish_spawns(copy_range, keep->possible_gyoei_num, block_type);
 #endif
 

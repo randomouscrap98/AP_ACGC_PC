@@ -24,7 +24,7 @@ static void Player_actor_setup_main_Get_scoop(ACTOR* actor, GAME* game) {
     mPlayer_main_get_scoop_c* main_scoop = &player->main_data.get_scoop;
 
     item = req_scoop->item;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     item = pc_ap_dug_item(item);
 #endif
     pos = &req_scoop->dig_pos;
@@ -167,7 +167,7 @@ static void Player_actor_Get_scoop_demo_ct(ACTOR* actor) {
     u8 str[mIN_ITEM_NAME_LEN];
     mActor_name_t item = main_scoop->item;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_ap_dug_item_shown();
 #endif
     mIN_copy_name_str(str, item);

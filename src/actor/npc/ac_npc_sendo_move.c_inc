@@ -1232,7 +1232,7 @@ static void aSEN_set_norm_talk_info(ACTOR* actorx) {
         aSEN_change_talk_proc(sendo, aSEN_TALK_END_WAIT);
     } else {
         aSEN_talk_request_c* talk_request = &dt_tbl[sendo->talk_action];
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         // AP: no island for now. Instead of "ride to the island?" Kapp'n only says his "no" line.
         static aSEN_talk_request_c island_closed = { 0x3074, 1, CAMERA2_PROCESS_TALK, 1, aSEN_TALK_END_WAIT };
         if (talk_request->talk_act == aSEN_TALK_PL_RIDE_ON_CHECK && pc_ap_island_closed()) {

@@ -23,10 +23,10 @@
 #include "m_flashrom.h"
 #ifdef AP_HOOKS
 #include "pc_ap_logic.h"
+#include "pc_ap_villagers.h"
 #endif
 #ifdef PC_ENHANCEMENTS
 #include "pc_automated.h"
-#include "pc_ap_villagers.h"
 #include "pc_settings.h"
 #include "pc_settings_menu.h"
 #include "pc_menu_util.h"
@@ -287,6 +287,9 @@ static void aAL_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
      aAL_wipe_end_check(game) == TRUE &&
      mTD_tdemo_button_ok_check()
   ) {
+#ifdef AP_HOOKS
+    pc_ap_villagers_apply(); // before the town loads or is made (the PC title menu does the same)
+#endif
     aAL_setupAction(actor, game, aAL_ACTION_FADE_OUT_START);
   }
 }

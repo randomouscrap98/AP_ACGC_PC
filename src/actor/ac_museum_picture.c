@@ -10,7 +10,7 @@
 #include "m_room_type.h"
 #include "m_msg.h"
 #include "m_common_data.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
 
@@ -195,7 +195,7 @@ static void Museum_Picture_Actor_move(ACTOR* actorx, GAME* game) {
                         mMsg_Set_free_str(mMsg_Get_base_window_p(), mMsg_FREE_STR0,
                                           Save_Get(private_data[mMmd_DONATOR_PLR_IDX(donator)]).player_ID.player_name,
                                           PLAYER_NAME_LEN);
-                        #ifdef TARGET_PC
+                        #ifdef AP_HOOKS
                         pc_ap_museum_plaque_name(item); // AP: the player who sent it
                         #endif
                     }

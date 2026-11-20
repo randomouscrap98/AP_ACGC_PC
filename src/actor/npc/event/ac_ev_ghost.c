@@ -9,7 +9,7 @@
 #include "m_item_name.h"
 #include "m_house.h"
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #include "pc_ap_catalogsanity.h"
 #endif

@@ -11,7 +11,7 @@
 #include "libultra/libultra.h"
 #include "m_bgm.h"
 #include "m_soncho.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_newgame.h"
 #include "pc_ap_logic.h"
 #endif

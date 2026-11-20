@@ -17,7 +17,7 @@
 #include "m_submenu.h"
 #include "m_room_type.h"
 #include "m_common_data.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_settings.h"
 #include "pc_ap_newgame.h"
 #include "pc_ap_logic.h"
@@ -227,7 +227,7 @@ extern void mPr_SetNowPrivateCloth() {
 
     if (priv != NULL) {
         mPlib_change_player_cloth_info_lv2(priv, mPr_GetRandomCloth(priv->gender));
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         pc_ap_newgame_shirt();
 #endif
     }
@@ -603,12 +603,12 @@ extern mActor_name_t mPr_DummyPresentToTruePresent() {
 
     /* 80% chance of rolling furniture from town's rare list */
     if (RANDOM(5) != 0) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         /* AP Catalogsanity: tree / balloon present */
         pc_ap_catalog_source(AP_CATALOG_SOURCE_PRESENTS);
 #endif
         mSP_SelectRandomItem_New(NULL, &true_present, 1, NULL, 0, mSP_KIND_FURNITURE, mSP_LISTTYPE_RARE, FALSE);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         pc_ap_catalog_source(PC_AP_CATALOG_SOURCE_NONE);
 #endif
     }
@@ -1070,7 +1070,7 @@ static void mPr_GetMotherMailMonthlyData(mPr_mother_mail_data_c* send_data, int*
     } else if (month == lbRTC_DECEMBER) {
         if (*event_no == 0) {
             *present = ITM_FOOD_APPLE;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
             /* AP Treesanity: only fruit the player has */
             *present = pc_ap_gate_fruit(*present);
 #endif

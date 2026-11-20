@@ -9,7 +9,7 @@
 #include "m_play.h"
 #include "m_scene_table.h"
 #include "m_soncho.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #endif
 
@@ -320,7 +320,7 @@ extern void mEv_RenewalDataEveryDay() {
                 /* After a new day starts, turn off all players' 'wait a day' HRA event and turn on talk to Tom Nook HRA
                  * event */
                 mEv_EventOFF(check_event);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 // Skip HRA Talk: no talk flag, so the HRA starts scoring
                 if (!pc_ap_qol_skip_hra_talk())
 #endif

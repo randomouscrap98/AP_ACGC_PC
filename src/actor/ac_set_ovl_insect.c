@@ -5,7 +5,7 @@
 #include "m_name_table.h"
 #include "libultra/libultra.h"
 #include "libc64/qrand.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #include "pc_ap_qol.h"
 #include "m_player_lib.h"
@@ -973,7 +973,7 @@ static aSOI_term_list_c l_insect_island[aSOI_TERM_NUM] = {
 };
 
 /* Units an insect may spawn on: vanilla never the outer 2 rows/columns of the acre */
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 // Easier Critter Catch can open them: per-acre mask from pc_ap_qol_insect_unit_mask (aSOI_ins_decide_insect)
 static u16 aSOI_ut_mask[UT_Z_NUM];
 #define aSOI_UT_ALLOWED(x, z) ((aSOI_ut_mask[(z)] >> (x)) & 1)
@@ -1061,7 +1061,7 @@ static int aSOI_get_live_ut(aSOI_set_data_c* set_data, int* ut_x_out, int* ut_z_
 
 static int aSOI_hour_to_term(int hour) {
   int term = aSOI_TERM0;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
   hour = pc_ap_insect_hour(hour); // Timesanity: bands lined up with the time slots
 #endif
   if (hour >= aSOI_TERM1_START_HR) {
@@ -2028,7 +2028,7 @@ static void aSOI_ins_decide_insect(aSOI_set_data_c* set_data, aSetMgr_player_pos
   fg_item = mFI_BkNumtoUtFGTop(player_pos->next_bx, player_pos->next_bz);
   deposit = mFI_GetDepositP(player_pos->next_bx, player_pos->next_bz);
   collision_data = mFI_GetBkNum2ColTop(player_pos->next_bx, player_pos->next_bz);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
   {
     // Easier Critter Catch: flower bugs, snails and butterflies also spawn on tulips
     mActor_name_t flower_max = pc_ap_qol_flower_bugs_on_tulips() ? FLOWER_TULIP2 : FLOWER_COSMOS2;
@@ -2091,7 +2091,7 @@ static void aSOI_ins_decide_insect(aSOI_set_data_c* set_data, aSetMgr_player_pos
     aSOI_ins_limit_insect_data(spawn_info, info_num, candy_spawn, trash_spawn);
   }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
   pc_ap_insect_spawns(spawn_info, info_num);
 #endif
   spawn_idx = aSOI_ins_get_idx(spawn_info, info_num, candy_spawn | trash_spawn);

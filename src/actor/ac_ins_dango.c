@@ -5,7 +5,7 @@
 #include "m_common_data.h"
 #include "m_player_lib.h"
 #include "ac_set_ovl_insect.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #include "m_play.h"
 #endif
@@ -259,7 +259,7 @@ static void aIDG_stop(ACTOR* actor, GAME* game) {
     }
 }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 /* Hidden Bug Hints: the pill bug's small dirt clod pops up at the front of the rock (toward
  * the camera, a rock hides its own center) every few seconds, when the player is near, with
  * churning clods around that spot in between (pc_ap_qol_churn_clod, camera side only). Spread

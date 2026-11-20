@@ -8,7 +8,7 @@
 #include "m_name_table.h"
 #include "m_common_data.h"
 #include "m_player_lib.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #include "m_play.h"
 #endif
@@ -281,7 +281,7 @@ static void aIKR_let_escape(ACTOR* actorx, GAME* game) {
  * @param actorx Pointer to the mole cricket actor.
  * @param game Pointer to the current game state.
  */
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 /* Hidden Bug Hints: a small dirt puff over the buried cricket every second or so, when the
  * player is near, and churning clods around it in between (pc_ap_qol_churn_clod). Spread over frames by its unit (no per-cricket state). The hidden cricket
  * stays at the spawn's y = 0 (no gravity or bg check until dug up), so the puff goes on the

@@ -10,7 +10,7 @@
 #include "m_bgm.h"
 #include "sys_matrix.h"
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_qol.h"
 #endif
 #include "m_rcp.h"

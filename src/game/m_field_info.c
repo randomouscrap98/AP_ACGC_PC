@@ -9,7 +9,7 @@
 #include "m_player_lib.h"
 #include "m_bg_type.h"
 #include "m_fg_type.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #include "pc_ap_shellsanity.h"
 #endif
@@ -2768,7 +2768,7 @@ extern mActor_name_t mFI_GetOtherFruit() {
 #else
 /* This implementation gives an equal 25% chance for all non-native fruit to be rolled */
 extern mActor_name_t mFI_GetOtherFruit() {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* AP Treesanity: only fruit the player has received (or the town's) */
     mActor_name_t ap_fruit;
 
@@ -3000,7 +3000,7 @@ static int mFI_CheckSetShell() {
     int res = FALSE;
 
     /* Refresh shells every 10th minute */
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     if (pc_ap_clock_minute() % 10 == 0) { // minutes of play while the clock is frozen
 #else
     if (Common_Get(time.rtc_time.min) % 10 == 0) {
@@ -3029,7 +3029,7 @@ static int mFI_GetCanSetShellNum(u8* shell_num, int bx, int bz) {
                 if (*fg_p == EMPTY_NO && mCoBG_CheckWaveAttr(col_p->data.unit_attribute) == TRUE) {
                     valid_ut_num++;
                 } else if (((*fg_p >= ITM_SHELL0 && *fg_p <= ITM_SHELL7) || *fg_p == ITM_FOOD_COCONUT
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                             /* AP Shellsanity: beach items count as shells */
                             || pc_ap_shellsanity_is_item(*fg_p)
 #endif
@@ -3212,7 +3212,7 @@ static mActor_name_t mFI_GetShell(int is_island) {
 
     /* Return a random shell from the selected table */
     index = (int)RANDOM_F(shell_max[table]);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     return pc_ap_shell_item(shell_table[table][index], is_island);
 #else
     return shell_table[table][index];

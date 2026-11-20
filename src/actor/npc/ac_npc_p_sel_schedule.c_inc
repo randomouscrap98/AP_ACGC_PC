@@ -6,7 +6,7 @@ static int aNPS_setup_game_start(GAME_PLAY* play) {
     int res = FALSE;
 
     if (mCD_InitGameStart_bg(0, -1, 0, &chan) == 0) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         if (pc_ap_qol_skip_intro()) {
             pc_ap_newgame(play);
             return TRUE;

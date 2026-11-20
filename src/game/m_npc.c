@@ -15,7 +15,7 @@
 #include "libultra/libultra.h"
 #include "jsyswrap.h"
 #include "ac_npc.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_villagers.h"
 #include "pc_ap_qol.h"
 #include "pc_ap_logic.h"
@@ -1531,12 +1531,12 @@ static void mNpc_GetRemailGoodData(Mail_c* mail, PersonalID_c* pid, AnmPersonalI
 
     give_present = RANDOM(4) & 1;
     if (give_present == 0) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         /* AP Catalogsanity: reply present */
         pc_ap_catalog_source(AP_CATALOG_SOURCE_LETTERS);
 #endif
         mNpc_GetRemailPresent(&present);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         pc_ap_catalog_source(PC_AP_CATALOG_SOURCE_NONE);
 #endif
     }
@@ -2440,7 +2440,7 @@ static void mNpc_DecideLivingNpcMax(Animal_c* animal, u8 count, int malloc_flag)
     u8 looks_bitfield = 0;
     int i = 0;
     int animal_idx = 0;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     int pc_any_looks; /* AP villager blacklist: duplicate personalities allowed */
 #endif
 
@@ -2448,7 +2448,7 @@ static void mNpc_DecideLivingNpcMax(Animal_c* animal, u8 count, int malloc_flag)
     mNpc_MakeRandTable(fakeTable, NPC_NUM, NPC_NUM);
     def_list = npc_def_list;
     grow_list = npc_grow_list;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_any_looks = pc_ap_villagers_pick_starters(count);
 #endif
 
@@ -2456,7 +2456,7 @@ static void mNpc_DecideLivingNpcMax(Animal_c* animal, u8 count, int malloc_flag)
         if (animal == NULL) {
             break;
         }
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         if (i >= NPC_NUM) {
             break; /* not enough starters: never read past fakeTable */
         }
@@ -2470,7 +2470,7 @@ static void mNpc_DecideLivingNpcMax(Animal_c* animal, u8 count, int malloc_flag)
             if (grow_perm == mNpc_GROW_STARTER) {
                 int looks = npc_looks_table[idx];
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                 if (pc_any_looks || ((looks_bitfield >> looks) & 1) == 0) {
 #else
                 if (((looks_bitfield >> looks) & 1) == 0) {
@@ -3307,7 +3307,7 @@ static int mNpc_DecideRemoveAnimalNo(Animal_c* animal, int ignored_idx, int now_
 extern void mNpc_SetRemoveAnimalNo(u8* remove_animal_no, Animal_c* animal, int ignored_idx) {
     u8 now_npc_max = Save_Get(now_npc_max);
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     // Villagers Don't Leave: nobody is picked to talk about moving (also clears an old pick)
     if (pc_ap_qol_villagers_dont_leave()) {
         remove_animal_no[0] = 0xFF;
@@ -4514,7 +4514,7 @@ extern void mNpc_ForceRemove() {
     int ignored_idx = -1;
     int idx;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     if (pc_ap_qol_villagers_dont_leave()) {
         return;
     }

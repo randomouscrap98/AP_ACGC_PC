@@ -3,7 +3,7 @@
 #include "m_actor.h"
 #include "m_npc_personal_id.h"
 #include "m_common_data.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_shellsanity.h"
 #include "pc_ap_logic.h"
 #endif
@@ -178,7 +178,7 @@ extern int mNT_get_itemTableNo(mActor_name_t item) {
                                                 item1_8_tableNo, item1_9_tableNo, item1_A_tableNo, item1_B_tableNo,
                                                 item1_C_tableNo, item1_D_tableNo, item1_E_tableNo, item1_F_tableNo };
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* AP Shellsanity / Treesanity: beach and tree items have their own draw type (past the ETC table's end) */
     if (pc_ap_ground_item(item)) {
         return PC_AP_ITEM_TYPE_BEACH;

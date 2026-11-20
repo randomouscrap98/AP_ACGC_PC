@@ -207,7 +207,7 @@ static void aNW_talk_door_demo_ct(ACTOR* actorx) {
 
 static int aNW_check_opend() {
     int now_sec = Common_Get(time.now_sec);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     if (pc_ap_qol_shops_always_open()) {
         return TRUE;
     }

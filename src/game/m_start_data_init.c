@@ -10,7 +10,7 @@
 #include "m_scene_table.h"
 #include "libultra/libultra.h"
 #include "m_cockroach.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_newgame.h"
 #endif
 #include "m_melody.h"
@@ -34,7 +34,7 @@ static void famicom_emu_initial_common_data() {
 
 static void decide_fruit(mActor_name_t* fruit_p) {
     *fruit_p = RANDOM(mAGrw_FRUIT_NUM) | ITM_FOOD_START;
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_ap_newgame_town_fruit(fruit_p);
 #endif
 }
@@ -395,7 +395,7 @@ static int mSDI_StartInitNew(GAME* game, int player_no, int malloc_flag) {
 
     Common_Set(_2dbe1, 0);
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_ap_newgame_town();
 #endif
 

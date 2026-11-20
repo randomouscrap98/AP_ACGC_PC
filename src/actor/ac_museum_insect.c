@@ -1,5 +1,5 @@
 #include "ac_museum_insect_priv.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
 // clang-format off
@@ -709,7 +709,7 @@ int Museum_Insect_GetMsgNo(ACTOR* actorx) {
     if (insect_caught_by >= 1 && insect_caught_by <= 4) {
         mMsg_Set_free_str(mMsg_Get_base_window_p(), mMsg_FREE_STR0,
                           common_data.save.save.private_data[insect_caught_by - 1].player_ID.player_name, 8);
-        #ifdef TARGET_PC
+        #ifdef AP_HOOKS
         pc_ap_museum_plaque_name(insect_no); // AP: the player who sent it
         #endif
     }

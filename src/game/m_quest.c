@@ -15,7 +15,7 @@
 #ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_catalogsanity.h"
 #endif
 
@@ -589,12 +589,12 @@ static mActor_name_t mQst_GetPresent(int rank) {
     }
 
     if (category != -1 && list != -1) {
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         /* AP Catalogsanity: letter-quality reward */
         pc_ap_catalog_source(AP_CATALOG_SOURCE_LETTERS);
 #endif
         mSP_SelectRandomItem_New(NULL, &item, 1, NULL, 0, category, list, FALSE);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         pc_ap_catalog_source(PC_AP_CATALOG_SOURCE_NONE);
 #endif
     }

@@ -27,9 +27,11 @@
 #include "m_roll_lib.h"
 #include "m_house.h"
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #include "pc_ap_catalogsanity.h"
+#endif
+#ifdef TARGET_PC
 #include "pc_outdoor_ftr.h"
 
 // Drag marking: after X marks or unmarks a slot, keep X held; once it has been held
@@ -5215,12 +5217,12 @@ static void mTG_hukubukuro_open_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info
                         category = mSP_KIND_FURNITURE;
                     }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                     /* AP Catalogsanity: grab bag */
                     pc_ap_catalog_source(AP_CATALOG_SOURCE_GRAB_BAGS);
 #endif
                     mSP_SelectRandomItem_New(NULL, &items[i], 1, items, i, category, mSP_LISTTYPE_RARE, FALSE);
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
                     pc_ap_catalog_source(PC_AP_CATALOG_SOURCE_NONE);
 #endif
                 }

@@ -5,7 +5,7 @@
 #include "m_room_type.h"
 #include "m_actor_type.h"
 #include "m_font.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_shellsanity.h"
 #include "pc_ap_logic.h"
 #endif
@@ -508,7 +508,7 @@ extern void mIN_copy_name_str(u8* dst, mActor_name_t item) {
     u32 itm = item;
     mActor_name_t item_no = mRmTp_FtrItemNo2Item1ItemNo(item, FALSE);
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* AP Shellsanity / Treesanity: beach and tree items sit past the ETC name table */
     if (pc_ap_ground_item(item_no)) {
         pc_ap_ground_item_name(item_no, dst);
@@ -585,7 +585,7 @@ extern int mIN_get_item_article(mActor_name_t item) {
     mActor_name_t item_no = mRmTp_FtrItemNo2Item1ItemNo(item, FALSE);
     int index = item_no & 0xFF;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* AP Shellsanity / Treesanity: beach and tree items sit past the ETC article table */
     if (pc_ap_ground_item(item_no)) {
         return mIN_ARTICLE_AN;

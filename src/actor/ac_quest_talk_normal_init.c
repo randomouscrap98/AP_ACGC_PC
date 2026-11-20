@@ -13,7 +13,7 @@
 #include "m_ledit_ovl.h"
 #include "libultra/libultra.h"
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #include "pc_ap_catalogsanity.h"
 #endif
@@ -958,7 +958,7 @@ static void aQMgr_order_decide_trade_common_item(aQMgr_SELECT_RND_ITEM_PROC sel_
         l_normal_info.trade_items[0] = itemNo;
     }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     /* AP Catalogsanity: the villager's offers */
     pc_ap_catalog_source(AP_CATALOG_SOURCE_TRADES);
 #endif
@@ -988,7 +988,7 @@ static void aQMgr_order_decide_trade_common_item(aQMgr_SELECT_RND_ITEM_PROC sel_
             mQst_GetGoods_common(&itemNo, &animal->id, cat, l_normal_info.trade_items, 2, list);
         }
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
         /* AP Catalogsanity: no pool item not in the catalog (house furniture) */
         itemNo = pc_ap_catalog_safe_item(itemNo, AP_CATALOG_SOURCE_TRADES);
 #endif
@@ -996,7 +996,7 @@ static void aQMgr_order_decide_trade_common_item(aQMgr_SELECT_RND_ITEM_PROC sel_
         mQst_SetItemNameStr(itemNo, mMsg_ITEM_STR1 + i);
         cat_table++;
     }
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
     pc_ap_catalog_source(PC_AP_CATALOG_SOURCE_NONE);
 #endif
 

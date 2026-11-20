@@ -14,6 +14,8 @@
 #include "dolphin/os/OSRtc.h"
 #ifdef TARGET_PC
 #include "pc_automated.h"
+#endif
+#ifdef AP_HOOKS
 #include "pc_ap_newgame.h"
 #include "pc_ap_qol.h"
 #endif

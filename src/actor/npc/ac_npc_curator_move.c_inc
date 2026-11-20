@@ -208,7 +208,7 @@ typedef struct {
     mActor_name_t* parts;
 } aCR_fossil_part_c;
 
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 // AP museumsanity: who donated it as far as donating goes (vanilla for non-AP categories)
 #define aCR_GetFossilPartDonator(item_no) pc_ap_museum_donator(item_no)
 #define aCR_GetArtDonator(item_no) pc_ap_museum_donator(item_no)

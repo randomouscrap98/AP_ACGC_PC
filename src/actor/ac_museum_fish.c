@@ -1,5 +1,5 @@
 #include "ac_museum_fish_priv.h"
-#ifdef TARGET_PC
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
 #endif
 
@@ -631,7 +631,7 @@ int Museum_Fish_GetMsgNo(MUSEUM_FISH_ACTOR* actor) {
     if (fishInfo >= 1 && fishInfo <= 4) {
         mMsg_Set_free_str(mMsg_Get_base_window_p(), 0,
                           common_data.save.save.private_data[fishInfo - 1].player_ID.player_name, 8);
-        #ifdef TARGET_PC
+        #ifdef AP_HOOKS
         pc_ap_museum_plaque_name(fishName); // AP: the player who sent it
         #endif
     }
