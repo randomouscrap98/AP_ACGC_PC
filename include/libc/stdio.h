@@ -18,6 +18,10 @@ int printf(const char *, ...);
 int sprintf(char *s, const char *format, ...);
 int vprintf(const char *format, va_list arg);
 int vsprintf(char *s, const char *format, va_list arg);
+#ifdef AP_GC_UNIT
+int snprintf(char *s, size_t n, const char *format, ...);
+int vsnprintf(char *s, size_t n, const char *format, va_list arg);
+#endif
 
 #ifdef __cplusplus
 }

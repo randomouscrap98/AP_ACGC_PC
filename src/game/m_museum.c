@@ -63,7 +63,7 @@ extern void mMsm_SendInformationMail() {
 }
 
 /* PC: also used for instant fossils (pc_ap_dug_item in pc_ap_logic.c) */
-#ifndef TARGET_PC
+#if !defined(TARGET_PC) && !defined(AP_HOOKS) // AP code calls it (pc_ap_logic.c)
 static
 #endif
 void mMsm_GetFossil(mActor_name_t* fossil) {

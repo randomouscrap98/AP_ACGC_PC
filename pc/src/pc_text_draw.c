@@ -10,6 +10,7 @@
  * start a new batch. */
 
 #include "pc_text_draw.h"
+#include "dolphin/os.h" // OSReport
 
 #include "game.h"
 #include "graph.h"
@@ -30,7 +31,7 @@
 #define FONT_ATLAS_W (mFont_TEX_CHAR_WIDTH * 16)
 #define FONT_ATLAS_H (mFont_TEX_CHAR_HEIGHT * 16)
 
-/* 5-bit indexing caps vertex cache index at 31. 7 glyphs × 4 verts = 28. */
+/* 5-bit indexing caps vertex cache index at 31. 7 glyphs x 4 verts = 28. */
 #define PC_TEXT_CHARS_PER_BATCH 7
 
 // Port-owned per-frame pools, so text doesn't eat the game's font list or poly_opa.
@@ -107,7 +108,7 @@ static inline void pc_trin_cont_5b(Gfx** pp,
   *pp = g + 1;
 }
 
-/* Replica of m_font's static mFont_SetVertex_dol — sets screen-space
+/* Replica of m_font's static mFont_SetVertex_dol - sets screen-space
  * position, s/t texcoords, flag=1 (NONSHARED matrix), zero vertex color. */
 // The font projection (mFont_CulcOrthoMatrix) goes through 16.16 fixed point, which truncates
 // its x scale from 25.6 to 25 (2.3% squeeze toward the screen center; y loses 0.4%). Boxes drawn
@@ -155,7 +156,7 @@ void pc_text_draw(struct game_s* game, const char* s, f32 x, f32 y,
     int room = room_vtx < room_gfx ? room_vtx : room_gfx;
     if (len > room) {
         if (!s_warned) {
-            fprintf(stderr, "[TEXT] per-frame text pool full, clipping text\n");
+            OSReport("[TEXT] per-frame text pool full, clipping text\n");
             s_warned = 1;
         }
         len = room;
@@ -201,7 +202,7 @@ void pc_text_draw(struct game_s* game, const char* s, f32 x, f32 y,
             int code_w = mFont_GetCodeWidth((u8)c, TRUE);
             if (code_w <= 0) code_w = mFont_TEX_CHAR_WIDTH;
 
-            /* UV rect in atlas — same formula as mFont_gppLoadTexture +
+            /* UV rect in atlas - same formula as mFont_gppLoadTexture +
              * the half-texel inset applied in mFont_gppDrawCharPoly. */
             int row = c >> 4;
             int col = c & 0x0F;

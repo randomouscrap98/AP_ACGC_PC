@@ -2,7 +2,9 @@
 #ifndef PC_PAUSE_MENU_H
 #define PC_PAUSE_MENU_H
 
+#ifdef TARGET_PC
 #include <SDL3/SDL.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,7 +22,9 @@ extern int g_pc_nes_active;
 void pc_pause_menu_toggle(void);
 
 /* Forward an SDL event for menu navigation. Returns 1 if consumed. No-op if not paused. */
+#ifdef TARGET_PC
 int  pc_pause_menu_handle_event(const SDL_Event* e);
+#endif
 
 /* 1 while paused on any page other than the main one (settings, date/time, quit confirm). */
 int  pc_pause_menu_submenu_open(void);

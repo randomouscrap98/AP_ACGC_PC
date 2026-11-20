@@ -25,7 +25,11 @@ AP_API void ap_stop(void);
 #define AP_CONFIGNAME   "ap_config.ini"
 #define AP_CERTPATH     "cacert.pem"
 #define AP_GAMENAME     "Animal Crossing"
+#ifdef __MWERKS__
+#define AP_MAXSTRING    128 // GC build (gc/gc_ap_backend.c): ap_connectstate would be 3 KB of RAM at 1024
+#else
 #define AP_MAXSTRING    1024
+#endif
 
 typedef struct {
   char host[AP_MAXSTRING];

@@ -21,8 +21,10 @@
 #include "m_font.h"
 #include "libultra/libultra.h"
 #include "m_flashrom.h"
-#ifdef PC_ENHANCEMENTS
+#ifdef AP_HOOKS
 #include "pc_ap_logic.h"
+#endif
+#ifdef PC_ENHANCEMENTS
 #include "pc_automated.h"
 #include "pc_ap_villagers.h"
 #include "pc_settings.h"
@@ -88,7 +90,7 @@ ACTOR_PROFILE Animal_Logo_Profile = {
 #include "../src/actor/ac_animal_logo_misc.c"
 
 static void aAL_setupAction(ANIMAL_LOGO_ACTOR* actor, GAME* game, int action);
-#ifndef TARGET_PC
+#if !defined(TARGET_PC) && !defined(AP_HOOKS) // AP code calls it (pc_ap_logic.c)
 static
 #endif
 void aAL_title_decide_p_sel_npc(); /* PC: also used by the Date & Time reload (pc_ap_logic.c) */
@@ -165,7 +167,7 @@ static void aAL_title_game_data_init_start_select(ANIMAL_LOGO_ACTOR* actor, GAME
   mBGMPsComp_make_ps_wipe(0x1168);
 }
 
-#ifndef TARGET_PC
+#if !defined(TARGET_PC) && !defined(AP_HOOKS) // AP code calls it (pc_ap_logic.c)
 static
 #endif
 void aAL_title_decide_p_sel_npc() {
@@ -278,6 +280,9 @@ static void aAL_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
   }
   else if (
      ((gamePT->pads[PAD0].on.button & BUTTON_START) == BUTTON_START || (gamePT->pads[PAD0].on.button & BUTTON_A) == BUTTON_A) &&
+#ifdef AP_HOOKS
+     pc_ap_start_allowed() && // AP: not before the slot's slot_data (the overlay's status line says why)
+#endif
      mLd_CheckStartFlag() == TRUE &&
      aAL_wipe_end_check(game) == TRUE &&
      mTD_tdemo_button_ok_check()

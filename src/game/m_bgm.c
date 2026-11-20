@@ -1356,7 +1356,7 @@ static void mBGMFieldNorm_move(mBGMFieldNorm* norm, GAME* game) {
 }
 
 /* PC: also used by the Date & Time hour change (pc_ap_logic.c) */
-#ifndef TARGET_PC
+#if !defined(TARGET_PC) && !defined(AP_HOOKS) // AP code calls it (pc_ap_logic.c)
 static
 #endif
 void mBGMFieldNorm_make_req() {
@@ -1364,7 +1364,7 @@ void mBGMFieldNorm_make_req() {
 }
 
 /* PC: also used by the Date & Time hour change (pc_ap_logic.c) */
-#ifndef TARGET_PC
+#if !defined(TARGET_PC) && !defined(AP_HOOKS) // AP code calls it (pc_ap_logic.c)
 static
 #endif
 void mBGMFieldNorm_delete_req() {

@@ -21,9 +21,7 @@
 #include "pc_ap_overlay.h"
 #include "pc_ap_strings.h"
 #include "pc_ap_weather.h"
-#include "pc_crash.h"
-#include "pc_dirs.h"
-#include "pc_automated.h"
+#include "pc_ap_platform.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 #include "m_common_data.h"
@@ -60,9 +58,9 @@
 #include "libc64/qrand.h"
 #include "ac_set_manager.h"
 
-#include <SDL3/SDL.h>
 #include <ini.h>
 #include <stdio.h>
+#include <string.h>
 
 // From ac_animal_logo.c, m_bgm.c and m_shop.c (static there, un-static on PC)
 extern void aAL_title_decide_p_sel_npc(void);
@@ -143,7 +141,7 @@ typedef struct {
   int storage_allowed;     // Global Storage gate on the last play frame (pause menu reads it)
   unsigned play_frames;    // 60 Hz frames in play (pc_ap_tick), for pc_ap_clock_minute
   int session_started;     // a play frame ran since launch
-  Uint32 session_start;    // pc_ticks_ms() at that first play frame
+  u32 session_start;       // pc_ap_plat_ms() at that first play frame
   pc_ap_request request;
   int initialized;    // module config set from slot_data
 } pc_ap;
@@ -193,41 +191,36 @@ static void pc_ap_settings_push(void) {
   g_ap.shells.chance = v[PC_AP_SET_SHELLSANITY_ITEM_CHANCE];
 }
 
-static void pc_ap_settings_path(char* out, size_t size) {
-  pc_save_root_file_out(out, size, PC_AP_SETTINGS_FILENAME);
-}
+// ap_settings.ini paths (PC: a file; GC: a part of the memory card file)
+#define PC_AP_SETTINGS_PATHSIZE 1024
 
 // A sidecar from a newer client: stop before anything reads or overwrites it
 static void pc_ap_state_check(ini_t* ini, const char* filename) {
-  char msg[PC_PATHSIZE + 160];
-  if(pc_ap_state_upgrade(ini)) {
-    return;
+  if(!pc_ap_state_upgrade(ini)) {
+    pc_ap_plat_newer_save(filename);
   }
-  snprintf(msg, sizeof(msg), "This save was made by a newer version of the game:\n%s\n\n"
-           "Update the game to keep playing it.", filename);
-  pc_fatal_error("Animal Crossing - Save from a newer version", msg);
 }
 
 // Rewritten whole: also adds keys a newer client has that the file doesn't
 static int pc_ap_settings_write(void) {
-  char path[PC_PATHSIZE];
+  char path[PC_AP_SETTINGS_PATHSIZE];
   ini_t* ini = ini_create(NULL);
   int ok;
   pc_ap_settings_save(&g_ap.settings, ini);
-  pc_ap_settings_path(path, sizeof(path));
+  pc_ap_plat_settings_path(path, sizeof(path));
   ok = pc_ap_state_write(path, ini);
   ini_destroy(ini);
   return ok;
 }
 
 void pc_ap_settings_open(void) {
-  char path[PC_PATHSIZE];
+  char path[PC_AP_SETTINGS_PATHSIZE];
   ini_t* ini;
   if(!g_ap.initialized) {
     return;
   }
   pc_ap_settings_init(&g_ap.settings, ap_getslotdata());
-  pc_ap_settings_path(path, sizeof(path));
+  pc_ap_plat_settings_path(path, sizeof(path));
   ini = pc_ap_state_read(path); // NULL (first load): keeps the slot_data values
   pc_ap_state_check(ini, path);
   pc_ap_settings_load(&g_ap.settings, ini);
@@ -265,7 +258,7 @@ void pc_ap_update(void) {
     pc_ap_init();
     // The save folder is known now: its AP settings can be changed from the title screen
     const ap_connectstate* cs = ap_getconnectstate();
-    pc_card_dir_set_root_ap(cs->roomplayer.seed, cs->roomplayer.team, cs->roomplayer.player);
+    pc_ap_plat_save_root(cs->roomplayer.seed, cs->roomplayer.team, cs->roomplayer.player);
     pc_ap_settings_open();
   }
   pc_ap_time_reload_update();
@@ -282,7 +275,9 @@ void pc_ap_load(const char* filename) {
   pc_ap_fruit_load(&g_ap.fruit, ini);
   pc_ap_furniture_load(&g_ap.furniture, ini);
   pc_ap_storage_load(&g_ap.storage, ini);
+#ifdef TARGET_PC // outdoor furniture is PC only (GC: no [outdoor_ftr] section)
   pc_outdoor_ftr_load(ini);
+#endif
   g_ap.catalog.synced_player = NULL; // a new save: sync its catalog once
   g_ap.goal_letter_sent = pc_ap_ini_get_int(ini, NULL, PC_AP_KEY_GOAL_LETTER_SENT, 0);
   if(ini != NULL) {
@@ -291,7 +286,9 @@ void pc_ap_load(const char* filename) {
 }
 
 void pc_ap_before_save(void) {
+#ifdef TARGET_PC
   pc_outdoor_ftr_prune();
+#endif
 }
 
 int pc_ap_save(const char* filename) {
@@ -304,7 +301,9 @@ int pc_ap_save(const char* filename) {
   pc_ap_fruit_save(&g_ap.fruit, ini);
   pc_ap_furniture_save(&g_ap.furniture, ini);
   pc_ap_storage_save(&g_ap.storage, ini);
+#ifdef TARGET_PC
   pc_outdoor_ftr_save(ini);
+#endif
   pc_ap_ini_set_int(ini, NULL, PC_AP_KEY_GOAL_LETTER_SENT, g_ap.goal_letter_sent);
   int ok = pc_ap_state_write(filename, ini);
   ini_destroy(ini);
@@ -1072,7 +1071,7 @@ int pc_ap_session_seconds(void) {
   if(!g_ap.session_started) {
     return -1;
   }
-  return (int)((pc_ticks_ms() - g_ap.session_start) / 1000);
+  return (int)((pc_ap_plat_ms() - g_ap.session_start) / 1000);
 }
 
 int pc_ap_time_owned_months(void) {
@@ -1296,7 +1295,7 @@ void pc_ap_time_reload_save(void) {
     OSReport("[AP] Date & Time reload: save failed, loading the last save\n");
   }
   g_ap.reload.step = PC_AP_RELOAD_TITLE;
-  pc_automated_saved(g_ap.reload.saved);
+  pc_ap_plat_saved(g_ap.reload.saved);
 }
 
 // What the title's Start press does, then player select
@@ -1340,7 +1339,7 @@ void pc_ap_time_reload_takeover(GAME* game) {
 
 int pc_ap_time_reload_take_player(void) {
   if(g_ap.reload.step != PC_AP_RELOAD_PLAYER_SELECT) {
-    return pc_automated_take_player(); // -1 unless a render test loads a save
+    return pc_ap_plat_take_player();
   }
   g_ap.reload.step = PC_AP_RELOAD_LEAVING;
   return g_ap.reload.player;
@@ -1368,8 +1367,7 @@ static void pc_ap_time_reload_update(void) {
 }
 
 void pc_ap_tick(GAME_PLAY* play) {
-  pc_crash_note_frame(play);
-  pc_automated_play(play); // render-test scenes: a door or menu
+  pc_ap_plat_frame(play);
   pc_ap_request_tick(play); // before the gate: a blocked request is dropped with a toast
   // Not while paused (Game_play_move returns first), so the pause menu sees the last frame's
   g_ap.time_change_allowed = g_ap.reload.step == PC_AP_RELOAD_NONE && pc_ap_time_change_allowed(play);
@@ -1380,7 +1378,7 @@ void pc_ap_tick(GAME_PLAY* play) {
   g_ap.play_frames++; // one play frame (60 Hz)
   if(!g_ap.session_started) {
     g_ap.session_started = 1;
-    g_ap.session_start = pc_ticks_ms();
+    g_ap.session_start = pc_ap_plat_ms();
   }
   // Checks: every check of every paid-off loan (the DLL drops repeats)
   int paid = pc_ap_loans_paid();

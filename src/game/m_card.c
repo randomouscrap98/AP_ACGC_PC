@@ -1,4 +1,7 @@
 #include "m_card.h"
+#ifdef AP_HOOKS
+#include "gc_ap_hooks.h"
+#endif
 
 #include "card.h"
 #include "card/CARDBios.h"
@@ -3615,6 +3618,9 @@ static int mCD_SaveHome_ChangeErrCode(int err_code) {
 static void mCD_create_famicom_file(int chan) {
     if (mLd_PlayerManKindCheck() == FALSE) {
         famicom_internal_data_save();
+#ifdef AP_HOOKS
+        gc_ap_card_save(chan); // AP sidecar file next to the town (gc_ap_state_card.c)
+#endif
     }
 }
 
@@ -3925,6 +3931,9 @@ extern void mCD_LoadLand(void) {
     }
 
     mCD_ClearMemMgr_com2(mgr);
+#ifdef AP_HOOKS
+    gc_ap_card_load(save_found ? save_chan : -1); // AP sidecar of this town, or none for a new one
+#endif
     
     if (mFRm_CheckSaveData_common(Save_GetPointer(save_check), Save_Get(land_info).id) && Save_Get(save_check).version == 5) {
         bcopy(&Save_Get(save_check).time, Save_GetPointer(saved_auto_nwrite_time), sizeof(lbRTC_time_c));

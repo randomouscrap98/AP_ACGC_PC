@@ -3,7 +3,12 @@
 #ifndef PC_SPANTEXT_H
 #define PC_SPANTEXT_H
 
+#ifdef TARGET_PC
 #include "pc_platform.h"
+#else
+#include "types.h"
+#include <stdint.h>
+#endif
 #include "pc_menu_util.h" // PC_RGBA, PC_COL_*
 #include "ap_archipelago.h" // AP_CTRL_* codes
 

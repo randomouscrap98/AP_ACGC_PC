@@ -6,6 +6,9 @@
 #undef _MATH_H_
 #include_next <math.h>
 #define _MATH_H_
+#elif defined(AP_GC_UNIT)
+// AP units on GC: types.h already brings MSL's math (MSL_C/w_math.h), which this file's own list clashes with
+#include "types.h"
 #else
 
 #define NAN       (0.0f / 0.0f)

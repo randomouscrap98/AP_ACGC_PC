@@ -9,6 +9,12 @@
 
 #include <math.h>
 
+#ifndef TARGET_PC
+// pc_platform.h's widescreen tags; GC's emu64 skips no-op tags, so their values don't matter there
+#define PC_NOOP_WIDESCREEN_STRETCH     0xAC5701u
+#define PC_NOOP_WIDESCREEN_STRETCH_OFF 0xAC5700u
+#endif
+
 void pc_menu_set_font_matrix(GRAPH* graph) {
     static Mtx proj;
     static int init = 0;

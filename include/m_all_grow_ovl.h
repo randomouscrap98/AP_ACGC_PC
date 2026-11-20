@@ -166,6 +166,11 @@ extern void mAGrw_SearchDump(mFI_unit_c* dump_info);
 extern void mAGrw_SpoilKabuIsland(Island_c* island);
 extern void mAGrw_RenewalFgItem_ovl(lbRTC_time_c* now_time, int* deposit_haniwa);
 
+#if defined(TARGET_PC) || defined(AP_HOOKS)
+// Static in the matching build; the AP code calls it (pc_ap_logic.c)
+extern void mAGrw_ClearAllCarp(mFM_fg_c* fg_block);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

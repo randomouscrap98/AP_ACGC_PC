@@ -10,8 +10,13 @@
 #include "pc_settings.h"
 #include "pc_settings_menu.h"
 #include "pc_pause_menu.h" // to get some of those juicy externs
-#include "pc_platform.h"
+#include "pc_ap_platform.h"
+#ifndef PC_AP_VERSION
+#include "pc_ap_version.h" // GC: configure.py writes it from the apworld manifest (PC: CMake defines)
+#endif
+#ifdef TARGET_PC
 #include "pc_debug.h"
+#endif
 #include "m_font.h"
 #include "m_museum_display.h"
 #include "m_common_data.h" // clip.animal_logo_clip
@@ -21,6 +26,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 // Default to yes visible
@@ -109,8 +115,8 @@ static void pc_ap_draw_seed(struct game_s* game, f32 status_y) {
 
 typedef struct {
   char text[_APO_MAXSTRING];
-  Uint32 born;    // pc_ticks_ms() time
-  Uint32 expires; // pc_ticks_ms() time
+  u32 born;    // pc_ap_plat_ms() time
+  u32 expires; // pc_ap_plat_ms() time
   f32 y;          // where it's drawn now (slides toward its slot); < 0 = not drawn yet
 } apo_toast;
 
@@ -121,10 +127,10 @@ static int s_toast_count = 0;
 // Drop expired toasts and pull new ones from the DLL while there's room.
 // Runs every frame, even when the overlay is hidden, so timers keep going.
 static void pc_ap_update_toasts(void) {
-  Uint32 now = pc_ticks_ms();
+  u32 now = pc_ap_plat_ms();
   int keep = 0;
   for(int i = 0; i < s_toast_count; i++) {
-    if((Sint32)(s_toasts[i].expires - now) > 0) {
+    if((s32)(s_toasts[i].expires - now) > 0) {
       s_toasts[keep++] = s_toasts[i];
     }
   }
@@ -142,7 +148,7 @@ static void pc_ap_update_toasts(void) {
   if(max > _APO_TOAST_SLOTS) max = _APO_TOAST_SLOTS;
   while(s_toast_count < max && ap_pop_toast(s_toasts[s_toast_count].text, _APO_MAXSTRING)) {
     s_toasts[s_toast_count].born = now;
-    s_toasts[s_toast_count].expires = now + (Uint32)g_pc_settings.ap_toast_seconds * 1000;
+    s_toasts[s_toast_count].expires = now + (u32)g_pc_settings.ap_toast_seconds * 1000;
     s_toasts[s_toast_count].y = -1.0f;
     s_toast_count++;
   }
@@ -158,16 +164,16 @@ void pc_ap_overlay_toast(const char* text) {
     s_toast_count--;
   }
   snprintf(s_toasts[s_toast_count].text, _APO_MAXSTRING, "%s", text);
-  s_toasts[s_toast_count].born = pc_ticks_ms();
-  s_toasts[s_toast_count].expires = s_toasts[s_toast_count].born + (Uint32)g_pc_settings.ap_toast_seconds * 1000;
+  s_toasts[s_toast_count].born = pc_ap_plat_ms();
+  s_toasts[s_toast_count].expires = s_toasts[s_toast_count].born + (u32)g_pc_settings.ap_toast_seconds * 1000;
   s_toasts[s_toast_count].y = -1.0f;
   s_toast_count++;
 }
 
 // 0-1: fades in over the first _APO_TOAST_FADE_IN_MS, out over the last _APO_TOAST_FADE_OUT_MS
-static f32 apo_toast_alpha(const apo_toast* t, Uint32 now) {
-  f32 in = (f32)(Sint32)(now - t->born) / _APO_TOAST_FADE_IN_MS;
-  f32 out = (f32)(Sint32)(t->expires - now) / _APO_TOAST_FADE_OUT_MS;
+static f32 apo_toast_alpha(const apo_toast* t, u32 now) {
+  f32 in = (f32)(s32)(now - t->born) / _APO_TOAST_FADE_IN_MS;
+  f32 out = (f32)(s32)(t->expires - now) / _APO_TOAST_FADE_OUT_MS;
   f32 a = in < out ? in : out;
   if(a < 0.0f) return 0.0f;
   return a > 1.0f ? 1.0f : a;
@@ -175,11 +181,15 @@ static f32 apo_toast_alpha(const apo_toast* t, Uint32 now) {
 
 // Toasts, top left, one line each, oldest on top. When one goes, the ones below slide up.
 static void pc_ap_draw_toasts(struct game_s* game) {
-  static Uint32 last;
-  Uint32 now = pc_ticks_ms();
+  static u32 last;
+  u32 now = pc_ap_plat_ms();
   f32 dt = (f32)(now - last);
   // share of the way to the target this frame (exponential ease; a long gap snaps)
+#ifdef TARGET_PC
   f32 step = 1.0f - expf(-dt / _APO_TOAST_SLIDE_MS);
+#else
+  f32 step = dt / (dt + _APO_TOAST_SLIDE_MS); // GC's MSL has no expf; about the same for frame-sized dt
+#endif
   f32 x = _APO_LEFT;
   f32 slot = _APO_TOP;
   last = now;
@@ -200,8 +210,15 @@ static void pc_ap_draw_toasts(struct game_s* game) {
 
 // Seeds from before 0.5.0 (or without a version) don't load correctly
 static int apo_version_compatible(const char* v) {
-  int major, minor;
-  if(sscanf(v, "%d.%d", &major, &minor) != 2) {
+  // "<major>.<minor>": strtol, not sscanf (GC's MSL has none)
+  char* end;
+  long major = strtol(v, &end, 10);
+  if(end == v || *end != '.') {
+    return 0;
+  }
+  const char* m = end + 1;
+  long minor = strtol(m, &end, 10);
+  if(end == m) {
     return 0;
   }
   return major > 0 || minor >= APO_OLDEST_COMPATIBLE;
@@ -225,10 +242,12 @@ static f32 pc_ap_draw_version(struct game_s* game) {
   } else {
     snprintf(output, sizeof(output), AP_CTRL_RED "v%s (%s)", PC_AP_VERSION_FULL, seed);
   }
+#ifdef TARGET_PC
   if(g_pc_debug.enabled) {
     size_t len = strlen(output);
     snprintf(output + len, sizeof(output) - len, AP_CTRL_YELLOW " DEBUG");
   }
+#endif
   f32 y = _APO_BOTTOM(output);
   pc_span_boxtext(game, output, _APO_RIGHT(output), y, _APO_SCALE);
   return y;

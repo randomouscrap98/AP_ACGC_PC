@@ -16,6 +16,11 @@ extern "C" {
 // void *memset(void *dest, int ch, size_t count);
 // int memcmp(const void *ptr1, const void *ptr2, size_t num);
 
+#ifdef AP_GC_UNIT
+// AP units on GC (gc/, pc/src/pc_ap_*): the DOL's MSL functions the decomp units declare elsewhere
+#include "_mem.h"
+void *memmove(void *dest, const void *src, size_t num);
+#endif
 size_t strlen(const char *s);
 long strtol(const char *str, char **end, int base);
 char *strcpy(char *dest, const char *src);

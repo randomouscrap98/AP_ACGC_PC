@@ -61,6 +61,11 @@ extern void mMsm_DepositFossil(u8 deposit_record, int fossil_count, u16* cancel_
 extern void mMsm_SetCompMail();
 extern void mMsm_SendCompMail();
 
+#if defined(TARGET_PC) || defined(AP_HOOKS)
+// Static in the matching build; the AP code calls it (pc_ap_logic.c)
+extern void mMsm_GetFossil(mActor_name_t* fossil);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

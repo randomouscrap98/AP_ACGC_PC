@@ -10,6 +10,12 @@
 
 #define RAND_MAX 32767
 
+#ifdef AP_GC_UNIT
+// AP units on GC: the DOL's malloc (libc64 malloc_arena) and strtol
+void* malloc(size_t size);
+void free(void* ptr);
+long strtol(const char *str, char **end, int base);
+#endif
 void srand(unsigned int seed);
 int rand(void);
 void abort(void);

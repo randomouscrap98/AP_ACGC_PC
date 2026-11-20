@@ -63,6 +63,12 @@ extern void mBGM_init();
 extern void mBGM_cleanup();
 extern void mBGM_reset();
 
+#if defined(TARGET_PC) || defined(AP_HOOKS)
+// Static in the matching build; the AP code calls it (pc_ap_logic.c)
+extern void mBGMFieldNorm_make_req(void);
+extern void mBGMFieldNorm_delete_req(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

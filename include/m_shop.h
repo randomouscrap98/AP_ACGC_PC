@@ -267,6 +267,12 @@ extern void mSP_SelectRandomItemToAGB();
 extern const char* mSP_ShopStatus2String(int status);
 extern mActor_name_t mSP_GetRandomStationToyItemNo();
 
+#if defined(TARGET_PC) || defined(AP_HOOKS)
+// Static in the matching build; the AP code calls it (pc_ap_logic.c)
+extern int mSP_get_cloth_season(void);
+extern int mSP_ItemNo2GoodsListCategory(mActor_name_t item_no);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

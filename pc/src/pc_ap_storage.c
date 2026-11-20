@@ -28,11 +28,11 @@ void pc_ap_storage_load(pc_ap_storage* s, struct ini_t* ini) {
     const char* v = pc_ap_ini_get_str(ini, PC_AP_STORAGE_SECTION, key);
     while(v != NULL && *v != '\0' && s->count[p] < PC_AP_STORAGE_SLOTS) {
       char* end;
-      unsigned long item = strtoul(v, &end, 16);
+      long item = strtol(v, &end, 16); // strtol: GC's MSL has no strtoul (ids fit)
       if(end == v) {
         break; // not a number: ignore the rest
       }
-      if(item != EMPTY_NO && item <= 0xFFFF) {
+      if(item > 0 && item != EMPTY_NO && item <= 0xFFFF) {
         s->items[p][s->count[p]++] = (mActor_name_t)item;
       }
       v = *end == ',' ? end + 1 : end;

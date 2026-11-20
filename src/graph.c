@@ -31,10 +31,15 @@
 #include "pc_sound_test.h"
 #include "pc_platform.h"
 #include "pc_pause_menu.h"
-#include "pc_ap_overlay.h"
 #include "pc_text_draw.h"
 #include "pc_profiler.h"
 extern int g_pc_running;
+#endif
+#ifdef AP_HOOKS
+#include "pc_ap_overlay.h"
+#ifndef TARGET_PC
+#include "gc_ap_hooks.h"
+#endif
 #endif
 
 GRAPH graph_class;
@@ -387,11 +392,16 @@ static void graph_main(GRAPH* this, GAME* game) {
         pc_profiler_add_time(PC_PROF_TIMER_GAME_LOGIC, pc_prof_t);
     }
 #else
+#ifdef AP_HOOKS
+    gc_ap_frame_begin(); // AP client mailbox, slot_data, text pool (PC: pc_main.c / above)
+#endif
     game_main(game);
 #endif
     PC_DIAG(10, "graph_main: game_main returned, frame_counter=%d\n", this->frame_counter);
 #ifdef TARGET_PC
     pc_pause_menu_draw(game);
+#endif
+#ifdef AP_HOOKS
     pc_ap_overlay_draw(game);
 #endif
     GRAPH_SET_DOING_POINT(this, GAME_MAIN_FINISHED);

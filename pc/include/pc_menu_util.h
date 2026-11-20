@@ -2,7 +2,12 @@
 #ifndef PC_MENU_UTIL_H
 #define PC_MENU_UTIL_H
 
+#ifdef TARGET_PC
 #include "pc_platform.h"
+#else
+#include "types.h"
+#include <stdint.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {

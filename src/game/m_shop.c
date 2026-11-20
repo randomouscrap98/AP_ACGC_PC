@@ -322,7 +322,7 @@ static int mSP_CountElementInCommonList_collect(mActor_name_t* list, int* select
 }
 
 /* PC: also used by the Catalogsanity picker (pc_ap_logic.c) */
-#ifndef TARGET_PC
+#if !defined(TARGET_PC) && !defined(AP_HOOKS) // AP code calls it (pc_ap_logic.c)
 static
 #endif
 int mSP_get_cloth_season() {
@@ -791,7 +791,7 @@ extern int mSP_SearchItemCategoryPriority(mActor_name_t item_no, int category, i
 }
 
 /* PC: also used by the Catalogsanity hand-over check (pc_ap_logic.c) */
-#ifndef TARGET_PC
+#if !defined(TARGET_PC) && !defined(AP_HOOKS) // AP code calls it (pc_ap_logic.c)
 static
 #endif
 int mSP_ItemNo2GoodsListCategory(mActor_name_t item_no) {
