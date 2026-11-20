@@ -1,6 +1,7 @@
 // GC backend of ap_archipelago.h / ap_slotdata.h: the same functions the PC game code calls in ap_client.dll,
 // answered from the RAM mailbox (gc_ap_mailbox.h) that the PC client (apworld gc_client.py) fills.
 #include "gc_ap_mailbox.h"
+#include "gc_ap_card.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 #include "ap_log.h"
@@ -141,6 +142,11 @@ const ap_connectstate* ap_getconnectstate(void) {
       snprintf(gc_ap_cs.last_refuse_reason, sizeof(gc_ap_cs.last_refuse_reason),
                "Another slot: restart the game to change slots");
     }
+  }
+  // The title's card check (gc_ap_state_card.c): another slot's town on the card
+  if(gc_ap_cs.state != AP_CSTATE_SLOTREFUSED && gc_ap_card_title_refusal() != NULL) {
+    gc_ap_cs.state = AP_CSTATE_SLOTREFUSED;
+    snprintf(gc_ap_cs.last_refuse_reason, sizeof(gc_ap_cs.last_refuse_reason), "%s", gc_ap_card_title_refusal());
   }
   return &gc_ap_cs;
 }

@@ -38,6 +38,10 @@ int pc_ap_plat_take_player(void) {
   return -1;
 }
 
+int pc_ap_plat_title_ready(void) {
+  return gc_ap_card_title_ready();
+}
+
 void gc_ap_frame_begin(void) {
   gc_ap_mailbox_frame(); // header, heartbeat, client timeout
   pc_text_begin_frame();

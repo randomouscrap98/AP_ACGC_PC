@@ -15,4 +15,10 @@ void gc_ap_card_newer_save(void);
 // 1 after gc_ap_card_newer_save
 int gc_ap_card_newer(void);
 
+// Title screen, every frame once the slot is known: steps the card check (async, a step per frame), then watches
+// for a card going in or out (checks again). 1 = no town on the cards, or the first one's AP file is this slot's
+int gc_ap_card_title_ready(void);
+// Why the title check refuses Start (NULL = it doesn't): the overlay's status line
+const char* gc_ap_card_title_refusal(void);
+
 #endif

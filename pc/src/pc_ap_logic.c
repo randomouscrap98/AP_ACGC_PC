@@ -314,6 +314,10 @@ int pc_ap_start_allowed(void) {
   return ap_roomplayer_valid(&ap_getconnectstate()->roomplayer);
 }
 
+int pc_ap_title_start_ok(void) {
+  return pc_ap_start_allowed() && pc_ap_plat_title_ready();
+}
+
 int pc_ap_loan_amount(int loan) {
   return pc_ap_loansanity_amount(&g_ap.loans, loan);
 }

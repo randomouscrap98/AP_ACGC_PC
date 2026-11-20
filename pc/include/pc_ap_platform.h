@@ -26,6 +26,9 @@ void pc_ap_plat_frame(struct game_play_s* play);
 void pc_ap_plat_saved(int ok);
 // Player select starts this player (-1 = ask as usual)
 int pc_ap_plat_take_player(void);
+// Title screen, every frame once the slot is known: 1 = Start may load the town (PC: always; GC: the card's
+// town is this slot's or there is none, else the reason is on the overlay's status line)
+int pc_ap_plat_title_ready(void);
 
 #ifdef __cplusplus
 }

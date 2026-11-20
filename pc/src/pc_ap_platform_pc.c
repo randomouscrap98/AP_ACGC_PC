@@ -34,6 +34,10 @@ void pc_ap_plat_saved(int ok) {
   pc_automated_saved(ok);
 }
 
+int pc_ap_plat_title_ready(void) {
+  return 1; // saves are per slot already (saves/ap_<seed>_<team>_<player>)
+}
+
 int pc_ap_plat_take_player(void) {
   return pc_automated_take_player(); // -1 unless a render test loads a save
 }

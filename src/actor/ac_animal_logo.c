@@ -279,10 +279,12 @@ static void aAL_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
     aAL_setupAction(actor, game, aAL_ACTION_6);
   }
   else if (
-     ((gamePT->pads[PAD0].on.button & BUTTON_START) == BUTTON_START || (gamePT->pads[PAD0].on.button & BUTTON_A) == BUTTON_A) &&
 #ifdef AP_HOOKS
-     pc_ap_start_allowed() && // AP: not before the slot's slot_data (the overlay's status line says why)
+     // AP: not before the slot's slot_data, nor (GC) with another slot's town on the card; the overlay's status
+     // line says why. First, so the GC card check runs every frame
+     pc_ap_title_start_ok() &&
 #endif
+     ((gamePT->pads[PAD0].on.button & BUTTON_START) == BUTTON_START || (gamePT->pads[PAD0].on.button & BUTTON_A) == BUTTON_A) &&
      mLd_CheckStartFlag() == TRUE &&
      aAL_wipe_end_check(game) == TRUE &&
      mTD_tdemo_button_ok_check()

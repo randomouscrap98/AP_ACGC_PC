@@ -5,14 +5,16 @@
 //   NES save, which does the same); gc_ap_card_load reads it right after the town loads (end of mCD_LoadLand).
 // The write goes through a backup name like the NES save, so a failed write leaves the old file.
 // The game's own town file is never touched.
+// The title check (end of this file) keeps Start from loading a town that isn't this slot's.
 #include "gc_ap_card.h"
 #include "pc_ap_state.h"
 #include "pc_ap_settings.h"
 #include "pc_ap_logic.h"
 #include "pc_ap_platform.h"
 #include "ap_archipelago.h"
-#include "m_malloc.h"
+#include "m_card.h"
 #include "dolphin/card.h"
+#include "dolphin/exi.h"
 #include "dolphin/os.h"
 
 #include <ini.h>
@@ -46,6 +48,9 @@ typedef struct {
 static gc_ap_card_file s_card ATTRIBUTE_ALIGN(32);
 // A newer client wrote the file: never write over it (pc_ap_plat_newer_save)
 static int s_card_locked;
+// CARDMount's work area, for every card access here. Static: the title check runs over several frames, and the
+// zelda arena is made anew with each scene (the title's demo can start in between)
+static u8 s_card_work[CARD_WORKAREA_SIZE] ATTRIBUTE_ALIGN(32);
 
 // The text slot a sidecar file name stands for
 static char* gc_ap_card_text(const char* filename, int* max) {
@@ -119,15 +124,9 @@ static s32 gc_ap_card_mount(s32 chan, void* work) {
 
 // Reads the AP file of the town on chan into the image. 1 = a usable file
 static int gc_ap_card_read(s32 chan) {
-  void* work;
   CARDFileInfo info;
   s32 result;
-  work = zelda_malloc_align(CARD_WORKAREA_SIZE, 32);
-  if(work == NULL) {
-    OSReport("[AP] card load: no memory\n");
-    return 0;
-  }
-  result = gc_ap_card_mount(chan, work);
+  result = gc_ap_card_mount(chan, s_card_work);
   if(result == CARD_RESULT_READY) {
     result = CARDOpen(chan, GC_AP_CARD_FILE, &info);
     if(result == CARD_RESULT_READY) {
@@ -136,7 +135,6 @@ static int gc_ap_card_read(s32 chan) {
     }
     CARDUnmount(chan);
   }
-  zelda_free(work);
   if(result != CARD_RESULT_READY || s_card.magic != GC_AP_CARD_MAGIC) {
     // Missing (AP state zeroed: only errs toward giving Bells again, as on PC) or unreadable
     OSReport("[AP] card load: no AP file (%d)\n", result);
@@ -190,17 +188,12 @@ static void gc_ap_card_fill(void) {
 // Writes the image as GC_AP_CARD_FILE: old file renamed to the temp name, new one created and written,
 // then the temp one deleted (famicom.cpp's memcard_data_save, minus the icon)
 static s32 gc_ap_card_write(s32 chan) {
-  void* work = zelda_malloc_align(CARD_WORKAREA_SIZE, 32);
   CARDFileInfo info;
   CARDStat stat;
   s32 result;
   s32 free_bytes, free_files;
-  if(work == NULL) {
-    return CARD_RESULT_FATAL_ERROR;
-  }
-  result = gc_ap_card_mount(chan, work);
+  result = gc_ap_card_mount(chan, s_card_work);
   if(result != CARD_RESULT_READY) {
-    zelda_free(work);
     return result;
   }
   // Only next to a town save
@@ -247,7 +240,6 @@ static s32 gc_ap_card_write(s32 chan) {
   CARDDelete(chan, GC_AP_CARD_TEMP);
 unmount:
   CARDUnmount(chan);
-  zelda_free(work);
   return result;
 }
 
@@ -264,4 +256,178 @@ void gc_ap_card_save(s32 chan) {
   if(result != CARD_RESULT_READY) {
     OSReport("[AP] card save failed (%d)\n", result);
   }
+}
+
+// --- Title check: Start only loads a town of this slot -------------------------------------------------------
+// mCD_LoadLand takes the town of the first card that has one; every town there must have this slot's AP file
+// (a plain town or another slot's is refused, as PC never imports one). No town at all: a new one is made, on
+// the first card with room for it, which then needs one more block for the AP file.
+// The game's own card code steps its async calls once per frame (mCD_*_bg), so does this: no stall on the title.
+
+enum {
+  GC_AP_CHECK_START, // (again) from channel 0
+  GC_AP_CHECK_PROBE,
+  GC_AP_CHECK_MOUNT,
+  GC_AP_CHECK_FS,    // CARDCheck
+  GC_AP_CHECK_READ,  // the AP file's header
+  GC_AP_CHECK_DONE,
+};
+
+static int s_check_step = GC_AP_CHECK_START;
+static s32 s_check_chan;
+static int s_check_present[2]; // EXIProbe (card in the slot, as CARDProbe) when the check began: a change checks again
+static int s_check_new_town_chan; // first card with room for a new town (-1 = none yet)
+static const char* s_check_room_refusal; // that card is short of the AP file's block (counts if no card has a town)
+static const char* s_check_refusal;
+static CARDFileInfo s_check_info;
+static u8 s_check_header[CARD_READ_SIZE] ATTRIBUTE_ALIGN(32); // the start of gc_ap_card_file
+
+static void gc_ap_check_done(const char* refusal);
+
+// No town on this card: the next one (or done: no town anywhere, a new one is made)
+static void gc_ap_check_next_chan(void) {
+  s_check_chan++;
+  if(s_check_chan < 2) {
+    s_check_step = GC_AP_CHECK_PROBE;
+  } else {
+    gc_ap_check_done(s_check_room_refusal);
+  }
+}
+
+static void gc_ap_check_done(const char* refusal) {
+  s_check_refusal = refusal;
+  s_check_step = GC_AP_CHECK_DONE;
+  if(refusal != NULL) {
+    OSReport("[AP] card check: %s\n", refusal);
+  }
+}
+
+// The AP file's header against the slot (the town is on this card)
+static const char* gc_ap_check_header(void) {
+  const gc_ap_card_file* f = (const gc_ap_card_file*)s_check_header;
+  const ap_roomplayer* rp = &ap_getconnectstate()->roomplayer;
+  if(f->magic != GC_AP_CARD_MAGIC) {
+    return "This card's town has no AP file: use another card";
+  }
+  if(f->version > GC_AP_CARD_VERSION) {
+    return "This card's AP file is from a newer version";
+  }
+  if(strncmp(f->seed, rp->seed, sizeof(f->seed) - 1) != 0 || f->team != rp->team || f->slot != rp->player) {
+    return "This card's town is from another AP slot";
+  }
+  return NULL;
+}
+
+// Mounted card with no town: a new town is made on the first card with room for it (mCD_LoadLand's cond 0)
+static void gc_ap_check_room(s32 chan) {
+  s32 free_bytes, free_files;
+  if(s_check_new_town_chan >= 0 || CARDFreeBlocks(chan, &free_bytes, &free_files) != CARD_RESULT_READY ||
+     free_bytes < mCD_LAND_SAVE_SIZE || free_files < 1) {
+    return;
+  }
+  s_check_new_town_chan = chan;
+  if(free_bytes < mCD_LAND_SAVE_SIZE + GC_AP_CARD_SIZE || free_files < 2) {
+    s_check_room_refusal = "Memory card needs 1 more free block for the AP file";
+  }
+}
+
+static void gc_ap_check_step(void) {
+  s32 result;
+  s32 sector_size;
+  switch(s_check_step) {
+    case GC_AP_CHECK_START:
+      s_check_present[0] = EXIProbe(0);
+      s_check_present[1] = EXIProbe(1);
+      s_check_new_town_chan = -1;
+      s_check_room_refusal = NULL;
+      s_check_refusal = NULL;
+      s_check_chan = 0;
+      s_check_step = GC_AP_CHECK_PROBE;
+      break;
+    case GC_AP_CHECK_PROBE:
+      result = CARDProbeEx(s_check_chan, NULL, &sector_size);
+      if(result == CARD_RESULT_BUSY) {
+        break;
+      }
+      // No card, or not one the game takes (mCD_LoadLand checks the sector size too)
+      if(result != CARD_RESULT_READY || sector_size != GC_AP_CARD_SIZE ||
+         CARDMountAsync(s_check_chan, s_card_work, NULL, NULL) != CARD_RESULT_READY) {
+        gc_ap_check_next_chan();
+        break;
+      }
+      s_check_step = GC_AP_CHECK_MOUNT;
+      break;
+    case GC_AP_CHECK_MOUNT:
+      result = CARDGetResultCode(s_check_chan);
+      if(result == CARD_RESULT_BUSY) {
+        break;
+      }
+      if((result == CARD_RESULT_READY || result == CARD_RESULT_BROKEN) &&
+         CARDCheckAsync(s_check_chan, NULL) == CARD_RESULT_READY) {
+        s_check_step = GC_AP_CHECK_FS;
+        break;
+      }
+      if(result == CARD_RESULT_READY || result == CARD_RESULT_BROKEN || result == CARD_RESULT_ENCODING) {
+        CARDUnmount(s_check_chan);
+      }
+      gc_ap_check_next_chan(); // unreadable card: the game says what's wrong with it
+      break;
+    case GC_AP_CHECK_FS:
+      result = CARDGetResultCode(s_check_chan);
+      if(result == CARD_RESULT_BUSY) {
+        break;
+      }
+      if(result != CARD_RESULT_READY) {
+        CARDUnmount(s_check_chan);
+        gc_ap_check_next_chan();
+        break;
+      }
+      // Directory lookups: no card access after the mount
+      if(CARDOpen(s_check_chan, GC_AP_CARD_TOWN, &s_check_info) != CARD_RESULT_READY) {
+        gc_ap_check_room(s_check_chan);
+        CARDUnmount(s_check_chan);
+        gc_ap_check_next_chan();
+        break;
+      }
+      CARDClose(&s_check_info);
+      // The town mCD_LoadLand takes
+      result = CARDOpen(s_check_chan, GC_AP_CARD_FILE, &s_check_info);
+      if(result == CARD_RESULT_READY) {
+        memset(s_check_header, 0, sizeof(s_check_header));
+        result = CARDReadAsync(&s_check_info, s_check_header, sizeof(s_check_header), 0, NULL);
+        if(result == CARD_RESULT_READY) {
+          s_check_step = GC_AP_CHECK_READ;
+          break;
+        }
+        CARDClose(&s_check_info);
+      }
+      CARDUnmount(s_check_chan);
+      // No AP file (refused); unreadable (let it load: the card load then counts it missing, as PC does)
+      gc_ap_check_done(result == CARD_RESULT_NOFILE ? "This card's town has no AP file: use another card" : NULL);
+      break;
+    case GC_AP_CHECK_READ:
+      result = CARDGetResultCode(s_check_chan);
+      if(result == CARD_RESULT_BUSY) {
+        break;
+      }
+      CARDClose(&s_check_info);
+      CARDUnmount(s_check_chan);
+      gc_ap_check_done(result == CARD_RESULT_READY ? gc_ap_check_header() : NULL);
+      break;
+    case GC_AP_CHECK_DONE:
+      // A card in or out: check again
+      if(EXIProbe(0) != s_check_present[0] || EXIProbe(1) != s_check_present[1]) {
+        s_check_step = GC_AP_CHECK_START;
+      }
+      break;
+  }
+}
+
+int gc_ap_card_title_ready(void) {
+  gc_ap_check_step();
+  return s_check_step == GC_AP_CHECK_DONE && s_check_refusal == NULL;
+}
+
+const char* gc_ap_card_title_refusal(void) {
+  return s_check_step == GC_AP_CHECK_DONE ? s_check_refusal : NULL;
 }

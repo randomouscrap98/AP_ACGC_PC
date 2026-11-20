@@ -16,6 +16,9 @@ extern "C" {
 
 // Nonzero once we know which room/slot we're in, so the save root can be set
 int pc_ap_start_allowed(void);
+// Title screen, every frame while Start could be pressed: pc_ap_start_allowed and the platform's own check
+// (GC: the town on the memory card is this slot's, pc_ap_plat_title_ready)
+int pc_ap_title_start_ok(void);
 
 // Every frame, right after ap_poll: the first time pc_ap_start_allowed is true
 // (slot_data is in), sets every module's config from slot_data (pc_ap_init).
