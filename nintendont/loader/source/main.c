@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "exi.h"
 #include "dip.h"
 #include "global.h"
+#include "ap_wait.h"
 #include "font.h"
 #include "FPad.h"
 #include "menu.h"
@@ -564,7 +565,7 @@ static void ApFixedSettings(void)
 	ncfg->MemCardBlocks = 0x2; // 251 blocks
 	ncfg->VideoScale = 0;
 	ncfg->VideoOffset = 0;
-	ncfg->CheatPath[0] = 0;
+	// CheatPath holds the AP card name (NIN_CFG_AP_CARD), set by ApWaitScreen: left alone
 }
 
 // AP: true when the config names a disc image that is still on its device
@@ -835,33 +836,8 @@ int main(int argc, char **argv)
 			ncfg->MaxPads = NIN_CFG_MAXPAD;
 			ncfg->MemCardBlocks = 0x2;//251 blocks
 		}
-		// AP: boot the saved disc image straight away while it's still there; otherwise the picker
+		// AP: no "B: Cancel Autoboot" window: ApWaitScreen below waits for the client anyway
 		ApFixedSettings();
-		if (ApSavedGameExists())
-			ncfg->Config |= NIN_CFG_AUTO_BOOT;
-		else
-			ncfg->Config &= ~NIN_CFG_AUTO_BOOT;
-
-		// Prevent autobooting if B is pressed
-		int i = 0;
-		while((ncfg->Config & NIN_CFG_AUTO_BOOT) && i < 1000000) // wait for wiimote re-synch
-		{
-			if (i == 0) {
-				PrintInfo();
-				PrintFormat(DEFAULT_SIZE, BLACK, 320 - 130, MENU_POS_Y + 20*10, "B: Pick another game"); // AP
-				GRRLIB_Render();
-				ClearScreen();
-			}
-			
-			FPAD_Update();
-
-			if (FPAD_Cancel(0)) {
-				ncfg->Config &= ~NIN_CFG_AUTO_BOOT;
-				break;
-			}
-
-			i++;
-		}
 	}
 	ReconfigVideo(rmode);
 	UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
@@ -873,14 +849,20 @@ int main(int argc, char **argv)
 		ncfg->VideoMode &= ~NIN_VID_PROG;
 
 	bool SaveSettings = false;
-	if(!(ncfg->Config & NIN_CFG_AUTO_BOOT))
+	if(argsboot == false)
+	{
+		// AP: the start screen: waits for the AP client (card name) and a disc image (A = picker). Always saved,
+		// so the chosen image is ready next time.
+		ApWaitScreen(ApSavedGameExists);
+		ApFixedSettings();
+		UseSD = (ncfg->Config & NIN_CFG_USB) == 0; // the picker may have switched devices
+		SaveSettings = true;
+	}
+	else if(!(ncfg->Config & NIN_CFG_AUTO_BOOT))
 	{
 		// Not autobooting.
 		// Prompt the user to select a device and game.
 		SaveSettings = SelectDevAndGame();
-		// AP: always save: the chosen disc image boots by itself next time
-		ApFixedSettings();
-		SaveSettings = true;
 	}
 	else
 	{
@@ -1110,9 +1092,14 @@ int main(int argc, char **argv)
 		snprintf(BasePath, sizeof(BasePath), "%s:/saves", GetRootDevice());
 		f_mkdir_char(BasePath);
 
-		char MemCardName[8];
-		memset(MemCardName, 0, 8);
-		if ( ncfg->Config & NIN_CFG_MC_MULTI )
+		char MemCardName[AP_CARD_NAME_MAX + 1]; // AP: room for the per-seed name
+		memset(MemCardName, 0, sizeof(MemCardName));
+		if (NIN_CFG_AP_CARD(ncfg)[0] != 0)
+		{
+			// AP: per-seed card named by the AP client (the kernel uses the same name, GCNCard.c)
+			memcpy(MemCardName, NIN_CFG_AP_CARD(ncfg), strnlen(NIN_CFG_AP_CARD(ncfg), AP_CARD_NAME_MAX));
+		}
+		else if ( ncfg->Config & NIN_CFG_MC_MULTI )
 		{
 			// "Multi" mode is enabled.
 			// Use one memory card for USA/PAL games,
@@ -1139,7 +1126,7 @@ int main(int argc, char **argv)
 			memcpy(MemCardName, &(ncfg->GameID), 4);
 		}
 
-		char MemCard[32];
+		char MemCard[80]; // AP: was 32
 		snprintf(MemCard, sizeof(MemCard), "%s/%s.raw", BasePath, MemCardName);
 		gprintf("Using %s as Memory Card.\r\n", MemCard);
 		FIL f;

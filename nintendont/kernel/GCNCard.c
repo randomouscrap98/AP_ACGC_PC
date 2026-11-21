@@ -13,7 +13,7 @@ extern vu32 TRIGame;
 static u8 *const GCNCard_base = (u8*)(0x11000000);
 
 typedef struct _GCNCard_ctx {
-	char filename[0x20];    // Memory Card filename.
+	char filename[0x40];    // Memory Card filename. (AP: 0x40 for the per-seed card name)
 	u8 *base;               // Base address.
 	u32 size;               // Size, in bytes.
 	u32 code;               // Memory card "code".
@@ -116,6 +116,14 @@ int GCNCard_Load(int slot)
 
 		// Append the file extension. (with NULL terminator)
 		memcpy(fname_ptr, ".raw", 5);
+	}
+	else if (slot == 0 && !ConfigGetConfig(NIN_CFG_CHEATS) && NIN_CFG_AP_CARD(ncfg)[0] != 0)
+	{
+		// AP: per-seed card named by the AP client in the loader ("/saves/<name>.raw")
+		const char *name = NIN_CFG_AP_CARD(ncfg);
+		int n = strnlen(name, AP_CARD_NAME_MAX);
+		memcpy(fname_ptr, name, n);
+		memcpy(fname_ptr + n, ".raw", 5);
 	}
 	else
 	{

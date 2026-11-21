@@ -27,6 +27,11 @@ typedef struct NIN_CFG
 	unsigned int		WiiUGamepadSlot;
 } NIN_CFG;
 
+// AP: the AP fork carries the per-seed memory card name ("ap_<seed>_<team>_<slot>", no extension) in CheatPath;
+// cheats are always off in the fork. Empty = upstream card naming.
+#define NIN_CFG_AP_CARD(cfg) ((cfg)->CheatPath)
+#define AP_CARD_NAME_MAX 40
+
 enum ninconfigbitpos
 {
 	NIN_CFG_BIT_CHEATS	= (0),
