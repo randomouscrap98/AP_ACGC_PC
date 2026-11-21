@@ -347,6 +347,10 @@ AP_GC_UNITS = [
     ("pc/src", "pc_ap_newgame.c"),
     ("pc/src", "pc_ap_villagers.c"),
     ("pc/src", "pc_ap_beach_logo.c"),
+    # Gameplay settings (GAME_ENHANCEMENTS)
+    ("pc/src", "pc_map_divination.c"),
+    ("pc/src", "pc_planting.c"),
+    ("pc/src", "pc_planting_marks.c"),
 ]
 AP_GC_CFLAGS = ["-lang=c99", "-d AP_GC_UNIT", "-i apclient/lib/ini"]
 AP_GC_COMPILER = "GC/3.0a5"

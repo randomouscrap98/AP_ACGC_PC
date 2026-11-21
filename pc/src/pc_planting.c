@@ -19,8 +19,19 @@
 #define PC_PLANTING_UT_X (BLOCK_X_NUM * UT_X_NUM)
 #define PC_PLANTING_UT_Z (BLOCK_Z_NUM * UT_Z_NUM)
 
-static f32 s_alpha[PC_PLANTING_UT_Z][PC_PLANTING_UT_X];
-static u32 s_drawn[PC_PLANTING_UT_Z][PC_PLANTING_UT_X]; // tick the mark was last drawn
+// Mark fades: only squares near the player ever have one (shown = within PC_PLANTING_RANGE, plus the few still
+// fading out), so a small grid that wraps around (square ut_x, ut_z -> [ut_z % 16][ut_x % 16]) is enough. Each entry
+// remembers its square; only a shown square takes over an entry, and no shown square is 16 squares from one that
+// is still fading out. (A table for the whole field cost 140 KB, too much on GC.)
+#define PC_PLANTING_FADE_GRID 16
+
+typedef struct {
+  s16 ut_x, ut_z; // the square this entry belongs to (-1 = none)
+  u32 drawn;      // tick it was last drawn
+  f32 alpha;
+} pc_planting_fade_c;
+
+static pc_planting_fade_c s_fade[PC_PLANTING_FADE_GRID][PC_PLANTING_FADE_GRID];
 static u32 s_tick = 1;
 static int s_last_setting = -1;
 static int s_player_ut_x = -100;
@@ -104,23 +115,30 @@ int pc_planting_tick(void) {
 }
 
 f32 pc_planting_fade(int ut_x, int ut_z, int shown, f32 dt) {
-  f32* a;
+  pc_planting_fade_c* e;
 
   if (ut_x < 0 || ut_z < 0 || ut_x >= PC_PLANTING_UT_X || ut_z >= PC_PLANTING_UT_Z) {
     return 0.0f;
   }
-  a = &s_alpha[ut_z][ut_x];
-  if (s_drawn[ut_z][ut_x] != s_tick && s_drawn[ut_z][ut_x] != s_tick - 1) {
-    *a = 0.0f; // wasn't a mark a moment ago
+  e = &s_fade[ut_z % PC_PLANTING_FADE_GRID][ut_x % PC_PLANTING_FADE_GRID];
+  if (e->ut_x != ut_x || e->ut_z != ut_z) {
+    if (!shown) {
+      return 0.0f; // out of range and not fading: leave the entry to its square
+    }
+    e->ut_x = (s16)ut_x;
+    e->ut_z = (s16)ut_z;
+    e->alpha = 0.0f;
+  } else if (e->drawn != s_tick && e->drawn != s_tick - 1) {
+    e->alpha = 0.0f; // wasn't a mark a moment ago
   }
-  s_drawn[ut_z][ut_x] = s_tick;
-  *a += (shown ? dt : -dt) / PC_PLANTING_FADE_FRAMES;
-  if (*a < 0.0f) {
-    *a = 0.0f;
-  } else if (*a > 1.0f) {
-    *a = 1.0f;
+  e->drawn = s_tick;
+  e->alpha += (shown ? dt : -dt) / PC_PLANTING_FADE_FRAMES;
+  if (e->alpha < 0.0f) {
+    e->alpha = 0.0f;
+  } else if (e->alpha > 1.0f) {
+    e->alpha = 1.0f;
   }
-  return *a;
+  return e->alpha;
 }
 
 // bg_item draw loop (bg_item_common_draw_loop_type1 + the fade): material, then the quad at each mark whose
@@ -156,6 +174,12 @@ static void pc_planting_draw(GRAPH* graph, Gfx** gfx_pp, bg_item_draw_list_c* dr
   gDPPipeSync((*gfx_pp)++);
   *gfx_pp = texture_z_light_fog_prim_bb_pal_opa(*gfx_pp);
 }
+
+// bg_item draw-list callbacks (pc_planting_draw.c_inc declares them for the data tables)
+void pc_planting_draw_dies(GRAPH* graph, Gfx** gfx_pp, bg_item_draw_list_c* draw_list, bg_item_draw_pos_c* draw_pos,
+                           Gfx** display_list_table);
+void pc_planting_draw_stunted(GRAPH* graph, Gfx** gfx_pp, bg_item_draw_list_c* draw_list,
+                              bg_item_draw_pos_c* draw_pos, Gfx** display_list_table);
 
 void pc_planting_draw_dies(GRAPH* graph, Gfx** gfx_pp, bg_item_draw_list_c* draw_list, bg_item_draw_pos_c* draw_pos,
                            Gfx** display_list_table) {

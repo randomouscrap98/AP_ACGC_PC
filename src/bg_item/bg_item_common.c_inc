@@ -1,5 +1,7 @@
-#ifdef TARGET_PC
+#ifdef GAME_ENHANCEMENTS
 #include "pc_planting.h"
+#endif
+#ifdef TARGET_PC
 #include "pc_outdoor_ftr.h"
 #endif
 #ifdef AP_HOOKS
@@ -2711,7 +2713,7 @@ static void bg_item_common_classifyitemDataTable(const GAME_PLAY* const play, bg
                         bg_item_common_outPutData(play, draw_pos, diff, type_data._00, &pos);
                     }
                 }
-#ifdef TARGET_PC
+#ifdef GAME_ENHANCEMENTS
                 // Planting ground marks: an empty square where a sapling wouldn't grow gets a mark, on the
                 // ground in the middle of the square (the crack's spot)
                 else if (*fg_p == EMPTY_NO) {
@@ -3107,7 +3109,7 @@ static void bg_item_common_move(GAME_PLAY* play, ACTOR* actorx, bg_item_common_c
     if (mFI_FGisUpDate() == TRUE) {
         flags |= 1;
     }
-#ifdef TARGET_PC
+#ifdef GAME_ENHANCEMENTS
     // Planting ground marks: the setting changed, rebuild the draw tables with (or without) them
     if (pc_planting_tick()) {
         flags |= 1;

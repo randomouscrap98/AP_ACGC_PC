@@ -2123,7 +2123,7 @@ static bg_item_draw_part_c shell_c_part = {
 #ifdef AP_HOOKS
 #include "pc_ap_beach_draw.c_inc"
 #endif
-#ifdef TARGET_PC
+#ifdef GAME_ENHANCEMENTS
 #include "pc_planting_draw.c_inc"
 #endif
 
@@ -2703,7 +2703,7 @@ static bg_item_draw_part_table_c draw_part_table_a[] = {
 #ifdef AP_HOOKS
     { &ap_beach_part, 2 },           // bIT_DRAW_TYPE_AP_BEACH
 #endif
-#ifdef TARGET_PC
+#ifdef GAME_ENHANCEMENTS
     { &pc_planting_dies_part, 0 },   // bIT_DRAW_TYPE_PC_PLANT_DIES
     { &pc_planting_stunted_part, 0 }, // bIT_DRAW_TYPE_PC_PLANT_STUNTED
 #endif

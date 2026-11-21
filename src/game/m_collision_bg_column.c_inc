@@ -118,7 +118,7 @@ extern void mCoBG_InitDecalCircle(void) {
 #ifndef BUGFIXES
     bzero(mCoBG_regist_circle_info, 3 * sizeof(mCoBG_regist_circle_info));
 #else
-    bzero(mCoBG_regist_circle_info, sizeof(mCoBG_regist_circle_info_c));
+    bzero(mCoBG_regist_circle_info, sizeof(mCoBG_regist_circle_info)); // the whole array (all 3 entries)
 #endif
     bzero(mCoBG_decal_circle, sizeof(mCoBG_decal_circle));
     mCoBG_regist_decal_circle_count = 0;

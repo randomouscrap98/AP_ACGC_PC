@@ -12,7 +12,6 @@
 #include "m_play.h"
 #include "libforest/gbi_extensions.h"
 
-#include <math.h>
 #include <string.h>
 
 // Layout in screen pixels (the map's model units are pixels too). Rows of the extra lines are smaller than the
@@ -231,6 +230,11 @@ static void pc_map_div_info(PcMapDivInfo* info, mMP_Ovl_c* map_ovl, mMP_LabelInf
 static Vtx pc_map_div_vtx[PC_MAP_DIV_SLICES_MAX * 4];
 static Gfx pc_map_div_dl[8 + PC_MAP_DIV_SLICES_MAX * 2];
 
+// Nearest, halves away from zero (lroundf; GC's MSL has none)
+static s16 pc_map_div_round(f32 v) {
+  return (s16)(v >= 0.0f ? (int)(v + 0.5f) : -(int)(-v + 0.5f));
+}
+
 static Vtx* pc_map_div_slice(Vtx* v, f32 y0, f32 y1, f32 t0, f32 t1) {
   static const f32 xs[2] = { PC_MAP_DIV_BUBBLE_LEFT, PC_MAP_DIV_BUBBLE_RIGHT };
   int i;
@@ -240,7 +244,7 @@ static Vtx* pc_map_div_slice(Vtx* v, f32 y0, f32 y1, f32 t0, f32 t1) {
     Vtx_t* vt = &v[i].v;
 
     vt->ob[0] = (s16)xs[i >> 1];
-    vt->ob[1] = (s16)lroundf((i & 1) ? y1 : y0); // rounded: the same pixel edge for every bubble
+    vt->ob[1] = pc_map_div_round((i & 1) ? y1 : y0); // rounded: the same pixel edge for every bubble
     vt->ob[2] = 0;
     vt->flag = 1;
     vt->tc[0] = (i >> 1) ? 128 * 32 : 0;
@@ -279,7 +283,12 @@ Gfx* pc_map_div_bubble(mMP_Ovl_c* map_ovl, mMP_LabelInfo_c* label_info, mMP_Labe
     lobes = 0;
     lobe_h = 0.0f;
   } else {
-    lobes = (int)ceilf((height - cap_top - cap_bottom) / lobe);
+    // rounded up (positive here; no ceilf on GC)
+    lobe_h = (height - cap_top - cap_bottom) / lobe;
+    lobes = (int)lobe_h;
+    if ((f32)lobes < lobe_h) {
+      lobes++;
+    }
     if (lobes > PC_MAP_DIV_SLICES_MAX - 2) {
       lobes = PC_MAP_DIV_SLICES_MAX - 2;
     }

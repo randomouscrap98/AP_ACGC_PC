@@ -43,6 +43,8 @@ static const gc_ap_gset gc_ap_gsets[GC_AP_GSET_NUM] = {
     [GC_AP_GSET_INSTANT_TEXT] = { &g_pc_settings.instant_text, 0, 1 },
     [GC_AP_GSET_BITE_SOUND] = { &g_pc_settings.bite_sound, 0, 1 },
     [GC_AP_GSET_LESS_MAIL] = { &g_pc_settings.less_mail, 0, 1 },
+    [GC_AP_GSET_MAP_DIVINATION] = { &g_pc_settings.map_divination, 0, 1 },
+    [GC_AP_GSET_PLANTING_MARKS] = { &g_pc_settings.planting_marks, 0, 1 },
 };
 
 static int gc_ap_gset_published;  // gset[] holds the game's values (first frame)

@@ -211,7 +211,7 @@ static int aESNT_before_talk_decide_talk_data_idx(EVENT_SANTA_ACTOR* santa, GAME
   }
   #else
   /* Use Jingle's actor block instead of GAME_PLAY's current block (player block) */
-  if (santa->npc_class.actor_class.block_x == event_common_p->bx && santa->npc_class.actor_class.block_x == event_common_p->bz) {
+  if (santa->npc_class.actor_class.block_x == event_common_p->bx && santa->npc_class.actor_class.block_z == event_common_p->bz) {
     talk_data_idx = aESNT_TALK_SAME_BLOCK + RANDOM(aESNT_TALK_SAME_BLOCK_NUM);
   }
   #endif

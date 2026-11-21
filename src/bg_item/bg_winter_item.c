@@ -144,7 +144,7 @@ enum {
 #ifdef AP_HOOKS
     bIT_DRAW_TYPE_AP_BEACH, /* AP Shellsanity (pc_ap_beach_draw.c_inc) */
 #endif
-#ifdef TARGET_PC
+#ifdef GAME_ENHANCEMENTS
     bIT_DRAW_TYPE_PC_PLANT_DIES,    /* planting ground marks (pc_planting_draw.c_inc) */
     bIT_DRAW_TYPE_PC_PLANT_STUNTED,
 #endif

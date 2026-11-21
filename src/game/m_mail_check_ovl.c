@@ -1016,6 +1016,10 @@ static u8 str_w_table[] = {
 
 static u8 str_x_table[] = {
   CHAR_m, CHAR_a,
+
+  #ifdef BUGFIXES
+  CHAR_CONTROL_CODE, 0
+  #endif
 };
 
 static u8 str_y_table[] = {
