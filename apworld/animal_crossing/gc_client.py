@@ -226,7 +226,7 @@ class ACGCContext(CommonContext):
         super().__init__(server_address, password)
         self.ram: Optional[DolphinRAM] = None
         self.mbox: Optional[Mailbox] = None
-        self.dolphin_status = "Not connected to Dolphin yet"
+        self.dolphin_status = ""  # set_dolphin_status
         self.checked_order: list[int] = []  # mailbox order of checked locations (append-only)
         self.checked_known: set[int] = set()  # the same ids, for lookups
         self.mbox_slot_key: Optional[tuple[str, int, int]] = None  # (seed, team, slot) the mailbox holds
@@ -235,6 +235,12 @@ class ACGCContext(CommonContext):
         self.toasts: list[str] = []  # waiting for the mailbox
         self.gset_client_gen = 0  # gset_client_gen we last wrote (the game zeroes it when it restarts)
         self.gset_game_gen: Optional[int] = None  # gset_game_gen last stored (None: not looked yet)
+
+    def set_dolphin_status(self, text: str) -> None:
+        # /dolphin's answer; a change is logged once (waiting at the start, connected, lost), never repeated
+        if text != self.dolphin_status:
+            logger.info(text)
+        self.dolphin_status = text
 
     async def server_auth(self, password_requested: bool = False) -> None:
         if password_requested and not self.password:
@@ -368,6 +374,10 @@ class ACGCContext(CommonContext):
             self.finished_game = True
 
 
+WAITING_DOLPHIN = "Waiting for Dolphin (start it with the patched game)"
+LOST_DOLPHIN = "Lost Dolphin, waiting for it again"
+
+
 async def dolphin_sync_task(ctx: ACGCContext) -> None:
     try:
         ctx.ram = DolphinRAM()
@@ -376,29 +386,39 @@ async def dolphin_sync_task(ctx: ACGCContext) -> None:
         logger.error("This client needs dolphin_memory_engine, which comes with Archipelago 0.6.1 and newer. "
                      "From source: pip install dolphin-memory-engine")
         return
+    connected = False  # the mailbox was found since Dolphin / the game was last lost: "lost" instead of "waiting"
     while not ctx.exit_event.is_set():
         sleep = 0.1
         try:
             if not ctx.ram.hook():
                 ctx.mbox = None
-                ctx.dolphin_status = "Dolphin not found (start it with the patched game)"
+                if connected or ctx.dolphin_status != LOST_DOLPHIN:  # "lost" stays until something changes
+                    ctx.set_dolphin_status(LOST_DOLPHIN if connected else WAITING_DOLPHIN)
+                connected = False
                 sleep = 2
             elif ctx.mbox is None or not ctx.mbox.valid():
                 ctx.mbox = Mailbox.find(ctx.ram)
                 if ctx.mbox:
-                    logger.info("Found the game's mailbox at %08X", ctx.mbox.addr)
-                    ctx.dolphin_status = "Connected to the game in Dolphin"
+                    logger.debug("Found the game's mailbox at %08X", ctx.mbox.addr)
+                    ctx.set_dolphin_status("Connected to the game in Dolphin")
+                    connected = True
                     ctx.mbox_slot_key = None
                     ctx.gset_game_gen = None
                 else:
-                    ctx.dolphin_status = "Dolphin is running, but no AP game found in it (yet)"
+                    ctx.set_dolphin_status("Lost the game in Dolphin, waiting for it again" if connected else
+                                           "Dolphin found, waiting for the AP game in it")
                     sleep = 1
             else:
                 ctx.sync()
         except Exception:
-            logger.error(traceback.format_exc())
+            # Dolphin closed or the game stopped mid-read: only "lost", no traceback; anything else is a bug
             ctx.mbox = None
             ctx.ram.unhook()
+            if ctx.ram.hook():
+                logger.error(traceback.format_exc())
+            else:
+                ctx.set_dolphin_status(LOST_DOLPHIN)
+                connected = False
             sleep = 2
         try:
             await asyncio.wait_for(ctx.watcher_event.wait(), sleep)

@@ -1407,6 +1407,10 @@ static void pc_ap_time_reload_update(void) {
 }
 
 int pc_ap_play_hold(GAME_PLAY* play) {
+#ifndef TARGET_PC
+  g_pc_pause_inv_open = play->submenu.process_status == mSM_PROCESS_PLAY &&
+                        play->submenu.current_menu_type == mSM_OVL_INVENTORY; // not a letter etc. opened from it
+#endif
   if(g_pc_paused) {
     return 1;
   }

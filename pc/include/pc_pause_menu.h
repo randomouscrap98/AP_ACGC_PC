@@ -13,6 +13,8 @@ extern "C" {
 struct game_s; /* matches typedef in game_h.h */
 
 extern int g_pc_paused;
+// GC: set by every play frame while the game's inventory is open (Z then opens the pause menu)
+extern int g_pc_pause_inv_open;
 
 /* Pausing is blocked while either of these is set (main menu / NES running). */
 extern int g_pc_title_main_menu_visible; /* set by ac_animal_logo */

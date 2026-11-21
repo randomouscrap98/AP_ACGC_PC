@@ -36,7 +36,13 @@ static void aNPS_think_main_proc(NPC_ACTOR* nactorx, GAME_PLAY* play) {
             }
         }
     } else {
+#ifdef AP_HOOKS
+        // Only while 0 (the card job still busy): -1 = started. Vanilla's <= 0 started a new mCD_InitGameStart_bg
+        // every frame of the fade; the cut-off one left stale card work areas that the first GC Save wrote into.
+        if (p_sel->strum_timer == 0.0f) {
+#else
         if (p_sel->strum_timer <= 0.0f) {
+#endif
             if (aNPS_setup_game_start(play) == TRUE) {
                 p_sel->strum_timer = -1.0f;
                 play->fade_color_value.c.a = 255;

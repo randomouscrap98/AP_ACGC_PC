@@ -36,6 +36,7 @@ int g_pc_paused = 0;
 /* Pausing is blocked while either is set: main menu (set by ac_animal_logo)
  * or NES running (its own pause, and pausing it crashes the game). */
 int g_pc_title_main_menu_visible = 0;
+int g_pc_pause_inv_open = 0;
 int g_pc_nes_active = 0;
 
 /* Drains the keys still held from confirming Resume so they don't leak into play. */
@@ -503,8 +504,10 @@ int pc_pause_menu_handle_event(const SDL_Event* e) {
     return 0;
 }
 #else
-// GC pad adapter: pad 1 (N64-style buttons in pad_t, as the game sees them). B+Z opens the menu (the second
-// button pressed while the first is held, either order); while paused A / B / Start / d-pad / stick drive it
+// GC pad adapter: pad 1 (N64-style buttons in pad_t, as the game sees them). Start pressed while Z is held opens the
+// menu, and so does Z while the game's inventory is open (g_pc_pause_inv_open); the game never sees that press
+// (Z alone still reaches it: room light etc.). Start closes the menu from any page (Settings: like B, for the
+// Apply prompt). While paused A / B / Start / d-pad / stick drive it
 // like the PC pad. Every pad's input is held from the game while paused and, after closing, until all buttons
 // are let go (the PC drain in padmgr.c).
 #define GC_STICK_PRESS   48 // stick range about +-80
@@ -545,8 +548,9 @@ void gc_ap_pause_pads(void* pads, int count) {
     int i;
 
     if (!g_pc_paused) {
-        // B+Z: both held now, and one of them is new this frame
-        if ((now & (BUTTON_B | BUTTON_Z)) == (BUTTON_B | BUTTON_Z) && (pressed & (BUTTON_B | BUTTON_Z))) {
+        int inv_open = g_pc_pause_inv_open;
+        g_pc_pause_inv_open = 0; // the next play frame sets it again; other scenes leave it 0
+        if (((now & BUTTON_Z) && (pressed & BUTTON_START)) || (inv_open && (pressed & BUTTON_Z))) {
             pc_pause_menu_toggle();
             latch_x = latch_y = 0;
             pressed = 0; // the opening press doesn't act in the menu
@@ -555,6 +559,11 @@ void gc_ap_pause_pads(void* pads, int count) {
     if (g_pc_paused) {
         for (i = 0; i < (int)(sizeof(s_gc_buttons) / sizeof(s_gc_buttons[0])); i++) {
             u16 b = s_gc_buttons[i].button;
+            if (b == BUTTON_START && cur_page != PAGE_SETTINGS) {
+                if (pressed & b) pc_pause_menu_toggle(); // Start closes from any page
+                if (!g_pc_paused) break;
+                continue;
+            }
             if ((pressed & b) || ((last & b) && !(now & b))) {
                 input(s_gc_buttons[i].act, HELD_PAD + b, (now & b) != 0);
             }

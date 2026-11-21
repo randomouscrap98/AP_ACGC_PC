@@ -412,7 +412,7 @@ extern void padmgr_RequestPadData(pad_t* pad, int flag) {
 #endif
     padmgr_RequestPadData_NonLock(pad, flag);
 #if defined(AP_HOOKS) && !defined(TARGET_PC)
-    gc_ap_pause_pads(pad, this->num_controllers); /* GC pause menu: B+Z, menu input, game input held off */
+    gc_ap_pause_pads(pad, this->num_controllers); /* GC pause menu: Z+Start (Z in the inventory), menu input, game input held off */
 #endif
     padmgr_UnlockContData();
 }
