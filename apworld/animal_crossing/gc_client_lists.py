@@ -50,7 +50,9 @@ def version(ctx: Any) -> tuple:
 
 
 def item_rows(ctx: Any) -> list[ItemRow]:
-    # Newest first
+    # Newest first. No slot (disconnected): lookup_in_slot would assert
+    if ctx.slot is None:
+        return []
     rows = []
     for i, it in enumerate(ctx.items_received):
         has_location = it.location >= 0 and it.player != 0
@@ -83,7 +85,10 @@ def group_of(name: str) -> str:
 
 
 def check_groups(ctx: Any) -> list[CheckGroup]:
-    # Groups in the order of their first location id
+    # Groups in the order of their first location id. No slot (disconnected): the server reset keeps the
+    # location lists but lookup_in_slot would assert
+    if ctx.slot is None:
+        return []
     checks = [Check(i, ctx.location_names.lookup_in_slot(i, ctx.slot), True) for i in ctx.checked_locations]
     checks += [Check(i, ctx.location_names.lookup_in_slot(i, ctx.slot), False) for i in ctx.missing_locations]
     checks.sort(key=lambda c: c.id)
