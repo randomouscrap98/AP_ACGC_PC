@@ -236,6 +236,16 @@ class ACGCContext(CommonContext):
         self.gset_client_gen = 0  # gset_client_gen we last wrote (the game zeroes it when it restarts)
         self.gset_game_gen: Optional[int] = None  # gset_game_gen last stored (None: not looked yet)
 
+    # Items / Checks tabs: kvui (make_gui) and aplite (aplite_tabs, which only aplite calls). Each imports its UI
+    # library only here: aplite has no kivy, upstream no Textual.
+    def make_gui(self) -> type:
+        from .gc_client_kvui import manager_class
+        return manager_class()
+
+    def aplite_tabs(self) -> list[tuple[str, Any]]:
+        from .gc_client_aplite import tabs
+        return tabs(self)
+
     def set_dolphin_status(self, text: str) -> None:
         # /dolphin's answer; a change is logged once (waiting at the start, connected, lost), never repeated
         if text != self.dolphin_status:
