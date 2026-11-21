@@ -218,6 +218,22 @@ extern void Nap_AudioPortInit(void) {
     AG.spec_change_mq_p->validCount;
 }
 
+// GC: vanilla u8 queue. The PC port's 16-bit queue below assumes u16 positions (PC only in audiostruct.h);
+// on GC's u8 fields it dropped every command after the 255 -> 0 wrap and looped ~65k times in
+// Nap_AudioPortProcess (lost BGM fade-outs).
+#ifndef TARGET_PC
+static void Nap_PortSet(u32 data, s32* param_p) {
+    AudioPort* port_p = &AG.audio_port_cmds[AG.thread_cmd_write_pos & 0xFF];
+
+    port_p->raw_cmd = data;
+    port_p->param.asS32 = *param_p;
+
+    AG.thread_cmd_write_pos++;
+    if (AG.thread_cmd_write_pos == AG.thread_cmd_read_pos) {
+        AG.thread_cmd_write_pos--;
+    }
+}
+#else
 static void Nap_PortSet(u32 data, s32* param_p) {
     u16 write_pos = AG.thread_cmd_write_pos;
     u16 next_write_pos = write_pos + 1;
@@ -232,6 +248,7 @@ static void Nap_PortSet(u32 data, s32* param_p) {
     port_p->param.asS32 = *param_p;
     AG.thread_cmd_write_pos = next_write_pos;
 }
+#endif
 
 extern void Nap_SetF32(u32 cmd, f32 param) {
     Nap_PortSet(cmd, (s32*)&param);
@@ -274,7 +291,11 @@ extern s32 Nap_SendStart(void) {
         return -1;
     }
 
+#ifndef TARGET_PC
+    msg = ((AG.thread_cmd_read_pos & 0xFF) << 8) | (AG.thread_cmd_write_pos & 0xFF);
+#else
     msg = ((AG.thread_cmd_read_pos & 0xFFFF) << 16) | (AG.thread_cmd_write_pos & 0xFFFF);
+#endif
     res = Z_osSendMesg(AG.thread_cmd_proc_mq_p, (OSMesg)msg, OS_MESG_NOBLOCK);
 
     if (res != -1) {
@@ -326,6 +347,35 @@ extern void Nap_Process1Command(AudioPort* port) {
     }
 }
 
+#ifndef TARGET_PC
+extern void Nap_AudioPortProcess(u32 msg) {
+    static u8 begin = 0;
+
+    if (AG.thread_cmd_queue_finished == FALSE) {
+        begin = (msg >> 8) & 0xFF;
+    }
+
+    while (TRUE) {
+        u32 now = begin;
+        AudioPort* port;
+
+        if (now == (msg & 0xFF)) {
+            AG.thread_cmd_queue_finished = FALSE;
+            return;
+        }
+
+        port = &AG.audio_port_cmds[now];
+        begin++;
+        if (port->command.opcode == AUDIOCMD_SYS_STOP_PROCESSING) {
+            AG.thread_cmd_queue_finished = TRUE;
+            break;
+        }
+
+        Nap_Process1Command(port);
+        port->command.opcode = AUDIOCMD_NOOP;
+    }
+}
+#else
 extern void Nap_AudioPortProcess(u32 msg) {
     static u16 begin = 0;
     u16 end = msg & 0xFFFF;
@@ -354,15 +404,18 @@ extern void Nap_AudioPortProcess(u32 msg) {
         AG.thread_cmd_queue_finished = FALSE;
     }
 }
+#endif
 
 extern s32 Nap_CheckSpecChange(void) {
     s32 msg;
     s32 res;
 
+#ifdef TARGET_PC // PC's synchronous audio; GC keeps vanilla
     /* Spec-change is not complete until reset pipeline fully settles. */
     if (AG.reset_status != 0) {
         return 0;
     }
+#endif
 
     res = Z_osRecvMesg(AG.spec_change_mq_p, (OSMesg*)&msg, OS_MESG_NOBLOCK);
 

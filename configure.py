@@ -352,8 +352,10 @@ AP_GC_CFLAGS = ["-lang=c99", "-d AP_GC_UNIT", "-i apclient/lib/ini"]
 AP_GC_COMPILER = "GC/3.0a5"
 if config.non_matching:
     # GAME_ENHANCEMENTS: the PC port's gameplay QoL in src/ (pc/CMakeLists.txt lists it)
-    cflags_foresta.extend(["-d AP_HOOKS", "-d GAME_ENHANCEMENTS", "-i pc/include", "-i apclient/include",
-                           "-i gc/include"])
+    # BUGFIXES: the vanilla bug fixes the PC build has (pc/CMakeLists.txt); also in static (jaudio game64, Famicom)
+    cflags_foresta.extend(["-d AP_HOOKS", "-d GAME_ENHANCEMENTS", "-d BUGFIXES", "-i pc/include",
+                           "-i apclient/include", "-i gc/include"])
+    cflags_static.append("-d BUGFIXES")
 
     # PC_AP_VERSION(_FULL) for the AP overlay, from the apworld manifest (PC: pc/CMakeLists.txt defines them)
     def write_ap_version_header() -> None:

@@ -176,7 +176,7 @@ extern int mQst_CheckLimitOver(mQst_base_c* quest) {
                     lbRTC_TimeCopy(&temp, &quest->time_limit);
                     lbRTC_Sub_DD(&temp, days);
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS) // AP: Timesanity freezes the clock on GC too
                     // Strictly before the start: IsOverTime counts equal as over, so a frozen
                     // clock (timesanity) expired a quest right at the moment it was accepted
                     if (lbRTC_IsOverTime(rtc_time, &temp) == lbRTC_OVER &&

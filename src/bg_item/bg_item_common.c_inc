@@ -3124,7 +3124,7 @@ static void bg_item_common_move(GAME_PLAY* play, ACTOR* actorx, bg_item_common_c
             bg_item_common_draw_check(play, common, actorx, draw_tbl);
         }
     }
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
     bIT_pc_item_hints(play, common);
 #endif
 #if defined(TARGET_PC) && defined(PC_OUTDOOR_FTR)
@@ -3459,7 +3459,7 @@ static void bg_item_common_draw(GAME_PLAY* play, bg_item_common_c* common, bg_it
 
     bIT_actor_drop_draw(game, &common->common_info, &common->drop_info);
     bIT_actor_drop_draw(game, &common->common_info, &common->fruit_drop_info);
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
     bIT_pc_bee_hint_draw(game, common);
     bIT_pc_tree_ap_draw(game, common);
 #endif

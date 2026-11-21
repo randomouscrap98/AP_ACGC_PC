@@ -349,7 +349,7 @@ static void aSL_JudgeRenewShop(ACTOR* actorx, GAME* game) {
         lbRTC_time_c renewal_time = Save_Get(shop).renewal_time;
 
         lbRTC_Sub_DD(&renewal_time, 2);
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
         // Cancel only when the date went back before the day it was set. Vanilla also cancels it until the
         // opening hour of that day (it's set again next frame): Timesanity's frozen clock at or before 9:00
         // never gets past that, so the renovation never stuck.

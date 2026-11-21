@@ -1705,7 +1705,7 @@ static void aNSC_set_talk_info_start_wait1(ACTOR* actor) {
             break;
         case mHm_HOMESIZE_MEDIUM:
             if (home->flags.has_basement == FALSE) {
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
                 // AP: fixed order, the basement always comes after medium
                 msg_no = aNSC_MSG_REHOUSE_BASEMENT;
 #else
@@ -1799,7 +1799,7 @@ static void aNSC_start_wait(NPC_SHOP_COMMON_ACTOR* shop_common, GAME_PLAY* play)
                 switch (home->size_info.size) {
                     case mHm_HOMESIZE_MEDIUM:
                         if (home->flags.has_basement == FALSE) {
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
                             // AP: forced basement, same as the large house case
                             aNSC_set_make_basement_info();
                             action = aNSC_ACTION_SAY_HELLO_APPROACH;

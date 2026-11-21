@@ -126,7 +126,7 @@ static void aNPC_think_wander_decide_next(NPC_ACTOR* nactorx) {
         if (aNPC_IS_NRM_NPC(nactorx)) {
             int looks = mNpc_GetNpcLooks((ACTOR*)nactorx);
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(BUGFIXES)
             if (looks < 0 || looks >= ARRAY_COUNT(decide_boarder)) {
                 looks = mNpc_LOOKS_BOY;
             }

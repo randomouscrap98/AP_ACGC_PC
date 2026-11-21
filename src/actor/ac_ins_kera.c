@@ -318,7 +318,7 @@ static void aIKR_hide(ACTOR* actorx, GAME* game) {
         }
     } else {
         sAdo_OngenPos((u32)actorx, NA_SE_MOLE_CRICKET_HIDE, &actorx->world.position);
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
         aIKR_pc_hint(actorx, game);
 #endif
     }

@@ -277,7 +277,7 @@ extern void mTM_renewal_renew_time() {
   lbRTC_ymd_c* renew_time = Save_GetPointer(renew_time);
   lbRTC_time_c* rtc_time = Common_GetPointer(time.rtc_time);
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(BUGFIXES)
   if (rtc_time->year == 0) return;
 #endif
 

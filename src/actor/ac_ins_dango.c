@@ -295,7 +295,7 @@ static void aIDG_hide(ACTOR* actor, GAME* game) {
     if (aIDG_check_strike_stone(insect) == TRUE) {
         aIDG_setupAction(insect, aIDG_ACTION_APPEAR, &play->game);
     }
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
     else {
         aIDG_pc_hint(actor, game);
     }

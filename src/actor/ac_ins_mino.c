@@ -314,7 +314,7 @@ static void aIMN_hide(ACTOR* actorx, GAME* game) {
     } else if (aIMN_check_shake_tree(actorx) == TRUE) {
         aIMN_setupAction(insect, aIMN_ACT_APPEAR, game);
     }
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
     else {
         aIMN_pc_hint(actorx, game);
     }

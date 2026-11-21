@@ -509,7 +509,7 @@ static void Shop_Goods_Actor_move(ACTOR* actorx, GAME* game) {
     SHOP_GOODS_ACTOR* shop_goods = (SHOP_GOODS_ACTOR*)actorx;
 
     Shop_Goods_Actor_drop_move(shop_goods);
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
     aSG_pc_catalog_hints(shop_goods, game);
 #endif
 }

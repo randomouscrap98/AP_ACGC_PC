@@ -115,7 +115,7 @@ static mActor_name_t aSD_ItemName2ReservePointName(mActor_name_t item) {
         return RSV_SHOP_HALLOWEEN;
     }
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
     // AP: a plain sapling slot can sell fruit (pc_ap_shop_sapling); it goes on the sapling spot
     if (item >= ITM_FOOD_APPLE && item <= ITM_FOOD_ORANGE) {
         return RSV_SHOP_HALLOWEEN;
@@ -348,7 +348,7 @@ static mActor_name_t aSD_UnitNum2ItemNo(int ux, int uz) {
         (item == RSV_FE1F) ||
         (item == ITM_HUKUBUKURO_BAG) ||
         (item == ITM_SIGNBOARD)
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
         // AP: fruit sold from a sapling slot
         || (item >= ITM_FOOD_APPLE && item <= ITM_FOOD_ORANGE)
 #endif
@@ -396,7 +396,7 @@ static int aSD_ReportGoodsSales(int ux, int uz) {
             return FALSE;
         } else if ((item >= ITM_SAPLING && item <= ITM_CEDAR_SAPLING) ||
                    (item >= ITM_WHITE_PANSY_BAG && item <= ITM_YELLOW_TULIP_BAG) || item == ITM_FOOD_CANDY
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
                    // AP: fruit sold from a sapling slot
                    || (item >= ITM_FOOD_APPLE && item <= ITM_FOOD_ORANGE)
 #endif

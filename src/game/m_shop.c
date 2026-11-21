@@ -1287,7 +1287,7 @@ extern void mSP_SetRenewalChiraswhi_AppoDay() {
     int header_back_start;
 
     if (Save_Get(shop).shop_info.upgrading_today && mEv_CheckEvent(mEv_SAVED_RENEWSHOP) == FALSE) {
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(AP_HOOKS)
         // The store that just opened: with AP Nook Store Upgrades the real level can already be one higher
         int shop_level = mSP_GetShopLevel();
 #else

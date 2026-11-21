@@ -202,7 +202,7 @@ static void aICH_loop_move_ctrl(aINS_INSECT_ACTOR* insect) {
     chase_angle(&insect->tools_actor.actor_class.shape_info.rotation.y, angle, aINS_dt_angle_step((GAME*)gamePT, stepVal));
     insect->tools_actor.actor_class.world.angle.y = insect->tools_actor.actor_class.shape_info.rotation.y;
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(BUGFIXES)
     // Passing right through the waypoint counts as reaching it. The tight orbit (0x800 turns) can settle so it
     // grazes the point every lap without ever getting onto its near side, which is what clears s32_work3:
     // the butterfly then circles one spot forever

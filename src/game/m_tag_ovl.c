@@ -33,6 +33,8 @@
 #endif
 #ifdef TARGET_PC
 #include "pc_outdoor_ftr.h"
+#endif
+#ifdef GAME_ENHANCEMENTS
 
 // Drag marking: after X marks or unmarks a slot, keep X held; once it has been held
 // PC_TG_DRAG_FRAMES, every slot the cursor moves onto (same table) gets that same state.
@@ -7543,7 +7545,7 @@ static void mTG_mark_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info, mTG_tag_c
         mTG_mark_main(submenu, menu_info, mTG_MARK_CHK, &chk_result)) {
         if (mTG_mark_main(submenu, menu_info, mTG_MARK_RVS, &chk_rvs_result)) {
             if (chk_result != chk_rvs_result) {
-#ifdef TARGET_PC
+#ifdef GAME_ENHANCEMENTS
                 pc_tg_drag_mode = chk_rvs_result ? mTG_MARK_ON : mTG_MARK_OFF;
                 pc_tg_drag_table = tag_ovl->tags[0].table;
                 pc_tg_drag_frames = 0;
@@ -7767,7 +7769,7 @@ static void mTG_move_move(Submenu* submenu, mSM_MenuInfo_c* menu_info, mTG_tag_c
         if (mTG_move_cursol_base(submenu, tag, menu_info)) {
             mTG_init_tag_data_item_win(submenu);
             sAdo_SysTrgStart(NA_SE_CURSOL);
-#ifdef TARGET_PC
+#ifdef GAME_ENHANCEMENTS
             if (pc_tg_drag_mode >= 0 && pc_tg_drag_frames >= PC_TG_DRAG_FRAMES && tag->table == pc_tg_drag_table &&
                 mTG_check_hand_condition(submenu)) {
                 int idx = mTG_get_table_idx(tag);
@@ -7788,7 +7790,7 @@ static void mTG_move_move(Submenu* submenu, mSM_MenuInfo_c* menu_info, mTG_tag_c
 static void mTG_move_base(Submenu* submenu, mSM_MenuInfo_c* menu_info, mTG_tag_c* tag) {
     u32 trigger = submenu->overlay->menu_control.trigger;
 
-#ifdef TARGET_PC
+#ifdef GAME_ENHANCEMENTS
     if (pc_tg_drag_mode >= 0) {
         if (getButton() & BUTTON_X) {
             pc_tg_drag_frames++;

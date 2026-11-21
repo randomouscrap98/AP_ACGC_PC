@@ -59,10 +59,10 @@ extern s16* CpubufProcess(DSPBUF_EVENTS event) {
             }
 
             if (read == write_buffer) {
+#ifdef TARGET_PC
                 static u32 underrun_count = 0;
                 if ((++underrun_count % 60) == 1)
                     printf("[CPUBUF] underrun #%u (read==write==%d, readbuf=%d)\n", underrun_count, read, read_buffer);
-#ifdef TARGET_PC
                 /* PC: data is interleaved (L,R,L,R,...). Fill with last stereo pair. */
                 {
                     s16 last_L = dsp_buf[read_buffer][(JAC_FRAMESAMPLES << 1) - 2];

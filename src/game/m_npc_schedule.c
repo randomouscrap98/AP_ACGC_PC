@@ -111,7 +111,7 @@ extern mNPS_schedule_c* mNPS_get_schedule_area(AnmPersonalID_c* anm_id) {
 static void mNPS_set_schedule_area(AnmPersonalID_c* anm_id) {
   mNPS_schedule_c* schedule;
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(BUGFIXES)
   /* Guard against invalid looks (e.g. mNpc_LOOKS_UNSET=6 on free animal slots
    * where CheckFreeAnimalInfo didn't catch it due to home_info not being 0xFF) */
   if (anm_id->looks >= mNpc_LOOKS_NUM) {
@@ -133,7 +133,7 @@ extern void mNPS_set_island_schedule_area(AnmPersonalID_c* anm_id) {
     return;
   }
 
-#ifdef TARGET_PC
+#if defined(TARGET_PC) || defined(BUGFIXES)
   if (anm_id->looks >= mNpc_LOOKS_NUM) {
     return;
   }
