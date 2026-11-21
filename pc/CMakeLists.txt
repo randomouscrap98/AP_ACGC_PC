@@ -46,6 +46,8 @@ add_compile_definitions(
     BUGFIXES        # Fix OOB reads in letter scoring tables (m_mail_check_ovl.c).
     _LANGUAGE_C    # Required for N64 GBI/ultratypes headers
     PC_ENHANCEMENTS   # Optional visual improvements (MSAA, etc). Remove to get pure PC port.
+    GAME_ENHANCEMENTS # Gameplay QoL in src/ shared with the GC build (bells to wallet, d-pad tools / menus / text,
+                      # net/rod tree shaking, donation picker, indoor mail delete). Remove for vanilla behaviour.
     KEYBOARD_TYPING   # Physical keyboard typing in text editor. Remove for platforms without keyboards.
     AP_HOOKS          # AP hook sites in src/ (pc_ap_logic.h). Also on the GC build (configure.py --non-matching),
                       # where gc/ implements them; sites still under TARGET_PC are PC-only for now.

@@ -4393,7 +4393,7 @@ static int mTG_mark_enable_check(int menu_type, int param, int table, u8 field_t
                             break;
                         case mTG_TABLE_MAIL:
                             /* mail can be deleted indoors too */
-                        #ifndef PC_ENHANCEMENTS
+                        #ifndef GAME_ENHANCEMENTS
                             if (field_type == mFI_FIELDTYPE2_FG) 
                         #endif
                             {

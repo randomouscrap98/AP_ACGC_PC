@@ -1520,7 +1520,7 @@ extern void mPr_PrintMapInfo_debug(gfxprint_t* gfxprint) {
     }
 }
 
-#ifdef PC_ENHANCEMENTS
+#ifdef GAME_ENHANCEMENTS
 /* bell amount for a money-bag item, 0 if not one */
 extern u32 mPr_GetAmountForMoneyItem(mActor_name_t item) {
     int type = mNT_get_itemTableNo(item);

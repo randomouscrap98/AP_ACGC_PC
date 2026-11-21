@@ -351,7 +351,9 @@ AP_GC_UNITS = [
 AP_GC_CFLAGS = ["-lang=c99", "-d AP_GC_UNIT", "-i apclient/lib/ini"]
 AP_GC_COMPILER = "GC/3.0a5"
 if config.non_matching:
-    cflags_foresta.extend(["-d AP_HOOKS", "-i pc/include", "-i apclient/include", "-i gc/include"])
+    # GAME_ENHANCEMENTS: the PC port's gameplay QoL in src/ (pc/CMakeLists.txt lists it)
+    cflags_foresta.extend(["-d AP_HOOKS", "-d GAME_ENHANCEMENTS", "-i pc/include", "-i apclient/include",
+                           "-i gc/include"])
 
     # PC_AP_VERSION(_FULL) for the AP overlay, from the apworld manifest (PC: pc/CMakeLists.txt defines them)
     def write_ap_version_header() -> None:

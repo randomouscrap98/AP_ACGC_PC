@@ -29,8 +29,8 @@ static void Player_actor_setup_main_Pickup(ACTOR* actorx, GAME* game) {
     int signboard_flag;
     int anim1_idx;
     int part_table_idx;
-#ifdef PC_ENHANCEMENTS
-    int putaway_money = FALSE;
+#if defined(GAME_ENHANCEMENTS) || defined(AP_HOOKS)
+    int putaway_money = FALSE; /* nothing entered a pocket: bells went to the wallet / an AP item sent its check */
 #endif
 
     slot_idx = req_pickup_p->inv_slot;
@@ -52,13 +52,13 @@ static void Player_actor_setup_main_Pickup(ACTOR* actorx, GAME* game) {
         aSIGN_erase_white_sign(game, target_pos_p);
     }
 
-#ifdef PC_ENHANCEMENTS
-    /* bells go straight to wallet when the whole amount fits; otherwise the bag is picked up normally */
+#if defined(GAME_ENHANCEMENTS) || defined(AP_HOOKS)
     {
+#ifdef GAME_ENHANCEMENTS
         u32 bell_amount = mPr_GetAmountForMoneyItem(item);
+#endif
 #ifdef AP_HOOKS
-        /* AP Shellsanity / Treesanity: a beach or tree item sends its check and never goes into the
-           pockets (putaway_money then just means "nothing entered a pocket") */
+        /* AP Shellsanity / Treesanity: a beach or tree item sends its check and never goes into the pockets */
         if (pc_ap_ground_pickup(item)) {
             if (target_pos_p != NULL) {
                 mFI_SetFG_common(EMPTY_NO, *target_pos_p, TRUE);
@@ -66,13 +66,17 @@ static void Player_actor_setup_main_Pickup(ACTOR* actorx, GAME* game) {
             putaway_money = TRUE;
         } else
 #endif
+#ifdef GAME_ENHANCEMENTS
+        /* bells go straight to wallet when the whole amount fits; otherwise the bag is picked up normally */
         if (bell_amount > 0 && mPr_GivePossessionBells(bell_amount)) {
             sAdo_SysTrgStart(SE_REGISTER);
             if (target_pos_p != NULL) {
                 mFI_SetFG_common(EMPTY_NO, *target_pos_p, TRUE);
             }
             putaway_money = TRUE;
-        } else {
+        } else
+#endif
+        {
             Player_actor_putin_item(slot_idx, item, target_pos_p);
         }
     }
@@ -80,7 +84,7 @@ static void Player_actor_setup_main_Pickup(ACTOR* actorx, GAME* game) {
     Player_actor_putin_item(slot_idx, item, target_pos_p);
 #endif
 
-#ifdef PC_ENHANCEMENTS
+#if defined(GAME_ENHANCEMENTS) || defined(AP_HOOKS)
     /* the bells never entered a pocket, so the pockets-full exchange must not offer them again. money duplication otherwise. */
     if (putaway_money) {
         main_pickup_p->exchange_flag = FALSE;
