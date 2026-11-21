@@ -1,0 +1,35 @@
+# Build image for the Nintendont fork in nintendont/ (build_podman.sh --nintendont).
+# Nintendont needs these exact old devkitPro versions (nintendont/README.md "Compiling": newer ones crash on return to
+# the menu). devkitPro no longer serves them, so they come from Leseratte's archive, checked by sha256.
+# devkitPPC r35-2 only exists for Windows there; r35-1 is the Linux build of the same release.
+FROM debian:12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  curl ca-certificates xz-utils make zip \
+  && rm -rf /var/lib/apt/lists/*
+
+ARG DKP_ARCHIVE=https://wii.leseratte10.de/devkitPro
+RUN mkdir -p /tmp/dkp && cd /tmp/dkp \
+  && curl -fsSL --retry 5 --retry-all-errors \
+    -o devkitARM.pkg.tar.xz "${DKP_ARCHIVE}/devkitARM/r53%20%282019-06%29/devkitARM-r53-1-linux.pkg.tar.xz" \
+    -o devkitPPC.pkg.tar.xz "${DKP_ARCHIVE}/devkitPPC/r35/devkitPPC-r35-1-linux.pkg.tar.xz" \
+    -o devkitppc-rules.pkg.tar.xz "${DKP_ARCHIVE}/devkitPPC/devkitppc-rules/devkitppc-rules-1.0.1-1-any.pkg.tar.xz" \
+    -o libogc.pkg.tar.xz "${DKP_ARCHIVE}/libogc/libogc_1.8.23%20%282019-10-02%29/libogc-1.8.23-1-any.pkg.tar.xz" \
+    -o gamecube-tools.pkg.tar.xz "${DKP_ARCHIVE}/other-stuff/gamecube-tools/gamecube-tools-1.0.3-1-linux_x86_64.pkg.tar.xz" \
+    -o general-tools.pkg.tar.xz "${DKP_ARCHIVE}/other-stuff/general-tools/general-tools-1.2.0-2-linux_x86_64.pkg.tar.xz" \
+  && printf '%s\n' \
+    "140d217a747c21a46236a6675b2592b54397e53c56dd8aa91aaf73bd19fa9599  devkitARM.pkg.tar.xz" \
+    "2916d431913b00d93dd0570d2d650cb1ec13e75422933e0f5726528d6a181658  devkitPPC.pkg.tar.xz" \
+    "3865d364149cc38ad02507f9d16f3831b213c7ee6403561f6ac3c48cbc9576cf  devkitppc-rules.pkg.tar.xz" \
+    "e5b61a2e7589ab95e321cae30bbf1511fbe4729f3120e782201eebf8514c6707  libogc.pkg.tar.xz" \
+    "e7ea6a13ca5a5e9d6a5b8e1616afcc92a81255aa6fee436ed81c812b62e112af  gamecube-tools.pkg.tar.xz" \
+    "3348e521e48f27912d0bca05eac73b4365c8c7006b637c95850f4feabe5dd2e9  general-tools.pkg.tar.xz" \
+    | sha256sum -c - \
+  && for p in *.pkg.tar.xz; do tar -xJf "$p" -C / opt; done \
+  && rm -rf /tmp/dkp
+
+ENV DEVKITPRO=/opt/devkitpro
+ENV DEVKITPPC=/opt/devkitpro/devkitPPC
+ENV DEVKITARM=/opt/devkitpro/devkitARM
+ENV PATH=/opt/devkitpro/tools/bin:$PATH
+WORKDIR /build
