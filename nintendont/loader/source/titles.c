@@ -92,7 +92,7 @@ int LoadTitles(void)
 	// so use /apps/Nintendont/ as a fallback.
 	char filepath[MAXPATHLEN];
 	snprintf(filepath, sizeof(filepath), "%stitles.txt",
-		 launch_dir[0] != 0 ? launch_dir : "/apps/Nintendont/");
+		 launch_dir[0] != 0 ? launch_dir : "/apps/AnimalCrossingAP/");
 
 	FIL titles_txt;
 	if (f_open_char(&titles_txt, filepath, FA_READ|FA_OPEN_EXISTING) != FR_OK)

@@ -137,12 +137,12 @@ static void updateMetaXml(void)
 	bool dir_argument_exists = strlen(launch_dir);
 	
 	snprintf(filepath, sizeof(filepath), "%smeta.xml",
-		dir_argument_exists ? launch_dir : "/apps/Nintendont/");
+		dir_argument_exists ? launch_dir : "/apps/AnimalCrossingAP/");
 
 	if (!dir_argument_exists) {
 		gprintf("Creating new directory\r\n");
 		f_mkdir_char("/apps");
-		f_mkdir_char("/apps/Nintendont");
+		f_mkdir_char("/apps/AnimalCrossingAP");
 	}
 
 	char new_meta[1024];
@@ -552,6 +552,35 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 
 static char dev_es[] ATTRIBUTE_ALIGN(32) = "/dev/es";
 
+// AP: the settings this fork always uses (no Settings menu). Only the device bit (NIN_CFG_USB) and auto boot are
+// kept from the saved config; widescreen, cheats, debugging, IPL and BBA are off; card emulation on, one 251-block
+// card per game.
+static void ApFixedSettings(void)
+{
+	ncfg->Config = (ncfg->Config & (NIN_CFG_USB | NIN_CFG_AUTO_BOOT)) | NIN_CFG_MEMCARDEMU | NIN_CFG_SKIP_IPL;
+	ncfg->VideoMode = NIN_VID_AUTO;
+	ncfg->Language = NIN_LAN_AUTO;
+	ncfg->MaxPads = NIN_CFG_MAXPAD;
+	ncfg->MemCardBlocks = 0x2; // 251 blocks
+	ncfg->VideoScale = 0;
+	ncfg->VideoOffset = 0;
+	ncfg->CheatPath[0] = 0;
+}
+
+// AP: true when the config names a disc image that is still on its device
+static bool ApSavedGameExists(void)
+{
+	if (ncfg->GamePath[0] == 0 || !IsSupportedFileExt(ncfg->GamePath))
+		return false;
+	char path[300];
+	snprintf(path, sizeof(path), "%s:%s", (ncfg->Config & NIN_CFG_USB) ? "usb" : "sd", ncfg->GamePath);
+	FIL f;
+	if (f_open_char(&f, path, FA_READ|FA_OPEN_EXISTING) != FR_OK)
+		return false;
+	f_close(&f);
+	return true;
+}
+
 extern vu32 FoundVersion;
 extern void _jmp813();
 int main(int argc, char **argv)
@@ -806,6 +835,12 @@ int main(int argc, char **argv)
 			ncfg->MaxPads = NIN_CFG_MAXPAD;
 			ncfg->MemCardBlocks = 0x2;//251 blocks
 		}
+		// AP: boot the saved disc image straight away while it's still there; otherwise the picker
+		ApFixedSettings();
+		if (ApSavedGameExists())
+			ncfg->Config |= NIN_CFG_AUTO_BOOT;
+		else
+			ncfg->Config &= ~NIN_CFG_AUTO_BOOT;
 
 		// Prevent autobooting if B is pressed
 		int i = 0;
@@ -813,7 +848,7 @@ int main(int argc, char **argv)
 		{
 			if (i == 0) {
 				PrintInfo();
-				PrintFormat(DEFAULT_SIZE, BLACK, 320 - 90, MENU_POS_Y + 20*10, "B: Cancel Autoboot");
+				PrintFormat(DEFAULT_SIZE, BLACK, 320 - 130, MENU_POS_Y + 20*10, "B: Pick another game"); // AP
 				GRRLIB_Render();
 				ClearScreen();
 			}
@@ -843,6 +878,9 @@ int main(int argc, char **argv)
 		// Not autobooting.
 		// Prompt the user to select a device and game.
 		SaveSettings = SelectDevAndGame();
+		// AP: always save: the chosen disc image boots by itself next time
+		ApFixedSettings();
+		SaveSettings = true;
 	}
 	else
 	{
@@ -933,7 +971,7 @@ int main(int argc, char **argv)
 
 		// Write config to the boot device, which is loaded on next launch.
 		FIL cfg;
-		if (f_open_char(&cfg, "/nincfg.bin", FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
+		if (f_open_char(&cfg, AP_CFG_PATH, FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{
 			// Reserve space in the file.
 			if (f_size(&cfg) < sizeof(NIN_CFG)) {
@@ -946,6 +984,9 @@ int main(int argc, char **argv)
 			f_close(&cfg);
 		}
 
+		// AP: not written: the kernel only reads it when the loader's in-memory config is missing, and it
+		// would overwrite a stock Nintendont's settings on that device
+#if 0
 		// Write config to the game device, used by the Nintendont kernel.
 		char ConfigPath[20];
 		snprintf(ConfigPath, sizeof(ConfigPath), "%s:/nincfg.bin", GetRootDevice());
@@ -961,6 +1002,7 @@ int main(int argc, char **argv)
 			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
 			f_close(&cfg);
 		}
+#endif
 
 		FlushDevices();
 	}

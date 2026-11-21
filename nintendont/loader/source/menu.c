@@ -1128,12 +1128,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
  */
 static bool UpdateSettingsMenu(MenuCtx *ctx)
 {
-	if(FPAD_X(0))
-	{
-		// Start the updater.
-		UpdateNintendont();
-		ctx->redraw = 1;
-	}
+	// AP: no updater (it would install stock Nintendont over the fork)
 
 	if (FPAD_Down_Repeat(ctx))
 	{
@@ -1799,7 +1794,8 @@ static int SelectGame(void)
 			break;
 		}
 
-		if( FPAD_Cancel(0) )
+		// AP: settings are fixed (ApFixedSettings in main.c), so B doesn't open the Settings menu
+		if( false && FPAD_Cancel(0) )
 		{
 			// Switch menu modes.
 			ctx.menuMode = !ctx.menuMode;
@@ -1837,7 +1833,7 @@ static int SelectGame(void)
 			if (ctx.menuMode == 0)
 			{
 				// Game List menu.
-				PrintButtonActions("Go Back", NULL, "Settings", NULL);
+				PrintButtonActions("Go Back", NULL, NULL, NULL);
 				// If the selected game bootable, enable "Select".
 				u32 color = ((ctx.games.canBeBooted) ? BLACK : DARK_GRAY);
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Select");
@@ -2000,10 +1996,10 @@ void PrintInfo(void)
 	const char *consoleType = (isWiiVC ? (IsWiiUFastCPU() ? "WiiVC 5x CPU" : "Wii VC") : (IsWiiUFastCPU() ? "WiiU 5x CPU" : (IsWiiU() ? "Wii U" : "Wii")));
 #ifdef NIN_SPECIAL_VERSION
 	// "Special" version with customizations. (Not mainline!)
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u" NIN_SPECIAL_VERSION " (%s)",
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Animal Crossing AP (Nintendont v%u.%u" NIN_SPECIAL_VERSION ") (%s)",
 		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
 #else
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u (%s)",
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Animal Crossing AP (Nintendont v%u.%u) (%s)",
 		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
 #endif
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : " __DATE__ " " __TIME__);

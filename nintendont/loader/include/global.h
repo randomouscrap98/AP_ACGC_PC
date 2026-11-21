@@ -165,6 +165,8 @@ void unzip_data(const void *input, const unsigned int input_size,
  * Load the configuration file from the root device.
  * @return True if loaded successfully; false if not.
  */
+// AP: own config file, so a stock Nintendont on the same device keeps its /nincfg.bin
+#define AP_CFG_PATH "/acap_cfg.bin"
 bool LoadNinCFG(void);
 
 void UpdateNinCFG();

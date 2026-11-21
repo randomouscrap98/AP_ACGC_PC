@@ -53,7 +53,7 @@ MD5_DB_Status LoadMD5Database(MD5_DB_t *pDB)
 	// so use /apps/Nintendont/ as a fallback.
 	char filepath[MAXPATHLEN];
 	snprintf(filepath, sizeof(filepath), "%sgcn_md5.txt",
-		 launch_dir[0] != 0 ? launch_dir : "/apps/Nintendont/");
+		 launch_dir[0] != 0 ? launch_dir : "/apps/AnimalCrossingAP/");
 
 	FIL f_md5;
 	pDB->db = NULL;
