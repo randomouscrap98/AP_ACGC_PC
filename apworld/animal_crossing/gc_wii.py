@@ -216,3 +216,15 @@ class NintendontRAM:
 
     def log(self) -> str:
         return self._exchange(b"L", 0, 0, 4, data_len_at=0)[1].decode("ascii", "replace")
+
+
+def log_tail(prev: str, now: str) -> Optional[str]:
+    # The part of the kernel log that is new since prev. The kernel keeps a 4 KB ring and sends all of it, so now =
+    # (prev minus some of its start) + new text. None = no overlap (more than 4 KB came, or the kernel restarted):
+    # all of now is new, with a gap before it.
+    if not prev:
+        return now
+    for k in range(len(prev)):
+        if now.startswith(prev[k:]):
+            return now[len(prev) - k:]
+    return None
