@@ -62,8 +62,9 @@ enum {
   GC_AP_GSET_NUM
 };
 
-// Seconds without a client_tick change before the game counts the client as gone
-#define GC_AP_CLIENT_TIMEOUT_FRAMES (5 * 60)
+// Frames without a client_tick change before the game counts the client as gone. Longer than the client's 5 s
+// request timeout (gc_wii.NintendontRAM), so a Wi-Fi hiccup the client gets over by reconnecting never shows
+#define GC_AP_CLIENT_TIMEOUT_FRAMES (10 * 60)
 
 typedef struct {
   u32 id;     // AP item id (ours all fit in 32 bits)

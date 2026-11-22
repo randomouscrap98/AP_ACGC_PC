@@ -1,3 +1,5 @@
+// AP: before changing this file read ignore/claude/research/wii_kernel_networking.md (thread stack, cache, alignment
+// and socket rules found on hardware).
 // AP: RAM server for the Animal Crossing AP client (gc_client.py, NintendontRAM). After the game boots, a thread
 // brings the Wii's network up, listens on TCP AP_SERVER_PORT and serves one client at a time. Requests are fixed
 // 12-byte headers, big-endian: u8 cmd, u8 pad[3], u32 a, u32 b.
@@ -8,6 +10,9 @@
 //   'W' write a, len b, then b bytes -> u32 len written (0 = refused)
 //   'L' log            -> u32 len, then the log ring, oldest first
 //   'Q' quit           -> u32 1, then the game exits to the loader at its next pad read (PADReadGC.c), like Home
+// Between requests the server polls the client and the listen socket: a new client replaces the old one (a PC that
+// went away without closing would otherwise hold the server forever), and a client silent for AP_CLIENT_IDLE_MS is
+// dropped.
 // The game keeps its mailbox in uncached memory (gc_ap_backend.c), so plain reads and writes here see its data;
 // this side only syncs the ARM's own cache. The log also goes to AP_LOG_PATH on the game's drive, but only from
 // the main loop (ApLogFlushDue / ApLogFlush): the memory card emulation writes files there too.
@@ -27,10 +32,20 @@
 #define AP_LOG_SIZE       4096
 #define AP_LOG_PATH       "/acap_kernel.log"
 #define AP_LOG_FLUSH_SECONDS 10 // plain lines wait at most this long for the SD card; milestone lines go at once
-#define AP_IP_WAIT_SECONDS   60
+#define AP_RETRY_LOG_EVERY   60    // endless retries (network, listen) log their first failure, then every 60th
+#define AP_CLIENT_IDLE_MS    30000 // the client asks several times a second
+#define AP_ACCEPT_FAILS      5     // failed accepts in a row before the listen socket is made again
 
 #define NWC_STARTUP 6     // /dev/net/kd/request: start the network (libogc NWC24iStartupSocket)
 #define SO_GETHOSTID 0x10 // /dev/net/ip/top: our IP, 0 until DHCP is done
+#define AP_POLLIN    0x0001 // libogc network.h POLLIN
+
+// so_poll entry (libogc struct pollsd; net_poll passes {u32 0, s32 timeout ms} in, the entries as output)
+struct ap_pollsd {
+	s32 socket;
+	u32 events;
+	u32 revents;
+};
 
 // IOS socket parameter blocks (as sock.c's bind_params / sendto_params, which stay private there)
 struct ap_bind_params {
@@ -52,10 +67,10 @@ static volatile int ap_log_urgent; // a milestone line is waiting for the SD car
 static u32 ap_log_timer;  // HW_TIMER at the last SD write
 
 static u32 ap_stack[0x800 / sizeof(u32)] __attribute__((aligned(32)));
-// Buffers the network module reads or writes come from sock.c's heap (0x13040000, where sock.c keeps its own):
-// the kernel's own memory isn't at the same address for the module (with static buffers socket() saw a wrong
-// address family, -5, and the NWC startup result was never written, on hardware). IOS_Open's path is the
-// exception: it must be in kernel memory (-6 from the heap). Every call flushes / invalidates (ApIoctl/ApIoctlv).
+// Buffers the network module reads or writes come from sock.c's heap (0x13040000, where sock.c keeps its own).
+// That is how it was first made to work on hardware; static buffers turned out fine too (the failures blamed on
+// them came from the thread stack bug, see ApServerInit), but the heap version is the hardware-tested one.
+// IOS_Open's path must be in kernel memory (-6 from the heap). Every call flushes its buffers (ApIoctl/ApIoctlv).
 extern int soHeap;
 static u8 *ap_buf;    // 4 + AP_SERVER_MAX: payloads; replies = u32 len + data
 static u8 *ap_word;   // 32: small replies (never ap_buf: it may hold data)
@@ -68,6 +83,8 @@ static u8 *ap_addr;   // 32: IOS sockaddr: len 8, family, port, IPv4
 static struct ap_bind_params *ap_bind;
 static struct ap_sendto_params *ap_send;
 static ioctlv *ap_vec; // 3
+static struct ap_pollsd *ap_poll; // 2: the client, the listen socket
+static bool ap_poll_broken; // so_poll failed once: serve the way it was before (blocking, one client)
 static int ap_top = -1, ap_kd = -1;
 static s32 ap_last_io; // result of the last failed receive / send (why a client was dropped)
 static const char *ap_last_op = "";
@@ -168,9 +185,9 @@ static u32 ApHostIp(void)
 	return (ip > 0 || ip < -1000) ? (u32)ip : 0;
 }
 
-// Our IP, after the network startup steps the loader's libogc did and undid before boot (net_deinit): the
-// network-control startup through sock.c's handle (the device takes one opener), then the socket layer's.
-// Without them socket() fails (-5 on hardware) even though the IP stays configured.
+// Our IP, after the network startup steps: the network-control startup through sock.c's handle (the device takes
+// one opener), then the socket layer's (like libogc's net_init). Waits as long as it takes (the Wi-Fi may come
+// later); only a failed open of /dev/net/ip/top gives up.
 static u32 ApNetworkUp(void)
 {
 	int i;
@@ -191,15 +208,16 @@ static u32 ApNetworkUp(void)
 		mdelay(500);
 	}
 	ApLog("so startup %d\r\n", ApIoctl(ap_top, so_startinterface, NULL, 0, NULL, 0));
-	for (i = 0; i < AP_IP_WAIT_SECONDS * 4; i++)
+	for (i = 1;; i++)
 	{
 		u32 ip = ApHostIp();
 		if (ip != 0)
 			return ip;
+		if (i % (AP_RETRY_LOG_EVERY * 4) == 0)
+			ApLogNow("no IP yet after %d s (gethostid %d), still waiting\r\n", i / 4,
+				ApIoctl(ap_top, SO_GETHOSTID, NULL, 0, NULL, 0));
 		mdelay(250);
 	}
-	ApLog("last gethostid: %d\r\n", ApIoctl(ap_top, SO_GETHOSTID, NULL, 0, NULL, 0));
-	return 0;
 }
 
 static s32 ApListen(void)
@@ -353,82 +371,163 @@ static u32 ApFind(u32 from)
 	return 0;
 }
 
-// Serves one client until it goes away
-static void ApServe(s32 c)
+// Reads and answers one request; false = the client is gone (or sent garbage): drop it
+static bool ApServeOne(s32 c)
 {
 	u8 *req = ap_req;
-	while (ApRecvAll(c, req, 12))
+	if (!ApRecvAll(c, req, 12))
+		return false;
+	u32 a = (req[4] << 24) | (req[5] << 16) | (req[6] << 8) | req[7];
+	u32 b = (req[8] << 24) | (req[9] << 16) | (req[10] << 8) | req[11];
+	s32 off;
+	bool ok = true;
+	switch (req[0])
 	{
-		u32 a = (req[4] << 24) | (req[5] << 16) | (req[6] << 8) | req[7];
-		u32 b = (req[8] << 24) | (req[9] << 16) | (req[10] << 8) | req[11];
-		s32 off;
-		bool ok = true;
-		switch (req[0])
+	// Each reply goes out in one send: two small sends in a row cost ~2 s per request on hardware (the
+	// second waits for the first's delayed acknowledgement)
+	case 'P':
+		ApPutU32(ap_word, AP_SERVER_MAGIC);
+		ApPutU32(ap_word + 4, AP_SERVER_VERSION);
+		ok = ApSendAll(c, ap_word, 8);
+		break;
+	case 'F':
+		ok = ApSendU32(c, ApFind(a));
+		break;
+	case 'R':
+		off = ApMem1(a, b);
+		if (off < 0)
 		{
-		// Each reply goes out in one send: two small sends in a row cost ~2 s per request on hardware (the
-		// second waits for the first's delayed acknowledgement)
-		case 'P':
-			ApPutU32(ap_word, AP_SERVER_MAGIC);
-			ApPutU32(ap_word + 4, AP_SERVER_VERSION);
-			ok = ApSendAll(c, ap_word, 8);
+			ApLog("refused R %x %d\r\n", a, b);
+			ok = ApSendU32(c, 0);
 			break;
-		case 'F':
-			ok = ApSendU32(c, ApFind(a));
+		}
+		sync_before_read((void*)(off & ~31), ((off & 31) + b + 31) & ~31);
+		memcpy(ap_buf + 4, (void*)off, b); // MEM1 is at physical address 0 on this side
+		ApPutU32(ap_buf, b);
+		ok = ApSendAll(c, ap_buf, 4 + b);
+		break;
+	case 'W':
+		off = ApMem1(a, b);
+		if (b > AP_SERVER_MAX || !ApRecvAll(c, ap_buf, b))
+		{
+			ok = false; // can't skip the payload: drop the client
 			break;
-		case 'R':
-			off = ApMem1(a, b);
-			if (off < 0)
-			{
-				ApLog("refused R %x %d\r\n", a, b);
-				ok = ApSendU32(c, 0);
-				break;
-			}
+		}
+		if (off >= 0)
+		{
+			// Drop our cached copy first (R and F leave MEM1 lines in the ARM cache): a write into a stale
+			// cached line would write the whole line back on the flush, reverting words the game changed
+			// since (goal / toast_tail next to client_tick). Uncached, the writes go straight to MEM1 (the
+			// ARM926 doesn't allocate cache lines on write misses), word by word for aligned data.
 			sync_before_read((void*)(off & ~31), ((off & 31) + b + 31) & ~31);
-			memcpy(ap_buf + 4, (void*)off, b); // MEM1 is at physical address 0 on this side
-			ApPutU32(ap_buf, b);
-			ok = ApSendAll(c, ap_buf, 4 + b);
-			break;
-		case 'W':
-			off = ApMem1(a, b);
-			if (b > AP_SERVER_MAX || !ApRecvAll(c, ap_buf, b))
-			{
-				ok = false; // can't skip the payload: drop the client
-				break;
-			}
-			if (off >= 0)
-			{
-				memcpy((void*)off, ap_buf, b);
-				sync_after_write((void*)(off & ~31), ((off & 31) + b + 31) & ~31);
-			}
-			if (off < 0)
-				ApLog("refused W %x %d\r\n", a, b);
-			ok = ApSendU32(c, off >= 0 ? b : 0);
-			break;
-		case 'Q':
-			write32(0x130031C0, 0x41505158); // "APQX" (mem_map.txt)
-			sync_after_write((void*)0x130031C0, 0x20);
-			ApLogNow("quit requested\r\n");
-			ok = ApSendU32(c, 1);
-			break;
-		case 'L':
-		{
-			u32 head = ap_log_head;
-			u32 len = head < AP_LOG_SIZE ? head : AP_LOG_SIZE;
-			u32 start = head - len, i;
-			for (i = 0; i < len; i++)
-				ap_buf[4 + i] = ap_log[(start + i) % AP_LOG_SIZE];
-			ApPutU32(ap_buf, len);
-			ok = ApSendAll(c, ap_buf, 4 + len);
-			break;
+			memcpy((void*)off, ap_buf, b);
+			sync_after_write((void*)(off & ~31), ((off & 31) + b + 31) & ~31);
 		}
-		default:
-			ApLog("unknown command %d\r\n", req[0]);
-			ok = false;
-			break;
-		}
-		if (!ok)
-			break;
+		if (off < 0)
+			ApLog("refused W %x %d\r\n", a, b);
+		ok = ApSendU32(c, off >= 0 ? b : 0);
+		break;
+	case 'Q':
+		write32(0x130031C0, 0x41505158); // "APQX" (mem_map.txt)
+		sync_after_write((void*)0x130031C0, 0x20);
+		ApLogNow("quit requested\r\n");
+		ok = ApSendU32(c, 1);
+		break;
+	case 'L':
+	{
+		u32 head = ap_log_head;
+		u32 len = head < AP_LOG_SIZE ? head : AP_LOG_SIZE;
+		u32 start = head - len, i;
+		for (i = 0; i < len; i++)
+			ap_buf[4 + i] = ap_log[(start + i) % AP_LOG_SIZE];
+		ApPutU32(ap_buf, len);
+		ok = ApSendAll(c, ap_buf, 4 + len);
+		break;
 	}
+	default:
+		ApLog("unknown command %d\r\n", req[0]);
+		ok = false;
+		break;
+	}
+	return ok;
+}
+
+// Waits for the client's next request or a new client: 1 = the client has data (or closed: the receive tells),
+// 2 = a new client is waiting, 0 = the client was quiet for AP_CLIENT_IDLE_MS, < 0 = so_poll failed
+static s32 ApWait(s32 s, s32 c)
+{
+	ap_params[0] = 0;
+	ap_params[1] = AP_CLIENT_IDLE_MS;
+	memset(ap_poll, 0, sizeof(*ap_poll) * 2);
+	ap_poll[0].socket = c;
+	ap_poll[0].events = AP_POLLIN;
+	ap_poll[1].socket = s;
+	ap_poll[1].events = AP_POLLIN;
+	s32 r = ApIoctl(ap_top, so_poll, ap_params, 8, ap_poll, sizeof(*ap_poll) * 2);
+	if (r <= 0)
+		return r;
+	if (ap_poll[1].revents & AP_POLLIN)
+		return 2;
+	return ap_poll[0].revents != 0 ? 1 : 0;
+}
+
+static void ApDropClient(s32 c, const char *why)
+{
+	ApClose(c);
+	ApLogNow("client gone (%s; last %s %d)\r\n", why, ap_last_op, ap_last_io);
+}
+
+// Serves clients on listen socket s until accepting keeps failing (then the caller makes a new listen socket)
+static void ApServeAll(s32 s)
+{
+	s32 c = -1;
+	int fails = 0;
+	while (fails < AP_ACCEPT_FAILS)
+	{
+		if (c < 0)
+		{
+			c = ApAccept(s);
+			if (c < 0)
+			{
+				ApLog("accept failed: %d\r\n", c);
+				fails++;
+				mdelay(1000);
+				continue;
+			}
+			fails = 0;
+			ap_last_io = 0;
+			ap_last_op = "";
+			ApLogNow("client %d.%d.%d.%d connected\r\n", ap_addr[4], ap_addr[5], ap_addr[6], ap_addr[7]);
+		}
+		if (!ap_poll_broken)
+		{
+			s32 w = ApWait(s, c);
+			if (w < 0)
+			{
+				ApLogNow("poll failed (%d): one client at a time from now on\r\n", w);
+				ap_poll_broken = true;
+			}
+			else if (w == 0)
+			{
+				ApDropClient(c, "quiet too long");
+				c = -1;
+				continue;
+			}
+			else if (w == 2)
+			{
+				ApDropClient(c, "a new client came");
+				c = -1;
+				continue;
+			}
+		}
+		if (!ApServeOne(c))
+		{
+			ApDropClient(c, "closed or error");
+			c = -1;
+		}
+	}
+	if (c >= 0)
+		ApClose(c);
 }
 
 static u32 ApServerThread(void *arg)
@@ -440,42 +539,27 @@ static u32 ApServerThread(void *arg)
 		return 0;
 	}
 	ApLogNow("network up, IP %d.%d.%d.%d\r\n", ip >> 24, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, ip & 0xFF);
-	// Right after boot the socket layer sometimes refuses (socket() -5 / -28 on hardware, the next boot fine):
-	// try again every second for a minute
-	s32 s = -1;
-	int tries;
-	for (tries = 1; tries <= 60; tries++)
-	{
-		s = ApListen();
-		if (s >= 0)
-			break;
-		mdelay(1000);
-		if (tries % 5 == 0)
-			ApLog("so startup %d\r\n", ApIoctl(ap_top, so_startinterface, NULL, 0, NULL, 0));
-	}
-	if (s < 0)
-	{
-		ApLogNow("listen on port %d failed: %d (60 tries)\r\n", AP_SERVER_PORT, s);
-		return 0;
-	}
-	if (tries > 1)
-		ApLog("listen worked on try %d\r\n", tries);
-	ApLogNow("listening on port %d\r\n", AP_SERVER_PORT);
 	while (1)
 	{
-		s32 c = ApAccept(s);
-		if (c < 0)
+		// The socket layer may refuse for a while (socket() -5 / -28 right after boot, seen while the thread
+		// stack bug was still in): try again every second for as long as it takes
+		s32 s;
+		int tries;
+		for (tries = 1;; tries++)
 		{
-			ApLog("accept failed: %d\r\n", c);
+			s = ApListen();
+			if (s >= 0)
+				break;
+			if (tries == 1 || tries % AP_RETRY_LOG_EVERY == 0)
+				ApLogNow("listen on port %d failed: %d (try %d), trying again\r\n", AP_SERVER_PORT, s, tries);
 			mdelay(1000);
-			continue;
+			if (tries % 5 == 0)
+				ApLog("so startup %d\r\n", ApIoctl(ap_top, so_startinterface, NULL, 0, NULL, 0));
 		}
-		ApLogNow("client %d.%d.%d.%d connected\r\n", ap_addr[4], ap_addr[5], ap_addr[6], ap_addr[7]);
-		ap_last_io = 0;
-		ap_last_op = "";
-		ApServe(c);
-		ApClose(c);
-		ApLogNow("client gone (%s %d)\r\n", ap_last_op, ap_last_io);
+		ApLogNow("listening on port %d (try %d)\r\n", AP_SERVER_PORT, tries);
+		ApServeAll(s);
+		ApLogNow("accept failed %d times: listening again\r\n", AP_ACCEPT_FAILS);
+		ApClose(s);
 	}
 	return 0;
 }
@@ -509,7 +593,9 @@ void ApServerInit(void)
 	ap_bind = ApAlloc(sizeof(*ap_bind));
 	ap_send = ApAlloc(sizeof(*ap_send));
 	ap_vec = ApAlloc(sizeof(ioctlv) * 3);
-	if (!ap_buf || !ap_word || !ap_req || !ap_rx || !ap_params || !ap_out || !ap_addr || !ap_bind || !ap_send || !ap_vec)
+	ap_poll = ApAlloc(sizeof(*ap_poll) * 2);
+	if (!ap_buf || !ap_word || !ap_req || !ap_rx || !ap_params || !ap_out || !ap_addr || !ap_bind || !ap_send || !ap_vec ||
+	    !ap_poll)
 	{
 		ApLogNow("no memory in the socket heap\r\n");
 		return;

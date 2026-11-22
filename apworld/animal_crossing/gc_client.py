@@ -137,10 +137,15 @@ class Mailbox:
             pos = mem.find(MAGIC, pos + 1)
         return None
 
-    def valid(self) -> bool:
-        return self.ram.read(self.addr, 8) == MAGIC
+    def read_header(self) -> Optional[tuple[int, ...]]:
+        # The whole header in one read (each read is a network round trip on a Wii); None = the mailbox is gone
+        data = self.ram.read(self.addr, HEADER_WORDS * 4)
+        if data[:8] != MAGIC:
+            return None
+        return struct.unpack(">%dI" % HEADER_WORDS, data)
 
     def get(self, field: int) -> int:
+        # One header field (test harnesses, tools); sync uses read_header
         return struct.unpack(">I", self.ram.read(self.addr + field * 4, 4))[0]
 
     def put(self, field: int, value: int, signed: bool = False) -> None:
@@ -164,19 +169,24 @@ class Mailbox:
         data = b"".join(c_text(names.get(slot, ""), size) for slot in range(n))
         self.ram.write(self.addr + self.h[H_NAMES_OFF], data)
 
-    # The game shows up to toast_head; a full ring overwrites the oldest (the game skips ahead)
-    def push_toast(self, text: str) -> None:
-        head = self.get(H_TOAST_HEAD)
-        n, size = self.h[H_TOAST_MAX], self.h[H_TOAST_LEN]
-        self.ram.write(self.addr + self.h[H_TOASTS_OFF] + (head % n) * size, c_text(text, size))
-        self.put(H_TOAST_HEAD, (head + 1) & 0xFFFFFFFF)
+    def put_tick_state(self, tick: int, state: int) -> None:
+        # client_tick and client_state are neighbours: one write
+        self.ram.write(self.addr + H_CLIENT_TICK * 4, struct.pack(">Ii", tick, state))
 
-    def read_send(self) -> tuple[list[int], int]:
-        head, tail = self.get(H_SEND_HEAD), self.get(H_SEND_TAIL)
+    # The game shows up to toast_head; a full ring overwrites the oldest (the game skips ahead). head: the current
+    # toast_head (only this client writes it)
+    def push_toasts(self, texts: list[str], head: int) -> None:
+        n, size = self.h[H_TOAST_MAX], self.h[H_TOAST_LEN]
+        for text in texts[-n:]:
+            self.ram.write(self.addr + self.h[H_TOASTS_OFF] + (head % n) * size, c_text(text, size))
+            head = (head + 1) & 0xFFFFFFFF
+        self.put(H_TOAST_HEAD, head)
+
+    def read_send(self, head: int, tail: int) -> list[int]:
         n = self.h[H_SEND_MAX]
         ring = struct.unpack(">%dI" % n, self.ram.read(self.addr + self.h[H_SEND_OFF], n * 4))
         count = min((head - tail) & 0xFFFFFFFF, n)
-        return [ring[(tail + i) % n] for i in range(count)], head
+        return [ring[(tail + i) % n] for i in range(count)]
 
     # Appends entries[have:] (the game already has the first `have`), then the new count
     def append_items(self, items: list[tuple[int, int, int]], have: int) -> None:
@@ -291,6 +301,7 @@ class ACGCContext(CommonContext):
         self.toasts: list[str] = []  # waiting for the mailbox
         self.gset_client_gen = 0  # gset_client_gen we last wrote (the game zeroes it when it restarts)
         self.gset_game_gen: Optional[int] = None  # gset_game_gen last stored (None: not looked yet)
+        self.mbox_texts: dict[int, str] = {}  # mailbox text fields as last written (rewritten only on change)
         self.wii_status = ""  # set_wii_status
         self.wii_address = ""  # the Wii last talked to ("" = none seen)
         self.wii_booting = False  # it had the card and a disc image when last seen
@@ -417,44 +428,60 @@ class ACGCContext(CommonContext):
         m.put_text(H_STATUS, STATUS_LEN, "")
         return True
 
-    # The game's global settings: stored here, written back at every game start; no server needed
-    def sync_gsettings(self, m: Mailbox) -> None:
-        game_gen = m.get(H_GSET_GAME_GEN)
-        if self.gset_game_gen is None or m.get(H_GSET_CLIENT_GEN) != self.gset_client_gen:
-            # This client just came, or the game started again (it zeroes gset_client_gen): what the player
-            # applied in the game before wins, else the stored values go in
+    # The game's global settings: stored here, written back at every game start; no server needed.
+    # fresh: this client just came, or the game started again (sync)
+    def sync_gsettings(self, m: Mailbox, h: tuple[int, ...], fresh: bool) -> None:
+        game_gen = h[H_GSET_GAME_GEN]
+        if fresh:
+            # What the player applied in the game before wins, else the stored values go in
             if game_gen != 0:
                 save_gsettings(m.get_gsettings())
             m.put_gsettings(load_gsettings())
-            self.gset_client_gen = (m.get(H_GSET_CLIENT_GEN) + 1) & 0xFFFFFFFF or 1
+            self.gset_client_gen = (h[H_GSET_CLIENT_GEN] + 1) & 0xFFFFFFFF or 1
             m.put(H_GSET_CLIENT_GEN, self.gset_client_gen)
         elif game_gen != self.gset_game_gen:
             save_gsettings(m.get_gsettings())  # Apply in the game
         self.gset_game_gen = game_gen
 
+    def put_text_changed(self, m: Mailbox, offset: int, size: int, text: str) -> None:
+        if self.mbox_texts.get(offset) != text:
+            m.put_text(offset, size, text)
+            self.mbox_texts[offset] = text
+
     def run_soon(self, coro: Any) -> None:
         # sync() runs in a worker thread (the Wii's RAM is blocking network calls): hand coroutines to the loop
         asyncio.run_coroutine_threadsafe(coro, self.loop)
 
-    def sync(self) -> None:
+    # One round with the game. Each RAM access is a network round trip on a Wii (~44 ms), so an idle round is two:
+    # the header read and the tick + state write; the rest only when something changed. False = the mailbox is gone.
+    def sync(self) -> bool:
         m = self.mbox
+        h = m.read_header()
+        if h is None:
+            return False
+        # gset_client_gen only changes through this client, and the game zeroes it when it starts (a savestate
+        # brings an old one back): a mismatch = the game started over, so everything is written again
+        fresh = self.gset_game_gen is None or h[H_GSET_CLIENT_GEN] != self.gset_client_gen
+        if fresh:
+            self.mbox_slot_key = None
+            self.mbox_texts = {}
+        self.sync_gsettings(m, h, fresh)
         self.client_tick = (self.client_tick + 1) & 0xFFFFFFFF or 1
-        m.put(H_CLIENT_TICK, self.client_tick)
-        self.sync_gsettings(m)
         connected = self.slot is not None and self.seed_name is not None and self.slot_data is not None
         host = self.server_address or ""
-        m.put_text(H_HOST, HOST_LEN, host.split("://")[-1])
-        m.put_text(H_SLOTNAME, SLOTNAME_LEN, self.auth or "")
+        self.put_text_changed(m, H_HOST, HOST_LEN, host.split("://")[-1])
+        self.put_text_changed(m, H_SLOTNAME, SLOTNAME_LEN, self.auth or "")
         if not connected:
-            m.put(H_CLIENT_STATE, CSTATE_CONNECTING, signed=True)
-            return
+            m.put_tick_state(self.client_tick, CSTATE_CONNECTING)
+            return True
         key = (self.seed_name, self.team or 0, self.slot)
+        item_have, checked_have = h[H_ITEM_COUNT], h[H_CHECKED_COUNT]
         if key != self.mbox_slot_key:
             # Other slot (or first sync): slot_data and names first, then the lists start over
             m.put(H_SLOTDATA_READY, 0)
             if not self.write_slotdata(m):
-                m.put(H_CLIENT_STATE, CSTATE_SLOTREFUSED, signed=True)
-                return
+                m.put_tick_state(self.client_tick, CSTATE_SLOTREFUSED)
+                return True
             m.put_names(self.player_names)
             m.put(H_ITEM_COUNT, 0)
             m.put(H_CHECKED_COUNT, 0)
@@ -464,27 +491,34 @@ class ACGCContext(CommonContext):
             m.put(H_SLOTDATA_READY, 1)
             self.mbox_slot_key = key
             self.checked_order, self.checked_known = [], set()
-        m.put(H_CLIENT_STATE, CSTATE_CONNECTED, signed=True)
-        for text in self.toasts:
-            m.push_toast(text)
-        self.toasts.clear()
+            item_have = checked_have = 0
+        m.put_tick_state(self.client_tick, CSTATE_CONNECTED)
+        if self.toasts:
+            m.push_toasts(self.toasts, h[H_TOAST_HEAD])
+            self.toasts.clear()
         for loc in sorted(self.checked_locations - self.checked_known):
             self.checked_order.append(loc)
             self.checked_known.add(loc)
         # The game side is the truth for what it has (a game restart zeroes it)
-        m.append_items([(i.item, i.player, i.flags) for i in self.items_received], m.get(H_ITEM_COUNT))
-        m.append_checked(self.checked_order, m.get(H_CHECKED_COUNT))
-        ids, head = m.read_send()
-        if ids:
-            new = [i for i in ids if i in self.missing_locations or i in self.checked_locations]
-            if len(new) != len(ids):
-                logger.warning("Game sent unknown location ids: %s", [i for i in ids if i not in new])
-            self.locations_checked.update(new)
-            self.run_soon(self.check_locations(new))
+        m.append_items([(i.item, i.player, i.flags) for i in self.items_received], item_have)
+        m.append_checked(self.checked_order, checked_have)
+        head, tail = h[H_SEND_HEAD], h[H_SEND_TAIL]
+        if head != tail:
+            ids = m.read_send(head, tail)
+            known = [i for i in ids if i in self.missing_locations or i in self.checked_locations]
+            if len(known) != len(ids):
+                logger.warning("Game sent unknown location ids: %s", [i for i in ids if i not in known])
+            # The game queues a check again every tick until the server confirms it: send each id once
+            # (CommonClient sends all of locations_checked again after a reconnect)
+            new = [i for i in known if i not in self.locations_checked]
+            if new:
+                self.locations_checked.update(new)
+                self.run_soon(self.check_locations(new))
             m.put(H_SEND_TAIL, head)
-        if m.get(H_GOAL) and not self.finished_game:
+        if h[H_GOAL] and not self.finished_game:
             self.run_soon(self.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}]))
             self.finished_game = True
+        return True
 
 
 WAITING_GAME = "Waiting for the game: Dolphin with the patched game, or the Animal Crossing AP loader on a Wii"
@@ -536,7 +570,7 @@ async def game_sync_task(ctx: ACGCContext) -> None:
                     ctx.set_dolphin_status(lost if connected else WAITING_GAME)
                 connected = False
                 sleep = 2
-            elif ctx.mbox is None or not await asyncio.to_thread(ctx.mbox.valid):
+            elif ctx.mbox is None:
                 ctx.mbox = await asyncio.to_thread(Mailbox.find, ctx.ram, last_addr)
                 if ctx.mbox:
                     last_addr = ctx.mbox.addr
@@ -549,8 +583,9 @@ async def game_sync_task(ctx: ACGCContext) -> None:
                     ctx.set_dolphin_status(f"Lost the game in {where}, waiting for it again" if connected else
                                            f"{where[0].upper() + where[1:]} found, waiting for the AP game")
                     sleep = 1
-            else:
-                await asyncio.to_thread(ctx.sync)
+            elif not await asyncio.to_thread(ctx.sync):
+                ctx.mbox = None  # gone (the game restarted or quit): the next round looks for it again
+                sleep = 0
         except Exception as e:
             # The emulator or Wii went away mid-read: only "lost", no traceback; anything else is a bug
             ctx.mbox = None

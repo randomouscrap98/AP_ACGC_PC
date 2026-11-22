@@ -111,12 +111,15 @@ def send_card(address: str, name: str, port: int = WII_PORT, timeout: float = 5)
 KERNEL_PORT = 38291  # AP_SERVER_PORT (nintendont/kernel/ap_server.h)
 KERNEL_MAGIC, KERNEL_VERSION = 0x41434150, 1
 KERNEL_MAX = 4096  # AP_SERVER_MAX: bytes per read / write request
+FIND_TIMEOUT = 30  # seconds for the F request (a 24 MB search on the Wii; not measured, a guess with room)
 
 
 class NintendontRAM:
     # The RAM bridge to a real Wii: the Nintendont fork's kernel server (nintendont/kernel/ap_server.c), same
     # interface as gc_client.DolphinRAM. Blocking sockets: call it from a thread. Requests: u8 cmd, 3 pad, u32 a, u32 b.
-    def __init__(self, address: str, port: int = KERNEL_PORT, timeout: float = 10) -> None:
+    # timeout: per request. Shorter than the game's 10 s "client alive" window (GC_AP_CLIENT_TIMEOUT_FRAMES), so a
+    # stalled connection is replaced (cheap: the mailbox address is remembered) before the game notices
+    def __init__(self, address: str, port: int = KERNEL_PORT, timeout: float = 5) -> None:
         self.address = address
         self.port = port
         self.timeout = timeout
@@ -195,8 +198,17 @@ class NintendontRAM:
             data = data[KERNEL_MAX:]
 
     def find_magic(self, start: int) -> int:
-        # Game address of the next "ACAPMBOX" at or after start, 0 = none (the kernel searches its own RAM)
-        return struct.unpack(">I", self._request(b"F", start, 0, 4))[0]
+        # Game address of the next "ACAPMBOX" at or after start, 0 = none (the kernel searches its own RAM: up to
+        # 24 MB, so this request gets FIND_TIMEOUT)
+        with self.lock:
+            if self.sock is not None:
+                self.sock.settimeout(FIND_TIMEOUT)
+        try:
+            return struct.unpack(">I", self._request(b"F", start, 0, 4))[0]
+        finally:
+            with self.lock:
+                if self.sock is not None:
+                    self.sock.settimeout(self.timeout)
 
     def quit(self) -> None:
         # The game exits to the loader at its next controller read (testing: no hands needed at the Wii)

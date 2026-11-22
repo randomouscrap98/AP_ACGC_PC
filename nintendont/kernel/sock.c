@@ -231,7 +231,9 @@ void SOCKInit()
 	sockqueue = mqueue_create(soqueueheap, SO_TOTAL_FDS);
 
 	so_stack = (u32*)heap_alloc_aligned(soHeap, 0x400, 32);
-	SO_Thread = thread_create(SOCKAlarm, NULL, so_stack, 0x400 / sizeof(u32), 0x78, 1);
+	// AP: IOS takes the stack's top (it grows down); upstream passed so_stack, so the thread's frames landed below it
+	// in soHeap, where other buffers (ap_server.c's too) live
+	SO_Thread = thread_create(SOCKAlarm, NULL, so_stack + 0x400 / sizeof(u32), 0x400 / sizeof(u32), 0x78, 1);
 	thread_continue(SO_Thread);
 
 	char *soDev = "/dev/net/ip/top";
