@@ -7,6 +7,7 @@
 # Plain sockets, no Archipelago imports, so tests can run it against a fake Wii.
 import re
 import socket
+import struct
 from typing import NamedTuple, Optional
 
 WII_PORT = 38290  # AP_WAIT_PORT (ap_wait.h)
@@ -104,3 +105,84 @@ def send_card(address: str, name: str, port: int = WII_PORT, timeout: float = 5)
             return answer == "OK", answer or "connection closed"
     except OSError as e:
         return False, str(e)
+
+
+KERNEL_PORT = 38291  # AP_SERVER_PORT (nintendont/kernel/ap_server.h)
+KERNEL_MAGIC, KERNEL_VERSION = 0x41434150, 1
+KERNEL_MAX = 4096  # AP_SERVER_MAX: bytes per read / write request
+
+
+class NintendontRAM:
+    # The RAM bridge to a real Wii: the Nintendont fork's kernel server (nintendont/kernel/ap_server.c), same
+    # interface as gc_client.DolphinRAM. Blocking sockets: call it from a thread. Requests: u8 cmd, 3 pad, u32 a, u32 b.
+    def __init__(self, address: str, port: int = KERNEL_PORT, timeout: float = 3) -> None:
+        self.address = address
+        self.port = port
+        self.timeout = timeout
+        self.sock: Optional[socket.socket] = None
+
+    def hook(self) -> bool:
+        if self.sock is not None:
+            return True
+        try:
+            self.sock = socket.create_connection((self.address, self.port), timeout=self.timeout)
+            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            magic, version = struct.unpack(">II", self._request(b"P", 0, 0, 8))
+            if magic != KERNEL_MAGIC or version != KERNEL_VERSION:
+                raise OSError(f"kernel server speaks {magic:08X} v{version}, expected v{KERNEL_VERSION}")
+            return True
+        except OSError:
+            self.unhook()
+            return False
+
+    def unhook(self) -> None:
+        if self.sock is not None:
+            try:
+                self.sock.close()
+            except OSError:
+                pass
+        self.sock = None
+
+    def _recv(self, n: int) -> bytes:
+        data = b""
+        while len(data) < n:
+            chunk = self.sock.recv(n - len(data))
+            if not chunk:
+                raise OSError("the Wii closed the connection")
+            data += chunk
+        return data
+
+    def _request(self, cmd: bytes, a: int, b: int, reply: int, payload: bytes = b"") -> bytes:
+        if self.sock is None:
+            raise OSError("not connected to the Wii")
+        self.sock.sendall(cmd + b"\0\0\0" + struct.pack(">II", a, b) + payload)
+        return self._recv(reply)
+
+    def read(self, addr: int, size: int) -> bytes:
+        out = b""
+        while size > 0:
+            n = min(size, KERNEL_MAX)
+            got, = struct.unpack(">I", self._request(b"R", addr, n, 4))
+            if got != n:
+                raise OSError(f"the Wii refused to read {n} bytes at {addr:08X}")
+            out += self._recv(n)
+            addr += n
+            size -= n
+        return out
+
+    def write(self, addr: int, data: bytes) -> None:
+        while data:
+            part = data[:KERNEL_MAX]
+            done, = struct.unpack(">I", self._request(b"W", addr, len(part), 4, part))
+            if done != len(part):
+                raise OSError(f"the Wii refused to write {len(part)} bytes at {addr:08X}")
+            addr += len(part)
+            data = data[KERNEL_MAX:]
+
+    def find_magic(self, start: int) -> int:
+        # Game address of the next "ACAPMBOX" at or after start, 0 = none (the kernel searches its own RAM)
+        return struct.unpack(">I", self._request(b"F", start, 0, 4))[0]
+
+    def log(self) -> str:
+        n, = struct.unpack(">I", self._request(b"L", 0, 0, 4))
+        return self._recv(n).decode("ascii", "replace")

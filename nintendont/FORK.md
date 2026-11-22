@@ -7,3 +7,9 @@ through game RAM.
 
 Build: `./build_podman.sh --nintendont` at the repository root (`Dockerfile.nintendont` pins the old devkitPro
 toolchain Nintendont needs). Output: `build/nintendont/apps/AnimalCrossingAP`.
+
+Not included from upstream: its Windows-only prebuilt tools (`kernel/zip/zip.exe`, `kernel/bin2h/bin2h.exe`,
+`kernel/NinPattern/NinPattern.exe`, `controllerconfigs/controller_ini_to_array.exe`), the prebuilt
+`loader/loader.dol` (a build output) and `controllerconfigs/HID_Test.dol` (a separate test program). The Linux build
+uses `zip` and the included `kernel/bin2h/bin2h`, so `Build.bat` (Windows) won't work as is. Line endings are
+normalized to LF (upstream mixes CRLF and LF): compare with upstream using `git diff --ignore-cr-at-eol`.

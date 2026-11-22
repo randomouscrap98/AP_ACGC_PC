@@ -22,6 +22,7 @@
 
 #include "types.h"
 #include "ap_slotdata.h"
+#include "dolphin/os.h" // OSCachedToUncached
 
 #define GC_AP_MAGIC0 0x41434150 // "ACAP"
 #define GC_AP_MAGIC1 0x4D424F58 // "MBOX"
@@ -123,7 +124,13 @@ typedef struct {
   u32 tail;
 } gc_ap_mailbox;
 
-extern gc_ap_mailbox gc_ap_mbox;
+// The mailbox's memory. The game only ever uses it through gc_ap_mbox, the CPU's uncached mirror of it: on a Wii
+// the client reaches game RAM through the Nintendont kernel (nintendont/kernel/ap_server.c), which reads and writes
+// RAM directly, so cached copies on the game side would go stale both ways. gc_ap_mailbox_frame flushes the cache
+// lines once before the first use. Hot data (slot_data, received items) is copied to cached memory in
+// gc_ap_backend.c, so game code doesn't pay for uncached reads.
+extern gc_ap_mailbox gc_ap_mbox_mem;
+#define gc_ap_mbox (*(gc_ap_mailbox*)OSCachedToUncached(&gc_ap_mbox_mem))
 
 // Once per game frame: header on the first call, game_tick, client timeout
 void gc_ap_mailbox_frame(void);

@@ -42,6 +42,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "usbstorage.h"
 #include "SDI.h"
 #include "ff_utf8.h"
+#include "ap_server.h" // AP: RAM server for the AP client
 
 //#define USE_OSREPORTDM 1
 
@@ -258,6 +259,7 @@ int _main( int argc, char *argv[] )
 	PatchInit();
 
 	SOCKInit();
+	ApServerInit(); // AP
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
 	mdelay(1000);
@@ -382,6 +384,8 @@ int _main( int argc, char *argv[] )
 				SaveCard = false;
 			}
 		}
+		else if(ApLogFlushDue()) // AP: the AP server's log to the SD card, between other device I/O
+			ApLogFlush();
 		else if(UseUSB && TimerDiffSeconds(USBReadTimer) > 149) /* Read random sector every 2 mins 30 secs */
 		{
 			DIFinishAsync(); //if something is still running

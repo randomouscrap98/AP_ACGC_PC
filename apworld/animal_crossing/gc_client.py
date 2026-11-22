@@ -4,8 +4,8 @@
 # sends what the game queues.
 # Run from an Archipelago checkout: python -m worlds.animal_crossing.gc_client [--connect host:port]
 # Needs dolphin-memory-engine. Only DolphinRAM touches it, so another RAM bridge can replace that class.
-# Real Wii (Nintendont fork "Animal Crossing AP"): wii_task finds its start screen and names the memory card
-# (gc_wii.py); the game's RAM on the Wii isn't reachable yet (fork milestone 4).
+# Real Wii (Nintendont fork "Animal Crossing AP"): wii_task finds its start screen and names the memory card, then
+# game_sync_task reaches the game's RAM through the fork's kernel server (gc_wii.NintendontRAM).
 import asyncio
 import ipaddress
 import json
@@ -51,6 +51,7 @@ GSET_NAMES = ["no_cockroaches", "no_fishing_trash", "easier_critter_catch", "hid
               "screen_margin"]
 GSET_FILE = "animal_crossing_gc_settings.json"  # also holds WII_ADDRESS_KEY
 WII_ADDRESS_KEY = "wii_address"  # set with /wii: asked directly besides the broadcast
+WII_LAST_KEY = "wii_last"  # the last Wii that took a memory card name (its game is reached there)
 
 CSTATE_CONNECTING, CSTATE_CONNECTED, CSTATE_SLOTREFUSED = 1, 3, -1  # AP_CSTATE_* (ap_archipelago.h)
 CTRL_WHITE, CTRL_GREEN, CTRL_RED = "\x01", "\x02", "\x03"  # AP_CTRL_* overlay colours
@@ -80,13 +81,36 @@ class DolphinRAM:
 class Mailbox:
     warned: set[int] = set()  # mailbox versions already warned about
 
-    def __init__(self, ram: DolphinRAM, addr: int, header: tuple[int, ...]) -> None:
+    def __init__(self, ram: Any, addr: int, header: tuple[int, ...]) -> None:
         self.ram = ram
         self.addr = addr
         self.h = header
 
     @staticmethod
-    def find(ram: DolphinRAM) -> Optional["Mailbox"]:
+    def check(ram: Any, addr: int) -> Optional["Mailbox"]:
+        # The mailbox at addr if its header is whole and this client's version
+        h = struct.unpack(">%dI" % HEADER_WORDS, ram.read(addr, HEADER_WORDS * 4))
+        size = h[H_SIZE]
+        if h[H_VERSION] == VERSION and 0 < size <= MEM1 + MEM1_SIZE - addr and \
+                struct.unpack(">I", ram.read(addr + size - 4, 4))[0] == TAIL:
+            return Mailbox(ram, addr, h)
+        if h[H_VERSION] != VERSION and h[H_VERSION] not in Mailbox.warned:
+            Mailbox.warned.add(h[H_VERSION])
+            logger.warning("Mailbox version %d, this client speaks %d: update the client or the game",
+                           h[H_VERSION], VERSION)
+        return None
+
+    @staticmethod
+    def find(ram: Any) -> Optional["Mailbox"]:
+        if hasattr(ram, "find_magic"):
+            # The Wii searches its own RAM (24 MB over Wi-Fi would take too long)
+            addr = ram.find_magic(MEM1)
+            while addr:
+                found = Mailbox.check(ram, addr)
+                if found:
+                    return found
+                addr = ram.find_magic(addr + 4)
+            return None
         mem = ram.read(MEM1, MEM1_SIZE)
         pos = mem.find(MAGIC)
         while pos >= 0:
@@ -218,7 +242,7 @@ def plain(text: str) -> str:
 
 class ACGCCommandProcessor(ClientCommandProcessor):
     def _cmd_dolphin(self) -> None:
-        """Dolphin / mailbox status"""
+        """Game connection status (Dolphin or Wii)"""
         self.output(self.ctx.dolphin_status)
 
     def _cmd_wii(self, address: str = "") -> None:
@@ -245,7 +269,8 @@ class ACGCContext(CommonContext):
 
     def __init__(self, server_address: Optional[str], password: Optional[str]) -> None:
         super().__init__(server_address, password)
-        self.ram: Optional[DolphinRAM] = None
+        self.ram: Any = None  # DolphinRAM or gc_wii.NintendontRAM, whichever has the game
+        self.loop: Optional[asyncio.AbstractEventLoop] = None  # set by game_sync_task
         self.mbox: Optional[Mailbox] = None
         self.dolphin_status = ""  # set_dolphin_status
         self.checked_order: list[int] = []  # mailbox order of checked locations (append-only)
@@ -289,8 +314,7 @@ class ACGCContext(CommonContext):
             (r for r in found if r.address == self.wii_address), None) or (found[0] if found else None)
         if wii is None:
             if self.wii_address:
-                self.set_wii_status(f"The Wii at {self.wii_address} is starting the game (the client can't reach "
-                                    f"the game on a Wii yet)" if self.wii_booting else
+                self.set_wii_status(f"The Wii at {self.wii_address} is starting the game" if self.wii_booting else
                                     f"Lost the Wii at {self.wii_address}")
             return
         addresses = tuple(sorted(r.address for r in found))
@@ -309,6 +333,8 @@ class ACGCContext(CommonContext):
             if not ok:
                 self.set_wii_status(f"The Wii at {wii.address} didn't take the memory card name: {answer}")
                 return
+            if wii_last_address() != wii.address:
+                save_gsettings({WII_LAST_KEY: wii.address}, "the Wii's address")
         if wii.game_ok:
             self.wii_booting = True
             self.set_wii_status(f"The Wii at {wii.address} has memory card {name} and starts the game")
@@ -396,6 +422,10 @@ class ACGCContext(CommonContext):
             save_gsettings(m.get_gsettings())  # Apply in the game
         self.gset_game_gen = game_gen
 
+    def run_soon(self, coro: Any) -> None:
+        # sync() runs in a worker thread (the Wii's RAM is blocking network calls): hand coroutines to the loop
+        asyncio.run_coroutine_threadsafe(coro, self.loop)
+
     def sync(self) -> None:
         m = self.mbox
         self.client_tick = (self.client_tick + 1) & 0xFFFFFFFF or 1
@@ -440,57 +470,85 @@ class ACGCContext(CommonContext):
             if len(new) != len(ids):
                 logger.warning("Game sent unknown location ids: %s", [i for i in ids if i not in new])
             self.locations_checked.update(new)
-            asyncio.create_task(self.check_locations(new))
+            self.run_soon(self.check_locations(new))
             m.put(H_SEND_TAIL, head)
         if m.get(H_GOAL) and not self.finished_game:
-            asyncio.create_task(self.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}]))
+            self.run_soon(self.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}]))
             self.finished_game = True
 
 
-WAITING_DOLPHIN = "Waiting for Dolphin (start it with the patched game)"
-LOST_DOLPHIN = "Lost Dolphin, waiting for it again"
+WAITING_GAME = "Waiting for the game: Dolphin with the patched game, or the Animal Crossing AP loader on a Wii"
 
 
-async def dolphin_sync_task(ctx: ACGCContext) -> None:
+def wii_game_address(ctx: ACGCContext) -> str:
+    # Where a Wii game's kernel server may be: the Wii this client found, else the one set with /wii, else the last
+    # one that took a memory card name (the client may start after the game)
+    return ctx.wii_address or wii_saved_address() or wii_last_address()
+
+
+async def game_sync_task(ctx: ACGCContext) -> None:
+    ctx.loop = asyncio.get_running_loop()
     try:
-        ctx.ram = DolphinRAM()
+        dolphin: Optional[DolphinRAM] = DolphinRAM()
     except ImportError:
-        ctx.dolphin_status = "dolphin_memory_engine missing: it comes with Archipelago 0.6.1 and newer"
-        logger.error("This client needs dolphin_memory_engine, which comes with Archipelago 0.6.1 and newer. "
-                     "From source: pip install dolphin-memory-engine")
-        return
-    connected = False  # the mailbox was found since Dolphin / the game was last lost: "lost" instead of "waiting"
+        dolphin = None
+        logger.warning("dolphin_memory_engine missing (it comes with Archipelago 0.6.1 and newer): only a Wii "
+                       "works. From source: pip install dolphin-memory-engine")
+    wii: Optional[gc_wii.NintendontRAM] = None
+    where = ""  # "Dolphin" / "the Wii at <address>": what ctx.ram is
+    connected = False  # the mailbox was found since the game was last lost: "lost" instead of "waiting"
+
+    def pick() -> tuple[Any, str]:
+        # Dolphin first (a local check), then the Wii's kernel server
+        nonlocal wii
+        if dolphin is not None and dolphin.hook():
+            return dolphin, "Dolphin"
+        address = wii_game_address(ctx)
+        if address:
+            if wii is None or wii.address != address:
+                if wii is not None:
+                    wii.unhook()
+                wii = gc_wii.NintendontRAM(address)
+            if wii.hook():
+                return wii, f"the Wii at {address}"
+        return None, ""
+
     while not ctx.exit_event.is_set():
         sleep = 0.1
         try:
-            if not ctx.ram.hook():
+            if ctx.ram is None or not await asyncio.to_thread(ctx.ram.hook):
                 ctx.mbox = None
-                if connected or ctx.dolphin_status != LOST_DOLPHIN:  # "lost" stays until something changes
-                    ctx.set_dolphin_status(LOST_DOLPHIN if connected else WAITING_DOLPHIN)
+                ctx.ram, where = await asyncio.to_thread(pick)
+            if ctx.ram is None:
+                lost = "Lost the game, waiting for it again"
+                if connected or ctx.dolphin_status != lost:  # "lost" stays until something changes
+                    ctx.set_dolphin_status(lost if connected else WAITING_GAME)
                 connected = False
                 sleep = 2
-            elif ctx.mbox is None or not ctx.mbox.valid():
-                ctx.mbox = Mailbox.find(ctx.ram)
+            elif ctx.mbox is None or not await asyncio.to_thread(ctx.mbox.valid):
+                ctx.mbox = await asyncio.to_thread(Mailbox.find, ctx.ram)
                 if ctx.mbox:
                     logger.debug("Found the game's mailbox at %08X", ctx.mbox.addr)
-                    ctx.set_dolphin_status("Connected to the game in Dolphin")
+                    ctx.set_dolphin_status(f"Connected to the game in {where}")
                     connected = True
                     ctx.mbox_slot_key = None
                     ctx.gset_game_gen = None
                 else:
-                    ctx.set_dolphin_status("Lost the game in Dolphin, waiting for it again" if connected else
-                                           "Dolphin found, waiting for the AP game in it")
+                    ctx.set_dolphin_status(f"Lost the game in {where}, waiting for it again" if connected else
+                                           f"{where[0].upper() + where[1:]} found, waiting for the AP game")
                     sleep = 1
             else:
-                ctx.sync()
-        except Exception:
-            # Dolphin closed or the game stopped mid-read: only "lost", no traceback; anything else is a bug
+                await asyncio.to_thread(ctx.sync)
+        except Exception as e:
+            # The emulator or Wii went away mid-read: only "lost", no traceback; anything else is a bug
             ctx.mbox = None
-            ctx.ram.unhook()
-            if ctx.ram.hook():
+            ram, ctx.ram = ctx.ram, None
+            if ram is not None:
+                await asyncio.to_thread(ram.unhook)
+            if not isinstance(e, OSError) and ram is not None and await asyncio.to_thread(ram.hook):
                 logger.error(traceback.format_exc())
             else:
-                ctx.set_dolphin_status(LOST_DOLPHIN)
+                ctx.set_dolphin_status("Lost the game, waiting for it again")
                 connected = False
             sleep = 2
         try:
@@ -498,6 +556,14 @@ async def dolphin_sync_task(ctx: ACGCContext) -> None:
         except asyncio.TimeoutError:
             pass
         ctx.watcher_event.clear()
+
+
+dolphin_sync_task = game_sync_task  # older name (test harnesses)
+
+
+def wii_last_address() -> str:
+    value = load_gsettings().get(WII_LAST_KEY)
+    return value if isinstance(value, str) else ""
 
 
 def wii_saved_address() -> str:
@@ -537,7 +603,7 @@ def main(*args: str) -> None:
         if gui_enabled:
             ctx.run_gui()
         ctx.run_cli()
-        sync_task = asyncio.create_task(dolphin_sync_task(ctx), name="DolphinSync")
+        sync_task = asyncio.create_task(game_sync_task(ctx), name="GameSync")
         wii = asyncio.create_task(wii_task(ctx), name="WiiFinder")
         await ctx.exit_event.wait()
         ctx.watcher_event.set()

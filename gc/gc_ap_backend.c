@@ -12,7 +12,13 @@
 #include <stdio.h>
 #include <string.h>
 
-gc_ap_mailbox gc_ap_mbox;
+gc_ap_mailbox gc_ap_mbox_mem; // only through gc_ap_mbox (uncached), see gc_ap_mailbox.h
+
+// Cached copies of what game code reads often: slot_data (taken once, like the DLL takes one slot) and the
+// received items (append-only; a shorter list = the client started over)
+static ap_slotdata gc_ap_sd;
+static gc_ap_item gc_ap_items[GC_AP_ITEM_MAX];
+static u32 gc_ap_items_have;
 
 static ap_connectstate gc_ap_cs;
 static ap_config gc_ap_config; // filled from the mailbox (ap_getconfig)
@@ -57,8 +63,31 @@ static void gc_ap_checked_sync(void) {
   }
 }
 
-void gc_ap_mailbox_frame(void) {
+// New items from the mailbox into gc_ap_items
+static void gc_ap_items_sync(void) {
   gc_ap_mailbox* m = &gc_ap_mbox;
+  u32 n = m->item_count;
+  if(n > GC_AP_ITEM_MAX) {
+    n = GC_AP_ITEM_MAX;
+  }
+  if(n < gc_ap_items_have) {
+    gc_ap_items_have = 0;
+  }
+  while(gc_ap_items_have < n) {
+    gc_ap_items[gc_ap_items_have] = m->items[gc_ap_items_have];
+    gc_ap_items_have++;
+  }
+}
+
+void gc_ap_mailbox_frame(void) {
+  static int flushed;
+  gc_ap_mailbox* m = &gc_ap_mbox;
+  if(!flushed) {
+    // Before any uncached use: .bss clearing may have left dirty cache lines here, and their later write-back
+    // would overwrite what the client wrote
+    DCFlushRange(&gc_ap_mbox_mem, sizeof(gc_ap_mbox_mem));
+    flushed = 1;
+  }
   if(m->magic[0] != GC_AP_MAGIC0) {
     // .bss is zero: fill in the header once. The magic goes last, so a client never sees a half-written header
     m->version = GC_AP_MAILBOX_VERSION;
@@ -100,6 +129,10 @@ void gc_ap_mailbox_frame(void) {
     gc_ap_client_quiet++;
   }
   gc_ap_checked_sync();
+  gc_ap_items_sync();
+  if(!gc_ap_sd.valid && m->slotdata_ready) {
+    memcpy(&gc_ap_sd, &m->slotdata, sizeof(gc_ap_sd));
+  }
   gc_ap_gsettings_frame();
 }
 
@@ -155,12 +188,11 @@ const ap_connectstate* ap_getconnectstate(void) {
 }
 
 const ap_slotdata* ap_getslotdata(void) {
-  return &gc_ap_mbox.slotdata;
+  return &gc_ap_sd;
 }
 
 static u32 gc_ap_item_total(void) {
-  u32 n = gc_ap_mbox.item_count;
-  return n > GC_AP_ITEM_MAX ? GC_AP_ITEM_MAX : n;
+  return gc_ap_items_have;
 }
 
 size_t ap_getitemcount(void) {
@@ -168,11 +200,11 @@ size_t ap_getitemcount(void) {
 }
 
 int64_t ap_getitem(size_t idx) {
-  return idx < gc_ap_item_total() ? (int64_t)gc_ap_mbox.items[idx].id : -1;
+  return idx < gc_ap_item_total() ? (int64_t)gc_ap_items[idx].id : -1;
 }
 
 int ap_getitem_sender(size_t idx) {
-  return idx < gc_ap_item_total() ? gc_ap_mbox.items[idx].sender : -1;
+  return idx < gc_ap_item_total() ? gc_ap_items[idx].sender : -1;
 }
 
 int64_t ap_getitem_location(size_t idx) {
@@ -180,7 +212,7 @@ int64_t ap_getitem_location(size_t idx) {
 }
 
 unsigned ap_getitem_flags(size_t idx) {
-  return idx < gc_ap_item_total() ? gc_ap_mbox.items[idx].flags : 0;
+  return idx < gc_ap_item_total() ? gc_ap_items[idx].flags : 0;
 }
 
 int ap_player_name(int slot, char* buf, size_t len) {
@@ -201,7 +233,7 @@ int ap_item_count(int64_t id) {
   u32 i;
   int count = 0;
   for(i = 0; i < n; i++) {
-    if(gc_ap_mbox.items[i].id == (u32)id) {
+    if(gc_ap_items[i].id == (u32)id) {
       count++;
     }
   }
@@ -209,9 +241,8 @@ int ap_item_count(int64_t id) {
 }
 
 int ap_location_checked(int64_t id) {
-  u32 h;
-  gc_ap_checked_sync(); // the client may have added some since this frame began
-  h = gc_ap_hash((u32)id);
+  // The set is synced once per frame (gc_ap_mailbox_frame): here it'd be an uncached read per call
+  u32 h = gc_ap_hash((u32)id);
   while(gc_ap_checked_set[h] != 0) {
     if(gc_ap_checked_set[h] == (u32)id) {
       return 1;
