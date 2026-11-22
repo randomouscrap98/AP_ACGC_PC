@@ -64,6 +64,20 @@ void pc_menu_fill_rect(struct graph_s* graph, f32 x, f32 y, f32 w, f32 h, uint32
 /* Yellow when selected, grey otherwise. */
 void pc_menu_row_colors(int selected, int* r, int* g, int* b, int* a);
 
+// Full-page scale: while set (not 1), the text and box helpers (pc_text_draw, pc_menu_fill_rect, pc_menu_dim_box)
+// pull positions and sizes toward the screen centre by s, so a full-screen page fits inside the screen margin
+// (Settings > Overlay). The pause menu and Settings set it around their full pages; 1 = off (the default).
+void pc_menu_set_page_scale(f32 s);
+// The scale for a screen margin in percent: 1 - 2 * margin / 100
+f32 pc_menu_page_scale_for_margin(int margin);
+// A point / length through the current page scale (unchanged at 1)
+f32 pc_menu_page_x(f32 x);
+f32 pc_menu_page_y(f32 y);
+f32 pc_menu_page_len(f32 len);
+
+// Centred on x = cx
+void pc_menu_draw_centered_at(struct game_s* game, const char* s, f32 cx, f32 y,
+                              int r, int g, int b, int a, f32 scale);
 /* Horizontally centered text at scale. */
 void pc_menu_draw_centered(struct game_s* game, const char* s, f32 y,
                            int r, int g, int b, int a, f32 scale);

@@ -25,6 +25,13 @@ void pc_ap_overlay_screen_cover(int on);
 // on-screen list; when that's full the oldest toast is dropped.
 void pc_ap_overlay_toast(const char* text);
 
+// Distance from the screen edge to the overlay's boxes, in 320x240 units, for a screen margin setting (percent)
+float pc_ap_overlay_edge_x(int margin);
+float pc_ap_overlay_edge_y(int margin);
+
+// The tracker box as the paused overlay draws it (left edge, bottom edge, 320x240 units); 0 = no tracker
+int pc_ap_overlay_tracker_box(float* left, float* bottom);
+
 #ifdef __cplusplus
 }
 #endif

@@ -47,7 +47,8 @@ ITEM_SIZE = 8  # gc_ap_item: u32 id, s16 sender, u8 flags, u8 pad
 # GC_AP_GSET_* order, append-only. Stored by name in GSET_FILE.
 GSET_NAMES = ["no_cockroaches", "no_fishing_trash", "easier_critter_catch", "hidden_bug_hints", "hidden_item_hints",
               "short_shop_talk", "ap_status_always", "ap_tracker_always", "ap_toast_seconds", "ap_toast_max",
-              "disable_resetti", "instant_text", "bite_sound", "less_mail", "map_divination", "planting_marks"]
+              "disable_resetti", "instant_text", "bite_sound", "less_mail", "map_divination", "planting_marks",
+              "screen_margin"]
 GSET_FILE = "animal_crossing_gc_settings.json"  # also holds WII_ADDRESS_KEY
 WII_ADDRESS_KEY = "wii_address"  # set with /wii: asked directly besides the broadcast
 

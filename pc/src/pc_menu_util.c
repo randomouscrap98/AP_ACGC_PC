@@ -15,6 +15,30 @@
 #define PC_NOOP_WIDESCREEN_STRETCH_OFF 0xAC5700u
 #endif
 
+static f32 s_page_scale = 1.0f;
+
+void pc_menu_set_page_scale(f32 s) {
+    s_page_scale = s;
+}
+
+f32 pc_menu_page_scale_for_margin(int margin) {
+    return 1.0f - 2.0f * (f32)margin * 0.01f;
+}
+
+f32 pc_menu_page_x(f32 x) {
+    if (s_page_scale == 1.0f) return x; // bit-identical drawing without a margin
+    return SCREEN_WIDTH_F * 0.5f + (x - SCREEN_WIDTH_F * 0.5f) * s_page_scale;
+}
+
+f32 pc_menu_page_y(f32 y) {
+    if (s_page_scale == 1.0f) return y;
+    return SCREEN_HEIGHT_F * 0.5f + (y - SCREEN_HEIGHT_F * 0.5f) * s_page_scale;
+}
+
+f32 pc_menu_page_len(f32 len) {
+    return s_page_scale == 1.0f ? len : len * s_page_scale;
+}
+
 void pc_menu_set_font_matrix(GRAPH* graph) {
     static Mtx proj;
     static int init = 0;
@@ -51,6 +75,10 @@ void pc_menu_dim_rect(GRAPH* graph, int alpha) {
 
 void pc_menu_fill_rect(GRAPH* graph, f32 x, f32 y, f32 w, f32 h, uint32_t color) {
   Gfx* gfx;
+  x = pc_menu_page_x(x);
+  y = pc_menu_page_y(y);
+  w = pc_menu_page_len(w);
+  h = pc_menu_page_len(h);
   OPEN_DISP(graph);
   gfx = NOW_FONT_DISP;
   gDPPipeSync(gfx++);
@@ -81,6 +109,11 @@ static Gfx* pc_menu_box_rect(Gfx* gfx, int x0, int y0, int x1, int y1) {
 // corners: the body plus thin full-width strips at the top and bottom, each inset to the
 // circle. Strips never overlap (translucent overlaps would show darker).
 void pc_menu_dim_box(GRAPH* graph, f32 x, f32 y, f32 w, f32 h, f32 radius, int alpha) {
+  x = pc_menu_page_x(x);
+  y = pc_menu_page_y(y);
+  w = pc_menu_page_len(w);
+  h = pc_menu_page_len(h);
+  radius = pc_menu_page_len(radius);
   int x0 = (int)(x * 4), y0 = (int)(y * 4);
   int x1 = (int)((x + w) * 4), y1 = (int)((y + h) * 4);
   int strip = 4 / PC_MENU_BOX_STRIPS_PER_PX;
@@ -159,6 +192,12 @@ void pc_menu_draw_centered(struct game_s* game, const char* s, f32 y,
     f32 w = (f32)pc_text_width(s) * scale;
     f32 x = (SCREEN_WIDTH_F - w) * 0.5f;
     pc_text_draw(game, s, x, y, r, g, b, a, scale);
+}
+
+void pc_menu_draw_centered_at(struct game_s* game, const char* s, f32 cx, f32 y,
+                              int r, int g, int b, int a, f32 scale) {
+    f32 w = (f32)pc_text_width(s) * scale;
+    pc_text_draw(game, s, cx - w * 0.5f, y, r, g, b, a, scale);
 }
 
 void pc_menu_draw_left(struct game_s* game, const char* s, f32 x, f32 y,

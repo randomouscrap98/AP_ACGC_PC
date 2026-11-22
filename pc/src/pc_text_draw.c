@@ -10,6 +10,7 @@
  * start a new batch. */
 
 #include "pc_text_draw.h"
+#include "pc_menu_util.h" // page scale
 #include "dolphin/os.h" // OSReport
 
 #include "game.h"
@@ -148,6 +149,9 @@ void pc_text_draw(struct game_s* game, const char* s, f32 x, f32 y,
     int len = (int)strlen(s);
     if (len <= 0) return;
     if (fabsf(scale) < 0.001f) return;
+    x = pc_menu_page_x(x);
+    y = pc_menu_page_y(y);
+    scale = pc_menu_page_len(scale);
 
     // Clip to what's left in the pools instead of overflowing
     int room_vtx = (PC_TEXT_POOL_VTX - s_used_vtx) / 4;

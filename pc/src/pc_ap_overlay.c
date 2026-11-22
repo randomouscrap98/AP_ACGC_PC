@@ -46,7 +46,7 @@ int pc_ap_overlay_toggle(void) {
 #define _APO_MAXSTRING  128
 #define _APO_SCALE      0.5f
 #ifdef TARGET_PC
-#define _APO_SCREENPAD_X 2.0f // screen edge to box edge
+#define _APO_SCREENPAD_X 2.0f // screen edge to box edge, without the screen margin setting
 #define _APO_SCREENPAD_Y 2.0f
 #else
 // GC: the game shows only part of the 640x480 frame in play (JW_UpdateVideoMode: video_pan 20, 6, 598 x 464),
@@ -57,12 +57,23 @@ int pc_ap_overlay_toggle(void) {
 #define _APO_WIDTH      320.0f
 #define _APO_HEIGHT     240.0f
 
+// Screen margin (Settings > Overlay, percent of the screen size) on top of the fixed pad
+f32 pc_ap_overlay_edge_x(int margin) {
+  return _APO_SCREENPAD_X + _APO_WIDTH * (f32)margin * 0.01f;
+}
+
+f32 pc_ap_overlay_edge_y(int margin) {
+  return _APO_SCREENPAD_Y + _APO_HEIGHT * (f32)margin * 0.01f;
+}
+
 // Text position for a box against each edge (the box adds PC_SPAN_PAD_X / PC_SPAN_PAD around it)
-#define _APO_LEFT          (_APO_SCREENPAD_X + PC_SPAN_PAD_X)
-#define _APO_TOP           (_APO_SCREENPAD_Y + PC_SPAN_PAD)
-#define _APO_RIGHT(text)   (_APO_WIDTH - _APO_SCREENPAD_X - PC_SPAN_PAD_X - pc_span_width(text, _APO_SCALE))
+#define _APO_EDGE_X        pc_ap_overlay_edge_x(g_pc_settings.screen_margin)
+#define _APO_EDGE_Y        pc_ap_overlay_edge_y(g_pc_settings.screen_margin)
+#define _APO_LEFT          (_APO_EDGE_X + PC_SPAN_PAD_X)
+#define _APO_TOP           (_APO_EDGE_Y + PC_SPAN_PAD)
+#define _APO_RIGHT(text)   (_APO_WIDTH - _APO_EDGE_X - PC_SPAN_PAD_X - pc_span_width(text, _APO_SCALE))
 // grows upward with more lines
-#define _APO_BOTTOM(text)  (_APO_HEIGHT - _APO_SCREENPAD_Y - PC_SPAN_PAD - pc_span_height(text, _APO_SCALE))
+#define _APO_BOTTOM(text)  (_APO_HEIGHT - _APO_EDGE_Y - PC_SPAN_PAD - pc_span_height(text, _APO_SCALE))
 
 #define _APO_TOAST_SLOTS 16
 #define _APO_TOAST_GAP   1.0f // between stacked toast boxes
@@ -397,22 +408,22 @@ static void apo_append_goals(char* out, size_t size, int goals) {
   }
 }
 
-static void pc_ap_draw_tracker(struct game_s* game) {
+// The tracker's text (output: 1024 bytes)
+static void apo_tracker_text(char* output, size_t size) {
   const ap_slotdata* sd = ap_getslotdata();
-  char output[1024];
   output[0] = '\0';
   if(sd->valid && pc_ap_accepting()) {
     if(pc_ap_loans_enabled()) {
       int loan_amount = pc_ap_loan_amount(pc_ap_house_stage());
       // With the Statue goal this is the goal section's Loan Goal line
       if(!(sd->goal & AP_GOAL_STATUE)) {
-        apo_line(output, sizeof(output), "Loans Paid: %d / %d", pc_ap_loans_paid(), AP_LOAN_NUM);
+        apo_line(output, size, "Loans Paid: %d / %d", pc_ap_loans_paid(), AP_LOAN_NUM);
       }
-      apo_line(output, sizeof(output), "House Unlocks: %d / %d", pc_ap_houses_received(), AP_LOAN_NUM - 1);
-      apo_line(output, sizeof(output), "Loan: %d / %d", loan_amount - (int)Now_Private->inventory.loan, loan_amount);
-      apo_line(output, sizeof(output), "Pending credit: %d", pc_ap_bells_pending());
+      apo_line(output, size, "House Unlocks: %d / %d", pc_ap_houses_received(), AP_LOAN_NUM - 1);
+      apo_line(output, size, "Loan: %d / %d", loan_amount - (int)Now_Private->inventory.loan, loan_amount);
+      apo_line(output, size, "Pending credit: %d", pc_ap_bells_pending());
     } else {
-      apo_line(output, sizeof(output), "Pending credit: %d", pc_ap_bells_pending());
+      apo_line(output, size, "Pending credit: %d", pc_ap_bells_pending());
     }
     // Favor pools: checked / checks in the open pools / all checks. Checked can pass open: other
     // players' collects check any id. Red +N: ids checked past the first gap (desync)
@@ -422,17 +433,17 @@ static void pc_ap_draw_tracker(struct game_s* game) {
       snprintf(ahead, sizeof(ahead), AP_CTRL_RED " +%d" AP_CTRL_WHITE, pc_ap_favors_ahead());
     }
     if(pc_ap_favors_total() > 0 && favors_open >= 0) {
-      apo_line(output, sizeof(output), "Favors: %d / %d / %d%s", pc_ap_favors_checked(), favors_open,
+      apo_line(output, size, "Favors: %d / %d / %d%s", pc_ap_favors_checked(), favors_open,
                pc_ap_favors_total(), ahead);
     } else if(pc_ap_favors_total() > 0) {
-      apo_line(output, sizeof(output), "Favors: %d / %d%s", pc_ap_favors_checked(), pc_ap_favors_total(), ahead);
+      apo_line(output, size, "Favors: %d / %d%s", pc_ap_favors_checked(), pc_ap_favors_total(), ahead);
     }
-    apo_append_museum(output, sizeof(output));
+    apo_append_museum(output, size);
     if(pc_ap_catalog_pools_total() > 0) {
-      apo_line(output, sizeof(output), "Catalog Pools: %d / %d", pc_ap_catalog_pools_open(),
+      apo_line(output, size, "Catalog Pools: %d / %d", pc_ap_catalog_pools_open(),
                pc_ap_catalog_pools_total());
       // Catalog: in the catalog / items of the open pools / all items
-      apo_line(output, sizeof(output), "Catalog: %d / %d / %d", pc_ap_catalog_registered(),
+      apo_line(output, size, "Catalog: %d / %d / %d", pc_ap_catalog_registered(),
                pc_ap_catalog_items_open(), pc_ap_catalog_items_total());
     }
     // Trees: sent / checks of the fruit the player has / all checks
@@ -446,7 +457,7 @@ static void pc_ap_draw_tracker(struct game_s* game) {
           available += per_fruit;
         }
       }
-      apo_line(output, sizeof(output), "Trees: %d / %d / %d", sent, available, per_fruit * PC_AP_FRUITS);
+      apo_line(output, size, "Trees: %d / %d / %d", sent, available, per_fruit * PC_AP_FRUITS);
     }
     // Shells: sent / checks of the owned months (all without Timesanity) / all checks
     if(pc_ap_shells_per_month() > 0) {
@@ -459,21 +470,44 @@ static void pc_ap_draw_tracker(struct game_s* game) {
           available += per_month;
         }
       }
-      apo_line(output, sizeof(output), "Shells: %d / %d / %d", sent, available, per_month * 12);
+      apo_line(output, size, "Shells: %d / %d / %d", sent, available, per_month * 12);
     }
-    apo_append_unlocks(output, sizeof(output));
+    apo_append_unlocks(output, size);
     // Goal section below the checks: half a line apart, a gray rule in the gap
     char goals[256];
     goals[0] = '\0';
     apo_append_goals(goals, sizeof(goals), sd->goal);
     if(goals[0]) {
-      apo_append(output, sizeof(output), AP_CTRL_GRAY PC_SPAN_RULELINE AP_CTRL_WHITE "%s", goals);
+      apo_append(output, size, AP_CTRL_GRAY PC_SPAN_RULELINE AP_CTRL_WHITE "%s", goals);
     }
   } else {
-    snprintf(output, sizeof(output), "Waiting on save...");
+    snprintf(output, size, "Waiting on save...");
   }
+}
+
+static void pc_ap_draw_tracker(struct game_s* game) {
+  char output[1024];
+  apo_tracker_text(output, sizeof(output));
   pc_span_boxtext(game, output, _APO_RIGHT(output), _APO_TOP, _APO_SCALE);
 }
+
+// Whether the overlay draws the tracker this frame (offline has nothing to track)
+static int apo_show_tracker(int menu_screen, int submenu) {
+  return (menu_screen || g_pc_settings.ap_tracker_always) && !submenu &&
+         ap_getconnectstate()->state != AP_CSTATE_OFFLINE;
+}
+
+int pc_ap_overlay_tracker_box(f32* left, f32* bottom) {
+  char output[1024];
+  if(g_pc_nes_active || !g_pc_ap_overlay_visible || !apo_show_tracker(1, 0)) {
+    return 0;
+  }
+  apo_tracker_text(output, sizeof(output));
+  *left = _APO_RIGHT(output) - PC_SPAN_PAD_X;
+  *bottom = _APO_TOP + pc_span_height(output, _APO_SCALE) + PC_SPAN_PAD;
+  return 1;
+}
+
 
 void pc_ap_overlay_draw(struct game_s* game) {
   pc_ap_update_toasts();
@@ -493,9 +527,7 @@ void pc_ap_overlay_draw(struct game_s* game) {
   // Settings and pause submenus are full pages: no status, seed, version or tracker over them
   int submenu = pc_settings_menu_active() || pc_pause_menu_submenu_open();
   int show_status = (menu_screen || g_pc_settings.ap_status_always) && !submenu;
-  // Offline has nothing to track
-  int show_tracker = (menu_screen || g_pc_settings.ap_tracker_always) && !submenu &&
-                     ap_getconnectstate()->state != AP_CSTATE_OFFLINE;
+  int show_tracker = apo_show_tracker(menu_screen, submenu);
   int show_toasts = s_toast_count > 0;
   if(!menu_screen && !show_status && !show_tracker && !show_toasts) {
     return;

@@ -7,6 +7,7 @@
 #include "pc_menu_list.h"
 #include "pc_ap_logic.h"
 #include "pc_ap_settings.h"
+#include "pc_ap_overlay.h" // pc_ap_overlay_edge_x / _y
 #ifdef TARGET_PC
 #include "pc_render_target.h"
 #include "pc_keybindings.h"
@@ -64,6 +65,7 @@ enum {
     ITEM_AP_TRACKER_ALWAYS,
     ITEM_AP_TOAST_SECONDS,
     ITEM_AP_TOAST_MAX,
+    ITEM_SCREEN_MARGIN,
     ITEM_AP_FIRST, /* + PC_AP_SET_* */
 };
 
@@ -133,6 +135,7 @@ static const Item tab_overlay_items[] = {
     { "Tracker",      ITEM_AP_TRACKER_ALWAYS, 0, "Checks and goals: always, or in menus only" },
     { "Toast time",   ITEM_AP_TOAST_SECONDS,  0, "How long item messages stay on screen" },
     { "Toast count",  ITEM_AP_TOAST_MAX,      0, "Item messages on screen at once" },
+    { "Screen margin", ITEM_SCREEN_MARGIN,    0, "Keeps the overlay and menus off the TV's edges" },
 #ifdef TARGET_PC
     { "AP text client", ITEM_AP_TEXT_CLIENT,  0, "The AP box in the pause menu" },
 #endif
@@ -403,6 +406,7 @@ static int pc_dirty(void) {
         (s_pending.ap_tracker_always != g_pc_settings.ap_tracker_always) ||
         (s_pending.ap_toast_seconds  != g_pc_settings.ap_toast_seconds) ||
         (s_pending.ap_toast_max      != g_pc_settings.ap_toast_max) ||
+        (s_pending.screen_margin     != g_pc_settings.screen_margin) ||
         window_size_changed() ||
         (s_pending.fullscreen       != g_pc_settings.fullscreen) ||
         (s_pending.vsync            != g_pc_settings.vsync) ||
@@ -607,6 +611,12 @@ static void item_cycle(int id, int dir) {
             if (v > 16) v = 1;
             s_pending.ap_toast_max = v;
         } break;
+        case ITEM_SCREEN_MARGIN: {
+            int v = s_pending.screen_margin + (dir > 0 ? 1 : -1);
+            if (v < 0)  v = 10;
+            if (v > 10) v = 0;
+            s_pending.screen_margin = v;
+        } break;
     }
     recompute_dirty();
 }
@@ -760,6 +770,9 @@ static void item_format(int id, char* buf, size_t n) {
         case ITEM_AP_TOAST_MAX:
             snprintf(buf, n, "< %d >", s_pending.ap_toast_max);
             break;
+        case ITEM_SCREEN_MARGIN:
+            snprintf(buf, n, "< %d%% >", s_pending.screen_margin);
+            break;
         default:
             buf[0] = '\0';
             break;
@@ -807,6 +820,7 @@ static int item_changed(int id) {
         case ITEM_AP_TRACKER_ALWAYS: return s_pending.ap_tracker_always != g_pc_settings.ap_tracker_always;
         case ITEM_AP_TOAST_SECONDS:  return s_pending.ap_toast_seconds  != g_pc_settings.ap_toast_seconds;
         case ITEM_AP_TOAST_MAX:      return s_pending.ap_toast_max      != g_pc_settings.ap_toast_max;
+        case ITEM_SCREEN_MARGIN:     return s_pending.screen_margin     != g_pc_settings.screen_margin;
     }
     return 0;
 }
@@ -1240,6 +1254,30 @@ static void draw_tab_row(struct game_s* game, f32 y) {
     }
 }
 
+// Corner marks where the overlay's boxes would end with the pending screen margin, so the player can turn it up
+// until all four show on the TV
+#define MARGIN_MARK_LEN   12.0f
+#define MARGIN_MARK_THICK 2.0f
+static void draw_margin_marks(struct game_s* game) {
+    pc_menu_set_page_scale(1.0f); // the real screen edge; the page's scale again at the end
+    f32 x0 = pc_ap_overlay_edge_x(s_pending.screen_margin);
+    f32 y0 = pc_ap_overlay_edge_y(s_pending.screen_margin);
+    f32 x1 = SCREEN_WIDTH_F - x0;
+    f32 y1 = SCREEN_HEIGHT_F - y0;
+    f32 len = MARGIN_MARK_LEN, t = MARGIN_MARK_THICK;
+    uint32_t col = 0xFFD820FFu; // the icon's yellow
+    // Each corner: a horizontal and a vertical bar meeting at the corner
+    pc_menu_fill_rect(game->graph, x0, y0, len, t, col);
+    pc_menu_fill_rect(game->graph, x0, y0, t, len, col);
+    pc_menu_fill_rect(game->graph, x1 - len, y0, len, t, col);
+    pc_menu_fill_rect(game->graph, x1 - t, y0, t, len, col);
+    pc_menu_fill_rect(game->graph, x0, y1 - t, len, t, col);
+    pc_menu_fill_rect(game->graph, x0, y1 - len, t, len, col);
+    pc_menu_fill_rect(game->graph, x1 - len, y1 - t, len, t, col);
+    pc_menu_fill_rect(game->graph, x1 - t, y1 - len, t, len, col);
+    pc_menu_set_page_scale(pc_menu_page_scale_for_margin(g_pc_settings.screen_margin));
+}
+
 static void draw_settings_page(struct game_s* game) {
     int r, g, b, a;
     f32 lx = 70.0f;
@@ -1321,6 +1359,9 @@ static void draw_settings_page(struct game_s* game) {
         return;
     }
 
+    if (s_sel >= 0 && s_sel < tab->count && tab->items[s_sel].id == ITEM_SCREEN_MARGIN) {
+        draw_margin_marks(game);
+    }
     // Other tabs: what the selected setting does, if it says
     if (s_sel >= 0 && s_sel < tab->count && tab->items[s_sel].help != NULL) {
         pc_menu_draw_centered(game, tab->items[s_sel].help, bky + line_h + 6.0f, 150, 150, 150, 220, 1.0f);
@@ -1459,10 +1500,13 @@ static void draw_bindings_page(struct game_s* game) {
 void pc_settings_menu_draw(struct game_s* game, int with_dim_backdrop) {
     if (!s_active || !game || !game->graph) return;
     if (with_dim_backdrop) pc_menu_dim_rect(game->graph, 180);
+    // Full pages: inside the applied screen margin (the corner marks show the pending one, unscaled)
+    pc_menu_set_page_scale(pc_menu_page_scale_for_margin(g_pc_settings.screen_margin));
     if (s_sub == SUB_SETTINGS)          draw_settings_page(game);
 #ifdef TARGET_PC
     else if (s_sub == SUB_BINDINGS)     draw_bindings_page(game);
     else if (s_sub == SUB_CONFIRM_RESTART) draw_restart_page(game);
 #endif
     else                                draw_back_confirm_page(game);
+    pc_menu_set_page_scale(1.0f);
 }

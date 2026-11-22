@@ -1,4 +1,5 @@
 #include "pc_settings_menu.h"
+#include "pc_settings.h" // screen_margin
 #ifdef TARGET_PC
 #include "pc_platform.h"
 #include "pc_menu_input.h"
@@ -90,6 +91,8 @@ typedef struct {
 static PauseMenuPage cur_page = PAGE_MAIN;
 static MenuList main_list;
 static MenuList ap_list;
+static int s_list_pos_set; // the list pages' position is decided (s_list_shifted); 0 again on any other page
+static int s_list_shifted; // main + AP list at LIST_SHIFTED_CX: the tracker would cover them in the middle
 static int confirm_sel = 0; /* 0=No (default), 1=Yes */
 
 // Held direction (keys, d-pad, stick), fired by pause_tick through the repeat. held_src = what set it:
@@ -213,6 +216,7 @@ void pc_pause_menu_toggle(void) {
     memset(&s_repeat, 0, sizeof(s_repeat));
     if (g_pc_paused) {
         cur_page = PAGE_MAIN;
+        s_list_pos_set = 0;
         main_list.sel = 0;
         ap_list.sel = 0;
     } else {
@@ -592,19 +596,56 @@ void gc_ap_pause_pads(void* pads, int count) {
 
 /* Drawing */
 
-// Main and AP list pages
+// Main and AP list pages: title + entries centred vertically (y is a row's top, rows are 16 high), then up a bit:
+// the AP status and seed lines take the bottom ~25 px
+#define LIST_LINE_H    17.0f
+#define LIST_TITLE_GAP 30.0f // title top to first entry top
+#define LIST_SHIFT_UP  10.0f
+// Second place for both lists, for when the tracker (top right, moved in by the screen margin) would cover
+// them in the middle: far enough left for the widest tracker at the largest margin
+#define LIST_SHIFTED_CX 110.0f
+#define LIST_TRACKER_GAP 4.0f // least room between the list and the tracker box
+
+static f32 list_top(const MenuList* list) {
+    f32 block_h = LIST_TITLE_GAP + (list->count - 1) * LIST_LINE_H + mFont_TEX_CHAR_HEIGHT_F32;
+    return (SCREEN_HEIGHT_F - block_h) * 0.5f - LIST_SHIFT_UP;
+}
+
+// Right edge of the wider list (selected rows are drawn bigger) when centred
+static f32 list_right(void) {
+    f32 w = (f32)pc_text_width("- Paused -");
+    const MenuList* lists[2] = { &main_list, &ap_list };
+    for (int l = 0; l < 2; l++) {
+        for (int i = 0; i < lists[l]->count; i++) {
+            f32 iw = (f32)pc_text_width(main_label(lists[l]->items[i])) * PC_MENU_SCALE_SELECTED;
+            if (iw > w) w = iw;
+        }
+    }
+    return SCREEN_WIDTH_F * 0.5f + w * 0.5f;
+}
+
+// Middle or LIST_SHIFTED_CX, decided when a list page is first drawn and kept until another page shows or the
+// menu closes, so the lists never move while they're on screen; both lists use the same place
+static f32 list_cx(void) {
+    if (!s_list_pos_set) {
+        f32 left, bottom;
+        f32 top = list_top(&main_list);
+        if (list_top(&ap_list) < top) top = list_top(&ap_list);
+        s_list_shifted = pc_ap_overlay_tracker_box(&left, &bottom) && bottom > top &&
+                         left < list_right() + LIST_TRACKER_GAP;
+        s_list_pos_set = 1;
+    }
+    return s_list_shifted ? LIST_SHIFTED_CX : SCREEN_WIDTH_F * 0.5f;
+}
+
 static void draw_list_page(struct game_s* game, const char* title, const MenuList* list) {
     lists_update();
-    // Center title + entries vertically (y is a row's top, rows are 16 high), then up a bit:
-    // the AP status and seed lines take the bottom ~25 px
-    f32 line_h = 17.0f;
-    f32 title_gap = 30.0f; // title top to first entry top
-    f32 shift_up = 10.0f;
-    f32 block_h = title_gap + (list->count - 1) * line_h + mFont_TEX_CHAR_HEIGHT_F32;
-    f32 top = (SCREEN_HEIGHT_F - block_h) * 0.5f - shift_up;
-    pc_menu_draw_centered(game, title, top, 255, 255, 255, 255, 1.0f);
+    f32 line_h = LIST_LINE_H;
+    f32 top = list_top(list);
+    f32 cx = list_cx();
+    pc_menu_draw_centered_at(game, title, cx, top, 255, 255, 255, 255, 1.0f);
 
-    f32 y = top + title_gap;
+    f32 y = top + LIST_TITLE_GAP;
     for (int i = 0; i < list->count; i++) {
         int r, g, b, a;
         int selected = (i == list->sel);
@@ -613,8 +654,8 @@ static void draw_list_page(struct game_s* game, const char* title, const MenuLis
             r = g = b = 120;
             a = selected ? 220 : 160;
         }
-        pc_menu_draw_centered(game, main_label(list->items[i]), y + i * line_h, r, g, b, a,
-                              selected ? PC_MENU_SCALE_SELECTED : 1.0f);
+        pc_menu_draw_centered_at(game, main_label(list->items[i]), cx, y + i * line_h, r, g, b, a,
+                                 selected ? PC_MENU_SCALE_SELECTED : 1.0f);
     }
 }
 
@@ -635,6 +676,11 @@ void pc_pause_menu_draw(struct game_s* game) {
     pause_tick();
     pc_settings_menu_tick();
 
+    if (cur_page != PAGE_MAIN && cur_page != PAGE_AP) s_list_pos_set = 0; // decided again when a list shows
+    // Full pages (not the lists or the quit question) fit inside the screen margin; Settings sets its own
+    int full_page = cur_page != PAGE_MAIN && cur_page != PAGE_AP && cur_page != PAGE_CONFIRM_QUIT &&
+                    cur_page != PAGE_SETTINGS;
+    if (full_page) pc_menu_set_page_scale(pc_menu_page_scale_for_margin(g_pc_settings.screen_margin));
     if (cur_page == PAGE_SETTINGS) {
         /* Settings module owns its own dim backdrop. */
         pc_settings_menu_draw(game, /*with_dim_backdrop=*/1);
@@ -662,4 +708,5 @@ void pc_pause_menu_draw(struct game_s* game) {
         else if (cur_page == PAGE_AP)           draw_list_page(game, "- AP -", &ap_list);
         else if (cur_page == PAGE_CONFIRM_QUIT) draw_confirm_page(game);
     }
+    pc_menu_set_page_scale(1.0f);
 }

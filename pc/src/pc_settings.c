@@ -43,6 +43,7 @@ PCSettings g_pc_settings = {
     .ap_toast_seconds = 10,
     .ap_toast_max = 8,
     .ap_text_client = 1,
+    .screen_margin = 0,
 };
 
 static const char* SETTINGS_FILE = "settings.ini";
@@ -156,7 +157,10 @@ static const char* DEFAULT_SETTINGS =
     "ap_toast_max = 8\n"
     "\n"
     "# AP text client box in the pause menu: 1 = on, 0 = off (never started)\n"
-    "ap_text_client = 1\n";
+    "ap_text_client = 1\n"
+    "\n"
+    "# Overlay distance from the screen edges for TVs that cut them off (overscan), percent 0-10\n"
+    "screen_margin = 0\n";
 
 static const char* skip_ws(const char* s) {
     while (*s == ' ' || *s == '\t') s++;
@@ -249,6 +253,8 @@ static void apply_setting(const char* key, const char* value) {
         if (val >= 1 && val <= 16) g_pc_settings.ap_toast_max = val;
     } else if (strcmp(key, "ap_text_client") == 0) {
         if (val == 0 || val == 1) g_pc_settings.ap_text_client = val;
+    } else if (strcmp(key, "screen_margin") == 0) {
+        if (val >= 0 && val <= 10) g_pc_settings.screen_margin = val;
     }
 }
 
@@ -445,6 +451,9 @@ void pc_settings_save(void) {
     fprintf(f, "\n");
     fprintf(f, "# AP text client box in the pause menu: 1 = on, 0 = off (never started)\n");
     fprintf(f, "ap_text_client = %d\n", g_pc_settings.ap_text_client);
+    fprintf(f, "\n");
+    fprintf(f, "# Overlay distance from the screen edges for TVs that cut them off (overscan), percent 0-10\n");
+    fprintf(f, "screen_margin = %d\n", g_pc_settings.screen_margin);
     fclose(f);
     printf("[Settings] Saved %s\n", SETTINGS_FILE);
 }
