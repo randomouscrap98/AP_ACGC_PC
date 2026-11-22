@@ -8,6 +8,7 @@ from typing import Any
 PROGRESSION, USEFUL, TRAP = 0b001, 0b010, 0b100
 COLOR_PROGRESSION, COLOR_USEFUL, COLOR_TRAP, COLOR_FILLER = "AF99EF", "6D8BE8", "FA8072", "00EEEE"
 COLOR_LOCATION, COLOR_DONE = "00FF7F", "808080"  # unchecked check / received item's location; checked / none
+COLOR_DOLPHIN, COLOR_WII = "4FC3F7", "FFB74D"  # the game link line: which system the game runs on
 
 
 def item_color(flags: int) -> str:
@@ -111,3 +112,52 @@ def summary(groups: list[CheckGroup]) -> str:
     if total == 0:
         return "No locations yet (connect to the server)."
     return f"{missing} checks left of {total} ({100.0 * (total - missing) / total:.1f}%)"
+
+
+def link_title(ctx: Any) -> tuple[str, str]:
+    # The connection tab's name and colour: which system the game is reached on
+    from . import gc_wii
+    ram = getattr(ctx, "ram", None)
+    if ram is None:
+        return "Game", COLOR_DONE
+    if isinstance(ram, gc_wii.NintendontRAM):
+        return "Wii", COLOR_WII
+    return "Dolphin", COLOR_DOLPHIN
+
+
+def duration(seconds: float) -> str:
+    seconds = int(seconds)
+    if seconds < 60:
+        return f"{seconds} s"
+    if seconds < 3600:
+        return f"{seconds // 60} min {seconds % 60} s"
+    return f"{seconds // 3600} h {seconds // 60 % 60} min"
+
+
+def link_info(ctx: Any) -> list[tuple[str, str]]:
+    # The connection tab's info rows (label, value)
+    import time
+    from . import gc_wii
+    ram, mbox, link = getattr(ctx, "ram", None), getattr(ctx, "mbox", None), ctx.link
+    if ram is None:
+        rows = [("System", "looking on Dolphin or Wii")]
+    elif isinstance(ram, gc_wii.NintendontRAM):
+        rows = [("System", f"Wii at {ram.address} (port {ram.port})")]
+    else:
+        rows = [("System", "Dolphin")]
+    if ram is not None:
+        rows.append(("State", "connected" if mbox is not None else "waiting for the AP game"))
+    if mbox is not None:
+        rows.append(("Mailbox", f"{mbox.addr:08X}"))
+        if link.connected_at is not None:
+            rows.append(("Connected for", duration(time.monotonic() - link.connected_at)))
+    rows.append(("Sync", link.timing or "-"))
+    rows.append(("Game found", f"{link.finds} times, {link.errors} link errors"))
+    if getattr(ctx, "wii_status", ""):
+        rows.append(("Wii loader", ctx.wii_status))
+    return rows
+
+
+def link_version(ctx: Any) -> tuple:
+    # Changes when the tab's log has new lines
+    return (ctx.link.generation,)

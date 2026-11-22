@@ -1,4 +1,4 @@
-# The GC client's Items and Checks tabs in aplite (ArchipelagoLite's terminal client): Textual panes returned by
+# The GC client's Items, Checks and connection tabs in aplite (ArchipelagoLite's terminal client): Textual panes returned by
 # ACGCContext.aplite_tabs(), which aplite's client screen calls once (aplite/tui.py, ClientApp.compose). Only
 # imported from there: Textual exists only under aplite. Rows come from gc_client_lists.py.
 from typing import Any
@@ -6,7 +6,7 @@ from typing import Any
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Checkbox, DataTable, Input, Static, Tree
+from textual.widgets import Checkbox, DataTable, Input, RichLog, Static, TabbedContent, Tree
 
 from . import gc_client_lists as lists
 
@@ -123,5 +123,58 @@ class ChecksPane(Vertical):
                     node.add_leaf(Text(c.name, style=color(lists.COLOR_LOCATION)))
 
 
+class LinkPane(Vertical):
+    # The game connection: info block + its log (ctx.link). Renames its own tab to the system (Dolphin / Wii, each
+    # in its colour; "Game" while looking) through Textual's TabbedContent, so aplite needs no hook.
+    DEFAULT_CSS = """
+    LinkPane { height: 1fr; }
+    LinkPane #acgc-link-info { height: auto; padding: 0 1; border-bottom: solid $panel-lighten-2; }
+    LinkPane RichLog { height: 1fr; }
+    """
+
+    def __init__(self, ctx: Any) -> None:
+        super().__init__()
+        self.ctx = ctx
+        self.shown_gen = 0  # ctx.link.generation the log shows
+        self.title: tuple | None = None  # (name, colour) the tab shows
+
+    def compose(self) -> ComposeResult:
+        yield Static(id="acgc-link-info")
+        yield RichLog(id="acgc-link-log", wrap=True)
+
+    def on_mount(self) -> None:
+        self.set_interval(REFRESH_SECONDS, self.refresh_link)
+        self.refresh_link()
+
+    def refresh_link(self) -> None:
+        info = Text()
+        rows = lists.link_info(self.ctx)
+        width = max(len(label) for label, _ in rows) + 2
+        for i, (label, value) in enumerate(rows):
+            if i:
+                info.append("\n")
+            info.append(f"{label}:".ljust(width), style="dim").append(value)
+        self.query_one("#acgc-link-info", Static).update(info)
+        link = self.ctx.link
+        new = min(link.generation - self.shown_gen, len(link.lines))
+        if new > 0:
+            log = self.query_one(RichLog)
+            for line in list(link.lines)[-new:]:
+                log.write(line)
+        self.shown_gen = link.generation
+        self.rename_tab()
+
+    def rename_tab(self) -> None:
+        title = lists.link_title(self.ctx)
+        if title == self.title:
+            return
+        self.title = title
+        try:
+            tab = self.query_ancestor(TabbedContent).get_tab(self.parent.id)
+        except Exception:
+            return  # not in a TabbedContent pane (another host): the tab keeps "Game"
+        tab.label = Text(title[0], style=color(title[1]))
+
+
 def tabs(ctx: Any) -> list[tuple[str, Any]]:
-    return [("Items", ItemsPane(ctx)), ("Checks", ChecksPane(ctx))]
+    return [("Items", ItemsPane(ctx)), ("Checks", ChecksPane(ctx)), ("Game", LinkPane(ctx))]

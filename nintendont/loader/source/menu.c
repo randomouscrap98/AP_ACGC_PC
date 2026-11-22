@@ -1996,15 +1996,16 @@ void PrintInfo(void)
 	const char *consoleType = (isWiiVC ? (IsWiiUFastCPU() ? "WiiVC 5x CPU" : "Wii VC") : (IsWiiUFastCPU() ? "WiiU 5x CPU" : (IsWiiU() ? "Wii U" : "Wii")));
 #ifdef NIN_SPECIAL_VERSION
 	// "Special" version with customizations. (Not mainline!)
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Animal Crossing AP (Nintendont v%u.%u" NIN_SPECIAL_VERSION ") (%s)",
-		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
+	// AP: the console type moved to the Firmware line: with our name the first line ran into "Home: Exit" (x + 430)
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Animal Crossing AP (Nintendont %u.%u" NIN_SPECIAL_VERSION ")",
+		    NIN_VERSION>>16, NIN_VERSION&0xFFFF);
 #else
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Animal Crossing AP (Nintendont v%u.%u) (%s)",
-		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Animal Crossing AP (Nintendont %u.%u)",
+		    NIN_VERSION>>16, NIN_VERSION&0xFFFF);
 #endif
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : " __DATE__ " " __TIME__);
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "Firmware: %u.%u.%u",
-		    *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143);
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "Firmware: %u.%u.%u (%s)",
+		    *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143, consoleType);
 }
 
 /**

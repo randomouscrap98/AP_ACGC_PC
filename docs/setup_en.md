@@ -12,6 +12,8 @@
 On macOS the Windows version runs under Wine. On Linux you can use the native Linux version, or the Windows
 version under Wine/Proton.
 
+To play the GameCube version in Dolphin or on a Wii instead, see [GameCube Version](#gamecube-version-dolphin-or-wii).
+
 ## Installation
 
 1. Install `animal_crossing.apworld` by copying it into the
@@ -102,3 +104,52 @@ offline=offline_example.json
 
 and edit `offline_example.json` to choose your options. Options that are also in the in-game Settings > AP tab are only read when a
 save is first loaded; after that, change them in game (editing the file does nothing for that save).
+
+## GameCube Version (Dolphin or Wii)
+
+The same game as a patched GameCube disc, for Dolphin or a real Wii. It needs the apworld, your disc image (as
+above) and Archipelago 0.6.7 or newer; no game zip.
+
+### Patch your disc
+
+1. In the Archipelago Launcher, open **Animal Crossing GameCube Patcher**, pick your disc image and where to save
+   the patched one. The result is a small `.iso` (about 33 MB) that Dolphin and Nintendont boot.
+2. The patcher takes ISO/GCM and CISO. For other formats (RVZ, GCZ, WIA), convert to ISO first in Dolphin
+   (right-click the game > Convert File).
+3. A new release of this project usually means patching again.
+
+### Connecting
+
+Open **Animal Crossing GameCube Client** in the Launcher and connect to the server with your slot name. Keep it
+running while you play: it carries everything between the game and the server, and **Start Game stays blocked
+until it has connected you**. Its **Game** tab turns into **Dolphin** or **Wii** once it reaches the game and
+shows what it's doing.
+
+Your Settings > Gameplay / Overlay choices are kept by the client on your PC (there's no settings file on a
+console), and come back each time the game starts with the client running.
+
+### Dolphin
+
+Open the patched `.iso` in Dolphin; the client finds it by itself. The town is saved on the memory card in slot A,
+one town per card, tied to its seed: a card with another seed's town (or a normal, non-AP town) is refused at the
+title, with the reason on the status line. For a new seed, give slot A a fresh card (Config > GameCube > Slot A:
+pick a new card file or folder) and keep the old one for that seed. Back up your cards now and then.
+
+Linux: if the client never sees Dolphin, the system may block it from reading Dolphin's memory. Allow it until the
+next reboot with `sudo sysctl kernel.yama.ptrace_scope=0`.
+
+### Wii
+
+You need the Homebrew Channel and an SD card or USB drive.
+
+1. Extract `AnimalCrossingAP-<version>-wii.zip` to the root of the SD card / USB drive (it adds
+   `apps/AnimalCrossingAP`), and put the patched `.iso` in a `games` folder there.
+2. Set up the Wii's internet connection (Wii Settings > Internet) if you never have.
+3. Start **Animal Crossing AP** from the Homebrew Channel. Its start screen shows the Wii's address and waits for
+   two things: the client (connected to the server) and the game (press A to pick the `.iso` the first time; it's
+   remembered). The game starts by itself once both are there.
+4. Each seed gets its own memory card on the SD/USB (`saves/ap_<seed>_<team>_<slot>.raw`), so nothing to manage.
+
+The client looks for the Wii on your local network. If it doesn't find it (the Wii on a guest Wi-Fi network or
+another subnet, or a router that drops broadcasts), type `/wii <address>` in the client with the address from the
+Wii's screen; it's remembered.

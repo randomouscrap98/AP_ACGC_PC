@@ -1,4 +1,4 @@
-# The GC client's Items and Checks tabs in Archipelago's kivy client (kvui): ACGCContext.make_gui() returns
+# The GC client's Items, Checks and connection tabs in Archipelago's kivy client (kvui): ACGCContext.make_gui() returns
 # manager_class(). Only imported from there: kivy isn't installed under aplite (a module-level kvui import breaks
 # the client there). Rows come from gc_client_lists.py; each tab is a search row over a flat read-only list
 # (kvui's log list: tapping a row copies it).
@@ -7,7 +7,7 @@ from typing import Any
 from kivy.clock import Clock
 from kivy.lang import Builder
 from kivy.metrics import dp
-from kivy.utils import escape_markup
+from kivy.utils import escape_markup, get_color_from_hex
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.selectioncontrol import MDCheckbox
@@ -130,6 +130,31 @@ class ChecksTab(ListTab):
         self.list.data = data
 
 
+class LinkTab(MDBoxLayout):
+    # The game connection: info block + its log (ctx.link); the manager renames the tab (rename_tab)
+    def __init__(self, ctx: Any) -> None:
+        super().__init__(orientation="vertical")
+        self.ctx = ctx
+        self.shown_gen = -1  # ctx.link.generation the list shows
+        self.info = MDLabel(markup=True, size_hint_y=None, padding=(dp(8), dp(4)), valign="top")
+        self.add_widget(self.info)
+        self.list = ACGCList()
+        self.add_widget(self.list)
+
+    def fix_heights(self) -> None:
+        self.list.fix_heights()
+
+    def refresh(self) -> None:
+        rows = lists.link_info(self.ctx)
+        self.info.text = "\n".join(f"{colored(label + ':', lists.COLOR_DONE)} {escape_markup(value)}"
+                                   for label, value in rows)
+        self.info.height = dp(22) * len(rows) + dp(8)
+        link = self.ctx.link
+        if link.generation != self.shown_gen:
+            self.shown_gen = link.generation
+            self.list.data = [{"text": escape_markup(line)} for line in link.lines]
+
+
 def manager_class() -> type:
     class ACGCManager(GameManager):
         base_title = "Animal Crossing GC Client"
@@ -138,6 +163,26 @@ def manager_class() -> type:
             container = super().build()
             self.add_client_tab("Items", ItemsTab(self.ctx))
             self.add_client_tab("Checks", ChecksTab(self.ctx))
+            # Connection tab: its screen keeps the name "Game" (kvui switches screens by the tab's text), only
+            # the label on the tab shows the system, in its colour
+            self.link_tab_content = LinkTab(self.ctx)
+            self.link_tab = self.add_client_tab("Game", self.link_tab_content)
+            self.link_title: Any = None
+            Clock.schedule_interval(lambda _: self.refresh_link(), REFRESH_SECONDS)
+            self.refresh_link()
             return container
+
+        def refresh_link(self) -> None:
+            self.link_tab_content.refresh()
+            title = lists.link_title(self.ctx)
+            if title == self.link_title:
+                return
+            self.link_title = title
+            # The label kvui's kv rule puts in the tab (MDNavigationItemLabel, text bound to the tab's text);
+            # missing (another kvui): the tab keeps "Game"
+            label = next((w for w in self.link_tab.walk() if type(w).__name__ == "MDNavigationItemLabel"), None)
+            if label is not None:
+                label.text = title[0]
+                label.text_color_normal = get_color_from_hex(title[1])
 
     return ACGCManager

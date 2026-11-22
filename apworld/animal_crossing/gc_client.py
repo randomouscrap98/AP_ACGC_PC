@@ -10,13 +10,13 @@ import asyncio
 import ipaddress
 import json
 import os
-import statistics
 import struct
 import time
 import traceback
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 from . import gc_slotdata, gc_wii
+from .gc_link import GameLink
 from CommonClient import ClientCommandProcessor, CommonContext, get_base_parser, gui_enabled, logger, server_loop
 from NetUtils import ClientStatus
 
@@ -54,9 +54,6 @@ GSET_NAMES = ["no_cockroaches", "no_fishing_trash", "easier_critter_catch", "hid
 GSET_FILE = "animal_crossing_gc_settings.json"  # also holds WII_ADDRESS_KEY
 WII_ADDRESS_KEY = "wii_address"  # set with /wii: asked directly besides the broadcast
 WII_LAST_KEY = "wii_last"  # the last Wii that took a memory card name (its game is reached there)
-WII_LOG_KEY = "wii_log"  # /wiilog on: kernel log + link timings to the window and WII_LOG_FILE
-WII_LOG_FILE = "animal_crossing_gc_wii.log"
-WII_LOG_SECONDS = 30
 
 CSTATE_CONNECTING, CSTATE_CONNECTED, CSTATE_SLOTREFUSED = 1, 3, -1  # AP_CSTATE_* (ap_archipelago.h)
 CTRL_WHITE, CTRL_GREEN, CTRL_RED = "\x01", "\x02", "\x03"  # AP_CTRL_* overlay colours
@@ -269,77 +266,10 @@ def user_file(name: str) -> str:
         return name
 
 
-class WiiLogWatch:
-    # /wiilog: while the game is reached through a Wii, every WII_LOG_SECONDS the kernel log's new lines
-    # (nintendont/kernel/ap_server.c, 'L') and a line of link timings go to the client window and WII_LOG_FILE
-    # (appended, a header per session). The fetch rides on the game connection: the kernel serves one client.
-    def __init__(self) -> None:
-        self.prev = ""  # the kernel log as last fetched
-        self.syncs: list[float] = []  # seconds per sync since the last report
-        self.finds = 0  # mailbox found (connects and reconnects) since the last report
-        self.errors = 0  # link errors since the last report
-        self.last = time.monotonic()
-        self.session_started = False
-
-    def reset(self) -> None:
-        # Off: start the next report's counts from now
-        self.syncs, self.finds, self.errors, self.last = [], 0, 0, time.monotonic()
-
-    def due(self) -> bool:
-        return time.monotonic() - self.last >= WII_LOG_SECONDS
-
-    def collect(self, ram: Any) -> list[str]:
-        # Blocking (worker thread): the lines to report now
-        lines = []
-        if self.syncs:
-            ms = sorted(t * 1000 for t in self.syncs)
-            lines.append(f"link: {len(ms)} syncs in {time.monotonic() - self.last:.0f} s, median "
-                         f"{statistics.median(ms):.0f} ms, worst {ms[-1]:.0f} ms, {self.finds} mailbox finds, "
-                         f"{self.errors} link errors")
-        else:
-            lines.append(f"link: no syncs, {self.finds} mailbox finds, {self.errors} link errors")
-        self.reset()
-        now = ram.log()
-        new = gc_wii.log_tail(self.prev, now)
-        if new is None:
-            lines.append("kernel: --- earlier lines missed (more than 4 KB, or the Wii restarted) ---")
-            new = now
-        self.prev = now
-        lines += ["kernel: " + line for line in new.replace("\r", "").split("\n") if line]
-        return lines
-
-    def emit(self, lines: list[str]) -> None:
-        for line in lines:
-            logger.info("[Wii] %s", line)
-        try:
-            with open(user_file(WII_LOG_FILE), "a", encoding="utf-8") as f:
-                if not self.session_started:
-                    f.write(f"=== client session {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
-                    self.session_started = True
-                stamp = time.strftime("%H:%M:%S")
-                f.writelines(f"{stamp} {line}\n" for line in lines)
-        except OSError as e:
-            logger.error("Couldn't write %s: %s", WII_LOG_FILE, e)
-
-
-def wii_log_enabled() -> bool:
-    return load_gsettings().get(WII_LOG_KEY) is True
-
-
 class ACGCCommandProcessor(ClientCommandProcessor):
     def _cmd_dolphin(self) -> None:
         """Game connection status (Dolphin or Wii)"""
         self.output(self.ctx.dolphin_status)
-
-    def _cmd_wiilog(self, mode: str = "") -> None:
-        """/wiilog on|off: every 30 s, the Wii's kernel log and link timings to this window and animal_crossing_gc_wii.log"""
-        if mode in ("on", "off"):
-            save_gsettings({WII_LOG_KEY: mode == "on"}, "the Wii log setting")
-        elif mode:
-            self.output("Use /wiilog on or /wiilog off")
-            return
-        state = "on" if wii_log_enabled() else "off"
-        self.output(f"Wii log {state} (file: {user_file(WII_LOG_FILE)})")
 
     def _cmd_wii(self, address: str = "") -> None:
         """Wii status. /wii <address>: also ask that address (networks that drop broadcasts); /wii off: forget it"""
@@ -382,7 +312,7 @@ class ACGCContext(CommonContext):
         self.wii_address = ""  # the Wii last talked to ("" = none seen)
         self.wii_booting = False  # it had the card and a disc image when last seen
         self.wii_warned: set[tuple[str, ...]] = set()  # address sets already reported as "several Wiis"
-        self.wii_watch = WiiLogWatch()
+        self.link = GameLink()  # history + numbers for the connection tab
 
     # Items / Checks tabs: kvui (make_gui) and aplite (aplite_tabs, which only aplite calls). Each imports its UI
     # library only here: aplite has no kivy, upstream no Textual.
@@ -397,12 +327,12 @@ class ACGCContext(CommonContext):
     def set_dolphin_status(self, text: str) -> None:
         # /dolphin's answer; a change is logged once (waiting at the start, connected, lost), never repeated
         if text != self.dolphin_status:
-            logger.info(text)
+            self.link.add(text, main_log=True)
         self.dolphin_status = text
 
     def set_wii_status(self, text: str) -> None:
         if text != self.wii_status:
-            logger.info(text)
+            self.link.add(text, main_log=True)
         self.wii_status = text
 
     # One round of wii_task with the Wiis that answered: picks one and names its card once the slot is known
@@ -602,7 +532,7 @@ class ACGCContext(CommonContext):
 # game -> server news (checks, goal, settings Apply): a second is plenty, and on a Wii each sync is network traffic
 SYNC_SECONDS = 1.0
 
-WAITING_GAME = "Waiting for the game: Dolphin with the patched game, or the Animal Crossing AP loader on a Wii"
+WAITING_GAME = "Looking for game on Dolphin or Wii"
 
 
 def wii_game_address(ctx: ACGCContext) -> str:
@@ -624,11 +554,12 @@ async def game_sync_task(ctx: ACGCContext) -> None:
     connected = False  # the mailbox was found since the game was last lost: "lost" instead of "waiting"
     last_addr = 0  # where the mailbox was last found
 
-    def pick() -> tuple[Any, str]:
-        # Dolphin first (a local check), then the Wii's kernel server
+    def candidates() -> Iterator[tuple[Any, str]]:
+        # The RAM bridges that answer, one at a time: Dolphin first (a local check), then the Wii's kernel server
+        # (only asked when Dolphin didn't have the game: a Wii that's off costs a connect timeout)
         nonlocal wii
         if dolphin is not None and dolphin.hook():
-            return dolphin, "Dolphin"
+            yield dolphin, "Dolphin"
         address = wii_game_address(ctx)
         if address:
             if wii is None or wii.address != address:
@@ -636,46 +567,64 @@ async def game_sync_task(ctx: ACGCContext) -> None:
                     wii.unhook()
                 wii = gc_wii.NintendontRAM(address)
             if wii.hook():
-                return wii, f"the Wii at {address}"
-        return None, ""
+                yield wii, f"the Wii at {address}"
+
+    def find_game() -> tuple[Any, str, Optional[Mailbox]]:
+        # The first bridge whose RAM holds the AP game's mailbox, so Dolphin running another game doesn't keep the
+        # client from the Wii. None found: the first bridge that answered (for the "waiting" status), or nothing.
+        first: tuple[Any, str, Optional[Mailbox]] = (None, "", None)
+        for ram, name in candidates():
+            try:
+                mbox = Mailbox.find(ram, last_addr)
+            except OSError:
+                ram.unhook()  # went away while searching: the next round tries again
+                continue
+            if mbox:
+                return ram, name, mbox
+            if first[0] is None:
+                first = (ram, name, None)
+        return first
 
     while not ctx.exit_event.is_set():
         sleep = SYNC_SECONDS
         try:
-            if ctx.ram is None or not await asyncio.to_thread(ctx.ram.hook):
-                ctx.mbox = None
-                ctx.ram, where = await asyncio.to_thread(pick)
+            if ctx.ram is not None and not await asyncio.to_thread(ctx.ram.hook):
+                ctx.ram = ctx.mbox = None
+            found_now = False
+            if ctx.mbox is None:
+                ctx.ram, where, ctx.mbox = await asyncio.to_thread(find_game)
+                found_now = ctx.mbox is not None
             if ctx.ram is None:
                 lost = "Lost the game, waiting for it again"
                 if connected or ctx.dolphin_status != lost:  # "lost" stays until something changes
                     ctx.set_dolphin_status(lost if connected else WAITING_GAME)
                 connected = False
                 sleep = 2
+            elif found_now:
+                ctx.link.finds += 1
+                ctx.link.connected_at = time.monotonic()
+                last_addr = ctx.mbox.addr
+                logger.debug("Found the game's mailbox at %08X", ctx.mbox.addr)
+                ctx.set_dolphin_status(f"Connected to the game in {where}")
+                connected = True
+                ctx.mbox_slot_key = None
+                ctx.gset_game_gen = None
             elif ctx.mbox is None:
-                ctx.mbox = await asyncio.to_thread(Mailbox.find, ctx.ram, last_addr)
-                if ctx.mbox:
-                    ctx.wii_watch.finds += 1
-                    last_addr = ctx.mbox.addr
-                    logger.debug("Found the game's mailbox at %08X", ctx.mbox.addr)
-                    ctx.set_dolphin_status(f"Connected to the game in {where}")
-                    connected = True
-                    ctx.mbox_slot_key = None
-                    ctx.gset_game_gen = None
-                else:
-                    ctx.set_dolphin_status(f"Lost the game in {where}, waiting for it again" if connected else
-                                           f"{where[0].upper() + where[1:]} found, waiting for the AP game")
-                    sleep = 1
+                ctx.set_dolphin_status(f"Lost the game in {where}, waiting for it again" if connected else
+                                       f"{where[0].upper() + where[1:]} found, waiting for the AP game")
+                sleep = 1
             else:
                 start = time.monotonic()
                 if not await asyncio.to_thread(ctx.sync):
                     ctx.mbox = None  # gone (the game restarted or quit): the next round looks for it again
                     sleep = 0
-                ctx.wii_watch.syncs.append(time.monotonic() - start)
-                if isinstance(ctx.ram, gc_wii.NintendontRAM) and ctx.wii_watch.due():
-                    if wii_log_enabled():
-                        ctx.wii_watch.emit(await asyncio.to_thread(ctx.wii_watch.collect, ctx.ram))
-                    else:
-                        ctx.wii_watch.reset()
+                ctx.link.syncs.append(time.monotonic() - start)
+                if ctx.link.report_due():
+                    timing = ctx.link.take_timing()
+                    if isinstance(ctx.ram, gc_wii.NintendontRAM):  # Dolphin's timings: tab only, not every 30 s
+                        ctx.link.add("timing: " + timing)
+                        for line in await asyncio.to_thread(ctx.link.kernel_lines, ctx.ram):
+                            ctx.link.add(line)
         except Exception as e:
             # The emulator or Wii went away mid-read: only "lost", no traceback; anything else is a bug
             ctx.mbox = None
@@ -685,8 +634,8 @@ async def game_sync_task(ctx: ACGCContext) -> None:
             if not isinstance(e, OSError) and ram is not None and await asyncio.to_thread(ram.hook):
                 logger.error(traceback.format_exc())
             else:
-                ctx.wii_watch.errors += 1
-                logger.debug("Game link error: %r", e)
+                ctx.link.errors += 1
+                ctx.link.add(f"link error: {e!r}")
                 ctx.set_dolphin_status(f"Lost the game ({e or type(e).__name__}), waiting for it again")
                 connected = False
             sleep = 2
@@ -751,6 +700,8 @@ def main(*args: str) -> None:
         await sync_task
         await wii
 
+    import Utils
+    Utils.init_logging("AnimalCrossingGCClient", exception_logger="Client")  # logs/AnimalCrossingGCClient_*.txt
     parsed = get_base_parser().parse_args(args)
     asyncio.run(_main(parsed.connect, parsed.password))
 
