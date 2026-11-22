@@ -89,6 +89,7 @@ Graphics settings are stored in `settings.ini` and can be edited manually or thr
 - VSync
 - MSAA (anti-aliasing; off by default, applies right away)
 - Texture Loading/Caching (No need to enable if you aren't using a texture pack)
+- Audio: Master, Music and Sound effects volume (Music 0% mutes the music; NES games follow Master only)
 
 ### AP settings
 

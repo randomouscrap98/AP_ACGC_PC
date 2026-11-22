@@ -11,6 +11,8 @@
 #include "pc_platform.h"
 #include "pc_settings.h"
 #include "jaudio_NES/audiothread.h"
+#include "pc_audio_volume.h"
+#include <math.h>
 
 #define PC_AUDIO_SAMPLE_RATE 32000
 
@@ -195,6 +197,24 @@ void AIInitDMA(u32 addr, u32 size) {
 
     SDL_MemoryBarrierRelease();
     SDL_SetAtomicInt(&ring_write_pos, (int)(wp + n_samples));
+}
+
+// Last volume handed to each jaudio group (-1 = none yet: the first call counts as a change)
+static int s_group_volume[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+
+float pc_audio_group_volume(int group_idx, int* changed) {
+    int music = group_idx == 1 || group_idx == 3; // BGM0_GROUP / BGM1_GROUP (game64.c_inc)
+    int vol = music ? g_pc_settings.music_volume : g_pc_settings.effects_volume;
+
+    if (vol < 0)   vol = 0;
+    if (vol > 100) vol = 100;
+    if (group_idx >= 0 && group_idx < 8 && s_group_volume[group_idx] != vol) {
+        s_group_volume[group_idx] = vol;
+        *changed = 1;
+    }
+    // jaudio squares the volume (applied_volume = vol * vol): the root keeps the percentage linear in amplitude,
+    // like the master volume
+    return sqrtf((float)vol / 100.0f);
 }
 
 // Device streams start paused

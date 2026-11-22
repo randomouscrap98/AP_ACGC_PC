@@ -11,6 +11,9 @@
 #include "jaudio_NES/sub_sys.h"
 #include "jaudio_NES/audioheaders.h"
 #include <dolphin/os.h>
+#ifdef PC_ENHANCEMENTS
+#include "pc_audio_volume.h"
+#endif
 
 static void __Nas_CallWaveProcess_Sub(sub* subtrack, s32 recalc_vol, s32 apply_bend) {
     f32 vol;
@@ -102,9 +105,21 @@ extern void Nas_MainCtrl(group* group) {
         }
     }
 
+#ifdef PC_ENHANCEMENTS
+    // Settings > Audio music / effects volume; a changed setting recalculates like a fade step
+    {
+        int changed = 0;
+        f32 user_vol = pc_audio_group_volume(group->group_idx, &changed);
+        if (changed) group->flags.recalculate_volume = TRUE;
+        if (group->flags.recalculate_volume) {
+            group->applied_fade_volume = group->fade_volume * group->fade_volume_scale * user_vol;
+        }
+    }
+#else
     if (group->flags.recalculate_volume) {
         group->applied_fade_volume = group->fade_volume * group->fade_volume_scale;
     }
+#endif
 
     for (i = 0; i < NA_GROUP_NUM; i++) {
         if (group->subtracks[i]->enabled == TRUE) {

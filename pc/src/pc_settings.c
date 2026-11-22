@@ -34,6 +34,8 @@ PCSettings g_pc_settings = {
     .short_shop_talk = 0,
     .less_mail = 0,
     .master_volume = 100,
+    .music_volume = 100,
+    .effects_volume = 100,
     .stick_deadzone = 12,
     .cstick_deadzone = 12,
     .menu_repeat_delay = 400,
@@ -134,6 +136,9 @@ static const char* DEFAULT_SETTINGS =
     "[Audio]\n"
     "# Master output volume as a percentage (0-100)\n"
     "master_volume = 100\n"
+    "# Music and sound effects volume as a percentage (0-100), on top of the master volume\n"
+    "music_volume = 100\n"
+    "effects_volume = 100\n"
     "\n"
     "[Input]\n"
     "# Gamepad stick deadzones as a percentage (0-40)\n"
@@ -235,6 +240,10 @@ static void apply_setting(const char* key, const char* value) {
         if (val == 0 || val == 1) g_pc_settings.less_mail = val;
     } else if (strcmp(key, "master_volume") == 0) {
         if (val >= 0 && val <= 100) g_pc_settings.master_volume = val;
+    } else if (strcmp(key, "music_volume") == 0) {
+        if (val >= 0 && val <= 100) g_pc_settings.music_volume = val;
+    } else if (strcmp(key, "effects_volume") == 0) {
+        if (val >= 0 && val <= 100) g_pc_settings.effects_volume = val;
     } else if (strcmp(key, "stick_deadzone") == 0) {
         if (val >= 0 && val <= 40) g_pc_settings.stick_deadzone = val;
     } else if (strcmp(key, "cstick_deadzone") == 0) {
@@ -427,6 +436,9 @@ void pc_settings_save(void) {
     fprintf(f, "[Audio]\n");
     fprintf(f, "# Master output volume as a percentage (0-100)\n");
     fprintf(f, "master_volume = %d\n", g_pc_settings.master_volume);
+    fprintf(f, "# Music and sound effects volume as a percentage (0-100), on top of the master volume\n");
+    fprintf(f, "music_volume = %d\n", g_pc_settings.music_volume);
+    fprintf(f, "effects_volume = %d\n", g_pc_settings.effects_volume);
     fprintf(f, "\n");
     fprintf(f, "[Input]\n");
     fprintf(f, "# Gamepad stick deadzones as a percentage (0-40)\n");

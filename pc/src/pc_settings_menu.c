@@ -58,6 +58,8 @@ enum {
     ITEM_SHORT_SHOP_TALK,
     ITEM_LESS_MAIL,
     ITEM_MASTER_VOLUME,
+    ITEM_MUSIC_VOLUME,
+    ITEM_EFFECTS_VOLUME,
     ITEM_STICK_DEADZONE,
     ITEM_CSTICK_DEADZONE,
     ITEM_BINDINGS,
@@ -144,6 +146,8 @@ static const Item tab_overlay_items[] = {
 #ifdef TARGET_PC
 static const Item tab_audio_items[] = {
     { "Master volume", ITEM_MASTER_VOLUME, 0, NULL },
+    { "Music",         ITEM_MUSIC_VOLUME,  0, "Background music, K.K. and the stereo" },
+    { "Sound effects", ITEM_EFFECTS_VOLUME, 0, "Effects, ambience and voices" },
 };
 
 static const Item tab_controls_items[] = {
@@ -432,6 +436,8 @@ static int pc_dirty(void) {
         (s_pending.short_shop_talk != g_pc_settings.short_shop_talk) ||
         (s_pending.less_mail != g_pc_settings.less_mail) ||
         (s_pending.master_volume    != g_pc_settings.master_volume) ||
+        (s_pending.music_volume     != g_pc_settings.music_volume) ||
+        (s_pending.effects_volume   != g_pc_settings.effects_volume) ||
         (s_pending.stick_deadzone   != g_pc_settings.stick_deadzone) ||
         (s_pending.cstick_deadzone  != g_pc_settings.cstick_deadzone) ||
         (s_pending.ap_text_client   != g_pc_settings.ap_text_client);
@@ -573,6 +579,14 @@ static void item_cycle(int id, int dir) {
             if (v < 0)   v = 0;
             if (v > 100) v = 100;
             s_pending.master_volume = v;
+        } break;
+        case ITEM_MUSIC_VOLUME:
+        case ITEM_EFFECTS_VOLUME: {
+            int* vol = id == ITEM_MUSIC_VOLUME ? &s_pending.music_volume : &s_pending.effects_volume;
+            int v = *vol + (dir > 0 ? 10 : -10);
+            if (v < 0)   v = 0;
+            if (v > 100) v = 100;
+            *vol = v;
         } break;
         case ITEM_STICK_DEADZONE: {
             int v = s_pending.stick_deadzone + (dir > 0 ? 2 : -2);
@@ -748,6 +762,12 @@ static void item_format(int id, char* buf, size_t n) {
         case ITEM_MASTER_VOLUME:
             snprintf(buf, n, "< %d%% >", s_pending.master_volume);
             break;
+        case ITEM_MUSIC_VOLUME:
+            snprintf(buf, n, "< %d%% >", s_pending.music_volume);
+            break;
+        case ITEM_EFFECTS_VOLUME:
+            snprintf(buf, n, "< %d%% >", s_pending.effects_volume);
+            break;
         case ITEM_STICK_DEADZONE:
             snprintf(buf, n, "< %d%% >", s_pending.stick_deadzone);
             break;
@@ -813,6 +833,8 @@ static int item_changed(int id) {
         case ITEM_AP_TEXT_CLIENT: return s_pending.ap_text_client != g_pc_settings.ap_text_client;
         case ITEM_PRECOMPILE_SHADERS: return s_pending.precompile_shaders != g_pc_settings.precompile_shaders;
         case ITEM_MASTER_VOLUME: return s_pending.master_volume != g_pc_settings.master_volume;
+        case ITEM_MUSIC_VOLUME:  return s_pending.music_volume != g_pc_settings.music_volume;
+        case ITEM_EFFECTS_VOLUME: return s_pending.effects_volume != g_pc_settings.effects_volume;
         case ITEM_STICK_DEADZONE:  return s_pending.stick_deadzone  != g_pc_settings.stick_deadzone;
         case ITEM_CSTICK_DEADZONE: return s_pending.cstick_deadzone != g_pc_settings.cstick_deadzone;
         case ITEM_BINDINGS:      return 0; /* bindings save themselves */
