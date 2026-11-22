@@ -253,6 +253,12 @@ void SOCKInit()
 	//dbgprintf("SOInit %08x\n", &soIf[1]);
 }
 
+// AP: the open /dev/net/kd/request handle, for ap_server.c (the device takes one opener, -10 for a second)
+int SOCKGetNwcFd(void)
+{
+	return nwcFd;
+}
+
 void SOCKShutdown()
 {
 	IOS_Close(sockFd);

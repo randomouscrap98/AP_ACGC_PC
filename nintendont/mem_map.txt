@@ -36,6 +36,7 @@ MEM2
 
 0x93003130-0x93003190=pad barrel stuff
 0x930031a0-0x930031c0=ARStartDMA Debug str
+0x930031c0=AP: quit request from the kernel's AP server ("APQX", PADReadGC exits like Home)
 
 0x930031E0-0x93003200=tgc dol header
 

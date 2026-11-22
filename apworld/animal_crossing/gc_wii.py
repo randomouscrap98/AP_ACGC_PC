@@ -8,6 +8,7 @@
 import re
 import socket
 import struct
+import threading
 from typing import NamedTuple, Optional
 
 WII_PORT = 38290  # AP_WAIT_PORT (ap_wait.h)
@@ -115,11 +116,12 @@ KERNEL_MAX = 4096  # AP_SERVER_MAX: bytes per read / write request
 class NintendontRAM:
     # The RAM bridge to a real Wii: the Nintendont fork's kernel server (nintendont/kernel/ap_server.c), same
     # interface as gc_client.DolphinRAM. Blocking sockets: call it from a thread. Requests: u8 cmd, 3 pad, u32 a, u32 b.
-    def __init__(self, address: str, port: int = KERNEL_PORT, timeout: float = 3) -> None:
+    def __init__(self, address: str, port: int = KERNEL_PORT, timeout: float = 10) -> None:
         self.address = address
         self.port = port
         self.timeout = timeout
         self.sock: Optional[socket.socket] = None
+        self.lock = threading.Lock()  # one request at a time on the connection (callers may be several threads)
 
     def hook(self) -> bool:
         if self.sock is not None:
@@ -153,19 +155,32 @@ class NintendontRAM:
         return data
 
     def _request(self, cmd: bytes, a: int, b: int, reply: int, payload: bytes = b"") -> bytes:
-        if self.sock is None:
-            raise OSError("not connected to the Wii")
-        self.sock.sendall(cmd + b"\0\0\0" + struct.pack(">II", a, b) + payload)
-        return self._recv(reply)
+        # The fixed-size reply; read / log fetch their data inside _exchange
+        return self._exchange(cmd, a, b, reply, payload)[0]
+
+    def _exchange(self, cmd: bytes, a: int, b: int, reply: int, payload: bytes = b"",
+                  data_len_at: Optional[int] = None) -> tuple[bytes, bytes]:
+        # One request + its whole reply under the lock. data_len_at: offset of a u32 length in the fixed reply
+        # that more bytes follow
+        with self.lock:
+            if self.sock is None:
+                raise OSError("not connected to the Wii")
+            self.sock.sendall(cmd + b"\0\0\0" + struct.pack(">II", a, b) + payload)
+            head = self._recv(reply)
+            data = b""
+            if data_len_at is not None:
+                n, = struct.unpack_from(">I", head, data_len_at)
+                data = self._recv(n)
+            return head, data
 
     def read(self, addr: int, size: int) -> bytes:
         out = b""
         while size > 0:
             n = min(size, KERNEL_MAX)
-            got, = struct.unpack(">I", self._request(b"R", addr, n, 4))
-            if got != n:
+            head, data = self._exchange(b"R", addr, n, 4, data_len_at=0)
+            if len(data) != n:
                 raise OSError(f"the Wii refused to read {n} bytes at {addr:08X}")
-            out += self._recv(n)
+            out += data
             addr += n
             size -= n
         return out
@@ -183,6 +198,9 @@ class NintendontRAM:
         # Game address of the next "ACAPMBOX" at or after start, 0 = none (the kernel searches its own RAM)
         return struct.unpack(">I", self._request(b"F", start, 0, 4))[0]
 
+    def quit(self) -> None:
+        # The game exits to the loader at its next controller read (testing: no hands needed at the Wii)
+        self._request(b"Q", 0, 0, 4)
+
     def log(self) -> str:
-        n, = struct.unpack(">I", self._request(b"L", 0, 0, 4))
-        return self._recv(n).decode("ascii", "replace")
+        return self._exchange(b"L", 0, 0, 4, data_len_at=0)[1].decode("ascii", "replace")

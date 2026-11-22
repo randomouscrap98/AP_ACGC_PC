@@ -101,7 +101,17 @@ class Mailbox:
         return None
 
     @staticmethod
-    def find(ram: Any) -> Optional["Mailbox"]:
+    def find(ram: Any, hint: int = 0) -> Optional["Mailbox"]:
+        # hint: where it was last time (a reconnect to the same game skips the search)
+        if hint:
+            try:
+                found = Mailbox.check(ram, hint)
+                if found:
+                    return found
+            except OSError:
+                raise
+            except Exception:
+                pass
         if hasattr(ram, "find_magic"):
             # The Wii searches its own RAM (24 MB over Wi-Fi would take too long)
             addr = ram.find_magic(MEM1)
@@ -497,6 +507,7 @@ async def game_sync_task(ctx: ACGCContext) -> None:
     wii: Optional[gc_wii.NintendontRAM] = None
     where = ""  # "Dolphin" / "the Wii at <address>": what ctx.ram is
     connected = False  # the mailbox was found since the game was last lost: "lost" instead of "waiting"
+    last_addr = 0  # where the mailbox was last found
 
     def pick() -> tuple[Any, str]:
         # Dolphin first (a local check), then the Wii's kernel server
@@ -526,8 +537,9 @@ async def game_sync_task(ctx: ACGCContext) -> None:
                 connected = False
                 sleep = 2
             elif ctx.mbox is None or not await asyncio.to_thread(ctx.mbox.valid):
-                ctx.mbox = await asyncio.to_thread(Mailbox.find, ctx.ram)
+                ctx.mbox = await asyncio.to_thread(Mailbox.find, ctx.ram, last_addr)
                 if ctx.mbox:
+                    last_addr = ctx.mbox.addr
                     logger.debug("Found the game's mailbox at %08X", ctx.mbox.addr)
                     ctx.set_dolphin_status(f"Connected to the game in {where}")
                     connected = True
@@ -548,7 +560,8 @@ async def game_sync_task(ctx: ACGCContext) -> None:
             if not isinstance(e, OSError) and ram is not None and await asyncio.to_thread(ram.hook):
                 logger.error(traceback.format_exc())
             else:
-                ctx.set_dolphin_status("Lost the game, waiting for it again")
+                logger.debug("Game link error: %r", e)
+                ctx.set_dolphin_status(f"Lost the game ({e or type(e).__name__}), waiting for it again")
                 connected = False
             sleep = 2
         try:

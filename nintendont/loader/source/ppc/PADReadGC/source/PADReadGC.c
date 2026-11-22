@@ -94,6 +94,13 @@ u32 PADRead(u32 calledByGame)
 
 	PADStatus *Pad = (PADStatus*)(0x93003100); //PadBuff
 	u32 MaxPads;
+	// AP: the kernel's AP server asks to quit to the loader ('Q', nintendont/kernel/ap_server.c): the same exit
+	// as the Home button (uncached word in a free line of mem_map.txt)
+	if (*(vu32*)0xD30031C0 == 0x41505158) // "APQX"
+	{
+		*(vu32*)0xD30031C0 = 0;
+		goto DoExit;
+	}
 	if(calledByGame)
 	{
 		MaxPads = ((NIN_CFG*)0x93004000)->MaxPads;

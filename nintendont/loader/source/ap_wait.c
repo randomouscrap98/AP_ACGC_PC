@@ -6,6 +6,9 @@
 //   Wii -> client: "ACAP 1\n"            (protocol version)
 //   client -> Wii: "CARD <name>\n"       (<name>: 1-AP_CARD_NAME_MAX chars of A-Z a-z 0-9 _ -)
 //   Wii -> client: "OK\n" or "ERR <reason>\n" (then the Wii closes the connection)
+// Or "EXIT\n" -> "OK\n", then back to the Homebrew Channel like Start (remote testing).
+// Or instead of CARD: "LOG\n" -> "LOG <n>\n" + n bytes: the kernel log of the last game session
+// (/acap_kernel.log on the game's drive, nintendont/kernel/ap_server.c), so it can be read without the SD card.
 // A later client connection replaces the card name, so reconnecting with another slot before boot works.
 //
 // Discovery on UDP port AP_WAIT_PORT: the client broadcasts "ACAP?\n"; the Wii answers the sender with
@@ -21,6 +24,7 @@
 #include "FPad.h"
 #include "menu.h"
 #include "ap_wait.h"
+#include "ff_utf8.h"
 
 extern u32 Shutdown;
 
@@ -34,6 +38,7 @@ static s32 client_sock = -1;
 static char client_buf[96];
 static int client_len;
 static int client_frames; // frames since the client connected (drops silent clients)
+static bool exit_wanted;  // a client sent EXIT
 
 static s32 ApNetDone(s32 result, void *usrdata)
 {
@@ -115,6 +120,21 @@ static void ApDropClient(void)
 	client_sock = -1;
 }
 
+// After the last reply: closing right away resets the connection before the reply gets out (seen on hardware),
+// so wait until the client closes its side, ~1 s at most, then close
+static void ApFinishClient(void)
+{
+	int i;
+	for (i = 0; i < 60 && client_sock >= 0; i++)
+	{
+		char c;
+		if (net_recv(client_sock, &c, 1, 0) == 0)
+			break;
+		VIDEO_WaitVSync();
+	}
+	ApDropClient();
+}
+
 static bool ApValidName(const char *s)
 {
 	int i, n = strlen(s);
@@ -129,12 +149,42 @@ static bool ApValidName(const char *s)
 	return true;
 }
 
+// The last session's kernel log (at most 4 KB, like the kernel's ring); n = 0 when there is none
+static void ApSendLog(void)
+{
+	static char log[4096];
+	char path[64], head[24];
+	FIL f;
+	UINT got = 0;
+	snprintf(path, sizeof(path), "%s:/acap_kernel.log", GetRootDevice());
+	if (f_open_char(&f, path, FA_READ | FA_OPEN_EXISTING) == FR_OK)
+	{
+		f_read(&f, log, sizeof(log), &got);
+		f_close(&f);
+	}
+	snprintf(head, sizeof(head), "LOG %u\n", (unsigned)got);
+	ApSend(head);
+	// The socket is non-blocking: keep at it until all is out (or a couple of seconds pass)
+	UINT done = 0;
+	int tries = 0;
+	while (done < got && tries++ < 120)
+	{
+		s32 n = net_send(client_sock, log + done, got - done, 0);
+		if (n > 0)
+			done += n;
+		else
+			VIDEO_WaitVSync();
+	}
+}
+
 // One step per frame: accept a client, read its line, answer. Sets the card name when the handshake succeeds.
 static void ApPollClient(void)
 {
 	if (client_sock < 0)
 	{
-		s32 s = net_accept(listen_sock, NULL, NULL);
+		struct sockaddr_in peer; // libogc refuses NULL here (-EINVAL), so a buffer is needed even unread
+		socklen_t peer_len = sizeof(peer);
+		s32 s = net_accept(listen_sock, (struct sockaddr *)&peer, &peer_len);
 		if (s < 0)
 			return; // nobody waiting (non-blocking)
 		client_sock = s;
@@ -172,6 +222,19 @@ static void ApPollClient(void)
 	*nl = 0;
 	if (nl > client_buf && nl[-1] == '\r')
 		nl[-1] = 0;
+	if (strcmp(client_buf, "EXIT") == 0)
+	{
+		ApSend("OK\n");
+		exit_wanted = true;
+		ApFinishClient();
+		return;
+	}
+	if (strcmp(client_buf, "LOG") == 0)
+	{
+		ApSendLog();
+		ApFinishClient();
+		return;
+	}
 	if (strncmp(client_buf, "CARD ", 5) == 0 && ApValidName(client_buf + 5))
 	{
 		strcpy(NIN_CFG_AP_CARD(ncfg), client_buf + 5);
@@ -179,7 +242,7 @@ static void ApPollClient(void)
 	}
 	else
 		ApSend("ERR expected CARD <name>\n");
-	ApDropClient();
+	ApFinishClient();
 }
 
 void ApWaitScreen(bool (*game_exists)(void))
@@ -191,6 +254,7 @@ void ApWaitScreen(bool (*game_exists)(void))
 
 	bool game_ok = game_exists();
 	char ip[16] = "";
+	int ready_frames = 0; // frames both have been ready: booting waits ~0.5 s so the client's "OK" gets out
 	while (true)
 	{
 		VIDEO_WaitVSync();
@@ -213,7 +277,12 @@ void ApWaitScreen(bool (*game_exists)(void))
 
 		bool card_ok = NIN_CFG_AP_CARD(ncfg)[0] != 0;
 		if (game_ok && card_ok)
-			break;
+		{
+			if (++ready_frames > 30)
+				break;
+		}
+		else
+			ready_frames = 0;
 
 		if (FPAD_OK(0))
 		{
@@ -221,7 +290,7 @@ void ApWaitScreen(bool (*game_exists)(void))
 			SelectDevAndGame();
 			game_ok = game_exists();
 		}
-		else if (FPAD_Start(0))
+		else if (FPAD_Start(0) || exit_wanted)
 			ShowMessageScreenAndExit("Returning to loader...", 0);
 
 		PrintInfo();
@@ -260,5 +329,7 @@ void ApWaitScreen(bool (*game_exists)(void))
 	if (udp_sock >= 0)
 		net_close(udp_sock);
 	udp_sock = -1;
-	net_deinit();
+	// No net_deinit: the loader already runs on the IOS the game gets (IOS58 is reloaded before this screen), and
+	// shutting the network down here left the kernel's AP server unable to make sockets (socket() -5 on
+	// hardware). Our sockets are closed above; the network stays up for nintendont/kernel/ap_server.c.
 }

@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 void SOCKInit();
 void SOCKShutdown();
+int SOCKGetNwcFd(void); // AP: for ap_server.c
 void SOCKUpdateRegisters();
 void SOCKInterrupt(void);
 
