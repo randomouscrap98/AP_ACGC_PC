@@ -7,6 +7,10 @@
 //   client -> Wii: "CARD <name>\n"       (<name>: 1-AP_CARD_NAME_MAX chars of A-Z a-z 0-9 _ -)
 //   Wii -> client: "OK\n" or "ERR <reason>\n" (then the Wii closes the connection)
 // A later client connection replaces the card name, so reconnecting with another slot before boot works.
+//
+// Discovery on UDP port AP_WAIT_PORT: the client broadcasts "ACAP?\n"; the Wii answers the sender with
+//   "ACAP 1 <game> <card>\n"   (<game> 1 = disc image chosen, else 0; <card> the card name so far, "-" if none)
+// so the client finds the Wii without the address being typed in.
 #include <gccore.h>
 #include <network.h>
 #include <fcntl.h>
@@ -20,11 +24,12 @@
 
 extern u32 Shutdown;
 
-#define DARK_GRAY 0x666666FF // as menu.c
+#define DARK_GRAY 0x2A2A2AFF // AP: darker than menu.c 0x666666, readable on the green background
 #define IOS_O_NONBLOCK 4 // IOS's own flag value, not libogc's O_NONBLOCK (http.c uses the same)
 
 static volatile s32 net_result = 1; // 1 = starting, 0 = up, < 0 = failed (net_init_async callback)
 static s32 listen_sock = -1;
+static s32 udp_sock = -1; // discovery
 static s32 client_sock = -1;
 static char client_buf[96];
 static int client_len;
@@ -53,6 +58,49 @@ static void ApListen(void)
 		return;
 	}
 	net_fcntl(listen_sock, F_SETFL, IOS_O_NONBLOCK);
+}
+
+static void ApUdpOpen(void)
+{
+	struct sockaddr_in addr;
+	udp_sock = net_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+	if (udp_sock < 0)
+		return;
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(AP_WAIT_PORT);
+	addr.sin_addr.s_addr = INADDR_ANY;
+	if (net_bind(udp_sock, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+	{
+		net_close(udp_sock);
+		udp_sock = -1;
+		return;
+	}
+	net_fcntl(udp_sock, F_SETFL, IOS_O_NONBLOCK);
+}
+
+// Answers every waiting "ACAP?" packet (a few per frame at most)
+static void ApUdpPoll(bool game_ok)
+{
+	int i;
+	for (i = 0; i < 4; i++)
+	{
+		char buf[16], reply[80];
+		struct sockaddr_in from;
+		socklen_t from_len = sizeof(from);
+		memset(&from, 0, sizeof(from));
+		s32 got = net_recvfrom(udp_sock, buf, sizeof(buf) - 1, 0, (struct sockaddr *)&from, &from_len);
+		if (got <= 0)
+			return;
+		buf[got] = 0;
+		if (strncmp(buf, "ACAP?", 5) != 0)
+			continue;
+		const char *card = NIN_CFG_AP_CARD(ncfg)[0] ? NIN_CFG_AP_CARD(ncfg) : "-";
+		snprintf(reply, sizeof(reply), "ACAP 1 %d %s\n", game_ok ? 1 : 0, card);
+		from.sin_len = 8;
+		from.sin_family = AF_INET;
+		net_sendto(udp_sock, reply, strlen(reply), 0, (struct sockaddr *)&from, 8);
+	}
 }
 
 static void ApSend(const char *s)
@@ -156,9 +204,12 @@ void ApWaitScreen(bool (*game_exists)(void))
 			a.s_addr = net_gethostip();
 			strncpy(ip, inet_ntoa(a), sizeof(ip) - 1);
 			ApListen();
+			ApUdpOpen();
 		}
 		if (listen_sock >= 0)
 			ApPollClient();
+		if (udp_sock >= 0)
+			ApUdpPoll(game_ok);
 
 		bool card_ok = NIN_CFG_AP_CARD(ncfg)[0] != 0;
 		if (game_ok && card_ok)
@@ -185,7 +236,7 @@ void ApWaitScreen(bool (*game_exists)(void))
 			PrintFormat(DEFAULT_SIZE, MAROON, x, y, "Could not listen on port %d", AP_WAIT_PORT);
 		else
 		{
-			PrintFormat(DEFAULT_SIZE, BLACK, x, y, "Enter this address in the AP client:");
+			PrintFormat(DEFAULT_SIZE, BLACK, x, y, "Wii address (the AP client should find it by itself):");
 			PrintFormat(40, BLACK, x, y + 24, "%s", ip);
 		}
 		y += 20 * 5;
@@ -206,5 +257,8 @@ void ApWaitScreen(bool (*game_exists)(void))
 	if (listen_sock >= 0)
 		net_close(listen_sock);
 	listen_sock = -1;
+	if (udp_sock >= 0)
+		net_close(udp_sock);
+	udp_sock = -1;
 	net_deinit();
 }

@@ -4,14 +4,17 @@
 # sends what the game queues.
 # Run from an Archipelago checkout: python -m worlds.animal_crossing.gc_client [--connect host:port]
 # Needs dolphin-memory-engine. Only DolphinRAM touches it, so another RAM bridge can replace that class.
+# Real Wii (Nintendont fork "Animal Crossing AP"): wii_task finds its start screen and names the memory card
+# (gc_wii.py); the game's RAM on the Wii isn't reachable yet (fork milestone 4).
 import asyncio
+import ipaddress
 import json
 import os
 import struct
 import traceback
 from typing import Any, Optional
 
-from . import gc_slotdata
+from . import gc_slotdata, gc_wii
 from CommonClient import ClientCommandProcessor, CommonContext, get_base_parser, gui_enabled, logger, server_loop
 from NetUtils import ClientStatus
 
@@ -45,7 +48,8 @@ ITEM_SIZE = 8  # gc_ap_item: u32 id, s16 sender, u8 flags, u8 pad
 GSET_NAMES = ["no_cockroaches", "no_fishing_trash", "easier_critter_catch", "hidden_bug_hints", "hidden_item_hints",
               "short_shop_talk", "ap_status_always", "ap_tracker_always", "ap_toast_seconds", "ap_toast_max",
               "disable_resetti", "instant_text", "bite_sound", "less_mail", "map_divination", "planting_marks"]
-GSET_FILE = "animal_crossing_gc_settings.json"
+GSET_FILE = "animal_crossing_gc_settings.json"  # also holds WII_ADDRESS_KEY
+WII_ADDRESS_KEY = "wii_address"  # set with /wii: asked directly besides the broadcast
 
 CSTATE_CONNECTING, CSTATE_CONNECTED, CSTATE_SLOTREFUSED = 1, 3, -1  # AP_CSTATE_* (ap_archipelago.h)
 CTRL_WHITE, CTRL_GREEN, CTRL_RED = "\x01", "\x02", "\x03"  # AP_CTRL_* overlay colours
@@ -177,7 +181,7 @@ def gsettings_path() -> str:
         return GSET_FILE
 
 
-def load_gsettings() -> dict[str, int]:
+def load_gsettings() -> dict[str, Any]:
     try:
         with open(gsettings_path(), encoding="utf-8") as f:
             data = json.load(f)
@@ -186,7 +190,7 @@ def load_gsettings() -> dict[str, int]:
         return {}
 
 
-def save_gsettings(values: dict[str, int]) -> None:
+def save_gsettings(values: dict[str, Any], what: str = "the game's settings") -> None:
     data = load_gsettings()
     data.update(values)  # names this game doesn't know (a newer client's) stay
     path = gsettings_path()
@@ -195,9 +199,9 @@ def save_gsettings(values: dict[str, int]) -> None:
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=1, sort_keys=True)
         os.replace(tmp, path)
-        logger.info("Saved the game's settings to %s", path)
+        logger.info("Saved %s to %s", what, path)
     except OSError as e:
-        logger.error("Couldn't save the game's settings to %s: %s", path, e)
+        logger.error("Couldn't save %s to %s: %s", what, path, e)
 
 
 def c_text(text: str, size: int) -> bytes:
@@ -215,6 +219,22 @@ class ACGCCommandProcessor(ClientCommandProcessor):
     def _cmd_dolphin(self) -> None:
         """Dolphin / mailbox status"""
         self.output(self.ctx.dolphin_status)
+
+    def _cmd_wii(self, address: str = "") -> None:
+        """Wii status. /wii <address>: also ask that address (networks that drop broadcasts); /wii off: forget it"""
+        if address == "off":
+            save_gsettings({WII_ADDRESS_KEY: ""}, "the Wii address")
+        elif address:
+            try:
+                ipaddress.IPv4Address(address)
+            except ValueError:
+                self.output(f"Not an IPv4 address: {address} (the Wii shows its address on its start screen)")
+                return
+            save_gsettings({WII_ADDRESS_KEY: address}, "the Wii address")
+        saved = wii_saved_address()
+        self.output(self.ctx.wii_status or "No Wii found (start Animal Crossing AP on the Wii)")
+        if saved:
+            self.output(f"Also asking {saved} directly (/wii off to stop)")
 
 
 class ACGCContext(CommonContext):
@@ -235,6 +255,10 @@ class ACGCContext(CommonContext):
         self.toasts: list[str] = []  # waiting for the mailbox
         self.gset_client_gen = 0  # gset_client_gen we last wrote (the game zeroes it when it restarts)
         self.gset_game_gen: Optional[int] = None  # gset_game_gen last stored (None: not looked yet)
+        self.wii_status = ""  # set_wii_status
+        self.wii_address = ""  # the Wii last talked to ("" = none seen)
+        self.wii_booting = False  # it had the card and a disc image when last seen
+        self.wii_warned: set[tuple[str, ...]] = set()  # address sets already reported as "several Wiis"
 
     # Items / Checks tabs: kvui (make_gui) and aplite (aplite_tabs, which only aplite calls). Each imports its UI
     # library only here: aplite has no kivy, upstream no Textual.
@@ -251,6 +275,44 @@ class ACGCContext(CommonContext):
         if text != self.dolphin_status:
             logger.info(text)
         self.dolphin_status = text
+
+    def set_wii_status(self, text: str) -> None:
+        if text != self.wii_status:
+            logger.info(text)
+        self.wii_status = text
+
+    # One round of wii_task with the Wiis that answered: picks one and names its card once the slot is known
+    async def wii_step(self, found: list[gc_wii.WiiReply]) -> None:
+        saved = wii_saved_address()
+        wii = next((r for r in found if r.address == saved), None) or next(
+            (r for r in found if r.address == self.wii_address), None) or (found[0] if found else None)
+        if wii is None:
+            if self.wii_address:
+                self.set_wii_status(f"The Wii at {self.wii_address} is starting the game (the client can't reach "
+                                    f"the game on a Wii yet)" if self.wii_booting else
+                                    f"Lost the Wii at {self.wii_address}")
+            return
+        addresses = tuple(sorted(r.address for r in found))
+        if len(found) > 1 and addresses not in self.wii_warned:
+            self.wii_warned.add(addresses)
+            logger.warning("Several Wiis answer (%s): using %s; /wii <address> picks another",
+                           ", ".join(addresses), wii.address)
+        self.wii_address = wii.address
+        self.wii_booting = False
+        if self.slot is None or self.seed_name is None:
+            self.set_wii_status(f"Found the Wii at {wii.address}: connect to the AP server to name its memory card")
+            return
+        name = gc_wii.card_name(self.seed_name, self.team or 0, self.slot)
+        if wii.card != name:
+            ok, answer = await asyncio.to_thread(gc_wii.send_card, wii.address, name)
+            if not ok:
+                self.set_wii_status(f"The Wii at {wii.address} didn't take the memory card name: {answer}")
+                return
+        if wii.game_ok:
+            self.wii_booting = True
+            self.set_wii_status(f"The Wii at {wii.address} has memory card {name} and starts the game")
+        else:
+            self.set_wii_status(f"The Wii at {wii.address} has memory card {name}: pick the disc image on the Wii (A)")
 
     async def server_auth(self, password_requested: bool = False) -> None:
         if password_requested and not self.password:
@@ -437,6 +499,36 @@ async def dolphin_sync_task(ctx: ACGCContext) -> None:
         ctx.watcher_event.clear()
 
 
+def wii_saved_address() -> str:
+    value = load_gsettings().get(WII_ADDRESS_KEY)
+    return value if isinstance(value, str) else ""
+
+
+async def wii_task(ctx: ACGCContext) -> None:
+    # Asks for the Wii loader every 2 s while no game is connected through Dolphin
+    try:
+        finder = gc_wii.WiiFinder()
+    except OSError as e:
+        logger.error("Can't look for a Wii (UDP socket: %s)", e)
+        return
+    try:
+        while not ctx.exit_event.is_set():
+            if ctx.mbox is None:
+                saved = wii_saved_address()
+                finder.probe([saved] if saved else [])
+                await asyncio.sleep(0.5)
+                try:
+                    await ctx.wii_step(finder.replies())
+                except Exception:
+                    logger.error(traceback.format_exc())
+            try:
+                await asyncio.wait_for(ctx.exit_event.wait(), 1.5)
+            except asyncio.TimeoutError:
+                pass
+    finally:
+        finder.close()
+
+
 def main(*args: str) -> None:
     async def _main(connect: Optional[str], password: Optional[str]) -> None:
         ctx = ACGCContext(connect, password)
@@ -445,11 +537,13 @@ def main(*args: str) -> None:
             ctx.run_gui()
         ctx.run_cli()
         sync_task = asyncio.create_task(dolphin_sync_task(ctx), name="DolphinSync")
+        wii = asyncio.create_task(wii_task(ctx), name="WiiFinder")
         await ctx.exit_event.wait()
         ctx.watcher_event.set()
         ctx.server_address = None
         await ctx.shutdown()
         await sync_task
+        await wii
 
     parsed = get_base_parser().parse_args(args)
     asyncio.run(_main(parsed.connect, parsed.password))
