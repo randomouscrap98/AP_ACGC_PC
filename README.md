@@ -106,6 +106,10 @@ talented artists of Animal Crossing community.
 
 [HD Texture Pack](https://forums.dolphin-emu.org/Thread-animal-crossing-hd-texture-pack-version-23-feb-22nd-2026)
 
+Leave Settings > Video > Textures on "On Demand" (the default) unless you get stutter. "Preload" and
+"Preload&Cache" load the whole pack at startup, and with a big pack like the one above that can crash at
+startup on some graphics drivers (the game is a 32-bit program and can run out of memory).
+
 ## Save Data
 
 Save files are stored in `saves/` using the standard GCI format, compatible with Dolphin emulator saves. 

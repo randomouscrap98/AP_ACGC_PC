@@ -613,8 +613,9 @@ int main(int argc, char* argv[]) {
         ap_start(); // config problems show on the overlay status line
     }
     pc_keybindings_load();
-    pc_platform_init();
     pc_crash_init_info();
+    pc_platform_init();
+    pc_crash_init_gpu_info();
     if (crash_test) {
         pc_crash_test();
     }

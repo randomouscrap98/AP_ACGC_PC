@@ -89,7 +89,7 @@ static const Item tab_video_items[] = {
     { "MSAA",       ITEM_MSAA,     0, NULL },
     { "Render scale", ITEM_RENDER_SCALE, 0, NULL },
     { "Texture filter", ITEM_TEXTURE_FILTERING, 0, NULL },
-    { "Textures",   ITEM_TEXTURES, 1, NULL },
+    { "Textures",   ITEM_TEXTURES, 1, "Preload can crash big packs on some drivers" },
     { "Renderer",   ITEM_RENDERER, 1, "Vulkan is still in development" },
     { "Precompile", ITEM_PRECOMPILE_SHADERS, 1, "Shaders at startup: no stutter on new effects" },
 };

@@ -10,8 +10,10 @@ struct game_play_s;
 
 // Installs the handler. First thing in main.
 void pc_crash_init(void);
-// Records OS and GL info for the report. After the GL context exists.
+// Records OS and loaded modules for the report. Before window / GPU setup, so a crash there has them.
 void pc_crash_init_info(void);
+// Records the GPU and the modules again (driver libraries). After window / GPU setup.
+void pc_crash_init_gpu_info(void);
 // Per-frame snapshot of game state (scene, date, weather, player, heap). From pc_ap_tick.
 void pc_crash_note_frame(struct game_play_s* play);
 // --crash-test: crashes on purpose to check the report

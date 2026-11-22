@@ -579,7 +579,12 @@ static void crash_init_os(void) {
 
 void pc_crash_init_info(void) {
   crash_init_os();
+  s_module_count_init = crash_collect_modules(s_modules_init);
+}
+
+void pc_crash_init_gpu_info(void) {
   pc_gpu_device_info(s_gpu, sizeof(s_gpu));
+  // Again: the GPU driver libraries are loaded now
   s_module_count_init = crash_collect_modules(s_modules_init);
 #ifdef _WIN32
   // Again, in case SDL or the GL driver installed their own
