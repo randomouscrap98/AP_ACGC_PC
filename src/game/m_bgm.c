@@ -9,6 +9,7 @@
 #include "m_player_lib.h"
 #ifdef AP_HOOKS
 #include "pc_ap_logic.h"
+#include "pc_ap_music.h"
 #endif
 
 #define mBGMPs_FLAG_REMOVE (1 << 0)
@@ -1308,7 +1309,12 @@ static void mBGMFieldSchedEv_ct(mBGMFieldSchedEv* sched_ev) {
 static u8 mBGMFieldNorm_bgm_num_get(int hour) {
     static u8 bgm_table[24] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 };
 
+#ifdef AP_HOOKS
+    // Shuffle Hourly Music: the seed's theme for this hour
+    return pc_ap_hourly_music(hour, bgm_table[hour]);
+#else
     return bgm_table[hour];
+#endif
 }
 
 static void mBGMFieldNorm_elem_set(mBGMFieldNorm* norm) {

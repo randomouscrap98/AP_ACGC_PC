@@ -9,10 +9,11 @@ from typing import Any
 from .slot_data_upgrade import upgrade
 
 # ap_slotdata.h
-AP_SLOTDATA_VERSION = 5
+AP_SLOTDATA_VERSION = 6
 AP_LOAN_NUM = 5
 AP_BELLCREDIT_NUM = 3
 AP_NPC_NUM = 236
+AP_HOUR_NUM = 24
 AP_FURNITURE_SET_MAX = 15
 AP_FOSSIL_NUM = 25
 AP_CRITTER_NUM = 40
@@ -60,6 +61,7 @@ FIELDS = [
     ("loan_letter_text", c_char * 193),
     ("villager_blacklist", c_ubyte * AP_NPC_NUM),
     ("starting_villagers", c_ubyte * AP_NPC_NUM),
+    ("hourly_music", c_ubyte * AP_HOUR_NUM),
     ("skip_intro", c_int),
     ("shops_always_open", c_int),
     ("global_storage", c_int),
@@ -242,6 +244,23 @@ def _read_npc_list(sd: dict[str, Any], key: str) -> list[int]:
     return out
 
 
+def _read_hourly_music(sd: dict[str, Any]) -> list[int]:
+    # read_hourly_music: 24 songs, each of 1-24 once; anything else = all 0 (the game's own)
+    arr = sd.get("hourly_music")
+    if not isinstance(arr, list) or not arr:
+        return [0] * AP_HOUR_NUM
+    if len(arr) != AP_HOUR_NUM:
+        _warn(f"hourly_music: {len(arr)} entries, not {AP_HOUR_NUM}: ignored")
+        return [0] * AP_HOUR_NUM
+    seen = set()
+    for v in arr:
+        if not _is_int(v) or not 1 <= v <= AP_HOUR_NUM or v in seen:
+            _warn(f"hourly_music: bad entry {v!r}: ignored")
+            return [0] * AP_HOUR_NUM
+        seen.add(v)
+    return list(arr)
+
+
 def _read_catalog_pools(sd: dict[str, Any]) -> tuple[list[int], list[int]]:
     items: list[int] = []
     pools: list[int] = []
@@ -326,6 +345,7 @@ def fill(s: ctypes.Structure, slot_data: dict[str, Any]) -> None:
                                            "Your loan is ready for\npayoff at the post office!"), 193)
     s.villager_blacklist[:] = _read_npc_list(sd, "villager_blacklist")
     s.starting_villagers[:] = _read_npc_list(sd, "starting_villagers")
+    s.hourly_music[:] = _read_hourly_music(sd)
     s.shops_always_open = _read_bool(sd, "shops_always_open", 0)
     s.global_storage = _read_int(sd, "global_storage", 0, 0, 2)
     s.no_weeds = _read_bool(sd, "no_weeds", 1)

@@ -328,6 +328,7 @@ AP_GC_UNITS = [
     ("pc/src", "pc_ap_strings.c"),
     ("pc/src", "pc_ap_qol.c"),
     ("pc/src", "pc_ap_weather.c"),
+    ("pc/src", "pc_ap_music.c"),
     ("pc/src", "pc_ap_overlay.c"),
     ("pc/src", "pc_menu_util.c"),
     ("pc/src", "pc_menu_repeat.c"),

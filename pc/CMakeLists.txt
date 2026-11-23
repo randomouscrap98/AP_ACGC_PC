@@ -313,6 +313,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_critter_data.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_menu_list.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_weather.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_music.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_museumsanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_tools.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_money.c

@@ -38,7 +38,7 @@ GAME_NAME = "Animal Crossing"
 # Once per release: the first such change on a release branch bumps by 1, later ones ride along.
 # Every new key gets an "added" step in slot_data_upgrades.json with the value meaning the old behaviour.
 # Ids are append-only and names are kept; yaml option keys are never removed (a rename keeps the old key hidden).
-SLOT_DATA_VERSION = 5
+SLOT_DATA_VERSION = 6
 # Universal Tracker: slot_data keys named like an option but holding something else (villager indices, the pools,
 # a tool name), so they're not restored as options
 UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "starting_tool"}
@@ -115,6 +115,7 @@ class AnimalCrossingWeb(WebWorld):
             options.GrassShape,
             options.TrainStation,
             options.TownDay,
+            options.ShuffleHourlyMusic,
             options.LetterPaper,
             options.LetterSender,
             options.LoanLetterText,

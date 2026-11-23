@@ -8,11 +8,12 @@ extern "C" {
 #endif
 
 // slot_data format this client reads (apworld SLOT_DATA_VERSION). Bump rules: SLOT_DATA_VERSION in apworld/animal_crossing/world.py
-#define AP_SLOTDATA_VERSION 5
+#define AP_SLOTDATA_VERSION 6
 
 #define AP_LOAN_NUM     5 // starting, medium, basement, large, upper (upgrade order)
 #define AP_BELLCREDIT_NUM 3 // small, modest, large
 #define AP_NPC_NUM      236 // NPC_NUM in the game (villager npc indices)
+#define AP_HOUR_NUM     24  // hourly town themes (songs 1-24)
 
 #define AP_GOAL_STATUE  (1 << 0)
 #define AP_GOAL_MUSEUM  (1 << 1)
@@ -99,6 +100,7 @@ typedef struct {
   char loan_letter_text[193]; // body of the "loan ready for payoff" letter, max MAIL_BODY_LEN, '\n' = line break
   unsigned char villager_blacklist[AP_NPC_NUM]; // 1 = this npc index never moves in
   unsigned char starting_villagers[AP_NPC_NUM]; // 1 = starts in a new town (pool; blacklist wins)
+  unsigned char hourly_music[AP_HOUR_NUM]; // Shuffle Hourly Music: song (1-24) per hour; all 0 = the game's
   // QOL
   int skip_intro;
   int shops_always_open;

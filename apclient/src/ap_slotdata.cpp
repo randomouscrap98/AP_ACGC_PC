@@ -167,6 +167,28 @@ static void read_npc_list(const nlohmann::json& slot_data, const char * key, uns
   }
 }
 
+// Shuffle Hourly Music: 24 songs, each of 1-24 once (song per hour). Anything else = all 0 (the game's own)
+static void read_hourly_music(const nlohmann::json& slot_data, unsigned char * out) {
+  unsigned char seen[AP_HOUR_NUM + 1] = {0};
+  memset(out, 0, AP_HOUR_NUM);
+  auto it = slot_data.find("hourly_music");
+  if (it == slot_data.end() || !it->is_array() || it->empty()) { return; }
+  if (it->size() != AP_HOUR_NUM) {
+    APLOG_WARN("hourly_music: %d entries, not %d: ignored", (int)it->size(), AP_HOUR_NUM);
+    return;
+  }
+  for (int h = 0; h < AP_HOUR_NUM; h++) {
+    const auto& v = (*it)[h];
+    if (!v.is_number_integer() || v.get<int>() < 1 || v.get<int>() > AP_HOUR_NUM || seen[v.get<int>()]) {
+      APLOG_WARN("hourly_music: bad entry %s: ignored", v.dump().c_str());
+      memset(out, 0, AP_HOUR_NUM);
+      return;
+    }
+    seen[v.get<int>()] = 1;
+    out[h] = (unsigned char)v.get<int>();
+  }
+}
+
 // Catalogsanity pools: a list of lists of game item ids. Bad entries are skipped
 // (apworld/client mismatch), anything past AP_CATALOG_MAX is dropped
 static void read_catalog_pools(const nlohmann::json& slot_data, ap_slotdata * sd) {
@@ -261,6 +283,7 @@ void ap_slotdata_fill(ap_slotdata * sd, const nlohmann::json& slot_data) {
       slot_data.value("loan_letter_text", "Your loan is ready for\npayoff at the post office!").c_str());
   read_npc_list(slot_data, "villager_blacklist", sd->villager_blacklist);
   read_npc_list(slot_data, "starting_villagers", sd->starting_villagers);
+  read_hourly_music(slot_data, sd->hourly_music);
   sd->shops_always_open = read_bool(slot_data, "shops_always_open", 0);
   sd->global_storage = read_int(slot_data, "global_storage", 0, 0, 2);
   sd->no_weeds = read_bool(slot_data, "no_weeds", 1);

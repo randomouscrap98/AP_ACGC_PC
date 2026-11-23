@@ -16,7 +16,9 @@
     "shops_always_open and turnips_never_spoil, plus critter_odds, fossil_odds) only seed the save's ap_settings.ini on its",
     "first load: editing them here later does nothing for that save, change them in game in Settings > AP instead.",
     "global_storage 0 off, 1 indoors only, 2 anywhere (pause menu Storage). shops_always_open, turnips_never_spoil, global_storage and the rest always follow this file. No cockroaches, no fishing trash, easier",
-    "critters, hidden bug/item hints and short shop talk are game settings now (Settings > Gameplay), not in this file."
+    "critters, hidden bug/item hints and short shop talk are game settings now (Settings > Gameplay), not in this file.",
+    "hourly_music: [] = the game's hour themes; 24 numbers = the theme played at hour 0 (midnight) to 23, each of",
+    "1-24 once (n = hour n-1's theme), e.g. [13, 2, 24, ...]. Any other list is ignored. Always follows this file."
   ],
   "seed": "offline",
   "team": 0,
@@ -32,6 +34,7 @@
   "grass_shape": 0,
   "train_station": -1,
   "town_day": 0,
+  "hourly_music": [],
   "shops_always_open": 1,
   "global_storage": 0,
   "no_weeds": 1,

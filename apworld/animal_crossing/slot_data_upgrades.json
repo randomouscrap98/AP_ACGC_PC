@@ -23,5 +23,9 @@
   "5": {
     "note": "0.5.4: Global Storage (new option, off = 0.5.3)",
     "added": {"global_storage": 0}
+  },
+  "6": {
+    "note": "0.7.0: Shuffle Hourly Music (new option; empty list = the game's hour themes, as before)",
+    "added": {"hourly_music": []}
   }
 }

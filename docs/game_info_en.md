@@ -108,8 +108,9 @@ Quality-of-life options, mostly on by default:
   when you're near), hidden item hints (a sparkle now and then over the money rock and over trees with
   furniture, a present or the golden shovel in them), plant vision, bite sound.
 
-Cosmetic options: town fruit, grass shape, train station, Town Day, starting shirt, starting
-villagers and a villager blacklist, and the stationery, signature and text of letters from Archipelago.
+Cosmetic options: town fruit, grass shape, train station, Town Day, shuffled hourly music (each hour
+plays another hour's theme, fixed by the seed), starting shirt, starting villagers and a villager blacklist,
+and the stationery, signature and text of letters from Archipelago.
 
 ## Updating
 

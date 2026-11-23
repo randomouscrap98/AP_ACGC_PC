@@ -25,6 +25,18 @@ def villager_indices(chosen: set[str]) -> list[int]:
     )
 
 
+HOURS = 24
+
+
+def hourly_music(world) -> list[int]:
+    # One theme per hour, none twice: a permutation of the 24 hour themes (song n = hour n - 1's theme)
+    if not world.options.shuffle_hourly_music.value:
+        return []
+    songs = list(range(1, HOURS + 1))
+    world.random.shuffle(songs)
+    return songs
+
+
 def setup(world) -> None:
     o = world.options
     world.ac_letter_sender = clamp_name(o.letter_sender.value, LETTER_SENDER_MAX) or DEFAULT_LETTER_SENDER
@@ -48,6 +60,8 @@ def slot_data(world) -> dict:
         "grass_shape": o.grass_shape.value,
         "train_station": o.train_station.value,
         "town_day": o.town_day.value,
+        # Song (1-24, the hour themes) per hour 0-23; [] = vanilla
+        "hourly_music": hourly_music(world),
         "villager_blacklist": world.villager_blacklist,
         "starting_villagers": world.starting_villagers,
         "letter_paper": o.letter_paper.value,

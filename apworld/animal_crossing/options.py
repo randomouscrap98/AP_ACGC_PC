@@ -210,6 +210,14 @@ class LoanLetterText(FreeText):
     default = ""
 
 
+class ShuffleHourlyMusic(Toggle):
+    """
+    Shuffles which hourly theme plays at each hour in town. Every hour keeps one theme for the whole game
+    (picked from the seed) and no theme plays at two hours. Rain, snow and cherry blossom versions still apply.
+    """
+    display_name = "Shuffle Hourly Music"
+
+
 class LetterPaper(Choice):
     """
     Stationery for letters sent from Archipelago (items, goals, etc).
@@ -1167,6 +1175,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     grass_shape: GrassShape
     train_station: TrainStation
     town_day: TownDay
+    shuffle_hourly_music: ShuffleHourlyMusic
     letter_paper: LetterPaper
     letter_sender: LetterSender
     loan_letter_text: LoanLetterText
