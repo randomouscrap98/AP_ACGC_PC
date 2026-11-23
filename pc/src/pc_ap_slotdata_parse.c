@@ -144,11 +144,135 @@ static void sd_put_str(char * out, int size, const char * s) {
   out[n] = 0;
 }
 
-// The value token of key in the object at obj, -1 if there is none. A duplicate key gives the last one (nlohmann)
+// ---------------------------------------------------------------------------------------------------------------
+// top-level key index
+// ---------------------------------------------------------------------------------------------------------------
+
+// Every key the fill reads from the top-level object, alphabetically (the lookup is a linear scan, so the order
+// is only for reading). A key missing here still works: sd_obj_get then walks the object for it like before, just
+// slowly, so a forgotten entry can't make a value disappear.
+typedef struct {
+  const char * name;
+  int len; // = strlen(name), for the cheap reject
+} sd_key;
+
+#define SD_KEY(s) { s, sizeof(s) - 1 }
+static const sd_key sd_top_keys[] = {
+  SD_KEY("beach_checks_per_month"),
+  SD_KEY("bell_credits"),
+  SD_KEY("bug_availability"),
+  SD_KEY("bug_checks"),
+  SD_KEY("bug_passes"),
+  SD_KEY("catalog_goal_count"),
+  SD_KEY("catalog_pools"),
+  SD_KEY("catalog_sources"),
+  SD_KEY("catalogsanity"),
+  SD_KEY("coconuts_wash_up"),
+  SD_KEY("critter_odds"),
+  SD_KEY("face"),
+  SD_KEY("favor_pools"),
+  SD_KEY("favors_per_pool"),
+  SD_KEY("favorsanity"),
+  SD_KEY("fish_availability"),
+  SD_KEY("fish_checks"),
+  SD_KEY("fish_passes"),
+  SD_KEY("fossil_availability"),
+  SD_KEY("fossil_checks"),
+  SD_KEY("fossil_odds"),
+  SD_KEY("fossil_seasons"),
+  SD_KEY("fossil_series"),
+  SD_KEY("furniture_set_items"),
+  SD_KEY("gender"),
+  SD_KEY("global_storage"),
+  SD_KEY("goal"),
+  SD_KEY("grass_shape"),
+  SD_KEY("hourly_music"),
+  SD_KEY("house"),
+  SD_KEY("letter_paper"),
+  SD_KEY("letter_sender"),
+  SD_KEY("loan_checks"),
+  SD_KEY("loan_letter_text"),
+  SD_KEY("loans"),
+  SD_KEY("loansanity"),
+  SD_KEY("more_favors"),
+  SD_KEY("museum_goal_count"),
+  SD_KEY("museumsanity"),
+  SD_KEY("new_item_chance"),
+  SD_KEY("no_falling_stalks"),
+  SD_KEY("no_weeds"),
+  SD_KEY("nook_store_thresholds"),
+  SD_KEY("nook_store_upgrades"),
+  SD_KEY("normalized_time_travel"),
+  SD_KEY("painting_checks"),
+  SD_KEY("player_name"),
+  SD_KEY("shellsanity"),
+  SD_KEY("shellsanity_item_chance"),
+  SD_KEY("shop_never_sells_out"),
+  SD_KEY("shops_always_open"),
+  SD_KEY("skip_hra_talk"),
+  SD_KEY("skip_intro"),
+  SD_KEY("start_year"),
+  SD_KEY("starting_month"),
+  SD_KEY("starting_shirt"),
+  SD_KEY("starting_time"),
+  SD_KEY("starting_villagers"),
+  SD_KEY("timesanity"),
+  SD_KEY("tools_in_pool"),
+  SD_KEY("town_day"),
+  SD_KEY("town_fruit"),
+  SD_KEY("town_name"),
+  SD_KEY("train_station"),
+  SD_KEY("tree_checks_per_fruit"),
+  SD_KEY("treesanity"),
+  SD_KEY("turnips_never_spoil"),
+  SD_KEY("villager_blacklist"),
+  SD_KEY("villagers_dont_leave"),
+  SD_KEY("villagers_never_sleep"),
+  SD_KEY("world_version"),
+};
+#define SD_TOP_KEY_NUM ((int)(sizeof(sd_top_keys) / sizeof(sd_top_keys[0])))
+
+// Value token of each sd_top_keys[] entry in the top-level object, -1 = the key is missing (71 x 4 = 284 bytes,
+// static like the token array: one parse at a time). Filled by sd_top_index.
+static int sd_top_value[SD_TOP_KEY_NUM];
+
+// Index of a decoded key name in sd_top_keys, -1 = not one of the keys the fill reads
+static int sd_top_key_index(const char * name, int len) {
+  int i;
+  for (i = 0; i < SD_TOP_KEY_NUM; i++) {
+    if (sd_top_keys[i].len == len && memcmp(sd_top_keys[i].name, name, (size_t)len) == 0) { return i; }
+  }
+  return -1;
+}
+
+// One pass over the top-level object's keys to fill sd_top_value, so the fill's ~70 lookups read a table instead
+// of each walking the whole object (nested objects, like bell_credits, still use sd_obj_get's scan). A duplicate
+// key keeps overwriting: the last one wins, exactly like the scan's `found` does.
+static void sd_top_index(const sd_doc * d) {
+  int i, k, idx;
+  char name[40]; // the longest key we read is shellsanity_item_chance (24), sd_decode cuts at 39 bytes
+  for (i = 0; i < SD_TOP_KEY_NUM; i++) { sd_top_value[i] = -1; }
+  i = 1;
+  for (k = 0; k < d->tok[0].size; k++) {
+    if (d->tok[i].type == JSMN_STRING) { // the key token; jsmn's strict mode guarantees strings anyway
+      sd_decode(name, sizeof(name), d->json, &d->tok[i]);
+      idx = sd_top_key_index(name, (int)strlen(name)); // strlen, not the decoded length: a \u0000 ends the name (strcmp did)
+      if (idx >= 0) { sd_top_value[idx] = i + 1; }
+    }
+    i = sd_tok_end(d->tok, i + 1); // past the value = the next key
+  }
+}
+
+// The value token of key in the object at obj, -1 if there is none. A duplicate key gives the last one (nlohmann).
+// obj 0 is the top-level object, which sd_top_index has indexed: the keys in sd_top_keys come straight from there.
 static int sd_obj_get(const sd_doc * d, int obj, const char * key) {
   int i, k, found = -1;
   char name[40]; // the longest key we read is shellsanity_item_chance (24)
   if (obj < 0 || d->tok[obj].type != JSMN_OBJECT) { return -1; }
+  if (obj == 0) {
+    int idx = sd_top_key_index(key, (int)strlen(key));
+    if (idx >= 0) { return sd_top_value[idx]; }
+  }
   i = obj + 1;
   for (k = 0; k < d->tok[obj].size; k++) {
     if (d->tok[i].type == JSMN_STRING) {
@@ -477,6 +601,7 @@ int pc_ap_slotdata_parse(const char * json, int len, ap_slotdata * out) {
   }
   d.json = json;
   d.tok = tokens;
+  sd_top_index(&d); // one walk of the top-level keys: the fill's lookups are table reads from here on
 
   memset(out, 0, sizeof(*out)); // ap_slotdata_fill expects a zeroed struct (ap_slotdata_init)
   sd_str(out->town_name, sizeof(out->town_name), &d, "town_name", "pelago");

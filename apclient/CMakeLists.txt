@@ -118,11 +118,19 @@ set(IMGUI_SOURCES
 )
 
 add_library(ap_client SHARED src/ap_archipelago.cpp src/ap_log.cpp src/ap_slotdata.cpp src/ap_messages.cpp
+    ../pc/src/pc_ap_slotdata_parse.c
     src/ap_ui.cpp src/ap_ui_log.cpp src/ap_ui_cmdline.cpp src/ap_ui_lists.cpp ${IMGUI_SOURCES} "${AP_UPGRADES_H}" ${AP_UI_FONT_HEADERS})
+
+# The slot_data parser is plain C shared with the GC build (pc/include); TARGET_PC only turns its bad-value
+# warnings into APLOG_WARN (PC_AP_SD_WARN in pc_ap_slotdata_parse.h), nothing else in that unit looks at it
+set_source_files_properties(../pc/src/pc_ap_slotdata_parse.c
+    PROPERTIES COMPILE_DEFINITIONS "TARGET_PC"
+)
 
 target_include_directories(ap_client
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include   # C API header, used by the game
     PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../pc/include      # pc_ap_slotdata_parse.h (the shared slot_data parser)
         ${CMAKE_CURRENT_BINARY_DIR}/generated          # ap_slotdata_upgrades.h, ap_ui_font*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src                # ap_imconfig.h
         ${IMGUI_DIR}
@@ -185,6 +193,7 @@ set(THIRD_PARTY_LICENSES
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/fonts/NotoSansSymbols2-OFL.txt|NotoSansSymbols2-OFL.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/fonts/NotoSansSymbols-OFL.txt|NotoSansSymbols-OFL.txt"
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/fonts/NotoSansMath-OFL.txt|NotoSansMath-OFL.txt"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../pc/lib/jsmn/LICENSE|jsmn-LICENSE.txt"
 )
 foreach(entry IN LISTS THIRD_PARTY_LICENSES)
     string(REPLACE "|" ";" pair "${entry}")

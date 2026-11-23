@@ -1,7 +1,7 @@
 # Animal Crossing GameCube client (0.7.0): connects the GC build running in Dolphin to an Archipelago server.
 # The game keeps a RAM mailbox (gc/include/gc_ap_mailbox.h); this client finds it by its magic, writes slot_data
-# (gc_slotdata.py), slot names, received items, checked locations, toasts and the connection state into it, and
-# sends what the game queues.
+# (compact JSON text, upgraded here), slot names, received items, checked locations, toasts and the connection
+# state into it, and sends what the game queues.
 # Run from an Archipelago checkout: python -m worlds.animal_crossing.gc_client [--connect host:port]
 # Needs dolphin-memory-engine. Only DolphinRAM touches it, so another RAM bridge can replace that class.
 # Real Wii (Nintendont fork "Animal Crossing AP"): wii_task finds its start screen and names the memory card, then
@@ -15,8 +15,9 @@ import time
 import traceback
 from typing import Any, Iterator, Optional
 
-from . import gc_slotdata, gc_wii
+from . import gc_wii
 from .gc_link import GameLink
+from .slot_data_upgrade import upgrade
 from CommonClient import ClientCommandProcessor, CommonContext, get_base_parser, gui_enabled, logger, server_loop
 from NetUtils import ClientStatus
 
@@ -26,24 +27,40 @@ MEM1_SIZE = 0x1800000
 
 MAGIC = struct.pack(">II", 0x41434150, 0x4D424F58)  # "ACAP" "MBOX"
 TAIL = 0x454E4421  # "END!"
-VERSION = 3  # GC_AP_MAILBOX_VERSION
+VERSION = 4  # GC_AP_MAILBOX_VERSION
 
 # Header fields: u32 each, in the order of gc_ap_mailbox (index * 4 = offset); tests/test_gc_mailbox checks them
 H_VERSION, H_SIZE = 2, 3
 H_ITEMS_OFF, H_ITEMS_MAX, H_CHECKED_OFF, H_CHECKED_MAX, H_SEND_OFF, H_SEND_MAX = 4, 5, 6, 7, 8, 9
-H_SLOTDATA_OFF, H_SLOTDATA_SIZE = 10, 11
-H_SLOTDATA_CHECK, SD_CHECKS = 12, 8
-H_TOASTS_OFF, H_TOAST_MAX, H_TOAST_LEN, H_NAMES_OFF, H_NAME_MAX, H_NAME_LEN = 20, 21, 22, 23, 24, 25
-H_GAME_TICK, H_SEND_HEAD, H_GOAL, H_TOAST_TAIL = 26, 27, 28, 29
-H_CLIENT_TICK, H_CLIENT_STATE, H_SEND_TAIL, H_ITEM_COUNT, H_CHECKED_COUNT = 30, 31, 32, 33, 34
-H_SLOTDATA_READY, H_TOAST_HEAD, H_TEAM, H_SLOT = 35, 36, 37, 38
-H_GSET_OFF, H_GSET_MAX, H_GSET_GAME_GEN, H_GSET_CLIENT_GEN = 39, 40, 41, 42
-HEADER_WORDS = 43
+H_SLOTDATA_OFF, H_SLOTDATA_SIZE, H_SLOTDATA_LEN = 10, 11, 12
+H_TOASTS_OFF, H_TOAST_MAX, H_TOAST_LEN, H_NAMES_OFF, H_NAME_MAX, H_NAME_LEN = 13, 14, 15, 16, 17, 18
+H_GAME_TICK, H_SEND_HEAD, H_GOAL, H_TOAST_TAIL = 19, 20, 21, 22
+H_CLIENT_TICK, H_CLIENT_STATE, H_SEND_TAIL, H_ITEM_COUNT, H_CHECKED_COUNT = 23, 24, 25, 26, 27
+H_SLOTDATA_READY, H_TOAST_HEAD, H_TEAM, H_SLOT = 28, 29, 30, 31
+H_GSET_OFF, H_GSET_MAX, H_GSET_GAME_GEN, H_GSET_CLIENT_GEN = 32, 33, 34, 35
+HEADER_WORDS = 36
 H_SEED, SEED_LEN = HEADER_WORDS * 4, 64
 H_STATUS, STATUS_LEN = H_SEED + SEED_LEN, 96
 H_HOST, HOST_LEN = H_STATUS + STATUS_LEN, 64
 H_SLOTNAME, SLOTNAME_LEN = H_HOST + HOST_LEN, 17
 ITEM_SIZE = 8  # gc_ap_item: u32 id, s16 sender, u8 flags, u8 pad
+
+# slot_data: the game parses the text with the same C parser as the DLL (pc/src/pc_ap_slotdata_parse.c)
+SLOTDATA_JSON_MAX = 16384  # bytes, GC_AP_SD_JSON_MAX in gc_ap_mailbox.h
+AP_SLOTDATA_VERSION = 6  # format the C parser reads (apclient/include/ap_slotdata.h, world.SLOT_DATA_VERSION)
+
+
+def slotdata_json(slot_data: dict[str, Any]) -> str:
+    # The mailbox text for an already connected slot's slot_data (what the game parses). ValueError = the status
+    # line the game shows instead.
+    if int(slot_data.get("slot_data_version", 1)) > AP_SLOTDATA_VERSION:
+        raise ValueError("slot_data from a newer apworld: update the client")
+    upgraded = upgrade(dict(slot_data), AP_SLOTDATA_VERSION)
+    # ensure_ascii (the default): pure ASCII, so the C parser's \uXXXX decoding is all a non-ASCII name needs
+    text = json.dumps(upgraded, separators=(",", ":"))
+    if len(text) > SLOTDATA_JSON_MAX:  # ASCII: characters are bytes
+        raise ValueError("slot_data too large: update the client")
+    return text
 
 # The game's global settings (Settings > Gameplay / Overlay; no settings file on a console), by mailbox index:
 # GC_AP_GSET_* order, append-only. Stored by name in GSET_FILE.
@@ -160,11 +177,11 @@ class Mailbox:
     def put_seed(self, seed: str) -> None:
         self.put_text(H_SEED, SEED_LEN, seed)
 
-    def slotdata_layout(self) -> tuple[int, list[int]]:
-        return self.h[H_SLOTDATA_SIZE], list(self.h[H_SLOTDATA_CHECK:H_SLOTDATA_CHECK + SD_CHECKS])
-
-    def put_slotdata(self, data: bytes) -> None:
+    def put_slotdata(self, text: str) -> None:
+        # The JSON text, then its length: the game parses only slotdata_len bytes (both before slotdata_ready)
+        data = text.encode("ascii")
         self.ram.write(self.addr + self.h[H_SLOTDATA_OFF], data)
+        self.put(H_SLOTDATA_LEN, len(data))
 
     def put_names(self, names: dict[int, str]) -> None:
         n, size = self.h[H_NAME_MAX], self.h[H_NAME_LEN]
@@ -419,19 +436,13 @@ class ACGCContext(CommonContext):
 
     # slot_data into the mailbox; False (with the reason in the mailbox status) if the game can't take it
     def write_slotdata(self, m: Mailbox) -> bool:
-        size, offsets = m.slotdata_layout()
-        if not gc_slotdata.layout_matches(size, offsets):
-            m.put_text(H_STATUS, STATUS_LEN, "Client and game versions don't match: update both")
-            logger.error("The game's slot_data layout (size %d, offsets %s) isn't this client's: update both",
-                         size, offsets)
-            return False
         try:
-            data = gc_slotdata.build(self.slot_data or {})
+            text = slotdata_json(self.slot_data or {})
         except ValueError as e:
             m.put_text(H_STATUS, STATUS_LEN, str(e))
             logger.error("%s", e)
             return False
-        m.put_slotdata(data)
+        m.put_slotdata(text)
         m.put_text(H_STATUS, STATUS_LEN, "")
         return True
 

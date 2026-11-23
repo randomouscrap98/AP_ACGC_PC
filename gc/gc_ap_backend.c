@@ -5,6 +5,7 @@
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 #include "ap_log.h"
+#include "pc_ap_slotdata_parse.h"
 #include "dolphin/os.h"
 
 #include <stdarg.h>
@@ -17,6 +18,16 @@ gc_ap_mailbox gc_ap_mbox_mem; // only through gc_ap_mbox (uncached), see gc_ap_m
 // Cached copies of what game code reads often: slot_data (taken once, like the DLL takes one slot) and the
 // received items (append-only; a shorter list = the client started over)
 static ap_slotdata gc_ap_sd;
+// The slot_data JSON text, copied out of the uncached mailbox once: parsing it straight from uncached memory would
+// be slow. gc_ap_sd_json_len = the length last tried, so bad text isn't parsed again every frame (0 = not tried)
+static char gc_ap_sd_json[GC_AP_SD_JSON_MAX];
+static u32 gc_ap_sd_json_len;
+#ifdef GC_AP_SD_TIMING
+// Off by default, for the Dolphin timing run (ignore/pi-slotdata_stage2/gc_sd_timing.py): the copy out of the
+// uncached mailbox and the parse of the cached copy, in microseconds, read from RAM by the harness
+volatile u32 gc_ap_sd_copy_us;
+volatile u32 gc_ap_sd_parse_us;
+#endif
 static gc_ap_item gc_ap_items[GC_AP_ITEM_MAX];
 static u32 gc_ap_items_have;
 
@@ -99,16 +110,7 @@ void gc_ap_mailbox_frame(void) {
     m->send_off = (u32)((u8*)m->send - (u8*)m);
     m->send_max = GC_AP_SEND_MAX;
     m->slotdata_off = (u32)((u8*)&m->slotdata - (u8*)m);
-    m->slotdata_size = sizeof(ap_slotdata);
-    // Spread over the struct, after arrays and strings (gc_slotdata.py SLOTDATA_CHECKS: same order)
-    m->slotdata_check[0] = offsetof(ap_slotdata, skip_intro);
-    m->slotdata_check[1] = offsetof(ap_slotdata, goal);
-    m->slotdata_check[2] = offsetof(ap_slotdata, museumsanity);
-    m->slotdata_check[3] = offsetof(ap_slotdata, bug_passes);
-    m->slotdata_check[4] = offsetof(ap_slotdata, timesanity);
-    m->slotdata_check[5] = offsetof(ap_slotdata, new_item_chance);
-    m->slotdata_check[6] = offsetof(ap_slotdata, world_version);
-    m->slotdata_check[7] = offsetof(ap_slotdata, valid);
+    m->slotdata_size = GC_AP_SD_JSON_MAX;
     m->toasts_off = (u32)((u8*)m->toasts - (u8*)m);
     m->toast_max = GC_AP_TOAST_MAX;
     m->toast_len = GC_AP_TOAST_LEN;
@@ -131,7 +133,28 @@ void gc_ap_mailbox_frame(void) {
   gc_ap_checked_sync();
   gc_ap_items_sync();
   if(!gc_ap_sd.valid && m->slotdata_ready) {
-    memcpy(&gc_ap_sd, &m->slotdata, sizeof(gc_ap_sd));
+    // The client writes the text, then slotdata_len, then slotdata_ready: read the length after the ready flag
+    u32 n = m->slotdata_len;
+    if(n > 0 && n <= GC_AP_SD_JSON_MAX && n != gc_ap_sd_json_len) {
+      gc_ap_sd_json_len = n;
+#ifdef GC_AP_SD_TIMING
+      OSTime t_copy = OSGetTime();
+#endif
+      memcpy(gc_ap_sd_json, m->slotdata, n);
+#ifdef GC_AP_SD_TIMING
+      OSTime t_parsed = OSGetTime();
+#endif
+      if(!pc_ap_slotdata_parse(gc_ap_sd_json, (int)n, &gc_ap_sd)) {
+        // Not JSON / too many tokens: gc_ap_sd stays invalid, so Start stays blocked
+        OSReport("[AP] slot_data: can't parse %u bytes, Start stays blocked\n", n);
+      }
+#ifdef GC_AP_SD_TIMING
+      gc_ap_sd_copy_us = (u32)OSTicksToMicroseconds(t_parsed - t_copy);
+      gc_ap_sd_parse_us = (u32)OSTicksToMicroseconds(OSGetTime() - t_parsed);
+#endif
+    }
+  } else if(!m->slotdata_ready) {
+    gc_ap_sd_json_len = 0; // a new connection writes new text: try it once
   }
   gc_ap_gsettings_frame();
 }

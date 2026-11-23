@@ -14,6 +14,8 @@
 //   writes toasts[toast_head % toast_max], then toast_head++; the game shows up to toast_head, writes toast_tail.
 // - names: slot names by slot number (0 = the server), zero-terminated, cut to GC_AP_NAME_LEN - 1 bytes. The
 //   client writes them once per connection, before slotdata_ready.
+// - slotdata: the upgraded slot_data as compact JSON text (ASCII, \uXXXX escapes; the game parses it with
+//   pc/src/pc_ap_slotdata_parse.c). The client writes the text, then slotdata_len, then slotdata_ready.
 // A new connection (other slot, or the server restarted) resets item_count / checked_count to 0 first.
 // - gset: the global settings (Settings > Gameplay / Overlay), which have no file on a console: the client keeps
 //   them (gc_client.py). Client -> game: it writes gset[], then gset_client_gen (any new value); the game takes
@@ -21,14 +23,13 @@
 //   that finds gset_client_gen other than what it last wrote (the game restarted) writes its values again.
 
 #include "types.h"
-#include "ap_slotdata.h"
 #include "dolphin/os.h" // OSCachedToUncached
 
 #define GC_AP_MAGIC0 0x41434150 // "ACAP"
 #define GC_AP_MAGIC1 0x4D424F58 // "MBOX"
 #define GC_AP_TAIL   0x454E4421 // "END!"
 // Bump when the header layout or a section's entry format changes (client refuses other versions)
-#define GC_AP_MAILBOX_VERSION 3
+#define GC_AP_MAILBOX_VERSION 4
 
 #define GC_AP_ITEM_MAX    2560 // received items (apworld: at most 2220 locations, so items, per slot)
 #define GC_AP_CHECKED_MAX 2560 // checked locations
@@ -37,7 +38,7 @@
 #define GC_AP_TOAST_LEN   96   // bytes per toast, with the zero (AP_CTRL_* colour codes allowed)
 #define GC_AP_NAME_MAX    64   // slots with a name (higher slots show no name)
 #define GC_AP_NAME_LEN    17   // AP slot names are at most 16 characters
-#define GC_AP_SD_CHECKS   8    // ap_slotdata field offsets in the header (gc_ap_backend.c lists which)
+#define GC_AP_SD_JSON_MAX 16384 // slot_data JSON text (9.8 KB raw is the largest real seed, 5.8 KB compact)
 #define GC_AP_STATUS_LEN  96   // client status line, with the zero
 
 // Global settings in gset[], by index: append-only (gc_client.py GSET_NAMES lists the same names in this order)
@@ -81,9 +82,8 @@ typedef struct {
   u32 items_off, items_max;
   u32 checked_off, checked_max;
   u32 send_off, send_max;
-  u32 slotdata_off, slotdata_size; // the client writes the big-endian ap_slotdata here
-  // offsetof of some ap_slotdata fields: the client's mirror (gc_slotdata.py) must match them and slotdata_size
-  u32 slotdata_check[GC_AP_SD_CHECKS];
+  u32 slotdata_off, slotdata_size; // slot_data JSON text, uncached: < slotdata_size bytes
+  u32 slotdata_len; // JSON text length the client wrote (client -> game, before slotdata_ready)
   u32 toasts_off, toast_max, toast_len;
   u32 names_off, name_max, name_len;
 
@@ -121,7 +121,7 @@ typedef struct {
   char toasts[GC_AP_TOAST_MAX][GC_AP_TOAST_LEN];
   char names[GC_AP_NAME_MAX][GC_AP_NAME_LEN];
   s32 gset[GC_AP_GSET_NUM];
-  ap_slotdata slotdata;
+  char slotdata[GC_AP_SD_JSON_MAX]; // compact JSON text of the upgraded slot_data (pc_ap_slotdata_parse)
   u32 tail;
 } gc_ap_mailbox;
 

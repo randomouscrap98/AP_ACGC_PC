@@ -291,7 +291,6 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_window_size.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_settings.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_beach_logo.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_slotdata_parse.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_planting.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_planting_marks.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_map_divination.c
@@ -486,8 +485,6 @@ add_custom_command(TARGET ac_pc POST_BUILD
         "${CMAKE_CURRENT_SOURCE_DIR}/lib/fixnes/LICENSE" "${CMAKE_BINARY_DIR}/bin/licenses/fixNES-LICENSE.txt"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/lib/stb/LICENSE" "${CMAKE_BINARY_DIR}/bin/licenses/stb-LICENSE.txt"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/lib/jsmn/LICENSE" "${CMAKE_BINARY_DIR}/bin/licenses/jsmn-LICENSE.txt"
 )
 
 # Apworld version (one place to bump: the apworld manifest), shown on the AP overlay

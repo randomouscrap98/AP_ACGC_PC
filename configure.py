@@ -305,6 +305,7 @@ AP_GC_UNITS = [
     ("gc", "gc_ap_state_card.c"),
     ("gc", "gc_ap_port.c"),
     # Shared with PC
+    ("pc/src", "pc_ap_slotdata_parse.c"),
     ("pc/src", "pc_ap_logic.c"),
     ("pc/src", "pc_ap_state.c"),
     ("pc/src", "pc_ap_loansanity.c"),

@@ -7,9 +7,10 @@
 extern "C" {
 #endif
 
-// Plain C slot_data parser: the same struct fill as apclient's ap_slotdata_fill (ap_slotdata.cpp), straight from
-// the JSON text of an already upgraded slot_data (the C++ upgrade stays on the PC; the GC client upgrades before
-// forwarding). Plain C99 and no libc beyond string.h, so the GC build can use it too (MWCC 3.0a5 -lang=c99).
+// Plain C slot_data parser: the one fill both clients use, straight from the JSON text of an already upgraded
+// slot_data (the C++ upgrade stays on the PC; the GC client upgrades before forwarding). apclient's
+// ap_slotdata_fill is a thin nlohmann dump() + call of this, the GC game calls it on the mailbox text. Plain C99
+// and no libc beyond string.h, so the GC build can use it too (MWCC 3.0a5 -lang=c99).
 
 // jsmn tokens for one parse (static array in the .c, 16 bytes each). The largest real slot_data we have
 // (compat/0.5.2/slot_data/catalog_max.json, 9824 bytes) needs 1077; 2048 leaves room for a full 575 item
