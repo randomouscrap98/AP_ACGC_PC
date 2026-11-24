@@ -12,9 +12,10 @@
 // A later client connection replaces the card name, so reconnecting with another slot before boot works.
 //
 // Or instead of CARD: "ISO <size>\n" followed by exactly <size> raw bytes of a disc image (/wii_iso in the AP
-// client). The loader writes it to /games/ACAP_UPLOAD/game.iso on the boot device and answers "OK\n" when the
+// client). The loader writes it to /games/ACAP_UPLOAD/game.iso on the boot device and answers "OK ...\n" when the
 // whole image is on the card; "ERR <reason>\n" for a bad or zero size, a folder/file it can't create, a write
-// error (disk full) or a transfer that ends early or stalls. A successful upload is this boot's game (no size
+// error (disk full) or a transfer that ends early or stalls (file errors end with the FatFS FRESULT in brackets).
+// A failed upload deletes the partial file (and with it an earlier upload). A successful upload is this boot's game (no size
 // check beyond the byte count, no hash); /acap_cfg.bin keeps the image that was saved before it. While receiving,
 // the screen shows the progress and the 10 s silence drop for handshakes does not apply: a transfer with no bytes
 // for AP_UPLOAD_STALL_SECONDS fails instead.
@@ -55,10 +56,9 @@ static bool exit_wanted;  // a client sent EXIT
 // written to (the loader mounts SD before USB, so normally the SD card).
 #define AP_UPLOAD_DIR "/games/ACAP_UPLOAD"
 #define AP_UPLOAD_ISO AP_UPLOAD_DIR "/game.iso"
-#define AP_UPLOAD_TMP AP_UPLOAD_ISO ".tmp"
 #define AP_UPLOAD_CHUNK (256 * 1024) // bytes received before a write: FatFS writes are slow per call
 #define AP_UPLOAD_READ 16384         // bytes per net_recv: libogc copies through a 64 KB buffer it allocates
-#define AP_UPLOAD_STALL_SECONDS 30   // no bytes for this long: the transfer is dead
+#define AP_UPLOAD_STALL_SECONDS 60   // no bytes for this long: the transfer is dead
 #define AP_UPLOAD_READS 64           // net_recv calls per frame (one returns only what IOS has buffered)
 
 extern FATFS *devices[2]; // global.c: the mounted file systems, [DEV_SD] and [DEV_USB]
@@ -67,13 +67,14 @@ static bool upload_active;   // receiving: ApUploadFrame runs instead of ApPollC
 static bool upload_ended;    // a transfer just ended: ApWaitScreen makes upload_ok its game
 static bool upload_ok;       // ... which succeeded
 static bool upload_used;     // this boot's game came from an upload (ApGameUploaded)
-static FIL upload_file;      // the .tmp being written
+static FIL upload_file;      // game.iso being written
 static u8 *upload_buf;       // AP_UPLOAD_CHUNK bytes, 32-aligned (memalign; freed when the transfer ends)
 static int upload_len;       // bytes in upload_buf not written yet
 static u32 upload_size;      // what the client announced
 static u32 upload_got;       // bytes received so far (written + upload_len)
 static int upload_frames;    // frames since bytes last arrived (stall timeout)
 static u64 upload_start;     // gettime() at the ISO line, for the speed line
+static u64 upload_write_ticks; // time spent in f_write / f_close (the card side of the speed)
 static char upload_note[96]; // the screen's result line ("" = no upload this boot)
 static char kept_path[sizeof(((NIN_CFG *)0)->GamePath)]; // the game before the first upload: /acap_cfg.bin keeps it
 static u32 kept_usb;                                      // ... and its NIN_CFG_USB bit
@@ -197,21 +198,26 @@ static bool ApMakeDir(const char *path)
 	return r == FR_OK || r == FR_EXIST;
 }
 
-// Writes what has been received into the .tmp file
-static bool ApUploadWrite(void)
+// Writes what has been received into game.iso; FR_DENIED for a short write (disk full)
+static FRESULT ApUploadWrite(void)
 {
 	UINT wrote = 0;
-	return f_write(&upload_file, upload_buf, upload_len, &wrote) == FR_OK && (int)wrote == upload_len;
+	u64 t = gettime();
+	FRESULT r = f_write(&upload_file, upload_buf, upload_len, &wrote);
+	upload_write_ticks += diff_ticks(t, gettime());
+	if (r == FR_OK && (int)wrote != upload_len)
+		r = FR_DENIED;
+	return r;
 }
 
 // Gives up on the transfer: throw the partial file away and tell the client why
 static void ApUploadFail(const char *reason)
 {
-	WCHAR tmp[64];
+	WCHAR iso[64];
 
 	f_close(&upload_file); // flushes, but the content is discarded below
-	ApWidePath(AP_UPLOAD_TMP, tmp, 64);
-	f_unlink(tmp);
+	ApWidePath(AP_UPLOAD_ISO, iso, 64);
+	f_unlink(iso);
 	if (upload_buf != NULL)
 		free(upload_buf);
 	upload_buf = NULL;
@@ -228,28 +234,28 @@ static void ApUploadFail(const char *reason)
 // The whole image is in: make it the game of this boot
 static void ApUploadDone(void)
 {
-	WCHAR tmp[64], iso[64];
+	char reason[48];
+	FRESULT r;
 	u64 ms;
 	u32 mb10 = ApMB10(upload_size); // the size x10, for the note below
 	u32 sec10, rate10;
 
-	if (upload_len > 0 && !ApUploadWrite())
-	{
-		ApUploadFail("write error / disk full");
-		return;
-	}
+	// Written straight to game.iso, no .tmp + rename: f_rename failed on hardware (2026-11-24, code unknown) and
+	// keeping the previous upload during a transfer isn't worth it
+	r = upload_len > 0 ? ApUploadWrite() : FR_OK;
 	upload_len = 0;
-	f_close(&upload_file);
-	ApWidePath(AP_UPLOAD_TMP, tmp, 64);
-	ApWidePath(AP_UPLOAD_ISO, iso, 64);
-	f_unlink(iso); // the image of an earlier upload
-	if (f_rename(tmp, iso) != FR_OK)
+	if (r == FR_OK)
 	{
-		f_unlink(tmp);
-		ApUploadFail("cannot rename");
+		u64 t = gettime();
+		r = f_close(&upload_file); // flushes the disk cache (diskio.c CTRL_SYNC)
+		upload_write_ticks += diff_ticks(t, gettime());
+	}
+	if (r != FR_OK)
+	{
+		snprintf(reason, sizeof(reason), "write error / disk full (%d)", r);
+		ApUploadFail(reason);
 		return;
 	}
-	FlushDevices(); // f_close does not flush Nintendont's disk cache: the image is only on the card after this
 	if (upload_buf != NULL)
 		free(upload_buf);
 	upload_buf = NULL;
@@ -273,9 +279,12 @@ static void ApUploadDone(void)
 	ms = ticks_to_millisecs(diff_ticks(upload_start, gettime()));
 	sec10 = (u32)(ms / 100);
 	rate10 = ms > 0 ? (u32)(((u64)upload_size * 10000) / (ms * 1048576)) : 0;
-	snprintf(upload_note, sizeof(upload_note), "Uploaded %u.%u MB in %u.%u s (%u.%u MB/s)",
-	         mb10 / 10, mb10 % 10, sec10 / 10, sec10 % 10, rate10 / 10, rate10 % 10);
-	ApSend("OK\n");
+	u32 write10 = (u32)(ticks_to_millisecs(upload_write_ticks) / 100);
+	snprintf(upload_note, sizeof(upload_note), "Uploaded %u.%u MB in %u.%u s (%u.%u MB/s, card writes %u.%u s)",
+	         mb10 / 10, mb10 % 10, sec10 / 10, sec10 % 10, rate10 / 10, rate10 % 10, write10 / 10, write10 % 10);
+	char ok[48];
+	snprintf(ok, sizeof(ok), "OK card writes %u ms\n", (u32)ticks_to_millisecs(upload_write_ticks));
+	ApSend(ok);
 	ApFinishClient();
 }
 
@@ -309,11 +318,14 @@ static bool ApUploadStart(const char *line, const char *rest, int rest_len)
 		ApSend("ERR cannot create " AP_UPLOAD_DIR "\n");
 		return false;
 	}
-	if (f_open_char(&upload_file, AP_UPLOAD_TMP, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+	FRESULT r = f_open_char(&upload_file, AP_UPLOAD_ISO, FA_WRITE | FA_CREATE_ALWAYS);
+	if (r != FR_OK)
 	{
+		char err[64];
 		free(upload_buf);
 		upload_buf = NULL;
-		ApSend("ERR cannot create " AP_UPLOAD_TMP "\n");
+		snprintf(err, sizeof(err), "ERR cannot create " AP_UPLOAD_ISO " (%d)\n", r);
+		ApSend(err);
 		return false;
 	}
 	upload_size = size;
@@ -321,6 +333,7 @@ static bool ApUploadStart(const char *line, const char *rest, int rest_len)
 	upload_len = 0;
 	upload_frames = 0;
 	upload_start = gettime();
+	upload_write_ticks = 0;
 	upload_note[0] = 0;
 	upload_active = true;
 	if ((u32)rest_len > size)
@@ -368,9 +381,12 @@ static void ApUploadFrame(void)
 	}
 	if (upload_len == AP_UPLOAD_CHUNK || upload_got == upload_size)
 	{
-		if (!ApUploadWrite())
+		FRESULT r = ApUploadWrite();
+		if (r != FR_OK)
 		{
-			ApUploadFail("write error / disk full");
+			char reason[48];
+			snprintf(reason, sizeof(reason), "write error / disk full (%d)", r);
+			ApUploadFail(reason);
 			return;
 		}
 		upload_len = 0;

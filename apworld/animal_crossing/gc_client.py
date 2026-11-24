@@ -331,7 +331,11 @@ class ACGCCommandProcessor(ClientCommandProcessor):
             self.output("Not ready yet: the client is still starting its game link")
             return
         size = os.path.getsize(path)
-        self.output(f"Uploading {size / (1 << 20):.1f} MB to the Wii at {address} (it boots it once)...")
+        if self.ctx.wii_uploading:
+            self.output("An upload to the Wii is already running")
+            return
+        self.ctx.wii_uploading = True
+        self.output(f"Sending {size / (1 << 20):.1f} MB to the Wii at {address}. Game starts after upload.")
         asyncio.run_coroutine_threadsafe(self._wii_iso(address, path, size), self.ctx.loop)
 
     async def _wii_iso(self, address: str, path: str, size: int) -> None:
@@ -344,7 +348,10 @@ class ACGCCommandProcessor(ClientCommandProcessor):
                 step[0] = pct // 10
                 self.output(f"  Wii image {pct}% ({sent / (1 << 20):.1f} / {total / (1 << 20):.1f} MB)")
 
-        ok, answer = await asyncio.to_thread(gc_wii.send_iso, address, path, progress=progress)
+        try:
+            ok, answer = await asyncio.to_thread(gc_wii.send_iso, address, path, progress=progress)
+        finally:
+            self.ctx.wii_uploading = False
         if ok:
             self.output(f"The Wii has the disc image ({size / (1 << 20):.1f} MB) and boots it when the card is ready")
         else:
@@ -377,6 +384,8 @@ class ACGCContext(CommonContext):
         self.wii_status = ""  # set_wii_status
         self.wii_address = ""  # the Wii last talked to ("" = none seen)
         self.wii_booting = False  # it had the card and a disc image when last seen
+        self.wii_missed = 0  # wii_task rounds in a row without an answer from wii_address
+        self.wii_uploading = False  # /wii_iso is sending: the start screen answers late and takes no CARD meanwhile
         self.wii_warned: set[tuple[str, ...]] = set()  # address sets already reported as "several Wiis"
         self.link = GameLink()  # history + numbers for the connection tab
 
@@ -404,10 +413,14 @@ class ACGCContext(CommonContext):
     # One round of wii_task with the Wiis that answered: picks one and names its card once the slot is known
     async def wii_step(self, found: list[gc_wii.WiiReply]) -> None:
         saved = wii_saved_address()
+        if self.wii_uploading:
+            return
         wii = next((r for r in found if r.address == saved), None) or next(
             (r for r in found if r.address == self.wii_address), None) or (found[0] if found else None)
         if wii is None:
-            if self.wii_address:
+            # Lost only after a few silent rounds: a busy start screen (card writes) answers late, a Wi-Fi link drops some
+            self.wii_missed += 1
+            if self.wii_address and self.wii_missed >= WII_MISSED_LOST:
                 self.set_wii_status(f"The Wii at {self.wii_address} is starting the game" if self.wii_booting else
                                     f"Lost the Wii at {self.wii_address}")
             return
@@ -417,6 +430,7 @@ class ACGCContext(CommonContext):
             logger.warning("Several Wiis answer (%s): using %s; /wii <address> picks another",
                            ", ".join(addresses), wii.address)
         self.wii_address = wii.address
+        self.wii_missed = 0
         self.wii_booting = False
         if self.slot is None or self.seed_name is None:
             self.set_wii_status(f"Found the Wii at {wii.address}: connect to the AP server to name its memory card")
@@ -802,6 +816,9 @@ def wii_saved_address() -> str:
     return value if isinstance(value, str) else ""
 
 
+WII_MISSED_LOST = 3  # silent wii_task rounds (2 s each) before "Lost the Wii"
+
+
 async def wii_task(ctx: ACGCContext) -> None:
     # Asks for the Wii loader every 2 s while no game is connected through Dolphin
     try:
@@ -811,18 +828,20 @@ async def wii_task(ctx: ACGCContext) -> None:
         return
     try:
         while not ctx.exit_event.is_set():
-            if ctx.mbox is None:
+            probed = ctx.mbox is None
+            if probed:
                 saved = wii_saved_address()
                 finder.probe([saved] if saved else [])
-                await asyncio.sleep(0.5)
+            # Answers are collected over the whole 2 s: the start screen took up to 0.7 s while writing an upload
+            try:
+                await asyncio.wait_for(ctx.exit_event.wait(), 2)
+            except asyncio.TimeoutError:
+                pass
+            if probed:
                 try:
                     await ctx.wii_step(finder.replies())
                 except Exception:
                     logger.error(traceback.format_exc())
-            try:
-                await asyncio.wait_for(ctx.exit_event.wait(), 1.5)
-            except asyncio.TimeoutError:
-                pass
     finally:
         finder.close()
 

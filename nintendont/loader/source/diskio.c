@@ -183,6 +183,12 @@ DRESULT disk_ioctl (
 			// TODO?
 			break;
 
+		case CTRL_SYNC:
+			// AP: f_sync / f_close / f_rename end with this; unhandled it made them all return FR_DISK_ERR
+			// (stock code never checks f_close). Writes the dirty cache pages to the card.
+			ret = (cache[pdrv] == NULL || _FAT_cache_flush(cache[pdrv])) ? RES_OK : RES_ERROR;
+			break;
+
 		default:
 			break;
 	}

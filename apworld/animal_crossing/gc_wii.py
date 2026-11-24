@@ -5,7 +5,7 @@
 #        <card> the card name so far or "-")
 #   TCP: Wii "ACAP 1\n"; client "CARD <name>\n"; Wii "OK\n" or "ERR <reason>\n", then closes
 #   TCP: client "ISO <size>\n" + exactly <size> raw bytes: a disc image the Wii boots once (/wii_iso; it goes to
-#        /games/ACAP_UPLOAD/game.iso on the Wii's boot device). Wii: "OK\n" or "ERR <reason>\n", then closes
+#        /games/ACAP_UPLOAD/game.iso on the Wii's boot device). Wii: "OK <details>\n" or "ERR <reason>\n", then closes
 # Plain sockets, no Archipelago imports, so tests can run it against a fake Wii.
 import os
 import re
@@ -107,7 +107,7 @@ def send_card(address: str, name: str, port: int = WII_PORT, timeout: float = 5)
             f.write(f"CARD {name}\n".encode("ascii"))
             f.flush()
             answer = f.readline().decode("ascii", "replace").strip()
-            return answer == "OK", answer or "connection closed"
+            return answer.split(" ")[0] == "OK", answer or "connection closed"
     except OSError as e:
         return False, str(e)
 
@@ -134,12 +134,14 @@ def send_iso(address: str, path: str, port: int = WII_PORT, timeout: float = 10,
     # /games/ACAP_UPLOAD/game.iso on its boot device and boots it for this boot only (the saved image is untouched).
     # Returns (accepted, the Wii's answer or the error); progress(sent, size) after every chunk.
     size = os.path.getsize(path)
+    sending = False
     try:
         with socket.create_connection((address, port), timeout=timeout) as s:
             hello = _read_line(s)
             if hello != "ACAP 1":
                 return False, f"unexpected greeting {hello!r}"
             s.sendall(b"ISO %d\n" % size)
+            sending = True
             sent = 0
             with open(path, "rb") as f:
                 while True:
@@ -154,13 +156,16 @@ def send_iso(address: str, path: str, port: int = WII_PORT, timeout: float = 10,
                     # The Wii can answer before the last byte (an ERR, then it closes): take it as it comes
                     if select.select([s], [], [], 0)[0]:
                         answer = _read_line(s)
-                        return answer == "OK", answer or "connection closed"
+                        return answer.split(" ")[0] == "OK", answer or "connection closed"
             if sent != size:
                 return False, f"{path} shrank while it was read ({sent} of {size} bytes)"
             s.settimeout(ISO_ANSWER_TIMEOUT)
             answer = _read_line(s)
-            return answer == "OK", answer or "connection closed"
+            return answer.split(" ")[0] == "OK", answer or "connection closed"
     except OSError as e:
+        if sending:
+            # The Wii gives up by sending ERR and closing; with data still in flight that arrives as a reset
+            return False, f"connection dropped ({e}); the reason, if any, is on the Wii's screen"
         return False, str(e)
 
 
