@@ -1,0 +1,25 @@
+// AP beach hints: draw part of the hint scroll, included by each bg_item variant's data table
+// (bg_item, cherry, winter, xmas) after pc_ap_beach_draw.c_inc. The town map scroll's quad with the
+// AP scroll material (pc_ap_hint_logo.c); flags 1 = middle of its unit, like the scroll.
+#include "pc_ap_hint.h"
+
+// PC_AP_ITEM_TYPE_HINT must map to bIT_DRAW_TYPE_AP_HINT (array size -1 = compile error; C89 for MWCC 1.3.2)
+typedef char pc_ap_hint_type_check[(bIT_DRAW_TYPE_AP_HINT == bIT_TYPE_BASE + PC_AP_ITEM_TYPE_HINT) ? 1 : -1];
+
+extern Gfx pc_ap_hint_mat_model[];
+extern Gfx obj_rollT_gfx_model[];
+
+static Gfx* ap_hint_DL_table[] = {
+    pc_ap_hint_mat_model,
+    obj_rollT_gfx_model,
+};
+
+static bg_item_draw_list_c ap_hint_list = { &bg_item_common_draw_loop_type1, 0, 1 };
+
+static bg_item_draw_list_c* ap_hint_list_table[] = {
+    &ap_hint_list,
+};
+
+static bg_item_draw_part_c ap_hint_part = {
+    ap_hint_DL_table, 1, ap_hint_list_table, 0, NULL, 0.0f, NULL, NULL,
+};

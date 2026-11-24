@@ -28,6 +28,8 @@
 #include "m_common_data.h"
 #include "m_field_info.h"
 #include "ac_insect_h.h"
+#include "pc_ap_shellsanity.h"
+#include "pc_ap_hint.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -55,7 +57,7 @@ extern int g_pc_weather_override, g_pc_weather_intensity_override;
 extern int g_pc_uber_shader_only;
 
 // Where a town scene goes RT_ACT_FRAME frames after arriving (the player stays put)
-enum { RT_STAY, RT_HOUSE, RT_SHOP, RT_MUSEUM, RT_PAUSE, RT_MAP, RT_INVENTORY, RT_LETTER, RT_NES, RT_FLOWER_BUGS };
+enum { RT_STAY, RT_HOUSE, RT_SHOP, RT_MUSEUM, RT_PAUSE, RT_MAP, RT_INVENTORY, RT_LETTER, RT_NES, RT_FLOWER_BUGS, RT_GROUND_ITEMS };
 #define RT_ACT_FRAME 30
 
 // One render-test scene. 0 in any field = the default (noon 2026-06-15, the weather of the day, settings.ini)
@@ -95,6 +97,8 @@ static const RTScene s_scenes[] = {
     { .name = "letter", .town = 1, .frame = 120, .act = RT_LETTER },  // a letter being read (stationery + text)
     // A row of tulips, then pansies, in front of the player: ladybug, mantis, snail on each row
     { .name = "flower_bugs", .town = 1, .frame = 90, .act = RT_FLOWER_BUGS },
+    // Ground items in front of the player: vanilla scroll (town map), AP shell, AP hint scroll
+    { .name = "ground_items", .town = 1, .frame = 90, .act = RT_GROUND_ITEMS },
     { .name = "nes", .town = 1, .frame = 600, .act = RT_NES },  // NES game 1 (fixNES, own GL quad), as from the furniture
     // The uber shader is only the fallback (variant compile failed, cache full): only these scenes check it
     { .name = "title_uber", .frame = 600, .uber = 1 },
@@ -345,6 +349,18 @@ void pc_automated_play(GAME_PLAY* play) {
                     aINS_Init_c init = { ty[c], p, 0, &play->game };
                     Common_Get(clip).insect_clip->make_insect_proc(&init, FALSE);
                 }
+            }
+            break;
+        }
+        case RT_GROUND_ITEMS: {
+            static const mActor_name_t items[] = { ITM_TOWN_MAP, PC_AP_BEACH_ITEM_START, PC_AP_HINT_ITEM };
+            xyz_t base = GET_PLAYER_ACTOR(play)->actor_class.world.position;
+            for (int i = 0; i < (int)(sizeof(items) / sizeof(items[0])); i++) {
+                xyz_t p = base;
+                p.x += (i - 2) * mFI_UT_WORLDSIZE_X_F;
+                p.z += mFI_UT_WORLDSIZE_Z_F;
+                mFI_Wpos2UtCenterWpos(&p, p);
+                mFI_SetFG_common(items[i], p, TRUE);
             }
             break;
         }

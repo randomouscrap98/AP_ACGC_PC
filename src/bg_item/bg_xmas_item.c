@@ -145,6 +145,7 @@ enum {
     bIT_DRAW_TYPE_FISH2,
 #ifdef AP_HOOKS
     bIT_DRAW_TYPE_AP_BEACH, /* AP Shellsanity (pc_ap_beach_draw.c_inc) */
+    bIT_DRAW_TYPE_AP_HINT,  /* AP beach hints (pc_ap_hint_draw.c_inc) */
 #endif
 #ifdef GAME_ENHANCEMENTS
     bIT_DRAW_TYPE_PC_PLANT_DIES,    /* planting ground marks (pc_planting_draw.c_inc) */
