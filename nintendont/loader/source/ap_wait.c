@@ -11,12 +11,21 @@
 // (/acap_kernel.log on the game's drive, nintendont/kernel/ap_server.c), so it can be read without the SD card.
 // A later client connection replaces the card name, so reconnecting with another slot before boot works.
 //
+// Or instead of CARD: "ISO <size>\n" followed by exactly <size> raw bytes of a disc image (/wii_iso in the AP
+// client). The loader writes it to /games/ACAP_UPLOAD/game.iso on the boot device and answers "OK\n" when the
+// whole image is on the card; "ERR <reason>\n" for a bad or zero size, a folder/file it can't create, a write
+// error (disk full) or a transfer that ends early or stalls. A successful upload is this boot's game (no size
+// check beyond the byte count, no hash); /acap_cfg.bin keeps the image that was saved before it. While receiving,
+// the screen shows the progress and the 10 s silence drop for handshakes does not apply: a transfer with no bytes
+// for AP_UPLOAD_STALL_SECONDS fails instead.
+//
 // Discovery on UDP port AP_WAIT_PORT: the client broadcasts "ACAP?\n"; the Wii answers the sender with
 //   "ACAP 1 <game> <card>\n"   (<game> 1 = disc image chosen, else 0; <card> the card name so far, "-" if none)
 // so the client finds the Wii without the address being typed in.
 #include <gccore.h>
 #include <network.h>
 #include <fcntl.h>
+#include <ogc/lwp_watchdog.h>
 #include <stdio.h>
 #include <string.h>
 #include "global.h"
@@ -25,6 +34,7 @@
 #include "menu.h"
 #include "ap_wait.h"
 #include "ff_utf8.h"
+#include "diskio.h"
 
 extern u32 Shutdown;
 
@@ -39,6 +49,34 @@ static char client_buf[96];
 static int client_len;
 static int client_frames; // frames since the client connected (drops silent clients)
 static bool exit_wanted;  // a client sent EXIT
+
+// AP: a disc image sent by the client. It goes to /games/ACAP_UPLOAD/game.iso on the boot device and is this
+// boot's game only. The paths have no drive prefix, so FatFS uses its default drive: the one /acap_cfg.bin is
+// written to (the loader mounts SD before USB, so normally the SD card).
+#define AP_UPLOAD_DIR "/games/ACAP_UPLOAD"
+#define AP_UPLOAD_ISO AP_UPLOAD_DIR "/game.iso"
+#define AP_UPLOAD_TMP AP_UPLOAD_ISO ".tmp"
+#define AP_UPLOAD_CHUNK (256 * 1024) // bytes received before a write: FatFS writes are slow per call
+#define AP_UPLOAD_READ 16384         // bytes per net_recv: libogc copies through a 64 KB buffer it allocates
+#define AP_UPLOAD_STALL_SECONDS 30   // no bytes for this long: the transfer is dead
+#define AP_UPLOAD_READS 64           // net_recv calls per frame (one returns only what IOS has buffered)
+
+extern FATFS *devices[2]; // global.c: the mounted file systems, [DEV_SD] and [DEV_USB]
+
+static bool upload_active;   // receiving: ApUploadFrame runs instead of ApPollClient
+static bool upload_ended;    // a transfer just ended: ApWaitScreen makes upload_ok its game
+static bool upload_ok;       // ... which succeeded
+static bool upload_used;     // this boot's game came from an upload (ApGameUploaded)
+static FIL upload_file;      // the .tmp being written
+static u8 *upload_buf;       // AP_UPLOAD_CHUNK bytes, 32-aligned (memalign; freed when the transfer ends)
+static int upload_len;       // bytes in upload_buf not written yet
+static u32 upload_size;      // what the client announced
+static u32 upload_got;       // bytes received so far (written + upload_len)
+static int upload_frames;    // frames since bytes last arrived (stall timeout)
+static u64 upload_start;     // gettime() at the ISO line, for the speed line
+static char upload_note[96]; // the screen's result line ("" = no upload this boot)
+static char kept_path[sizeof(((NIN_CFG *)0)->GamePath)]; // the game before the first upload: /acap_cfg.bin keeps it
+static u32 kept_usb;                                      // ... and its NIN_CFG_USB bit
 
 static s32 ApNetDone(s32 result, void *usrdata)
 {
@@ -133,6 +171,225 @@ static void ApFinishClient(void)
 		VIDEO_WaitVSync();
 	}
 	ApDropClient();
+}
+
+// --- Disc image upload (/wii_iso) ----------------------------------------------------------------------------
+
+// ASCII to the 16-bit WCHAR paths of the FatFS calls that have no f_*_char wrapper in ff_utf8.h
+static void ApWidePath(const char *ascii, WCHAR *out, int size)
+{
+	int i;
+	for (i = 0; i < size - 1 && ascii[i] != 0; i++)
+		out[i] = (WCHAR)ascii[i];
+	out[i] = 0;
+}
+
+// A byte count as the screen's "MB x10" (no floating point in the loader)
+static u32 ApMB10(u32 bytes)
+{
+	return (u32)(((u64)bytes * 10) >> 20);
+}
+
+// Creates a folder of the upload path (already there = fine)
+static bool ApMakeDir(const char *path)
+{
+	FRESULT r = f_mkdir_char(path);
+	return r == FR_OK || r == FR_EXIST;
+}
+
+// Writes what has been received into the .tmp file
+static bool ApUploadWrite(void)
+{
+	UINT wrote = 0;
+	return f_write(&upload_file, upload_buf, upload_len, &wrote) == FR_OK && (int)wrote == upload_len;
+}
+
+// Gives up on the transfer: throw the partial file away and tell the client why
+static void ApUploadFail(const char *reason)
+{
+	WCHAR tmp[64];
+
+	f_close(&upload_file); // flushes, but the content is discarded below
+	ApWidePath(AP_UPLOAD_TMP, tmp, 64);
+	f_unlink(tmp);
+	if (upload_buf != NULL)
+		free(upload_buf);
+	upload_buf = NULL;
+	upload_active = false;
+	upload_ended = true;
+	upload_ok = false;
+	snprintf(upload_note, sizeof(upload_note), "Upload failed: %s", reason);
+	ApSend("ERR ");
+	ApSend(reason);
+	ApSend("\n");
+	ApFinishClient();
+}
+
+// The whole image is in: make it the game of this boot
+static void ApUploadDone(void)
+{
+	WCHAR tmp[64], iso[64];
+	u64 ms;
+	u32 mb10 = ApMB10(upload_size); // the size x10, for the note below
+	u32 sec10, rate10;
+
+	if (upload_len > 0 && !ApUploadWrite())
+	{
+		ApUploadFail("write error / disk full");
+		return;
+	}
+	upload_len = 0;
+	f_close(&upload_file);
+	ApWidePath(AP_UPLOAD_TMP, tmp, 64);
+	ApWidePath(AP_UPLOAD_ISO, iso, 64);
+	f_unlink(iso); // the image of an earlier upload
+	if (f_rename(tmp, iso) != FR_OK)
+	{
+		f_unlink(tmp);
+		ApUploadFail("cannot rename");
+		return;
+	}
+	FlushDevices(); // f_close does not flush Nintendont's disk cache: the image is only on the card after this
+	if (upload_buf != NULL)
+		free(upload_buf);
+	upload_buf = NULL;
+	// This boot boots that image; ApKeepSavedGame puts the game from before it (the saved or A-picked one, not an
+	// earlier upload) back into what main.c writes to /acap_cfg.bin
+	if (!ApGameUploaded())
+	{
+		memcpy(kept_path, ncfg->GamePath, sizeof(kept_path));
+		kept_usb = ncfg->Config & NIN_CFG_USB;
+	}
+	snprintf(ncfg->GamePath, sizeof(ncfg->GamePath), "%s", AP_UPLOAD_ISO);
+	if (devices[DEV_SD] != NULL)
+		ncfg->Config &= ~NIN_CFG_USB; // the upload is on the SD card (the default drive)
+	else
+		ncfg->Config |= NIN_CFG_USB;
+	upload_used = true;
+	upload_active = false;
+	upload_ended = true;
+	upload_ok = true;
+	// The screen's speed line: Wi-Fi throughput on a real Wii is not known, so the user can report it
+	ms = ticks_to_millisecs(diff_ticks(upload_start, gettime()));
+	sec10 = (u32)(ms / 100);
+	rate10 = ms > 0 ? (u32)(((u64)upload_size * 10000) / (ms * 1048576)) : 0;
+	snprintf(upload_note, sizeof(upload_note), "Uploaded %u.%u MB in %u.%u s (%u.%u MB/s)",
+	         mb10 / 10, mb10 % 10, sec10 / 10, sec10 % 10, rate10 / 10, rate10 % 10);
+	ApSend("OK\n");
+	ApFinishClient();
+}
+
+// "ISO <size>" (the line, newline removed): start receiving the image. rest / rest_len are the bytes that came
+// right after the line and already belong to it. Errors are sent to the client here; false = nothing was started.
+static bool ApUploadStart(const char *line, const char *rest, int rest_len)
+{
+	const char *p = line + 3;
+	u32 size = 0;
+
+	if (*p != ' ')
+		goto bad;
+	for (p++; *p != 0; p++)
+	{
+		if (*p < '0' || *p > '9' || size > (0xFFFFFFFFu - 9) / 10)
+			goto bad;
+		size = size * 10 + (u32)(*p - '0');
+	}
+	if (size == 0)
+		goto bad;
+	upload_buf = memalign(32, AP_UPLOAD_CHUNK);
+	if (upload_buf == NULL)
+	{
+		ApSend("ERR out of memory\n");
+		return false;
+	}
+	if (!ApMakeDir("/games") || !ApMakeDir(AP_UPLOAD_DIR))
+	{
+		free(upload_buf);
+		upload_buf = NULL;
+		ApSend("ERR cannot create " AP_UPLOAD_DIR "\n");
+		return false;
+	}
+	if (f_open_char(&upload_file, AP_UPLOAD_TMP, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+	{
+		free(upload_buf);
+		upload_buf = NULL;
+		ApSend("ERR cannot create " AP_UPLOAD_TMP "\n");
+		return false;
+	}
+	upload_size = size;
+	upload_got = 0;
+	upload_len = 0;
+	upload_frames = 0;
+	upload_start = gettime();
+	upload_note[0] = 0;
+	upload_active = true;
+	if ((u32)rest_len > size)
+		rest_len = (int)size;
+	if (rest_len > 0)
+	{
+		memcpy(upload_buf, rest, rest_len);
+		upload_len = rest_len;
+		upload_got = rest_len;
+	}
+	return true;
+bad:
+	ApSend("ERR bad size\n");
+	return false;
+}
+
+// One frame of receiving: collect what the network has, write it out when a chunk is full, finish at the end
+static void ApUploadFrame(void)
+{
+	int tries;
+
+	if (++upload_frames > 60 * AP_UPLOAD_STALL_SECONDS)
+	{
+		ApUploadFail("transfer stalled");
+		return;
+	}
+	for (tries = 0; tries < AP_UPLOAD_READS && upload_len < AP_UPLOAD_CHUNK && upload_got < upload_size; tries++)
+	{
+		int want = AP_UPLOAD_CHUNK - upload_len;
+		if (want > AP_UPLOAD_READ)
+			want = AP_UPLOAD_READ;
+		if ((u32)want > upload_size - upload_got)
+			want = (int)(upload_size - upload_got);
+		s32 got = net_recv(client_sock, upload_buf + upload_len, want, 0);
+		if (got < 0)
+			break; // nothing (more) yet
+		if (got == 0)
+		{
+			ApUploadFail("short transfer");
+			return;
+		}
+		upload_len += got;
+		upload_got += got;
+		upload_frames = 0;
+	}
+	if (upload_len == AP_UPLOAD_CHUNK || upload_got == upload_size)
+	{
+		if (!ApUploadWrite())
+		{
+			ApUploadFail("write error / disk full");
+			return;
+		}
+		upload_len = 0;
+	}
+	if (upload_got == upload_size)
+		ApUploadDone();
+}
+
+bool ApGameUploaded(void)
+{
+	return upload_used && strcmp(ncfg->GamePath, AP_UPLOAD_ISO) == 0;
+}
+
+void ApKeepSavedGame(NIN_CFG *cfg)
+{
+	if (!ApGameUploaded())
+		return;
+	memcpy(cfg->GamePath, kept_path, sizeof(cfg->GamePath));
+	cfg->Config = (cfg->Config & ~NIN_CFG_USB) | kept_usb;
 }
 
 static bool ApValidName(const char *s)
@@ -235,6 +492,15 @@ static void ApPollClient(void)
 		ApFinishClient();
 		return;
 	}
+	if (strncmp(client_buf, "ISO", 3) == 0)
+	{
+		// The image follows as raw bytes; some of it may be in the buffer right after the line
+		const char *rest = nl + 1;
+		int rest_len = client_len - (int)(rest - client_buf);
+		if (!ApUploadStart(client_buf, rest, rest_len))
+			ApFinishClient(); // the error is already sent
+		return;
+	}
 	if (strncmp(client_buf, "CARD ", 5) == 0 && ApValidName(client_buf + 5))
 	{
 		strcpy(NIN_CFG_AP_CARD(ncfg), client_buf + 5);
@@ -270,13 +536,22 @@ void ApWaitScreen(bool (*game_exists)(void))
 			ApListen();
 			ApUdpOpen();
 		}
-		if (listen_sock >= 0)
+		if (upload_active)
+			ApUploadFrame();
+		else if (listen_sock >= 0)
 			ApPollClient();
+		if (upload_ended)
+		{
+			upload_ended = false;
+			game_ok = upload_ok || game_exists(); // a failed upload leaves the saved image (if it's still there)
+			if (upload_ok)
+				ready_frames = -60 * 4; // keep the boot back a few seconds, so the speed line can be read
+		}
 		if (udp_sock >= 0)
 			ApUdpPoll(game_ok);
 
 		bool card_ok = NIN_CFG_AP_CARD(ncfg)[0] != 0;
-		if (game_ok && card_ok)
+		if (game_ok && card_ok && !upload_active) // never boot into a transfer, the saved game isn't the upload yet
 		{
 			if (++ready_frames > 30)
 				break;
@@ -284,9 +559,10 @@ void ApWaitScreen(bool (*game_exists)(void))
 		else
 			ready_frames = 0;
 
-		if (FPAD_OK(0))
+		if (FPAD_OK(0) && !upload_active)
 		{
-			// The stock picker (SD/USB, then the game list); it saves nothing itself
+			// The stock picker (SD/USB, then the game list); it saves nothing itself. A picked game replaces an
+			// uploaded one (ApGameUploaded compares the path)
 			SelectDevAndGame();
 			game_ok = game_exists();
 		}
@@ -313,11 +589,21 @@ void ApWaitScreen(bool (*game_exists)(void))
 			    card_ok ? "AP client: connected (card %s)" : "AP client: waiting...", NIN_CFG_AP_CARD(ncfg));
 		y += 20 * 2;
 		if (game_ok)
-			PrintFormat(DEFAULT_SIZE, BLACK, x, y, "Game: %s:%s", (ncfg->Config & NIN_CFG_USB) ? "usb" : "sd", ncfg->GamePath);
+			PrintFormat(DEFAULT_SIZE, BLACK, x, y, "Game: %s:%s%s", (ncfg->Config & NIN_CFG_USB) ? "usb" : "sd",
+			            ncfg->GamePath, ApGameUploaded() ? " (uploaded this boot)" : "");
 		else
 			PrintFormat(DEFAULT_SIZE, MAROON, x, y, "No game chosen: press A to pick the patched disc image");
 		y += 20 * 2;
-		PrintFormat(DEFAULT_SIZE, BLACK, x, y, "The game starts when both are ready.");
+		if (upload_active)
+		{
+			u32 got10 = ApMB10(upload_got), size10 = ApMB10(upload_size);
+			PrintFormat(DEFAULT_SIZE, BLACK, x, y, "Receiving %u.%u / %u.%u MB",
+			            got10 / 10, got10 % 10, size10 / 10, size10 % 10);
+		}
+		else
+			PrintFormat(DEFAULT_SIZE, BLACK, x, y, "The game starts when both are ready.");
+		if (upload_note[0])
+			PrintFormat(DEFAULT_SIZE, BLACK, x, y + 20, "%s", upload_note);
 		GRRLIB_Render();
 		ClearScreen();
 	}

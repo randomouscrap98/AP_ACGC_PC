@@ -20,6 +20,7 @@ from . import gc_wii
 from .gc_link import GameLink
 from .slot_data_upgrade import upgrade
 from CommonClient import ClientCommandProcessor, CommonContext, get_base_parser, gui_enabled, logger, server_loop
+from MultiServer import mark_raw  # /wii_iso takes a path as it is (backslashes, spaces)
 from NetUtils import ClientStatus
 
 GAME = "Animal Crossing"
@@ -311,6 +312,43 @@ class ACGCCommandProcessor(ClientCommandProcessor):
         self.output(self.ctx.wii_status or "No Wii found (start Animal Crossing AP on the Wii)")
         if saved:
             self.output(f"Also asking {saved} directly (/wii off to stop)")
+
+    @mark_raw
+    def _cmd_wii_iso(self, path: str = "") -> None:
+        """Send a disc image to the Wii's start screen: it boots it this once, nothing is saved (/wii_iso <path>)"""
+        path = path.strip()
+        if not path:
+            self.output("Usage: /wii_iso <path to a GameCube disc image on this PC>")
+            return
+        if not os.path.isfile(path):
+            self.output(f"No file at {path}")
+            return
+        address = wii_card_address(self.ctx)
+        if not address:
+            self.output("No Wii known yet: start Animal Crossing AP on the Wii (or set it with /wii <address>)")
+            return
+        if self.ctx.loop is None:
+            self.output("Not ready yet: the client is still starting its game link")
+            return
+        size = os.path.getsize(path)
+        self.output(f"Uploading {size / (1 << 20):.1f} MB to the Wii at {address} (it boots it once)...")
+        asyncio.run_coroutine_threadsafe(self._wii_iso(address, path, size), self.ctx.loop)
+
+    async def _wii_iso(self, address: str, path: str, size: int) -> None:
+        # The transfer blocks (socket + file), so it runs in a thread; a line every ~10% shows it's moving
+        step = [-1]
+
+        def progress(sent: int, total: int) -> None:
+            pct = sent * 100 // total if total else 100
+            if pct // 10 != step[0]:
+                step[0] = pct // 10
+                self.output(f"  Wii image {pct}% ({sent / (1 << 20):.1f} / {total / (1 << 20):.1f} MB)")
+
+        ok, answer = await asyncio.to_thread(gc_wii.send_iso, address, path, progress=progress)
+        if ok:
+            self.output(f"The Wii has the disc image ({size / (1 << 20):.1f} MB) and boots it when the card is ready")
+        else:
+            self.output(f"The Wii didn't take the disc image: {answer}")
 
 
 class ACGCContext(CommonContext):
@@ -638,6 +676,12 @@ def wii_game_address(ctx: ACGCContext) -> str:
     # Where a Wii game's kernel server may be: the Wii this client found, else the one set with /wii, else the last
     # one that took a memory card name (the client may start after the game)
     return ctx.wii_address or wii_saved_address() or wii_last_address()
+
+
+def wii_card_address(ctx: ACGCContext) -> str:
+    # Where wii_step names the card (and /wii_iso uploads): the address set with /wii, else the one found, else the
+    # last one used
+    return wii_saved_address() or ctx.wii_address or wii_last_address()
 
 
 async def game_sync_task(ctx: ACGCContext) -> None:

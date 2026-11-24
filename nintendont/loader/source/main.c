@@ -960,9 +960,14 @@ int main(int argc, char **argv)
 				f_expand(&cfg, sizeof(NIN_CFG), 1);
 			}
 
+			// AP: an uploaded image boots only this time: write the game that was saved before it, with its device
+			NIN_CFG saved;
+			memcpy(&saved, ncfg, sizeof(saved));
+			ApKeepSavedGame(&saved);
+
 			// Write nincfg.bin.
 			UINT wrote;
-			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
+			f_write(&cfg, &saved, sizeof(NIN_CFG), &wrote);
 			f_close(&cfg);
 		}
 

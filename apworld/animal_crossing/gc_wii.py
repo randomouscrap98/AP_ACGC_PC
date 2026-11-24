@@ -4,12 +4,16 @@
 #   UDP: client -> broadcast "ACAP?\n"; Wii -> client "ACAP 1 <game> <card>\n" (<game> 1 = disc image chosen,
 #        <card> the card name so far or "-")
 #   TCP: Wii "ACAP 1\n"; client "CARD <name>\n"; Wii "OK\n" or "ERR <reason>\n", then closes
+#   TCP: client "ISO <size>\n" + exactly <size> raw bytes: a disc image the Wii boots once (/wii_iso; it goes to
+#        /games/ACAP_UPLOAD/game.iso on the Wii's boot device). Wii: "OK\n" or "ERR <reason>\n", then closes
 # Plain sockets, no Archipelago imports, so tests can run it against a fake Wii.
+import os
 import re
+import select
 import socket
 import struct
 import threading
-from typing import NamedTuple, Optional
+from typing import Callable, NamedTuple, Optional
 
 WII_PORT = 38290  # AP_WAIT_PORT (ap_wait.h)
 CARD_NAME_MAX = 40  # AP_CARD_NAME_MAX
@@ -103,6 +107,58 @@ def send_card(address: str, name: str, port: int = WII_PORT, timeout: float = 5)
             f.write(f"CARD {name}\n".encode("ascii"))
             f.flush()
             answer = f.readline().decode("ascii", "replace").strip()
+            return answer == "OK", answer or "connection closed"
+    except OSError as e:
+        return False, str(e)
+
+
+ISO_CHUNK = 1 << 20  # bytes per send during an upload
+ISO_SEND_TIMEOUT = 60  # seconds the Wii may take to take a chunk (a stalled transfer, not a slow one)
+ISO_ANSWER_TIMEOUT = 120  # the Wii writes the last chunk to its card before it answers
+
+
+def _read_line(sock: socket.socket, limit: int = 256) -> str:
+    # A line from a blocking socket, one byte at a time: the replies are short and nothing may be read ahead
+    data = b""
+    while len(data) < limit:
+        c = sock.recv(1)
+        if not c or c == b"\n":
+            break
+        data += c
+    return data.decode("ascii", "replace").strip()
+
+
+def send_iso(address: str, path: str, port: int = WII_PORT, timeout: float = 10,
+             progress: Optional[Callable[[int, int], None]] = None) -> tuple[bool, str]:
+    # Blocking (run it in a thread), like send_card. Uploads a disc image to the Wii's start screen: it writes it to
+    # /games/ACAP_UPLOAD/game.iso on its boot device and boots it for this boot only (the saved image is untouched).
+    # Returns (accepted, the Wii's answer or the error); progress(sent, size) after every chunk.
+    size = os.path.getsize(path)
+    try:
+        with socket.create_connection((address, port), timeout=timeout) as s:
+            hello = _read_line(s)
+            if hello != "ACAP 1":
+                return False, f"unexpected greeting {hello!r}"
+            s.sendall(b"ISO %d\n" % size)
+            sent = 0
+            with open(path, "rb") as f:
+                while True:
+                    chunk = f.read(ISO_CHUNK)
+                    if not chunk:
+                        break
+                    s.settimeout(ISO_SEND_TIMEOUT)
+                    s.sendall(chunk)
+                    sent += len(chunk)
+                    if progress is not None:
+                        progress(sent, size)
+                    # The Wii can answer before the last byte (an ERR, then it closes): take it as it comes
+                    if select.select([s], [], [], 0)[0]:
+                        answer = _read_line(s)
+                        return answer == "OK", answer or "connection closed"
+            if sent != size:
+                return False, f"{path} shrank while it was read ({sent} of {size} bytes)"
+            s.settimeout(ISO_ANSWER_TIMEOUT)
+            answer = _read_line(s)
             return answer == "OK", answer or "connection closed"
     except OSError as e:
         return False, str(e)
