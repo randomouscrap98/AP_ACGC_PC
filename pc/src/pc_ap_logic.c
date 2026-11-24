@@ -19,6 +19,7 @@
 #include "pc_ap_settings.h"
 #include "pc_ap_shells.h"
 #include "pc_ap_beach_hint.h"
+#include "pc_ap_beach_hint_client.h"
 #include "pc_ap_overlay.h"
 #include "pc_ap_strings.h"
 #include "pc_ap_weather.h"
@@ -29,8 +30,7 @@
 #include "m_house.h"
 #include "m_event.h"
 #include "m_private.h"
-#ifdef PC_AP_BEACH_HINT
-#include "ap_info.h"
+#ifdef AP_BEACH_HINT
 #include "m_mail.h"
 #endif
 #include "pc_pause_menu.h"
@@ -134,7 +134,7 @@ typedef struct {
   pc_ap_shellsanity shells;
   pc_ap_treesanity trees;
   pc_ap_storage storage;
-#ifdef PC_AP_BEACH_HINT
+#ifdef AP_BEACH_HINT
   pc_ap_beach_hint hint;
 #endif
   // Treesanity counts for this frame (pc_ap_tree_counts): AP items per bearing tree, fruit the player has
@@ -178,7 +178,7 @@ void pc_ap_init(void) {
   pc_ap_shellsanity_init(&g_ap.shells, sd);
   pc_ap_treesanity_init(&g_ap.trees, sd);
   pc_ap_storage_init(&g_ap.storage, sd); // storage itself: pc_ap_load
-#ifdef PC_AP_BEACH_HINT
+#ifdef AP_BEACH_HINT
   pc_ap_beach_hint_init(&g_ap.hint, sd);
 #endif
   g_ap.trees_frame = 0;
@@ -289,7 +289,7 @@ void pc_ap_load(const char* filename) {
   pc_ap_fruit_load(&g_ap.fruit, ini);
   pc_ap_furniture_load(&g_ap.furniture, ini);
   pc_ap_storage_load(&g_ap.storage, ini);
-#ifdef PC_AP_BEACH_HINT
+#ifdef AP_BEACH_HINT
   pc_ap_beach_hint_load(&g_ap.hint, ini);
 #endif
 #ifdef TARGET_PC // outdoor furniture is PC only (GC: no [outdoor_ftr] section)
@@ -318,7 +318,7 @@ int pc_ap_save(const char* filename) {
   pc_ap_fruit_save(&g_ap.fruit, ini);
   pc_ap_furniture_save(&g_ap.furniture, ini);
   pc_ap_storage_save(&g_ap.storage, ini);
-#ifdef PC_AP_BEACH_HINT
+#ifdef AP_BEACH_HINT
   pc_ap_beach_hint_save(&g_ap.hint, ini);
 #endif
 #ifdef TARGET_PC
@@ -826,72 +826,39 @@ static int pc_ap_beach_count(mActor_name_t item) {
   return count;
 }
 
-#ifdef PC_AP_BEACH_HINT
-// Missing own locations that aren't hinted with us as the finder: returns how many, fills out up to max
-static int pc_ap_beach_hint_eligible_list(int64_t* out, int max) {
-  static int64_t missing[PC_AP_BEACH_HINT_MAX];
-  static int64_t hinted[PC_AP_BEACH_HINT_MAX];
-  int me = ap_my_slot();
-  int n = (int)ap_location_ids(0, missing, PC_AP_BEACH_HINT_MAX);
-  int hinted_n = 0;
-  ap_hint hint;
-  if(n > PC_AP_BEACH_HINT_MAX) {
-    n = PC_AP_BEACH_HINT_MAX;
-  }
-  for(int i = 0; hinted_n < PC_AP_BEACH_HINT_MAX && ap_hint_get((size_t)i, &hint); i++) {
-    if(hint.finding == me) {
-      hinted[hinted_n++] = hint.location;
-    }
-  }
-  return pc_ap_beach_hint_eligible(missing, n, hinted, hinted_n, out, max);
-}
-
-// The AP Scroll's hint: send one, remember it for its letter. The scroll always vanishes.
+#ifdef AP_BEACH_HINT
+// The AP Scroll's hint: ask the AP client for one (it picks the location and scouted it), remember the request for
+// its letter. The scroll always vanishes.
 static int pc_ap_beach_hint_pickup(void) {
-  static int64_t ids[PC_AP_BEACH_HINT_MAX];
-  int n = pc_ap_beach_hint_eligible_list(ids, PC_AP_BEACH_HINT_MAX);
-  if(n > 0) {
-    int64_t id = pc_ap_beach_hint_pick(ids, n, RANDOM(n));
-    if(id >= 0 && ap_hint_location(id)) {
-      g_ap.hint.pending = id;
-      g_ap.hint.delivered++;
-    }
+  int request = pc_ap_beach_hint_request();
+  if(request >= 0) {
+    g_ap.hint.pending = request;
+    g_ap.hint.delivered++;
   }
   return 1;
 }
 
-// The hint arrived: put its letter in a free pocket slot (waits for one), then forget it
+// The hint's names arrived: put its letter in a free pocket slot (waits for one), then forget the request
 static void pc_ap_beach_hint_tick(void) {
-  ap_hint hint;
+  pc_ap_beach_hint_answer answer;
   if(g_ap.hint.pending < 0) {
     return;
   }
-  for(size_t i = 0; ap_hint_get(i, &hint); i++) {
-    if(hint.location != g_ap.hint.pending || hint.finding != ap_my_slot()) {
-      continue;
-    }
-    if(!g_ap.hint.letter) {
-      g_ap.hint.pending = -1;
-      return;
-    }
-    if(Now_Private == NULL) {
-      return;
-    }
-    int slot = mMl_chk_mail_free_space(Now_Private->mail, mPr_INVENTORY_MAIL_COUNT);
-    if(slot < 0) {
-      return;
-    }
-    char player[64], item[64], location[64], body[MAIL_BODY_LEN + 1];
-    if(!ap_player_name(hint.receiving, player, sizeof(player))) {
-      snprintf(player, sizeof(player), "AP");
-    }
-    ap_item_name(hint.item, hint.receiving, item, sizeof(item));
-    ap_location_name(hint.location, hint.finding, location, sizeof(location));
-    pc_ap_beach_hint_body(player, item, location, body, sizeof(body));
-    pc_ap_mail_build(&g_ap.mail, Now_Private, body, EMPTY_NO, &Now_Private->mail[slot]);
-    g_ap.hint.pending = -1;
+  if(!pc_ap_beach_hint_poll((int)g_ap.hint.pending, &answer)) {
     return;
   }
+  if(answer.player[0] == '\0' || !g_ap.hint.letter || Now_Private == NULL) {
+    g_ap.hint.pending = -1; // no eligible location was left, or the hint is the server's to show
+    return;
+  }
+  int slot = mMl_chk_mail_free_space(Now_Private->mail, mPr_INVENTORY_MAIL_COUNT);
+  if(slot < 0) {
+    return;
+  }
+  char body[MAIL_BODY_LEN + 1];
+  pc_ap_beach_hint_body(answer.player, answer.item, answer.location, body, sizeof(body));
+  pc_ap_mail_build(&g_ap.mail, Now_Private, body, EMPTY_NO, &Now_Private->mail[slot]);
+  g_ap.hint.pending = -1;
 }
 #endif
 
@@ -904,10 +871,10 @@ mActor_name_t pc_ap_shell_item(mActor_name_t shell, int is_island) {
       return item;
     }
   }
-#ifdef PC_AP_BEACH_HINT
+#ifdef AP_BEACH_HINT
   if(!is_island && g_ap.hint.count > g_ap.hint.delivered && pc_ap_accepting() &&
      ap_getconnectstate()->state == AP_CSTATE_CONNECTED && pc_ap_beach_count(PC_AP_HINT_ITEM) == 0) {
-    int eligible = pc_ap_beach_hint_eligible_list(NULL, 0);
+    int eligible = pc_ap_beach_hint_eligible_count();
     if(pc_ap_beach_hint_spawn(&g_ap.hint, 1, eligible, 0, RANDOM(100))) {
       return PC_AP_HINT_ITEM;
     }
@@ -998,7 +965,7 @@ mActor_name_t pc_ap_tree_draw_item(mActor_name_t fg, int spot) {
 }
 
 int pc_ap_ground_item(mActor_name_t item) {
-#ifdef PC_AP_BEACH_HINT
+#ifdef AP_BEACH_HINT
   if(item == PC_AP_HINT_ITEM) {
     return 1;
   }
@@ -1008,7 +975,7 @@ int pc_ap_ground_item(mActor_name_t item) {
 
 int pc_ap_ground_pickup(mActor_name_t item) {
   int64_t id;
-#ifdef PC_AP_BEACH_HINT
+#ifdef AP_BEACH_HINT
   if(item == PC_AP_HINT_ITEM) {
     return pc_ap_beach_hint_pickup();
   }
@@ -1028,7 +995,7 @@ int pc_ap_ground_pickup(mActor_name_t item) {
 
 void pc_ap_ground_item_name(mActor_name_t item, u8* dst) {
   char name[mIN_ITEM_NAME_LEN + 1];
-#ifdef PC_AP_BEACH_HINT
+#ifdef AP_BEACH_HINT
   if(item == PC_AP_HINT_ITEM) {
     memset(name, ' ', mIN_ITEM_NAME_LEN);
     name[mIN_ITEM_NAME_LEN] = 0;
@@ -1045,7 +1012,7 @@ void pc_ap_ground_item_name(mActor_name_t item, u8* dst) {
 }
 
 int pc_ap_beach_hint_refuse(mActor_name_t item) {
-#ifdef PC_AP_BEACH_HINT
+#ifdef AP_BEACH_HINT
   if(item == PC_AP_HINT_ITEM) {
     if(ap_getconnectstate()->state != AP_CSTATE_CONNECTED) {
       return 1;
@@ -1591,7 +1558,7 @@ void pc_ap_tick(GAME_PLAY* play) {
   pc_ap_apply_credit(paid);
   pc_ap_loan_letter(paid); // credit stops at 100 owed, so paid is unchanged
   pc_ap_tools_mail();
-#ifdef PC_AP_BEACH_HINT
+#ifdef AP_BEACH_HINT
   pc_ap_beach_hint_tick();
 #endif
   pc_ap_goal_letter();

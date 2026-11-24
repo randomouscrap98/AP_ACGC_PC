@@ -9,8 +9,13 @@ def run_gc_client(*args: str) -> None:
 
 
 def run_gc_patcher(*args: str) -> None:
-    from .gc_patch import run_gui
-    launch(run_gui, name="AnimalCrossingGCPatcher")
+    # No args = file dialogs; <in> [out.iso] = patch on the command line (called directly so the exit code and
+    # output reach the shell)
+    from .gc_patch import run_cli, run_gui
+    if args:
+        run_cli(list(args))
+    else:
+        launch(run_gui, name="AnimalCrossingGCPatcher")
 
 
 # The GameCube / Dolphin version's client (the PC version has its own, built into the game) and its disc patcher

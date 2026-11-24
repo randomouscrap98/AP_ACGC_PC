@@ -271,6 +271,22 @@ def run_gui():
         Utils.messagebox("Animal Crossing GameCube Patcher", str(e), error=True)
 
 
+def run_cli(argv):
+    # Archipelago launcher component with arguments: <in> [out.iso]; no out = the GUI's default name next to <in>
+    if len(argv) not in (1, 2):
+        sys.exit('usage: "Animal Crossing GameCube Patcher" <disc image> [out.iso]')
+    src = argv[0]
+    try:
+        if len(argv) == 2:
+            dst = argv[1]
+        else:
+            dst = os.path.join(os.path.dirname(os.path.abspath(src)),
+                               "Animal Crossing AP %s.iso" % load_manifest()["version"])
+        print("Patched (version %s): %s" % (patch(src, dst), dst))
+    except (PatchError, OSError) as e:
+        sys.exit("Error: %s" % e)
+
+
 def main(argv):
     if len(argv) == 3 and argv[0] == "patch":
         try:

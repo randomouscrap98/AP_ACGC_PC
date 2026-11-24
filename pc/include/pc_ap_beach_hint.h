@@ -1,6 +1,7 @@
 // Beach hints: an AP Scroll sometimes washes up on the town beach; picking it up makes a real server hint for one of
 // the player's own unchecked, unhinted locations (design: ignore/claude/research/beach_hints.md).
-// Pure game logic (ids, spawn roll, letter text): the pc_ap_logic.c facade does the DLL and mail calls.
+// Pure game logic (spawn roll, eligible filter, letter text); the pc_ap_logic.c facade asks the AP client for the
+// hint through pc_ap_beach_hint_client.h (DLL on PC, mailbox on GC).
 #ifndef PC_AP_BEACH_HINT_H
 #define PC_AP_BEACH_HINT_H
 

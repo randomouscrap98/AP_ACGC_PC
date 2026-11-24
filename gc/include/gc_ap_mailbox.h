@@ -21,6 +21,11 @@
 //   them (gc_client.py). Client -> game: it writes gset[], then gset_client_gen (any new value); the game takes
 //   them. Game -> client: on Apply the game writes gset[], then gset_game_gen++; the client stores them. A client
 //   that finds gset_client_gen other than what it last wrote (the game restarted) writes its values again.
+// - hint: beach hints (pc_ap_beach_hint_client.h). The client has the server's lists, so it picks the location: the
+//   game writes hint_req++ for every AP Scroll picked up; the client writes the three names of the hint it scouted
+//   (or nothing when it found no eligible location), then hint_req_done = that hint_req. The client keeps
+//   hint_eligible = how many of this slot's locations are missing and not hinted with us as the finder (the game's
+//   spawn check). hint_req_done 0 = nothing answered yet; hint_req 0 = no request since the game started.
 
 #include "types.h"
 #include "dolphin/os.h" // OSCachedToUncached
@@ -29,7 +34,7 @@
 #define GC_AP_MAGIC1 0x4D424F58 // "MBOX"
 #define GC_AP_TAIL   0x454E4421 // "END!"
 // Bump when the header layout or a section's entry format changes (client refuses other versions)
-#define GC_AP_MAILBOX_VERSION 4
+#define GC_AP_MAILBOX_VERSION 5
 
 #define GC_AP_ITEM_MAX    2560 // received items (apworld: at most 2220 locations, so items, per slot)
 #define GC_AP_CHECKED_MAX 2560 // checked locations
@@ -40,6 +45,7 @@
 #define GC_AP_NAME_LEN    17   // AP slot names are at most 16 characters
 #define GC_AP_SD_JSON_MAX 16384 // slot_data JSON text (9.8 KB raw is the largest real seed, 5.8 KB compact)
 #define GC_AP_STATUS_LEN  96   // client status line, with the zero
+#define GC_AP_HINT_NAME_LEN 64 // beach hint player / item / location name, with the zero
 
 // Global settings in gset[], by index: append-only (gc_client.py GSET_NAMES lists the same names in this order)
 enum {
@@ -109,6 +115,12 @@ typedef struct {
   u32 gset_game_gen;   // game -> client
   u32 gset_client_gen; // client -> game
 
+  // Beach hints (v5; header place, see hint[] below)
+  u32 hint_off, hint_name_len;
+  u32 hint_req;      // game -> client: +1 per AP Scroll picked up (1, 2, ...: 0 stays "no request")
+  u32 hint_req_done; // client -> game: the hint_req hint[] answers (0 = none answered yet)
+  u32 hint_eligible; // client -> game: missing own locations not hinted with us (0 = none / not known)
+
   char seed[64];
   char status[GC_AP_STATUS_LEN]; // why the client can't go on (slot_data from a newer apworld...), "" = fine
   char host[64];     // server the client talks to, for the overlay ("" before it knows)
@@ -122,6 +134,7 @@ typedef struct {
   char names[GC_AP_NAME_MAX][GC_AP_NAME_LEN];
   s32 gset[GC_AP_GSET_NUM];
   char slotdata[GC_AP_SD_JSON_MAX]; // compact JSON text of the upgraded slot_data (pc_ap_slotdata_parse)
+  char hint[3][GC_AP_HINT_NAME_LEN]; // beach hint: receiving player, item, location; all "" = no eligible one
   u32 tail;
 } gc_ap_mailbox;
 

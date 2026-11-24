@@ -304,6 +304,7 @@ AP_GC_UNITS = [
     ("gc", "gc_ap_ini.c"),
     ("gc", "gc_ap_state_card.c"),
     ("gc", "gc_ap_port.c"),
+    ("gc", "gc_ap_beach_hint_client.c"),
     # Shared with PC
     ("pc/src", "pc_ap_slotdata_parse.c"),
     ("pc/src", "pc_ap_logic.c"),
@@ -356,7 +357,7 @@ AP_GC_UNITS = [
     ("pc/src", "pc_planting.c"),
     ("pc/src", "pc_planting_marks.c"),
 ]
-AP_GC_CFLAGS = ["-lang=c99", "-d AP_GC_UNIT", "-i apclient/lib/ini"]
+AP_GC_CFLAGS = ["-lang=c99", "-d AP_GC_UNIT", "-d AP_BEACH_HINT", "-i apclient/lib/ini"]
 AP_GC_COMPILER = "GC/3.0a5"
 if config.non_matching:
     # GAME_ENHANCEMENTS: the PC port's gameplay QoL in src/ (pc/CMakeLists.txt lists it)

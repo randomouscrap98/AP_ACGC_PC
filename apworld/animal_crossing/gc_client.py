@@ -10,6 +10,7 @@ import asyncio
 import ipaddress
 import json
 import os
+import random
 import struct
 import time
 import traceback
@@ -27,7 +28,7 @@ MEM1_SIZE = 0x1800000
 
 MAGIC = struct.pack(">II", 0x41434150, 0x4D424F58)  # "ACAP" "MBOX"
 TAIL = 0x454E4421  # "END!"
-VERSION = 4  # GC_AP_MAILBOX_VERSION
+VERSION = 5  # GC_AP_MAILBOX_VERSION
 
 # Header fields: u32 each, in the order of gc_ap_mailbox (index * 4 = offset); tests/test_gc_mailbox checks them
 H_VERSION, H_SIZE = 2, 3
@@ -38,7 +39,9 @@ H_GAME_TICK, H_SEND_HEAD, H_GOAL, H_TOAST_TAIL = 19, 20, 21, 22
 H_CLIENT_TICK, H_CLIENT_STATE, H_SEND_TAIL, H_ITEM_COUNT, H_CHECKED_COUNT = 23, 24, 25, 26, 27
 H_SLOTDATA_READY, H_TOAST_HEAD, H_TEAM, H_SLOT = 28, 29, 30, 31
 H_GSET_OFF, H_GSET_MAX, H_GSET_GAME_GEN, H_GSET_CLIENT_GEN = 32, 33, 34, 35
-HEADER_WORDS = 36
+# Beach hints (mailbox v5)
+H_HINT_OFF, H_HINT_NAME_LEN, H_HINT_REQ, H_HINT_REQ_DONE, H_HINT_ELIGIBLE = 36, 37, 38, 39, 40
+HEADER_WORDS = 41
 H_SEED, SEED_LEN = HEADER_WORDS * 4, 64
 H_STATUS, STATUS_LEN = H_SEED + SEED_LEN, 96
 H_HOST, HOST_LEN = H_STATUS + STATUS_LEN, 64
@@ -236,6 +239,11 @@ class Mailbox:
                                                                                   *ids[have:]))
         self.put(H_CHECKED_COUNT, len(ids))
 
+    def put_hint(self, player: str, item: str, location: str) -> None:
+        # The three names of a beach hint ("" each = no eligible location); then hint_req_done says which request
+        size = self.h[H_HINT_NAME_LEN]
+        self.ram.write(self.addr + self.h[H_HINT_OFF], b"".join(c_text(t, size) for t in (player, item, location)))
+
 
 def gsettings_path() -> str:
     return user_file(GSET_FILE)
@@ -325,6 +333,9 @@ class ACGCContext(CommonContext):
         self.gset_client_gen = 0  # gset_client_gen we last wrote (the game zeroes it when it restarts)
         self.gset_game_gen: Optional[int] = None  # gset_game_gen last stored (None: not looked yet)
         self.mbox_texts: dict[int, str] = {}  # mailbox text fields as last written (rewritten only on change)
+        self.hint_sent: Optional[tuple[int, int]] = None  # (hint_req, location) scouted, waiting for the hint list
+        self.hint_seen_req = 0  # mailbox hint_req last handled
+        self.hint_eligible = -1  # hint_eligible last written (-1 = not written yet)
         self.wii_status = ""  # set_wii_status
         self.wii_address = ""  # the Wii last talked to ("" = none seen)
         self.wii_booting = False  # it had the card and a disc image when last seen
@@ -398,6 +409,12 @@ class ACGCContext(CommonContext):
         if cmd == "Connected":
             self.slot_data = args.get("slot_data") or {}
             self.mbox_slot_key = None  # rewrite slot_data and names
+        if cmd in ("Retrieved", "SetReply"):
+            # The server's hint list changed (a beach hint we scouted, say): let sync() write its answer now
+            key = self.hints_key()
+            if (cmd == "SetReply" and args.get("key") == key) or \
+                    (cmd == "Retrieved" and key in (args.get("keys") or {})):
+                self.watcher_event.set()
         if cmd in ("Connected", "RoomUpdate"):
             self.watcher_event.set()
 
@@ -470,6 +487,70 @@ class ACGCContext(CommonContext):
         # sync() runs in a worker thread (the Wii's RAM is blocking network calls): hand coroutines to the loop
         asyncio.run_coroutine_threadsafe(coro, self.loop)
 
+    # ---- beach hints: the game asks (hint_req), this client picks the location and scouts it ----
+    def hints_key(self) -> Optional[str]:
+        return f"_read_hints_{self.team}_{self.slot}" if self.team is not None and self.slot is not None else None
+
+    def hint_list(self) -> list[dict[str, Any]]:
+        # The server's hints for this slot (_read_hints_<team>_<slot>); CommonClient keeps ctx.stored_data current
+        hints = self.stored_data.get(self.hints_key()) if self.hints_key() is not None else None
+        return [h for h in hints if isinstance(h, dict)] if isinstance(hints, list) else []
+
+    def hint_of(self, location: int) -> Optional[dict[str, Any]]:
+        # The hint we made on location, if it's in the server's list yet
+        for hint in self.hint_list():
+            if hint.get("location") == location and hint.get("finding_player") == self.slot:
+                return hint
+        return None
+
+    def hint_locations(self) -> list[int]:
+        # This slot's locations that are missing and not hinted with us as the finder (what PC's DLL lists give)
+        hinted = {hint.get("location") for hint in self.hint_list() if hint.get("finding_player") == self.slot}
+        return sorted(loc for loc in self.missing_locations if loc not in hinted)
+
+    def write_hint_answer(self, m: Mailbox, request: int, hint: dict[str, Any]) -> None:
+        # The names go in first, then hint_req_done (the game reads the flag before the names)
+        receiving = hint.get("receiving_player", 0)
+        player = plain(self.player_names.get(receiving, f"Player {receiving}"))
+        item = plain(self.item_names.lookup_in_slot(hint.get("item", 0), receiving))
+        location = plain(self.location_names.lookup_in_slot(hint.get("location", 0), self.slot))
+        m.put_hint(player, item, location)
+        m.put(H_HINT_REQ_DONE, request)
+        self.hint_sent = None
+        logger.info("Beach hint: %s's %s is at %s", player, item, location)
+
+    def sync_hints(self, m: Mailbox, h: tuple[int, ...]) -> None:
+        locations = self.hint_locations()
+        if len(locations) != self.hint_eligible:
+            self.hint_eligible = len(locations)
+            m.put(H_HINT_ELIGIBLE, len(locations))
+        if self.hint_sent is not None:
+            # Scouted last round: answer once the server's hint list has it (no hint yet = keep waiting). The game
+            # gives up on a request after a while and asks again: then drop this one (its scout may never have
+            # reached the server), or no later request would ever be answered
+            request, location = self.hint_sent
+            hint = self.hint_of(location)
+            if hint is not None and h[H_HINT_REQ] == request:
+                self.write_hint_answer(m, request, hint)
+                return
+            if h[H_HINT_REQ] == request:
+                return
+            self.hint_sent = None
+        request = h[H_HINT_REQ]
+        if request == 0 or request == self.hint_seen_req:
+            return
+        self.hint_seen_req = request
+        if not locations:
+            # The last eligible location was checked in between: nothing to hint, the scroll vanishes
+            m.put_hint("", "", "")
+            m.put(H_HINT_REQ_DONE, request)
+            logger.info("Beach hint: no eligible location left")
+            return
+        location = random.choice(locations)
+        self.hint_sent = (request, location)
+        logger.info("Beach hint: scouting %s", self.location_names.lookup_in_slot(location, self.slot))
+        self.run_soon(self.send_msgs([{"cmd": "LocationScouts", "locations": [location], "create_as_hint": 2}]))
+
     # One round with the game. Each RAM access is a network round trip on a Wii (~44 ms), so an idle round is two:
     # the header read and the tick + state write; the rest only when something changed. False = the mailbox is gone.
     def sync(self) -> bool:
@@ -483,6 +564,9 @@ class ACGCContext(CommonContext):
         if fresh:
             self.mbox_slot_key = None
             self.mbox_texts = {}
+            self.hint_seen_req = 0  # the game's hint_req started over
+            self.hint_sent = None
+            self.hint_eligible = -1
         self.sync_gsettings(m, h, fresh)
         self.client_tick = (self.client_tick + 1) & 0xFFFFFFFF or 1
         connected = self.slot is not None and self.seed_name is not None and self.slot_data is not None
@@ -509,6 +593,9 @@ class ACGCContext(CommonContext):
             m.put(H_SLOTDATA_READY, 1)
             self.mbox_slot_key = key
             self.checked_order, self.checked_known = [], set()
+            self.hint_seen_req = 0
+            self.hint_sent = None
+            self.hint_eligible = -1
             item_have = checked_have = 0
         m.put_tick_state(self.client_tick, CSTATE_CONNECTED)
         if self.toasts:
@@ -520,6 +607,7 @@ class ACGCContext(CommonContext):
         # The game side is the truth for what it has (a game restart zeroes it)
         m.append_items([(i.item, i.player, i.flags) for i in self.items_received], item_have)
         m.append_checked(self.checked_order, checked_have)
+        self.sync_hints(m, h)
         head, tail = h[H_SEND_HEAD], h[H_SEND_TAIL]
         if head != tail:
             ids = m.read_send(head, tail)
