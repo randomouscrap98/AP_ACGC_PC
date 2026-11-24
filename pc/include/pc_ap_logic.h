@@ -307,7 +307,7 @@ int pc_ap_ground_item(mActor_name_t item);
 int pc_ap_ground_pickup(mActor_name_t item);
 // mIN_copy_name_str: name of an AP ground item in the game charset (mIN_ITEM_NAME_LEN chars)
 void pc_ap_ground_item_name(mActor_name_t item, u8* dst);
-// Player_actor_CheckAndRequest_main_pickup_all, before the AP Scroll pickup starts: 1 = refuse it without the
+// Player_actor_CheckAndRequest_main_pickup_all, before the AP Hint pickup starts: 1 = refuse it without the
 // refusal animation or message (not connected, or the hint letter has no free pocket slot). The caller plays the
 // "can't do that" sound.
 int pc_ap_beach_hint_refuse(mActor_name_t item);

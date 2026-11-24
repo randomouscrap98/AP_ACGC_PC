@@ -539,7 +539,7 @@ class TreeChecksPerFruit(Range):
 
 class BeachHintPercentage(Range):
     """
-    Percent of your own locations that become beach hints: an AP Scroll sometimes
+    Percent of your own locations that become beach hints: an AP Hint sometimes
     washes up on the town beach, and picking it up asks the server for a real hint
     on one of your unchecked, unhinted locations. 0 turns beach hints off.
     """
@@ -551,7 +551,7 @@ class BeachHintPercentage(Range):
 
 class BeachHintGivesLetter(Toggle):
     """
-    With Beach Hints, picking up an AP Scroll also puts a letter with the hint's
+    With Beach Hints, picking up an AP Hint also puts a letter with the hint's
     item and location in a free pocket letter slot. Off: only the server hint.
     """
     display_name = "Beach Hint Gives Letter"

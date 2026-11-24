@@ -827,7 +827,7 @@ static int pc_ap_beach_count(mActor_name_t item) {
 }
 
 #ifdef AP_BEACH_HINT
-// The AP Scroll's hint: ask the AP client for one (it picks the location and scouted it), remember the request for
+// The AP Hint item's hint: ask the AP client for one (it picks the location and scouted it), remember the request for
 // its letter. The scroll always vanishes.
 static int pc_ap_beach_hint_pickup(void) {
   int request = pc_ap_beach_hint_request();
@@ -999,7 +999,7 @@ void pc_ap_ground_item_name(mActor_name_t item, u8* dst) {
   if(item == PC_AP_HINT_ITEM) {
     memset(name, ' ', mIN_ITEM_NAME_LEN);
     name[mIN_ITEM_NAME_LEN] = 0;
-    memcpy(name, "AP Scroll", 9);
+    memcpy(name, "AP Hint", 7);
   } else
 #endif
   if(pc_ap_shellsanity_is_item(item)) {

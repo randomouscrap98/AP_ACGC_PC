@@ -1,4 +1,4 @@
-# Beach hints: an AP Scroll sometimes washes up on the town beach; picking it up asks the server for a real hint on
+# Beach hints: an AP Hint sometimes washes up on the town beach; picking it up asks the server for a real hint on
 # one of the player's own unchecked, unhinted locations. Beach Hint Percentage 0-100 (0 = off) of the player's
 # locations, fixed at generation. The client mirrors the slot_data keys (ap_slotdata.h) and the scroll item id.
 def count(world) -> int:

@@ -1,4 +1,4 @@
-// Beach hints: an AP Scroll sometimes washes up on the town beach; picking it up makes a real server hint for one of
+// Beach hints: an AP Hint sometimes washes up on the town beach; picking it up makes a real server hint for one of
 // the player's own unchecked, unhinted locations (design: ignore/claude/research/beach_hints.md).
 // Pure game logic (spawn roll, eligible filter, letter text); the pc_ap_logic.c facade asks the AP client for the
 // hint through pc_ap_beach_hint_client.h (DLL on PC, mailbox on GC).
@@ -18,7 +18,7 @@ extern "C" {
 
 struct ini_t;
 
-// Percent of town shell spawns that wash up as an AP Scroll
+// Percent of town shell spawns that wash up as an AP Hint
 #define PC_AP_BEACH_HINT_PERCENT 3
 // Letter body line width (mBD_MAX_WIDTH, include/m_board_ovl.h)
 #define PC_AP_BEACH_HINT_LINE_PX 192
@@ -27,7 +27,7 @@ struct ini_t;
 
 typedef struct {
   // Config (slot_data)
-  int count;    // AP Scrolls this save may find, 0 = off
+  int count;    // AP Hints this save may find, 0 = off
   int letter;   // also put the hint in a pocket letter
   // Persisted
   int delivered;    // scrolls whose hint was sent
@@ -39,7 +39,7 @@ void pc_ap_beach_hint_init(pc_ap_beach_hint* h, const ap_slotdata* sd);
 void pc_ap_beach_hint_load(pc_ap_beach_hint* h, struct ini_t* ini);
 void pc_ap_beach_hint_save(const pc_ap_beach_hint* h, struct ini_t* ini);
 
-// 1 when this shell spawn may become an AP Scroll: connected, scrolls left, no scroll on the beach, some eligible
+// 1 when this shell spawn may become an AP Hint: connected, scrolls left, no scroll on the beach, some eligible
 // location, and roll (0-99) below PC_AP_BEACH_HINT_PERCENT
 int pc_ap_beach_hint_spawn(const pc_ap_beach_hint* h, int connected, int eligible, int on_beach, int roll);
 

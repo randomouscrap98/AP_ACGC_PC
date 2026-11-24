@@ -22,7 +22,7 @@
 //   them. Game -> client: on Apply the game writes gset[], then gset_game_gen++; the client stores them. A client
 //   that finds gset_client_gen other than what it last wrote (the game restarted) writes its values again.
 // - hint: beach hints (pc_ap_beach_hint_client.h). The client has the server's lists, so it picks the location: the
-//   game writes hint_req++ for every AP Scroll picked up; the client writes the three names of the hint it scouted
+//   game writes hint_req++ for every AP Hint picked up; the client writes the three names of the hint it scouted
 //   (or nothing when it found no eligible location), then hint_req_done = that hint_req. The client keeps
 //   hint_eligible = how many of this slot's locations are missing and not hinted with us as the finder (the game's
 //   spawn check). hint_req_done 0 = nothing answered yet; hint_req 0 = no request since the game started.
@@ -117,7 +117,7 @@ typedef struct {
 
   // Beach hints (v5; header place, see hint[] below)
   u32 hint_off, hint_name_len;
-  u32 hint_req;      // game -> client: +1 per AP Scroll picked up (1, 2, ...: 0 stays "no request")
+  u32 hint_req;      // game -> client: +1 per AP Hint picked up (1, 2, ...: 0 stays "no request")
   u32 hint_req_done; // client -> game: the hint_req hint[] answers (0 = none answered yet)
   u32 hint_eligible; // client -> game: missing own locations not hinted with us (0 = none / not known)
 

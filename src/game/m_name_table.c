@@ -180,7 +180,7 @@ extern int mNT_get_itemTableNo(mActor_name_t item) {
                                                 item1_C_tableNo, item1_D_tableNo, item1_E_tableNo, item1_F_tableNo };
 
 #ifdef AP_HOOKS
-    /* AP Beach hints: the AP Scroll has its own draw type (right after the beach / tree items' one) */
+    /* AP Beach hints: the AP Hint has its own draw type (right after the beach / tree items' one) */
     if (item == PC_AP_HINT_ITEM) {
         return PC_AP_ITEM_TYPE_HINT;
     }

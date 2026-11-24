@@ -53,7 +53,7 @@ add_compile_definitions(
                       # where gc/ implements them; sites still under TARGET_PC are PC-only for now.
     PC_OUTDOOR_FTR    # Outdoor furniture (item menu "Place", pc_outdoor_ftr.c). Remove to turn it off: the decomp
                       # hooks go, outdoor furniture is leaves again; the sidecar keeps the placed list for later.
-    AP_BEACH_HINT     # Beach hints (AP Scroll, pc_ap_beach_hint.c): the AP client side in pc_ap_logic.c
+    AP_BEACH_HINT     # Beach hints (AP Hint, pc_ap_beach_hint.c): the AP client side in pc_ap_logic.c
                       # (pc_ap_beach_hint_client.c here, gc/gc_ap_beach_hint_client.c on GC). The C unit tests
                       # build pc_ap_logic.c without it (neither backend has stubs there).
 )
