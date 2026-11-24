@@ -108,6 +108,48 @@ class Mailbox:
         self.ram = ram
         self.addr = addr
         self.h = header
+        # Between begin() and end(): writes and queue_read()s wait here as ("W", addr, data) / ("R", addr, size),
+        # then go out together. On a Wii each request is a network round trip (~175 ms), and a pipelined batch of
+        # any size costs about two (research/wii_link_latency.md); the kernel runs them in order, so entries still
+        # land before their counts. None = not batching.
+        self.queue: Optional[list[tuple[str, int, Any]]] = None
+
+    def begin(self) -> None:
+        self.queue = []
+
+    def end(self) -> list[bytes]:
+        # Sends what's queued (in order); the queue_read() results, in order. Batching stops.
+        ops, self.queue = self.queue or [], None
+        if not ops:
+            return []
+        if hasattr(self.ram, "batch"):
+            return self.ram.batch(ops)
+        reads = []
+        for op, addr, arg in ops:
+            if op == "W":
+                self.ram.write(addr, arg)
+            else:
+                reads.append(self.ram.read(addr, arg))
+        return reads
+
+    def write(self, addr: int, data: bytes) -> None:
+        if self.queue is not None:
+            self.queue.append(("W", addr, data))
+        else:
+            self.ram.write(addr, data)
+
+    def read(self, addr: int, size: int) -> bytes:
+        # Needs the answer now: what's queued goes out first (keeps the order), batching goes on after
+        if self.queue:
+            reads = self.end()
+            assert not reads, "queue_read() results dropped"
+            self.begin()
+        return self.ram.read(addr, size)
+
+    def queue_read(self, addr: int, size: int) -> None:
+        # A read whose bytes come back from end() (batching only)
+        assert self.queue is not None
+        self.queue.append(("R", addr, size))
 
     @staticmethod
     def check(ram: Any, addr: int) -> Optional["Mailbox"]:
@@ -162,21 +204,21 @@ class Mailbox:
 
     def read_header(self) -> Optional[tuple[int, ...]]:
         # The whole header in one read (each read is a network round trip on a Wii); None = the mailbox is gone
-        data = self.ram.read(self.addr, HEADER_WORDS * 4)
+        data = self.read(self.addr, HEADER_WORDS * 4)
         if data[:8] != MAGIC:
             return None
         return struct.unpack(">%dI" % HEADER_WORDS, data)
 
     def get(self, field: int) -> int:
         # One header field (test harnesses, tools); sync uses read_header
-        return struct.unpack(">I", self.ram.read(self.addr + field * 4, 4))[0]
+        return struct.unpack(">I", self.read(self.addr + field * 4, 4))[0]
 
     def put(self, field: int, value: int, signed: bool = False) -> None:
-        self.ram.write(self.addr + field * 4, struct.pack(">i" if signed else ">I", value))
+        self.write(self.addr + field * 4, struct.pack(">i" if signed else ">I", value))
 
     def put_text(self, offset: int, size: int, text: str) -> None:
         # Zero-terminated, cut to size - 1 bytes (absolute offset into the mailbox)
-        self.ram.write(self.addr + offset, c_text(text, size))
+        self.write(self.addr + offset, c_text(text, size))
 
     def put_seed(self, seed: str) -> None:
         self.put_text(H_SEED, SEED_LEN, seed)
@@ -184,30 +226,34 @@ class Mailbox:
     def put_slotdata(self, text: str) -> None:
         # The JSON text, then its length: the game parses only slotdata_len bytes (both before slotdata_ready)
         data = text.encode("ascii")
-        self.ram.write(self.addr + self.h[H_SLOTDATA_OFF], data)
+        self.write(self.addr + self.h[H_SLOTDATA_OFF], data)
         self.put(H_SLOTDATA_LEN, len(data))
 
     def put_names(self, names: dict[int, str]) -> None:
         n, size = self.h[H_NAME_MAX], self.h[H_NAME_LEN]
         data = b"".join(c_text(names.get(slot, ""), size) for slot in range(n))
-        self.ram.write(self.addr + self.h[H_NAMES_OFF], data)
+        self.write(self.addr + self.h[H_NAMES_OFF], data)
 
     def put_tick_state(self, tick: int, state: int) -> None:
         # client_tick and client_state are neighbours: one write
-        self.ram.write(self.addr + H_CLIENT_TICK * 4, struct.pack(">Ii", tick, state))
+        self.write(self.addr + H_CLIENT_TICK * 4, struct.pack(">Ii", tick, state))
 
     # The game shows up to toast_head; a full ring overwrites the oldest (the game skips ahead). head: the current
     # toast_head (only this client writes it)
     def push_toasts(self, texts: list[str], head: int) -> None:
         n, size = self.h[H_TOAST_MAX], self.h[H_TOAST_LEN]
         for text in texts[-n:]:
-            self.ram.write(self.addr + self.h[H_TOASTS_OFF] + (head % n) * size, c_text(text, size))
+            self.write(self.addr + self.h[H_TOASTS_OFF] + (head % n) * size, c_text(text, size))
             head = (head + 1) & 0xFFFFFFFF
         self.put(H_TOAST_HEAD, head)
 
-    def read_send(self, head: int, tail: int) -> list[int]:
+    def queue_send_read(self) -> None:
+        # The whole send ring; its bytes from end() go to send_ids
+        self.queue_read(self.addr + self.h[H_SEND_OFF], self.h[H_SEND_MAX] * 4)
+
+    def send_ids(self, data: bytes, head: int, tail: int) -> list[int]:
         n = self.h[H_SEND_MAX]
-        ring = struct.unpack(">%dI" % n, self.ram.read(self.addr + self.h[H_SEND_OFF], n * 4))
+        ring = struct.unpack(">%dI" % n, data)
         count = min((head - tail) & 0xFFFFFFFF, n)
         return [ring[(tail + i) % n] for i in range(count)]
 
@@ -217,12 +263,12 @@ class Mailbox:
         if have >= len(items):
             return
         data = b"".join(struct.pack(">IhBx", i, s, f & 0xFF) for i, s, f in items[have:])
-        self.ram.write(self.addr + self.h[H_ITEMS_OFF] + have * ITEM_SIZE, data)
+        self.write(self.addr + self.h[H_ITEMS_OFF] + have * ITEM_SIZE, data)
         self.put(H_ITEM_COUNT, len(items))
 
     def get_gsettings(self) -> dict[str, int]:
         n = min(self.h[H_GSET_MAX], len(GSET_NAMES))
-        values = struct.unpack(">%di" % n, self.ram.read(self.addr + self.h[H_GSET_OFF], n * 4))
+        values = struct.unpack(">%di" % n, self.read(self.addr + self.h[H_GSET_OFF], n * 4))
         return dict(zip(GSET_NAMES, values))
 
     def put_gsettings(self, stored: dict[str, int]) -> None:
@@ -230,20 +276,20 @@ class Mailbox:
         n = min(self.h[H_GSET_MAX], len(GSET_NAMES))
         for i, name in enumerate(GSET_NAMES[:n]):
             if isinstance(stored.get(name), int):
-                self.ram.write(self.addr + self.h[H_GSET_OFF] + i * 4, struct.pack(">i", stored[name]))
+                self.write(self.addr + self.h[H_GSET_OFF] + i * 4, struct.pack(">i", stored[name]))
 
     def append_checked(self, ids: list[int], have: int) -> None:
         ids = ids[:self.h[H_CHECKED_MAX]]
         if have >= len(ids):
             return
-        self.ram.write(self.addr + self.h[H_CHECKED_OFF] + have * 4, struct.pack(">%dI" % (len(ids) - have),
+        self.write(self.addr + self.h[H_CHECKED_OFF] + have * 4, struct.pack(">%dI" % (len(ids) - have),
                                                                                   *ids[have:]))
         self.put(H_CHECKED_COUNT, len(ids))
 
     def put_hint(self, player: str, item: str, location: str) -> None:
         # The three names of a beach hint ("" each = no eligible location); then hint_req_done says which request
         size = self.h[H_HINT_NAME_LEN]
-        self.ram.write(self.addr + self.h[H_HINT_OFF], b"".join(c_text(t, size) for t in (player, item, location)))
+        self.write(self.addr + self.h[H_HINT_OFF], b"".join(c_text(t, size) for t in (player, item, location)))
 
 
 def gsettings_path() -> str:
@@ -603,13 +649,45 @@ class ACGCContext(CommonContext):
         logger.info("Beach hint: scouting %s", self.location_names.lookup_in_slot(location, self.slot))
         self.run_soon(self.send_msgs([{"cmd": "LocationScouts", "locations": [location], "create_as_hint": 2}]))
 
-    # One round with the game. Each RAM access is a network round trip on a Wii (~44 ms), so an idle round is two:
-    # the header read and the tick + state write; the rest only when something changed. False = the mailbox is gone.
+    # One round with the game: the header read, then everything else as one batch (Mailbox.begin), so a round costs
+    # two network round trips on a Wii whatever it writes (research/wii_link_latency.md). False = the mailbox is gone.
     def sync(self) -> bool:
         m = self.mbox
         h = m.read_header()
         if h is None:
             return False
+        toasts = list(self.toasts)
+        m.begin()
+        try:
+            connected = self.sync_batched(m, h)
+            ring = m.end()
+        except BaseException:
+            # The batch didn't (all) arrive, but this round already counted it as written: queued texts and toasts
+            # go again next time (the lists go by the game's counts, the slot by mbox_slot_key, reset on a find)
+            m.queue = None
+            self.mbox_texts = {}
+            self.toasts[:0] = [t for t in toasts if t not in self.toasts]
+            raise
+        if ring:
+            ids = m.send_ids(ring[0], h[H_SEND_HEAD], h[H_SEND_TAIL])
+            known = [i for i in ids if i in self.missing_locations or i in self.checked_locations]
+            if len(known) != len(ids):
+                logger.warning("Game sent unknown location ids: %s", [i for i in ids if i not in known])
+            # The game queues a check again every tick until the server confirms it: send each id once
+            # (CommonClient sends all of locations_checked again after a reconnect)
+            new = [i for i in known if i not in self.locations_checked]
+            if new:
+                self.locations_checked.update(new)
+                self.run_soon(self.check_locations(new))
+        # After the checks (a goal may release the rest)
+        if connected and h[H_GOAL] and not self.finished_game:
+            self.run_soon(self.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}]))
+            self.finished_game = True
+        return True
+
+    # sync's body, all mailbox writes queued; the send ring read is queued last (with send_tail after it).
+    # True = connected to the slot the game has
+    def sync_batched(self, m: Mailbox, h: tuple[int, ...]) -> bool:
         # gset_client_gen only changes through this client, and the game zeroes it when it starts (a savestate
         # brings an old one back): a mismatch = the game started over, so everything is written again
         fresh = self.gset_game_gen is None or h[H_GSET_CLIENT_GEN] != self.gset_client_gen
@@ -627,7 +705,7 @@ class ACGCContext(CommonContext):
         self.put_text_changed(m, H_SLOTNAME, SLOTNAME_LEN, self.auth or "")
         if not connected:
             m.put_tick_state(self.client_tick, CSTATE_CONNECTING)
-            return True
+            return False
         key = (self.seed_name, self.team or 0, self.slot)
         item_have, checked_have = h[H_ITEM_COUNT], h[H_CHECKED_COUNT]
         if key != self.mbox_slot_key:
@@ -635,7 +713,7 @@ class ACGCContext(CommonContext):
             m.put(H_SLOTDATA_READY, 0)
             if not self.write_slotdata(m):
                 m.put_tick_state(self.client_tick, CSTATE_SLOTREFUSED)
-                return True
+                return False
             m.put_names(self.player_names)
             m.put(H_ITEM_COUNT, 0)
             m.put(H_CHECKED_COUNT, 0)
@@ -662,26 +740,17 @@ class ACGCContext(CommonContext):
         self.sync_hints(m, h)
         head, tail = h[H_SEND_HEAD], h[H_SEND_TAIL]
         if head != tail:
-            ids = m.read_send(head, tail)
-            known = [i for i in ids if i in self.missing_locations or i in self.checked_locations]
-            if len(known) != len(ids):
-                logger.warning("Game sent unknown location ids: %s", [i for i in ids if i not in known])
-            # The game queues a check again every tick until the server confirms it: send each id once
-            # (CommonClient sends all of locations_checked again after a reconnect)
-            new = [i for i in known if i not in self.locations_checked]
-            if new:
-                self.locations_checked.update(new)
-                self.run_soon(self.check_locations(new))
+            # Last in the batch: the ring, then send_tail (the kernel runs them in order, so the game can't reuse a
+            # slot before it was read); sync sends the ids once the batch is back
+            m.queue_send_read()
             m.put(H_SEND_TAIL, head)
-        if h[H_GOAL] and not self.finished_game:
-            self.run_soon(self.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}]))
-            self.finished_game = True
         return True
 
 
 # Between syncs. Server events (items, toasts, RoomUpdate) wake the loop at once (watcher_event), so this only paces
-# game -> server news (checks, goal, settings Apply): a second is plenty, and on a Wii each sync is network traffic
-SYNC_SECONDS = 1.0
+# game -> server news (checks, goal, settings Apply). On a Wii each sync is network traffic (two small round trips,
+# a few KB/s at this pace; research/wii_link_latency.md): 0.5 s halves the wait for a check without much more of it
+SYNC_SECONDS = 0.5
 
 WAITING_GAME = "Looking for game on Dolphin or Wii"
 

@@ -46,15 +46,39 @@ static u32 gc_ap_hash(u32 id) {
   return (id * 2654435761u) & (GC_AP_CHECKED_SET - 1);
 }
 
-static void gc_ap_checked_add(u32 id) {
+// Ids this boot's game code sent (ap_send_location), like the DLL's own checks set: a one-shot send (tree / beach
+// pickup) counts as checked at once, so a second pickup before the server confirms the first takes the next id.
+// Only cleared at boot, as the DLL's set only goes with the process.
+static u32 gc_ap_sent_set[GC_AP_CHECKED_SET];
+static u32 gc_ap_sent_in_set;
+
+// 1 = id is in set
+static int gc_ap_set_has(const u32* set, u32 id) {
   u32 h = gc_ap_hash(id);
-  while(gc_ap_checked_set[h] != 0) {
-    if(gc_ap_checked_set[h] == id) {
-      return;
+  while(set[h] != 0) {
+    if(set[h] == id) {
+      return 1;
     }
     h = (h + 1) & (GC_AP_CHECKED_SET - 1);
   }
-  gc_ap_checked_set[h] = id;
+  return 0;
+}
+
+// Adds id to set; 1 = it was new
+static int gc_ap_set_add(u32* set, u32 id) {
+  u32 h = gc_ap_hash(id);
+  while(set[h] != 0) {
+    if(set[h] == id) {
+      return 0;
+    }
+    h = (h + 1) & (GC_AP_CHECKED_SET - 1);
+  }
+  set[h] = id;
+  return 1;
+}
+
+static void gc_ap_checked_add(u32 id) {
+  gc_ap_set_add(gc_ap_checked_set, id);
 }
 
 static u32 gc_ap_checked_total(void) {
@@ -267,14 +291,7 @@ int ap_item_count(int64_t id) {
 
 int ap_location_checked(int64_t id) {
   // The set is synced once per frame (gc_ap_mailbox_frame): here it'd be an uncached read per call
-  u32 h = gc_ap_hash((u32)id);
-  while(gc_ap_checked_set[h] != 0) {
-    if(gc_ap_checked_set[h] == (u32)id) {
-      return 1;
-    }
-    h = (h + 1) & (GC_AP_CHECKED_SET - 1);
-  }
-  return 0;
+  return gc_ap_set_has(gc_ap_checked_set, (u32)id) || gc_ap_set_has(gc_ap_sent_set, (u32)id);
 }
 
 void ap_locations_checked(const int64_t* ids, size_t n, uint8_t* out) {
@@ -318,22 +335,21 @@ unsigned ap_checked_generation(void) {
   return gc_ap_mbox.checked_count;
 }
 
-// Like the DLL, repeats are dropped: already checked, or still waiting in the ring. A full ring drops the id;
-// game code sends its checks again every tick until they show up as checked.
+// Like the DLL, repeats are dropped (already checked or sent) and a queued id counts as checked from now on. A full
+// ring drops the id without marking it, so code that repeats its sends tries again later (64 slots: shouldn't happen).
 void ap_send_location(int64_t id) {
   gc_ap_mailbox* m = &gc_ap_mbox;
-  u32 i;
   if(ap_location_checked(id)) {
     return;
-  }
-  for(i = m->send_tail; i != m->send_head; i++) {
-    if(m->send[i % GC_AP_SEND_MAX] == (u32)id) {
-      return;
-    }
   }
   if(m->send_head - m->send_tail >= GC_AP_SEND_MAX) {
     return;
   }
+  // Leaves one slot of the table empty, so lookups always end
+  if(gc_ap_sent_in_set >= GC_AP_CHECKED_SET - 1) {
+    return;
+  }
+  gc_ap_sent_in_set += gc_ap_set_add(gc_ap_sent_set, (u32)id);
   m->send[m->send_head % GC_AP_SEND_MAX] = (u32)id;
   m->send_head++;
 }

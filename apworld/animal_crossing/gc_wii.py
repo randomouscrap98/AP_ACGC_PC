@@ -13,7 +13,7 @@ import select
 import socket
 import struct
 import threading
-from typing import Callable, NamedTuple, Optional
+from typing import Any, Callable, NamedTuple, Optional
 
 WII_PORT = 38290  # AP_WAIT_PORT (ap_wait.h)
 CARD_NAME_MAX = 40  # AP_CARD_NAME_MAX
@@ -257,6 +257,37 @@ class NintendontRAM:
                 raise OSError(f"the Wii refused to write {len(part)} bytes at {addr:08X}")
             addr += len(part)
             data = data[KERNEL_MAX:]
+
+    def batch(self, ops: list[tuple[str, int, Any]]) -> list[bytes]:
+        # gc_client.Mailbox's queue: ("W", addr, data) / ("R", addr, size), all sent before any reply is read (the
+        # kernel answers in order), split at KERNEL_MAX like read / write; the reads' bytes in order. A batch costs
+        # about two round trips whatever its size (research/wii_link_latency.md). Replies are 4 bytes per write and
+        # 4 + size per read, so they can't fill our receive buffer while we're still sending.
+        requests, replies = [], []  # replies: ("W", n) / ("R", n, index of the op's read)
+        reads: list[bytes] = []
+        for op, addr, arg in ops:
+            if op == "W":
+                for at in range(0, len(arg), KERNEL_MAX):
+                    part = arg[at:at + KERNEL_MAX]
+                    requests.append(b"W\0\0\0" + struct.pack(">II", addr + at, len(part)) + part)
+                    replies.append(("W", len(part), 0))
+            else:
+                for at in range(0, arg, KERNEL_MAX):
+                    n = min(arg - at, KERNEL_MAX)
+                    requests.append(b"R\0\0\0" + struct.pack(">II", addr + at, n))
+                    replies.append(("R", n, len(reads)))
+                reads.append(b"")
+        with self.lock:
+            if self.sock is None:
+                raise OSError("not connected to the Wii")
+            self.sock.sendall(b"".join(requests))
+            for kind, n, index in replies:
+                got, = struct.unpack(">I", self._recv(4))
+                if got != n:
+                    raise OSError(f"the Wii refused a {kind} of {n} bytes in a batch")
+                if kind == "R":
+                    reads[index] += self._recv(n)
+        return reads
 
     def find_magic(self, start: int) -> int:
         # Game address of the next "ACAPMBOX" at or after start, 0 = none (the kernel searches its own RAM: up to
