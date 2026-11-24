@@ -25,7 +25,7 @@
     "added": {"global_storage": 0}
   },
   "6": {
-    "note": "0.7.0: Shuffle Hourly Music (new option; empty list = the game's hour themes, as before)",
-    "added": {"hourly_music": []}
+    "note": "0.7.0: Shuffle Hourly Music (empty list = the game's hour themes), Beach hints (0 count / no letter = off)",
+    "added": {"hourly_music": [], "beach_hint_count": 0, "beach_hint_letter": 0}
   }
 }

@@ -203,6 +203,11 @@ int ap_hint_set_status(int finding, int64_t location, int status) {
   return g_ap->UpdateHint(finding, location, (APClient::HintStatus)status);
 }
 
+int ap_hint_location(int64_t location) {
+  if (!g_ap || g_ap_connectstate.state != AP_CSTATE_CONNECTED) return 0;
+  return g_ap->LocationScouts({location}, 2) ? 1 : 0; // 2 = create_as_hint
+}
+
 size_t ap_location_ids(int checked, int64_t * out, size_t max) {
   if (!g_ap) return 0;
   std::set<int64_t> ids = checked ? g_ap->get_checked_locations() : g_ap->get_missing_locations();
@@ -509,6 +514,8 @@ int ap_start_offline(const char * json_text) {
   sd->catalogsanity = 0;
   sd->catalog_count = 0;
   sd->beach_per_month = 0;
+  sd->beach_hint_count = 0;
+  sd->beach_hint_letter = 0;
   sd->tree_per_fruit = 0;
   sd->tools_in_pool = 0;
   sd->store_upgrades = AP_STORE_VANILLA;

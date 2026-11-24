@@ -24,10 +24,10 @@ from BaseClasses import CollectionState, Item, ItemClassification, Location, Reg
 from Options import OptionError, OptionGroup
 from worlds.AutoWorld import WebWorld, World
 
-from . import (bell_credits, bug_availability, catalogsanity, extra_bells, favor_pools, fish_availability,
-               fossil_availability, fruit_filler, furniture_sets, goal, intro, loansanity, museumsanity,
-               nook_store_upgrades, options, quality_of_life, shellsanity, slot_data_upgrade, timesanity, tools_in_pool,
-               town_generation, treesanity)
+from . import (beach_hints, bell_credits, bug_availability, catalogsanity, extra_bells, favor_pools,
+               fish_availability, fossil_availability, fruit_filler, furniture_sets, goal, intro, loansanity,
+               museumsanity, nook_store_upgrades, options, quality_of_life, shellsanity, slot_data_upgrade, timesanity,
+               tools_in_pool, town_generation, treesanity)
 from .game_items import ITEM_NAME_TO_ID as GAME_ITEMS
 from .options import AnimalCrossingOptions
 
@@ -45,7 +45,8 @@ UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "
 
 FEATURES = (goal, intro, town_generation, loansanity, bell_credits, extra_bells, fruit_filler, timesanity,
             favor_pools, shellsanity, treesanity, museumsanity, fossil_availability, fish_availability,
-            bug_availability, tools_in_pool, catalogsanity, nook_store_upgrades, furniture_sets, quality_of_life)
+            bug_availability, tools_in_pool, catalogsanity, nook_store_upgrades, furniture_sets, quality_of_life,
+            beach_hints)
 
 
 def in_order(first: tuple) -> tuple:

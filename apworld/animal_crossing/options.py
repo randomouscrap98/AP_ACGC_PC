@@ -537,6 +537,27 @@ class TreeChecksPerFruit(Range):
     default = 3
 
 
+class BeachHintPercentage(Range):
+    """
+    Percent of your own locations that become beach hints: an AP Scroll sometimes
+    washes up on the town beach, and picking it up asks the server for a real hint
+    on one of your unchecked, unhinted locations. 0 turns beach hints off.
+    """
+    display_name = "Beach Hint Percentage"
+    range_start = 0
+    range_end = 100
+    default = 10
+
+
+class BeachHintGivesLetter(Toggle):
+    """
+    With Beach Hints, picking up an AP Scroll also puts a letter with the hint's
+    item and location in a free pocket letter slot. Off: only the server hint.
+    """
+    display_name = "Beach Hint Gives Letter"
+    default = 1
+
+
 class ShellsanityItemChance(Range):
     """
     With Shellsanity, percent chance that a generated shell is an Archipelago item.
@@ -1195,6 +1216,8 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     beach_checks_per_month: BeachChecksPerMonth
     treesanity: Treesanity
     tree_checks_per_fruit: TreeChecksPerFruit
+    beach_hint_percentage: BeachHintPercentage
+    beach_hint_gives_letter: BeachHintGivesLetter
     loansanity: Loansanity
     fossil_loans: FossilLoans
     total_loan_checks: TotalLoanChecks

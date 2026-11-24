@@ -7677,6 +7677,15 @@ static int Player_actor_CheckAndRequest_main_pickup_all(GAME* game) {
                     mActor_name_t changed_item = ITEM_IS_SIGNBOARD(item) ? ITM_SIGNBOARD : item;
                     int item_is_signboard = item != changed_item;
 
+#ifdef AP_HOOKS
+                    /* AP beach hint scroll: can't pick it up now (not connected / no free pocket letter). The sound is
+                       the game's invalid-action one (m_hand_ovl.c's refused hand-over, m_address_ovl.c), no demo. */
+                    if (pc_ap_beach_hint_refuse(changed_item)) {
+                        sAdo_SysTrgStart(NA_SE_41C);
+                        return TRUE;
+                    }
+#endif
+
                     if (mEv_IsTitleDemo()) {
                         if (Player_actor_request_main_pickup(game, changed_item, &target_pos, &item_pos, -1,
                                                              item_is_signboard)) {

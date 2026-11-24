@@ -53,6 +53,8 @@ add_compile_definitions(
                       # where gc/ implements them; sites still under TARGET_PC are PC-only for now.
     PC_OUTDOOR_FTR    # Outdoor furniture (item menu "Place", pc_outdoor_ftr.c). Remove to turn it off: the decomp
                       # hooks go, outdoor furniture is leaves again; the sidecar keeps the placed list for later.
+    PC_AP_BEACH_HINT  # Beach hints (AP Scroll, pc_ap_beach_hint.c): DLL hint calls in pc_ap_logic.c. The C
+                      # unit tests build pc_ap_logic.c without it (the DLL hint calls have no stubs there).
 )
 
 # Common compiler flags (applied to all sources). GCC is required:
@@ -292,6 +294,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_settings.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_beach_logo.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_hint_logo.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_beach_hint.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_planting.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_planting_marks.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_map_divination.c

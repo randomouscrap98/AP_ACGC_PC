@@ -30,6 +30,7 @@
 #include "ac_insect_h.h"
 #include "pc_ap_shellsanity.h"
 #include "pc_ap_hint.h"
+#include "pc_ap_beach_hint.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -57,7 +58,8 @@ extern int g_pc_weather_override, g_pc_weather_intensity_override;
 extern int g_pc_uber_shader_only;
 
 // Where a town scene goes RT_ACT_FRAME frames after arriving (the player stays put)
-enum { RT_STAY, RT_HOUSE, RT_SHOP, RT_MUSEUM, RT_PAUSE, RT_MAP, RT_INVENTORY, RT_LETTER, RT_NES, RT_FLOWER_BUGS, RT_GROUND_ITEMS };
+enum { RT_STAY, RT_HOUSE, RT_SHOP, RT_MUSEUM, RT_PAUSE, RT_MAP, RT_INVENTORY, RT_LETTER, RT_LETTER_HINT, RT_NES,
+       RT_FLOWER_BUGS, RT_GROUND_ITEMS };
 #define RT_ACT_FRAME 30
 
 // One render-test scene. 0 in any field = the default (noon 2026-06-15, the weather of the day, settings.ini)
@@ -95,6 +97,8 @@ static const RTScene s_scenes[] = {
     { .name = "inventory", .town = 1, .frame = 120, .act = RT_INVENTORY },
     { .name = "inventory_msaa4", .town = 1, .frame = 120, .act = RT_INVENTORY, .msaa = 4 },  // EFB copy with MSAA
     { .name = "letter", .town = 1, .frame = 120, .act = RT_LETTER },  // a letter being read (stationery + text)
+    // A beach hint letter with long names: lines are cut to the letter's width
+    { .name = "letter_hint", .town = 1, .frame = 120, .act = RT_LETTER_HINT },
     // A row of tulips, then pansies, in front of the player: ladybug, mantis, snail on each row
     { .name = "flower_bugs", .town = 1, .frame = 90, .act = RT_FLOWER_BUGS },
     // Ground items in front of the player: vanilla scroll (town map), AP shell, AP hint scroll
@@ -326,6 +330,20 @@ void pc_automated_play(GAME_PLAY* play) {
                              "This letter is a render test.\nThe quick brown fox jumps over the lazy dog.\n"
                              "0123456789 !?.,'\"-",
                              EMPTY_NO, &mail);
+            mSM_open_submenu_new(&play->submenu, mSM_OVL_BOARD, mSM_BD_OPEN_READ, -1, &mail);
+            player_menu_opened(play);
+            break;
+        }
+        case RT_LETTER_HINT: {
+            // The beach hint letter (pc_ap_beach_hint_body) with names longer than a line
+            static Mail_c mail;
+            pc_ap_mail m;
+            char body[MAIL_BODY_LEN + 1];
+            pc_ap_beach_hint_body("ArchipelagoPlayerWithAVeryLongName",
+                                  "Progressive Catalog Pool Item With A Very Long Name",
+                                  "Museum: A Very Long Location Name That Does Not Fit", body, sizeof(body));
+            pc_ap_mail_init(&m, ap_getslotdata());
+            pc_ap_mail_build(&m, Now_Private, body, EMPTY_NO, &mail);
             mSM_open_submenu_new(&play->submenu, mSM_OVL_BOARD, mSM_BD_OPEN_READ, -1, &mail);
             player_menu_opened(play);
             break;

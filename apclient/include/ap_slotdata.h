@@ -160,6 +160,8 @@ typedef struct {
   int catalog_sources;               // AP_CATALOG_SOURCE_* bits (Nook is always a source)
   int beach_per_month;                // Shellsanity: checks per month washing up on the beach, 0 = off (slot_data
                                       // beach_checks_per_month, 0 with shellsanity 0)
+  int beach_hint_count;               // Beach hints: AP Scrolls to find this save (slot_data beach_hint_count)
+  int beach_hint_letter;              // Beach hints: also put the hint in a pocket letter (beach_hint_letter)
   int shellsanity_item_chance;        // Shellsanity: percent of washed-up shells that are AP items
   int tree_per_fruit;                 // Treesanity: checks per fruit borne by its trees, 0 = off (slot_data
                                       // tree_checks_per_fruit, 0 with treesanity 0)

@@ -48,6 +48,9 @@ AP_API int ap_hint_get(size_t i, ap_hint * out);
 AP_API uint64_t ap_hint_version(void);
 // Ask the server to change a hint's status (only the receiver may; not to/from AP_HINT_FOUND). 1 = sent
 AP_API int ap_hint_set_status(int finding, int64_t location, int status);
+// Ask the server for a real hint on location (LocationScouts create_as_hint=2). 1 = sent (connected), else 0.
+// The hint arrives in the list above (ap_hint_get) like any other.
+AP_API int ap_hint_location(int64_t location);
 
 // ---- this slot's locations ----
 // Ids of the missing (checked = 0) or checked (checked = 1) locations, up to max into out (out may be NULL with

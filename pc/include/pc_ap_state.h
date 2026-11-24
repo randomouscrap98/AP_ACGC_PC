@@ -9,7 +9,7 @@
 // Format of ap_state.ini and ap_settings.ini (one number for both), in their global section.
 // Bump once per release on any change to their keys (like SLOT_DATA_VERSION in apworld/animal_crossing/world.py).
 // A missing key means the old behaviour; format upgrades go in pc_ap_state_upgrade. A newer file is refused.
-#define PC_AP_STATE_VERSION 4
+#define PC_AP_STATE_VERSION 5
 #define PC_AP_STATE_KEY_VERSION "version"
 
 #ifdef __cplusplus

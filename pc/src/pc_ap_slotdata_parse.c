@@ -159,6 +159,8 @@ typedef struct {
 #define SD_KEY(s) { s, sizeof(s) - 1 }
 static const sd_key sd_top_keys[] = {
   SD_KEY("beach_checks_per_month"),
+  SD_KEY("beach_hint_count"),
+  SD_KEY("beach_hint_letter"),
   SD_KEY("bell_credits"),
   SD_KEY("bug_availability"),
   SD_KEY("bug_checks"),
@@ -683,6 +685,9 @@ int pc_ap_slotdata_parse(const char * json, int len, ap_slotdata * out) {
   sd_furniture_set(&d, out);
   out->beach_per_month = sd_bool(&d, "shellsanity", 0) ?
       sd_int(&d, "beach_checks_per_month", 0, 0, AP_BEACH_PER_MONTH_MAX) : 0;
+  // Missing = off (older seeds)
+  out->beach_hint_count = sd_int(&d, "beach_hint_count", 0, 0, INT_MAX);
+  out->beach_hint_letter = sd_bool(&d, "beach_hint_letter", 0);
   out->shellsanity_item_chance = sd_int(&d, "shellsanity_item_chance", 20, 0, 100);
   out->tree_per_fruit = sd_bool(&d, "treesanity", 0) ?
       sd_int(&d, "tree_checks_per_fruit", 0, 0, AP_TREE_PER_FRUIT_MAX) : 0;
