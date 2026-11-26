@@ -1,5 +1,6 @@
 # Stuff I added for the AP_ACGC_PC fork
 ignore/
+out/
 .clangd
 /release/
 # GameCube patch deltas, made by generate_release.sh (gc_patch.py make)

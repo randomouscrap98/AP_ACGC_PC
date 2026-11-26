@@ -445,6 +445,10 @@ int pc_ap_time_reloading(void);
 int pc_ap_weather_roll_today(void);
 // For the hook at the end of mEnv_RandomWeather: nonzero when today is the rain day
 int pc_ap_weather_rain_day_today(void);
+// For mEnv_DecideWeather_NormalGameStart: nonzero once after a Date & Time reload whose save ran in
+// play frames (so the save already says renew_time == the new date), which must roll that date's
+// weather like a normal new day. Takes and clears it.
+int pc_ap_weather_take_date_change(void);
 // Date & Time page: today's weather type (mEnv_WEATHER_*) and intensity (mEnv_WEATHER_INTENSITY_*),
 // or the ones another date will roll (ignores event days, which force their own weather, and
 // Nook's job, which turns rain into clear)
