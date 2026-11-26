@@ -20,7 +20,8 @@
     "hourly_music: [] = the game's hour themes; 24 numbers = the theme played at hour 0 (midnight) to 23, each of",
     "1-24 once (n = hour n-1's theme), e.g. [13, 2, 24, ...]. Any other list is ignored. Always follows this file.",
     "Beach hints (AP Scroll) are AP only: forced off offline, no key needed here.",
-    "Radiosanity (song items and radio checks) and the Music goal are AP only: forced off offline, no keys needed here."
+    "Radiosanity (song items and radio checks) and the Music goal are AP only: forced off offline, no keys needed here.",
+    "Goals are AP only too (there is none offline), so goal and instant_goal_release are ignored: no keys needed here."
   ],
   "seed": "offline",
   "team": 0,

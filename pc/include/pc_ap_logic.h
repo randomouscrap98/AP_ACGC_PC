@@ -129,8 +129,9 @@ int pc_ap_in_game(struct game_play_s* play);
 int pc_ap_goal_done(int goal);
 // All goals set in slot_data are done
 int pc_ap_goals_done(void);
-// K.K.'s song starts (aNTT_roll1_init, every performance is the staff roll): the only place the
-// goal is sent, once all goals are done. Own town only (pc_ap_goals_done needs pc_ap_my_home).
+// K.K.'s song starts (aNTT_roll1_init, every performance is the staff roll): sends the goal once all goals are
+// done (with Instant Goal Release it's sent from pc_ap_tick instead). Own town only (pc_ap_goals_done needs
+// pc_ap_my_home).
 void pc_ap_kk_song_started(void);
 // Bell Credits received but not yet applied (waiting on the last 100 or the next loan)
 int pc_ap_bells_pending(void);

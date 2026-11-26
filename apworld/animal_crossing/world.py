@@ -38,7 +38,7 @@ GAME_NAME = "Animal Crossing"
 # Once per release: the first such change on a release branch bumps by 1, later ones ride along.
 # Every new key gets an "added" step in slot_data_upgrades.json with the value meaning the old behaviour.
 # Ids are append-only and names are kept; yaml option keys are never removed (a rename keeps the old key hidden).
-SLOT_DATA_VERSION = 7
+SLOT_DATA_VERSION = 8
 # Universal Tracker: slot_data keys named like an option but holding something else (villager indices, the pools,
 # a tool name), so they're not restored as options
 UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "starting_tool"}
@@ -98,6 +98,7 @@ class AnimalCrossingWeb(WebWorld):
         # Goal settings are named <goal>_goal_<thing> (museum_goal_percent), listed after Goal
         OptionGroup("Goal", [
             options.Goal,
+            options.InstantGoalRelease,
             options.MuseumGoalPercent,
             options.CatalogGoalPercent,
             options.MusicGoalPercent,

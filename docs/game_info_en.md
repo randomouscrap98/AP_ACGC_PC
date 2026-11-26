@@ -76,7 +76,9 @@ Choose one or more (all chosen goals are required):
   king per colour. One item per piece kind; order the rest from the catalog. Needs the basement.
 
 Once your goals are done, a letter arrives telling you to listen to K.K. Slider on a Saturday night
-(20:00-23:59) to finish. With Timesanity you need the Evening or Night slot for that.
+(20:00-23:59) to finish. With Timesanity you need the Evening or Night slot for that. Instant Goal Release
+(off by default) skips the wait: the goal is sent as soon as the goals are done, the letter doesn't come, and with
+Timesanity no slot of his hours is needed.
 
 ## What other changes are there?
 

@@ -1,5 +1,6 @@
 # Goal: every chosen goal is required. Each goal's rule lives with its feature; here they're checked and combined.
-# Goals are only sent when K.K. Slider plays (Saturday night), so with Timesanity a slot with his hours is needed.
+# Goals are only sent when K.K. Slider plays (Saturday night), unless Instant Goal Release sends them as soon as
+# they're all done (then no slot of his hours is needed either).
 from . import catalogsanity, furniture_sets, loansanity, museumsanity, radiosanity, timesanity
 
 
@@ -46,13 +47,14 @@ GOALS = {
 def rules(world) -> None:
     chosen = [GOALS[name](world) for name in sorted(world.options.goal.value)]
     kk = timesanity.kk_rule(world)
-    if kk:
+    if kk and not world.options.instant_goal_release:
         chosen.append(kk)
     world.multiworld.completion_condition[world.player] = lambda state: all(goal(state) for goal in chosen)
 
 
 def slot_data(world) -> dict:
-    return {"goal": sorted(world.options.goal.value)}
+    return {"goal": sorted(world.options.goal.value),
+            "instant_goal_release": world.options.instant_goal_release.value}
 
 
 # Unused hooks (world.py calls every hook of every feature)

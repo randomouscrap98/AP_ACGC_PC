@@ -190,6 +190,7 @@ static const sd_key sd_top_keys[] = {
   SD_KEY("grass_shape"),
   SD_KEY("hourly_music"),
   SD_KEY("house"),
+  SD_KEY("instant_goal_release"),
   SD_KEY("letter_paper"),
   SD_KEY("letter_sender"),
   SD_KEY("loan_checks"),
@@ -667,6 +668,7 @@ int pc_ap_slotdata_parse(const char * json, int len, ap_slotdata * out) {
 
   // Missing keys: offline-relevant ones default to the apworld defaults, AP-only ones to off
   out->goal = sd_goal(&d);
+  out->instant_goal_release = sd_bool(&d, "instant_goal_release", 0);
   out->loansanity = sd_bool(&d, "loansanity", 1);
   sd_int_array(&d, "loans", out->loans, default_loans, AP_LOAN_NUM);
   sd_int_array(&d, "loan_checks", out->loan_checks, default_loan_checks, AP_LOAN_NUM);

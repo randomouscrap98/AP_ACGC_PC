@@ -32,5 +32,9 @@
     "note": "0.7.0: Radiosanity (off = no song items, no radio checks) and the Music goal",
     "added": {"radiosanity": 0, "radiosanity_aircheck": 0, "radiosanity_song_count": 55, "radiosanity_songs": [],
               "radio_goal_count": 0}
+  },
+  "8": {
+    "note": "0.7.0: Instant Goal Release (off = the goal is only sent when K.K. Slider plays)",
+    "added": {"instant_goal_release": 0}
   }
 }

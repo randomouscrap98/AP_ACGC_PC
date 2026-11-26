@@ -589,9 +589,17 @@ static void pc_ap_loan_letter(int paid) {
   }
 }
 
-// The "goals done" letter, once; mailbox full = next tick
+// Instant Goal Release: the goal goes as soon as all goals are done (repeats are dropped by the DLL and the GC
+// mailbox)
+static void pc_ap_goal_instant(void) {
+  if(ap_getslotdata()->instant_goal_release && pc_ap_goals_done()) {
+    ap_send_goal();
+  }
+}
+
+// The "goals done" letter, once; mailbox full = next tick (Instant Goal Release sends the goal instead)
 static void pc_ap_goal_letter(void) {
-  if(g_ap.goal_letter_sent || !pc_ap_goals_done()) {
+  if(ap_getslotdata()->instant_goal_release || g_ap.goal_letter_sent || !pc_ap_goals_done()) {
     return;
   }
   if(pc_ap_mail_send(&g_ap.mail, pc_ap_my_home(), Now_Private, PC_AP_GOAL_LETTER, EMPTY_NO)) {
@@ -1698,6 +1706,7 @@ void pc_ap_tick(GAME_PLAY* play) {
 #ifdef AP_BEACH_HINT
   pc_ap_beach_hint_tick();
 #endif
+  pc_ap_goal_instant();
   pc_ap_goal_letter();
   pc_ap_radio_sync();
   pc_ap_furniture_mail();

@@ -304,7 +304,8 @@ class TownDay(Range):
 class Goal(OptionSet):
     """
     What you need to do to finish. With several goals, all are required.
-    Once all goals are done, listen to K.K. Slider on Saturday night (8pm-12am) to finish.
+    Once all goals are done, listen to K.K. Slider on Saturday night (8pm-12am) to finish
+    (Instant Goal Release finishes as soon as the goals are done).
     - Statue: pay off every house loan so Tom Nook builds your statue.
     - Museum: receive "Museum Goal Percent" of the museum donation items (needs Museumsanity).
     - Froggy Chair: get the froggy chair into your catalog, any way you can (never a Catalogsanity item).
@@ -322,6 +323,15 @@ class Goal(OptionSet):
     display_name = "Goal"
     valid_keys = ["Statue", "Museum", "Froggy Chair", "Catalog", "Music", "Furniture Set", "Chess Set"]
     default = frozenset({"Statue"})
+
+
+class InstantGoalRelease(Toggle):
+    """
+    Send the goal as soon as every chosen goal is done, instead of waiting
+    for K.K. Slider's Saturday night show. The "go see K.K." letter doesn't
+    come either, and with Timesanity no slot of his hours is needed.
+    """
+    display_name = "Instant Goal Release"
 
 
 class FurnitureSet(Choice):
@@ -1216,6 +1226,7 @@ class MuseumGoalPercent(Range):
 class AnimalCrossingOptions(PerGameCommonOptions):
     # Same order as the option groups in world.py: the Options Creator lists a group's options in this order
     goal: Goal
+    instant_goal_release: InstantGoalRelease
     museum_goal_percent: MuseumGoalPercent
     catalog_goal_percent: CatalogGoalPercent
     music_goal_percent: MusicGoalPercent

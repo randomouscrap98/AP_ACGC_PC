@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 // slot_data format this client reads (apworld SLOT_DATA_VERSION). Bump rules: SLOT_DATA_VERSION in apworld/animal_crossing/world.py
-#define AP_SLOTDATA_VERSION 7
+#define AP_SLOTDATA_VERSION 8
 
 #define AP_LOAN_NUM     5 // starting, medium, basement, large, upper (upgrade order)
 #define AP_BELLCREDIT_NUM 3 // small, modest, large
@@ -119,6 +119,7 @@ typedef struct {
   int normalized_time_travel; // date changes count as one day passing
   // Goal / checks
   int goal;                          // AP_GOAL_* bits; all set goals are required
+  int instant_goal_release;          // send the goal as soon as it's done, not when K.K. plays (Instant Goal Release)
   int loansanity;                    // nonzero: loan checks + Progressive House gates upgrades
   int loans[AP_LOAN_NUM];            // loan amounts in bells
   int loan_checks[AP_LOAN_NUM];      // checks sent when each loan is paid off
