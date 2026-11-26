@@ -309,6 +309,7 @@ class Goal(OptionSet):
     - Museum: receive "Museum Goal Percent" of the museum donation items (needs Museumsanity).
     - Froggy Chair: get the froggy chair into your catalog, any way you can (never a Catalogsanity item).
     - Catalog: get "Catalog Goal Percent" of the Catalogsanity items into your catalog (needs Catalogsanity).
+    - Music: listen to "Music Goal Percent" of the seed's songs at home (needs Radiosanity).
     - Furniture Set: every piece of the Furniture Set placed somewhere in your house. 
       Each piece is an item mailed to you from AP and is unobtainable through normal means.
     - Chess Set: a full chess board's pieces somewhere in your house.
@@ -316,10 +317,10 @@ class Goal(OptionSet):
       Only one item of each kind is sent through AP, after which you can order the rest
       from the catalog.
     Chess and furniture goals need the basement built and an open shop time unlocked.
-    A random goal leaves out the goals whose Loansanity / Museumsanity / Catalogsanity is off.
+    A random goal leaves out the goals whose Loansanity / Museumsanity / Catalogsanity / Radiosanity is off.
     """
     display_name = "Goal"
-    valid_keys = ["Statue", "Museum", "Froggy Chair", "Catalog", "Furniture Set", "Chess Set"]
+    valid_keys = ["Statue", "Museum", "Froggy Chair", "Catalog", "Music", "Furniture Set", "Chess Set"]
     default = frozenset({"Statue"})
 
 
@@ -535,6 +536,34 @@ class TreeChecksPerFruit(Range):
     range_start = 1
     range_end = 20
     default = 3
+
+
+class Radiosanity(Toggle):
+    """
+    K.K. Slider songs are items. Receiving one puts its aircheck in your
+    home's music box; play it for 2 seconds on a music player in your house to
+    send its check. K.K. no longer hands out songs after a show.
+    """
+    display_name = "Radiosanity"
+
+
+class RadiosanitySongCount(Range):
+    """
+    With Radiosanity, how many of the 55 songs are items and checks (the seed
+    picks a random subset of them).
+    """
+    display_name = "Radiosanity Song Count"
+    range_start = 1
+    range_end = 55
+    default = 55
+
+
+class RadiosanityAircheck(Toggle):
+    """
+    With Radiosanity, the check also sends when the song plays in a villager's
+    house. Out of logic: no extra rule for it.
+    """
+    display_name = "Radiosanity Aircheck"
 
 
 class BeachHintPercentage(Range):
@@ -1007,6 +1036,17 @@ class CatalogGoalPercent(Range):
     default = 85
 
 
+class MusicGoalPercent(Range):
+    """
+    For the Music goal: percentage of the seed's songs you need to have
+    listened to.
+    """
+    display_name = "Music Goal Percent"
+    range_start = 1
+    range_end = 100
+    default = 85
+
+
 class Museumsanity(DefaultOnToggle):
     """
     Catching, digging up or donating things sends checks (see the options below).
@@ -1178,6 +1218,7 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     goal: Goal
     museum_goal_percent: MuseumGoalPercent
     catalog_goal_percent: CatalogGoalPercent
+    music_goal_percent: MusicGoalPercent
     furniture_set: FurnitureSet
     tools_in_pool: ToolsInPool
     starting_tool: StartingTool
@@ -1216,6 +1257,9 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     beach_checks_per_month: BeachChecksPerMonth
     treesanity: Treesanity
     tree_checks_per_fruit: TreeChecksPerFruit
+    radiosanity: Radiosanity
+    radiosanity_song_count: RadiosanitySongCount
+    radiosanity_aircheck: RadiosanityAircheck
     beach_hint_percentage: BeachHintPercentage
     beach_hint_gives_letter: BeachHintGivesLetter
     loansanity: Loansanity

@@ -3024,6 +3024,11 @@ static void My_Room_Actor_move(ACTOR* actorx, GAME* game) {
         }
     }
 
+#ifdef AP_HOOKS
+    /* Radiosanity: the song this room's music player plays (a check after 2 s in a house) */
+    pc_ap_radio_tick(my_room->bgm_info.active_flag ? (int)my_room->bgm_info.md_no : -1);
+#endif
+
     aMR_MakeClockInfo(my_room, game);
     my_room->contact0 = l_cntInf_default;
     aMR_InitFactorCollisionDirect();

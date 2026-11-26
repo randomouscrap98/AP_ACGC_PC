@@ -287,6 +287,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_shells.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_shellsanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_treesanity.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_radiosanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_storage.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_storage_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_menu_input.c
@@ -316,6 +317,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_shell_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_tree_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_ftr_menu.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_goals_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_critter_data.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_menu_list.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_weather.c

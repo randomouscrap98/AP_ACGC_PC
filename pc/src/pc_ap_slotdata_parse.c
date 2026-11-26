@@ -207,6 +207,11 @@ static const sd_key sd_top_keys[] = {
   SD_KEY("normalized_time_travel"),
   SD_KEY("painting_checks"),
   SD_KEY("player_name"),
+  SD_KEY("radio_goal_count"),
+  SD_KEY("radiosanity"),
+  SD_KEY("radiosanity_aircheck"),
+  SD_KEY("radiosanity_song_count"),
+  SD_KEY("radiosanity_songs"),
   SD_KEY("shellsanity"),
   SD_KEY("shellsanity_item_chance"),
   SD_KEY("shop_never_sells_out"),
@@ -234,7 +239,7 @@ static const sd_key sd_top_keys[] = {
 };
 #define SD_TOP_KEY_NUM ((int)(sizeof(sd_top_keys) / sizeof(sd_top_keys[0])))
 
-// Value token of each sd_top_keys[] entry in the top-level object, -1 = the key is missing (71 x 4 = 284 bytes,
+// Value token of each sd_top_keys[] entry in the top-level object, -1 = the key is missing (76 x 4 = 304 bytes,
 // static like the token array: one parse at a time). Filled by sd_top_index.
 static int sd_top_value[SD_TOP_KEY_NUM];
 
@@ -457,6 +462,28 @@ static void sd_npc_list(const sd_doc * d, const char * key, unsigned char * out)
   }
 }
 
+// Radiosanity: the seed's song subset (indices 0-54). Bad entries and repeats are skipped, past AP_RADIO_SONG_NUM
+// dropped. Not radiosanity_song_count: the client counts the list, so a short list can't ask for missing songs.
+static void sd_radio_songs(const sd_doc * d, ap_slotdata * sd) {
+  unsigned char seen[AP_RADIO_SONG_NUM];
+  int a, i, k, v, exact;
+  sd->radio_count = 0;
+  memset(seen, 0, sizeof(seen));
+  a = sd_obj_get(d, 0, "radiosanity_songs");
+  if (a < 0 || d->tok[a].type != JSMN_ARRAY) { return; }
+  k = a + 1;
+  for (i = 0; i < d->tok[a].size; i++, k = sd_tok_end(d->tok, k)) {
+    if (!sd_tok_int(d, k, &v, &exact) || v < 0 || v >= AP_RADIO_SONG_NUM || seen[v]) {
+      PC_AP_SD_WARN("radiosanity_songs: ignoring %.*s", SD_TOK_STR(d, k));
+    } else if (sd->radio_count >= AP_RADIO_SONG_NUM) {
+      PC_AP_SD_WARN("radiosanity_songs: more than %d songs, ignoring %.*s", AP_RADIO_SONG_NUM, SD_TOK_STR(d, k));
+    } else {
+      seen[v] = 1;
+      sd->radio_songs[sd->radio_count++] = (unsigned char)v;
+    }
+  }
+}
+
 // Shuffle Hourly Music: 24 songs, each of 1-24 once (song per hour). Anything else = all 0 (the game's own)
 static void sd_hourly_music(const sd_doc * d, unsigned char * out) {
   unsigned char seen[AP_HOUR_NUM + 1];
@@ -546,8 +573,9 @@ static int sd_catalog_sources(const sd_doc * d) {
 
 static int sd_goal(const sd_doc * d) {
   // Same names and bits as ap_slotdata_fill's read_goal
-  static const char * names[] = { "Statue", "Museum", "Froggy Chair", "Catalog", "Furniture Set", "Chess Set" };
-  static const int bits[] = { AP_GOAL_STATUE, AP_GOAL_MUSEUM, AP_GOAL_FROGGY, AP_GOAL_CATALOG,
+  static const char * names[] = { "Statue", "Museum", "Froggy Chair", "Catalog", "Music", "Furniture Set",
+                                  "Chess Set" };
+  static const int bits[] = { AP_GOAL_STATUE, AP_GOAL_MUSEUM, AP_GOAL_FROGGY, AP_GOAL_CATALOG, AP_GOAL_RADIO,
                               AP_GOAL_FURNITURE_SET, AP_GOAL_CHESS_SET };
   char name[16];
   int a, i, k, n, goal = 0;
@@ -691,6 +719,12 @@ int pc_ap_slotdata_parse(const char * json, int len, ap_slotdata * out) {
   out->shellsanity_item_chance = sd_int(&d, "shellsanity_item_chance", 20, 0, 100);
   out->tree_per_fruit = sd_bool(&d, "treesanity", 0) ?
       sd_int(&d, "tree_checks_per_fruit", 0, 0, AP_TREE_PER_FRUIT_MAX) : 0;
+  out->radiosanity = sd_bool(&d, "radiosanity", 0);
+  out->radiosanity_aircheck = sd_bool(&d, "radiosanity_aircheck", 0);
+  if (out->radiosanity) {
+    sd_radio_songs(&d, out);
+  }
+  out->radio_goal_count = sd_int(&d, "radio_goal_count", 0, 0, AP_RADIO_SONG_NUM);
   credits = sd_obj_get(&d, 0, "bell_credits");
   for (i = 0; i < AP_BELLCREDIT_NUM; i++) {
     int b = sd_obj_get(&d, credits, credit_names[i]);

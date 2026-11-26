@@ -51,7 +51,7 @@ ITEM_SIZE = 8  # gc_ap_item: u32 id, s16 sender, u8 flags, u8 pad
 
 # slot_data: the game parses the text with the same C parser as the DLL (pc/src/pc_ap_slotdata_parse.c)
 SLOTDATA_JSON_MAX = 16384  # bytes, GC_AP_SD_JSON_MAX in gc_ap_mailbox.h
-AP_SLOTDATA_VERSION = 6  # format the C parser reads (apclient/include/ap_slotdata.h, world.SLOT_DATA_VERSION)
+AP_SLOTDATA_VERSION = 7  # format the C parser reads (apclient/include/ap_slotdata.h, world.SLOT_DATA_VERSION)
 
 
 def slotdata_json(slot_data: dict[str, Any]) -> str:

@@ -76,12 +76,11 @@ static void pc_ap_ftr_menu_line(const pc_ap_ftr_menu* m, struct game_s* game, in
   }
 }
 
-void pc_ap_ftr_menu_draw(const pc_ap_ftr_menu* m, struct game_s* game) {
+void pc_ap_ftr_menu_draw_page(const pc_ap_ftr_menu* m, struct game_s* game, const char* header) {
   struct home_s* home = pc_ap_my_home();
   int in_house[PC_AP_FTR_MENU_MAX];
   int found = 0;
   int all_in = 1;
-  char header[16];
   char status[40];
 
   for(int i = 0; i < m->count; i++) {
@@ -96,8 +95,6 @@ void pc_ap_ftr_menu_draw(const pc_ap_ftr_menu* m, struct game_s* game) {
   } else {
     snprintf(status, sizeof(status), "%d / %d found", found, m->count);
   }
-  snprintf(header, sizeof(header), "%s", m->chess ? "Chess Set" : "Furniture Set");
-  pc_menu_fixtext(header);
   pc_menu_fixtext(status);
   pc_menu_list_draw(game, &m->list, header, status, 0);
 
@@ -121,4 +118,12 @@ void pc_ap_ftr_menu_draw(const pc_ap_ftr_menu* m, struct game_s* game) {
   for(int i = pc_menu_list_first(&m->list); i < pc_menu_list_end(&m->list); i++) {
     pc_ap_ftr_menu_line(m, game, i, in_house[i], x_star, x_count);
   }
+}
+
+// The page on its own, with its own header ("Furniture Set" / "Chess Set")
+void pc_ap_ftr_menu_draw(const pc_ap_ftr_menu* m, struct game_s* game) {
+  char header[16];
+  snprintf(header, sizeof(header), "%s", m->chess ? "Chess Set" : "Furniture Set");
+  pc_menu_fixtext(header);
+  pc_ap_ftr_menu_draw_page(m, game, header);
 }

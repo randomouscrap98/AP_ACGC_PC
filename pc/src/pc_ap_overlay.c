@@ -389,6 +389,10 @@ static void apo_append_goals(char* out, size_t size, int goals) {
     apo_goal_line(out, size, pc_ap_goal_done(AP_GOAL_CATALOG), "Catalog Goal: %d / %d",
                   pc_ap_catalog_registered(), pc_ap_catalog_goal());
   }
+  if(goals & AP_GOAL_RADIO) {
+    apo_goal_line(out, size, pc_ap_goal_done(AP_GOAL_RADIO), "Music Goal: %d / %d",
+                  pc_ap_radio_listened_count(), pc_ap_radio_goal());
+  }
   if(goals & AP_GOAL_FROGGY) {
     int done = pc_ap_goal_done(AP_GOAL_FROGGY);
     apo_goal_line(out, size, done, "Froggy Chair: %d / 1", done);
@@ -471,6 +475,11 @@ static void apo_tracker_text(char* output, size_t size) {
         }
       }
       apo_line(output, size, "Shells: %d / %d / %d", sent, available, per_month * 12);
+    }
+    // Radio (Radiosanity): songs listened / received / in the seed's subset
+    if(pc_ap_radio_total() > 0) {
+      apo_line(output, size, "Radio: %d / %d / %d", pc_ap_radio_listened_count(), pc_ap_radio_received_count(),
+               pc_ap_radio_total());
     }
     apo_append_unlocks(output, size);
     // Goal section below the checks: half a line apart, a gray rule in the gap

@@ -44,6 +44,11 @@ Animal Crossing has no dungeons or keys, so the randomizer locks parts of everyd
 - **Beach (Shellsanity, 3 per month by default):** Archipelago items sometimes wash up on the beach in 
   place of shells. Off by default. Picking one up sends a check for the month it washed up in 
   (Beach Checks per Month sets how many). Not good to use without Timesanity (all shells available at start).
+- **Songs (Radiosanity, all 55 by default):** K.K. Slider songs are items. Receiving one puts it in your
+  house's music box; play it for 2 seconds on a stereo or music player at home to send its check. K.K.
+  doesn't hand out songs after a show any more, and only the songs in your seed (Radiosanity Song Count
+  picks a random subset) are items. Radiosanity Aircheck also lets the check send from a villager's house
+  (out of logic).
 - **Nook's store:** by default each upgrade (Nook 'n' Go, Nookway, Nookington's) is a Progressive Nook
   Store item. It can also go by Bells spent or catalog size instead. Nookington's never needs a visitor.
 
@@ -62,6 +67,7 @@ Choose one or more (all chosen goals are required):
   items only exist with this goal).
 - **Froggy Chair:** get the froggy chair into your catalog, any way you can.
 - **Catalog:** get a percentage of the Catalogsanity items into your catalog.
+- **Music:** listen to a percentage of your seed's songs at home (needs Radiosanity).
 - **Furniture Set:** every piece of one furniture series (Classic, Cabin, Kiddie, ... 10 pieces) or the
   Instruments set (15: guitars, pianos, strings, harp, lute, vibraphone, drums; random by default) placed somewhere
   in your house. Each piece is an item, mailed to you; nothing else gives one before
@@ -79,8 +85,9 @@ Once your goals are done, a letter arrives telling you to listen to K.K. Slider 
 - The island is closed (Kapp'n won't take you) for now.
 - Pause menu: Date & Time and Save, plus an "AP" page (right under Resume) with Catalog (your unlocked
   pools), Bugs / Fish (what's around each month, which time slots, weather, what you already have, and your
-  town's spawn rate), Shells (beach checks per month) and, with their goal, Furniture Set / Chess Set (every
-  piece: received, and in your house). A full in-game Archipelago client is also in there.
+  town's spawn rate), Shells (beach checks per month) and Other goals: a header switches between Furniture Set /
+  Chess Set (with their goal: every piece, received, and in your house) and Radio (with Radiosanity: every song of
+  your seed, received, and listened). A full in-game Archipelago client is also in there.
 - Checks made while disconnected are sent when you reconnect. If you quit before that, catches, digs
   and donations are lost; loans, favors and catalog checks are sent again next time.
 

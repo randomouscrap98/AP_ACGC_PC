@@ -26,8 +26,8 @@ from worlds.AutoWorld import WebWorld, World
 
 from . import (beach_hints, bell_credits, bug_availability, catalogsanity, extra_bells, favor_pools,
                fish_availability, fossil_availability, fruit_filler, furniture_sets, goal, intro, loansanity,
-               museumsanity, nook_store_upgrades, options, quality_of_life, shellsanity, slot_data_upgrade, timesanity,
-               tools_in_pool, town_generation, treesanity)
+               museumsanity, nook_store_upgrades, options, quality_of_life, radiosanity, shellsanity,
+               slot_data_upgrade, timesanity, tools_in_pool, town_generation, treesanity)
 from .game_items import ITEM_NAME_TO_ID as GAME_ITEMS
 from .options import AnimalCrossingOptions
 
@@ -38,7 +38,7 @@ GAME_NAME = "Animal Crossing"
 # Once per release: the first such change on a release branch bumps by 1, later ones ride along.
 # Every new key gets an "added" step in slot_data_upgrades.json with the value meaning the old behaviour.
 # Ids are append-only and names are kept; yaml option keys are never removed (a rename keeps the old key hidden).
-SLOT_DATA_VERSION = 6
+SLOT_DATA_VERSION = 7
 # Universal Tracker: slot_data keys named like an option but holding something else (villager indices, the pools,
 # a tool name), so they're not restored as options
 UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "starting_tool"}
@@ -46,7 +46,7 @@ UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "
 FEATURES = (goal, intro, town_generation, loansanity, bell_credits, extra_bells, fruit_filler, timesanity,
             favor_pools, shellsanity, treesanity, museumsanity, fossil_availability, fish_availability,
             bug_availability, tools_in_pool, catalogsanity, nook_store_upgrades, furniture_sets, quality_of_life,
-            beach_hints)
+            beach_hints, radiosanity)
 
 
 def in_order(first: tuple) -> tuple:
@@ -100,6 +100,7 @@ class AnimalCrossingWeb(WebWorld):
             options.Goal,
             options.MuseumGoalPercent,
             options.CatalogGoalPercent,
+            options.MusicGoalPercent,
             options.FurnitureSet,
         ]),
         OptionGroup("Intro", [
@@ -145,6 +146,11 @@ class AnimalCrossingWeb(WebWorld):
         OptionGroup("Treesanity", [
             options.Treesanity,
             options.TreeChecksPerFruit,
+        ]),
+        OptionGroup("Radiosanity", [
+            options.Radiosanity,
+            options.RadiosanitySongCount,
+            options.RadiosanityAircheck,
         ]),
         OptionGroup("Loansanity", [
             options.Loansanity,
@@ -308,7 +314,7 @@ class AnimalCrossingWorld(World):
 
         locations, items = len(self.seed_locations()), len(self.seed_pool_items())
         if not locations:
-            raise self.option_error("Turn on Loansanity, Favorsanity, Shellsanity or Treesanity.")
+            raise self.option_error("Turn on Loansanity, Favorsanity, Shellsanity, Treesanity or Radiosanity.")
         # Every non-filler item needs a location
         if locations < items:
             raise self.option_error(f"Total checks at {locations}, it must be at least {items} with these options. "
@@ -366,10 +372,10 @@ class AnimalCrossingWorld(World):
         start = CollectionState(self.multiworld)  # every player's precollected items
         if not any(location.can_reach(start) for location in self.get_locations()):
             raise self.option_error("No check can be done at the start with these options. Turn on Loansanity, "
-                                    "Favorsanity, Shellsanity or Treesanity. Museum checks only count at the "
-                                    "start with their category's Availability set to All and its tool as Starting "
-                                    "Tool (without Tools in Pool, Shops Always Open or a non-Morning start works "
-                                    "too); loan checks at a Morning start need Shops Always Open.")
+                                    "Favorsanity, Shellsanity, Treesanity or Radiosanity. Museum checks only count "
+                                    "at the start with their category's Availability set to All and its tool as "
+                                    "Starting Tool (without Tools in Pool, Shops Always Open or a non-Morning start "
+                                    "works too); loan checks at a Morning start need Shops Always Open.")
 
     def fill_slot_data(self) -> Mapping[str, Any]:
         # Random choices are already resolved here, so the client gets plain numbers.

@@ -328,6 +328,29 @@ int pc_ap_trees_per_fruit(void);
 int pc_ap_trees_left(int fruit);
 int pc_ap_trees_fruit_owned(int fruit);
 
+// Radiosanity (pc_ap_radiosanity.h). Received songs go into the home music box (pc_ap_tick), playing one at home
+// sends its check.
+
+// My_Room_Actor_move, every play frame: the music player in this room plays md_no (BGM_MD0 + song), -1 if none
+void pc_ap_radio_tick(int md_no);
+// aTTN_give_merody: 1 = K.K. hands over no aircheck for this song (Radiosanity: it's an AP item)
+int pc_ap_kk_song_blocked(int song);
+// The last aircheck K.K. kept back was an AP item (pc_ap_msg_patch: an AP item, not full pockets)
+int pc_ap_kk_aircheck_ap(void);
+// Tracker / Radio page: songs in the seed's subset (0 = Radiosanity off), the index-th one, and per song:
+// received (in the home music box) / listened (its check is sent)
+int pc_ap_radio_total(void);
+int pc_ap_radio_song(int index);
+int pc_ap_radio_received(int song);
+int pc_ap_radio_listened(int song);
+// Radio page rows: out[i] != 0 if the i-th song of the subset (pc_ap_radio_song) is listened (its check is
+// sent). Writes pc_ap_radio_total() entries of out, one copy of the server's list; nothing when off
+void pc_ap_radio_listened_songs(unsigned char* out);
+int pc_ap_radio_listened_count(void);
+int pc_ap_radio_received_count(void);
+// Songs the Music goal needs (0 = it isn't a goal)
+int pc_ap_radio_goal(void);
+
 // Time hooks (on top of pc_ap_timesanity.h): frozen clock, date changes,
 // normalized time travel.
 

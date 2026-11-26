@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 // slot_data format this client reads (apworld SLOT_DATA_VERSION). Bump rules: SLOT_DATA_VERSION in apworld/animal_crossing/world.py
-#define AP_SLOTDATA_VERSION 6
+#define AP_SLOTDATA_VERSION 7
 
 #define AP_LOAN_NUM     5 // starting, medium, basement, large, upper (upgrade order)
 #define AP_BELLCREDIT_NUM 3 // small, modest, large
@@ -21,6 +21,7 @@ extern "C" {
 #define AP_GOAL_CATALOG (1 << 3) // catalog_goal_count Catalogsanity items in the catalog
 #define AP_GOAL_FURNITURE_SET (1 << 4) // every furniture_set_items piece in the house
 #define AP_GOAL_CHESS_SET     (1 << 5) // a chess board's pieces in the house
+#define AP_GOAL_RADIO         (1 << 6) // radio_goal_count songs of the Radiosanity subset listened to
 
 #define AP_FURNITURE_SET_MAX 15 // pieces in the largest Furniture Set (apworld FURNITURE_SETS: Instruments)
 
@@ -45,6 +46,7 @@ extern "C" {
 
 #define AP_BEACH_PER_MONTH_MAX 20 // Shellsanity: apworld BEACH_PER_MONTH_MAX
 #define AP_TREE_PER_FRUIT_MAX 20  // Treesanity: apworld TREE_PER_FRUIT_MAX
+#define AP_RADIO_SONG_NUM 55     // Radiosanity: K.K. songs, ITM_MINIDISK00-54 (apworld SONG_COUNT_MAX)
 #define AP_CATALOG_MAX 575 // Catalogsanity: eligible catalog items (apworld CATALOG_ELIGIBLE)
 // catalog_sources: sources besides Nook that can give new pool items (bits, apworld CATALOG_SOURCES order)
 #define AP_CATALOG_SOURCE_FAVORS     (1 << 0)
@@ -165,6 +167,12 @@ typedef struct {
   int shellsanity_item_chance;        // Shellsanity: percent of washed-up shells that are AP items
   int tree_per_fruit;                 // Treesanity: checks per fruit borne by its trees, 0 = off (slot_data
                                       // tree_checks_per_fruit, 0 with treesanity 0)
+  // Radiosanity: song items (into the home's music box) and "Radio: <Song>" checks for the seed's song subset
+  int radiosanity;                    // nonzero: radiosanity_songs are items and checks; 0 = off (older seeds)
+  int radiosanity_aircheck;           // the check also sends when the song plays in a villager's house (out of logic)
+  int radio_count;                    // songs in the subset: entries used in radio_songs (0 with radiosanity 0)
+  unsigned char radio_songs[AP_RADIO_SONG_NUM]; // song indices 0-54 (ITM_MINIDISK00 + n), in song order
+  int radio_goal_count;               // Music goal: songs listened needed (apworld computes it from its % option)
   int catalog_goal_count;            // Catalog goal: pool items to get into the catalog (apworld computes it from its % option)
   int bell_credits[AP_BELLCREDIT_NUM]; // bells per small/modest/large bell credit
   int furniture_set_count;           // Furniture Set goal: pieces in furniture_set_items (0 without the goal)

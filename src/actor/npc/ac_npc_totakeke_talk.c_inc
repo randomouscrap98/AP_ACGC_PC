@@ -30,6 +30,10 @@ static void aTTN_give_merody(NPC_TOTAKEKE_ACTOR* totakeke) {
 
     if (mPr_GetPossessionItemSumWithCond(Now_Private, EMPTY_NO, mPr_ITEM_COND_NORMAL) == 0) {
         totakeke->post_roll_think = aNTT_THINK_POCKETS_FULL;
+#ifdef AP_HOOKS
+    } else if (pc_ap_kk_song_blocked(totakeke->song)) {
+        totakeke->post_roll_think = aNTT_THINK_POCKETS_FULL; /* Radiosanity: the aircheck is an AP item */
+#endif
     } else {
         totakeke->post_roll_think = aNTT_THINK_GIVE_MERODY;
         mPr_SetFreePossessionItem(Now_Private, ITM_MINIDISK_START + totakeke->song, mPr_ITEM_COND_NORMAL);

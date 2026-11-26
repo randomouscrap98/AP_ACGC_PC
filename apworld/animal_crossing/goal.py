@@ -1,10 +1,11 @@
 # Goal: every chosen goal is required. Each goal's rule lives with its feature; here they're checked and combined.
 # Goals are only sent when K.K. Slider plays (Saturday night), so with Timesanity a slot with his hours is needed.
-from . import catalogsanity, furniture_sets, loansanity, museumsanity, timesanity
+from . import catalogsanity, furniture_sets, loansanity, museumsanity, radiosanity, timesanity
 
 
 # Goals that need a sanity option on
-GOAL_NEEDS = {"Statue": "loansanity", "Museum": "museumsanity", "Catalog": "catalogsanity"}
+GOAL_NEEDS = {"Statue": "loansanity", "Museum": "museumsanity", "Catalog": "catalogsanity",
+              "Music": "radiosanity"}
 
 
 def setup(world) -> None:
@@ -22,6 +23,8 @@ def setup(world) -> None:
         raise world.option_error("The Museum goal needs Museumsanity on.")
     if "Catalog" in goals and not world.options.catalogsanity:
         raise world.option_error("The Catalog goal needs Catalogsanity on.")
+    if "Music" in goals and not world.options.radiosanity:
+        raise world.option_error("The Music goal needs Radiosanity on.")
 
 
 def froggy_chair_goal(world):
@@ -34,6 +37,7 @@ GOALS = {
     "Museum": museumsanity.museum_goal,
     "Froggy Chair": froggy_chair_goal,
     "Catalog": catalogsanity.catalog_goal,
+    "Music": radiosanity.music_goal,
     furniture_sets.FURNITURE_SET_GOAL: furniture_sets.furniture_set_goal,
     furniture_sets.CHESS_SET_GOAL: furniture_sets.chess_set_goal,
 }

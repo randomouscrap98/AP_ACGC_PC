@@ -242,5 +242,10 @@ u32 pc_ap_msg_patch(int index, mMsg_Data_c* msg_data, u32 size) {
     }
   }
 
+  // K.K.'s "pockets full" message (7070) is also where a Radiosanity song isn't handed over: it's an item
+  if(index == 7070 && pc_ap_kk_aircheck_ap()) {
+    size = pc_replace_msg_text(msg_data->text_buf.data, size, "Your pockets are full,", "It's an AP item, man,");
+  }
+
   return size;
 }

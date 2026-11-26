@@ -15,6 +15,7 @@
 #include "pc_ap_catalogsanity.h"
 #include "pc_ap_shellsanity.h"
 #include "pc_ap_treesanity.h"
+#include "pc_ap_radiosanity.h"
 #include "pc_ap_storage.h"
 #include "pc_ap_settings.h"
 #include "pc_ap_shells.h"
@@ -133,6 +134,7 @@ typedef struct {
   pc_ap_catalogsanity catalog;
   pc_ap_shellsanity shells;
   pc_ap_treesanity trees;
+  pc_ap_radiosanity radio;
   pc_ap_storage storage;
 #ifdef AP_BEACH_HINT
   pc_ap_beach_hint hint;
@@ -177,6 +179,7 @@ void pc_ap_init(void) {
   pc_ap_catalogsanity_init(&g_ap.catalog, sd);
   pc_ap_shellsanity_init(&g_ap.shells, sd);
   pc_ap_treesanity_init(&g_ap.trees, sd);
+  pc_ap_radiosanity_init(&g_ap.radio, sd);
   pc_ap_storage_init(&g_ap.storage, sd); // storage itself: pc_ap_load
 #ifdef AP_BEACH_HINT
   pc_ap_beach_hint_init(&g_ap.hint, sd);
@@ -512,6 +515,8 @@ int pc_ap_goal_done(int goal) {
       return pc_ap_furniture_set_done(&g_ap.furniture, home);
     case AP_GOAL_CHESS_SET:
       return pc_ap_furniture_chess_done(&g_ap.furniture, home);
+    case AP_GOAL_RADIO:
+      return pc_ap_radio_listened_count() >= g_ap.radio.goal_count;
   }
   return 0;
 }
@@ -521,7 +526,7 @@ int pc_ap_goals_done(void) {
   if(pc_ap_my_home() == NULL) {
     return 0;
   }
-  for(int bit = 1; bit <= AP_GOAL_CHESS_SET; bit <<= 1) {
+  for(int bit = 1; bit <= AP_GOAL_RADIO; bit <<= 1) {
     if((goal & bit) && !pc_ap_goal_done(bit)) {
       return 0;
     }
@@ -1072,6 +1077,138 @@ int pc_ap_trees_fruit_owned(int fruit) {
   return (pc_ap_fruit_available() >> fruit) & 1;
 }
 
+// Radiosanity: the current player's home music box (bit s = the stereo can play song s), NULL off the own house
+static u32* pc_ap_radio_music_box(void) {
+  mHm_hs_c* home = pc_ap_my_home();
+  return home != NULL ? home->music_box : NULL;
+}
+
+// Received song items go into the home music box: the stereo then offers them (no pocket item, no mail)
+static void pc_ap_radio_sync(void) {
+  u32* box = pc_ap_radio_music_box();
+  size_t n;
+  if(box == NULL || g_ap.radio.count <= 0 || !pc_ap_accepting()) {
+    return;
+  }
+  n = ap_getitemcount();
+  for(size_t k = 0; k < n; k++) {
+    int song = pc_ap_radiosanity_song_of_item(ap_getitem(k));
+    if(song >= 0 && pc_ap_radiosanity_has(&g_ap.radio, song)) {
+      box[song >> 5] |= 1u << (song & 31);
+    }
+  }
+}
+
+// Whether the song was received (its bit is in the home music box)
+int pc_ap_radio_received(int song) {
+  u32* box = pc_ap_radio_music_box();
+  return box != NULL && pc_ap_radiosanity_has(&g_ap.radio, song) && ((box[song >> 5] >> (song & 31)) & 1);
+}
+
+// Whether the song's check is already sent (listened)
+int pc_ap_radio_listened(int song) {
+  return pc_ap_radiosanity_has(&g_ap.radio, song) && ap_location_checked(pc_ap_radiosanity_location(song));
+}
+
+// Songs in the seed's subset, 0 with Radiosanity off; the index-th one (in song order)
+int pc_ap_radio_total(void) {
+  return g_ap.radio.count;
+}
+
+int pc_ap_radio_song(int index) {
+  return pc_ap_radiosanity_song(&g_ap.radio, index);
+}
+
+// Songs the Music goal needs (0 = it isn't a goal)
+int pc_ap_radio_goal(void) {
+  return (ap_getslotdata()->goal & AP_GOAL_RADIO) ? g_ap.radio.goal_count : 0;
+}
+
+// Radio page: which songs of the subset have their check sent, out[i] for the i-th song (pc_ap_radio_song),
+// out[i] != 0 = listened. Writes pc_ap_radio_total() entries (one copy of the server's list).
+void pc_ap_radio_listened_songs(unsigned char* out) {
+  int64_t ids[PC_AP_RADIO_SONGS];
+  if(g_ap.radio.count <= 0) {
+    return;
+  }
+  for(int i = 0; i < g_ap.radio.count; i++) {
+    ids[i] = pc_ap_radiosanity_location(g_ap.radio.songs[i]);
+  }
+  ap_locations_checked(ids, (size_t)g_ap.radio.count, out);
+}
+
+// Tracker: listened / received of the subset
+int pc_ap_radio_listened_count(void) {
+  unsigned char out[PC_AP_RADIO_SONGS];
+  int n = 0;
+  if(g_ap.radio.count <= 0) {
+    return 0;
+  }
+  pc_ap_radio_listened_songs(out);
+  for(int i = 0; i < g_ap.radio.count; i++) {
+    n += out[i] != 0;
+  }
+  return n;
+}
+
+int pc_ap_radio_received_count(void) {
+  int n = 0;
+  for(int i = 0; i < g_ap.radio.count; i++) {
+    n += pc_ap_radio_received(g_ap.radio.songs[i]);
+  }
+  return n;
+}
+
+// 1 = the player's own house (any floor, basement), 2 = a villager's house, 0 = anywhere else
+static int pc_ap_radio_room(void) {
+  int field = mFI_GetFieldId();
+  if(mSc_IS_SCENE_PLAYER_HOUSE_ROOM(Save_Get(scene_no)) &&
+     field == mFI_FIELD_PLAYER0_ROOM + mHS_get_arrange_idx(Common_Get(player_no))) {
+    return 1;
+  }
+  if(Save_Get(scene_no) == SCENE_NPC_HOUSE && mFI_GET_TYPE(field) == mFI_FIELD_NPCROOM0) {
+    return 2;
+  }
+  return 0;
+}
+
+// My_Room_Actor_move, every play frame: the music player in this room plays md_no (BGM_MD0 + song), -1 if none.
+// A song that has played PC_AP_RADIO_HEARD_FRAMES frames in a house sends its check (own house: always; a
+// villager's: Radiosanity Aircheck, out of logic).
+void pc_ap_radio_tick(int md_no) {
+  int song = -1;
+  int room;
+  int64_t id;
+  if(g_ap.radio.count <= 0) {
+    return;
+  }
+  if(md_no >= BGM_MD0) {
+    song = md_no - BGM_MD0;
+  }
+  if(!pc_ap_radiosanity_heard(&g_ap.radio, song)) {
+    return;
+  }
+  room = pc_ap_radio_room();
+  if(room == 0 || (room == 2 && !g_ap.radio.aircheck) || !pc_ap_accepting()) {
+    return;
+  }
+  id = pc_ap_radiosanity_location(song);
+  if(!ap_location_checked(id)) { // checked: another player collected it, or it was sent before
+    ap_send_location(id);
+  }
+}
+
+// aTTN_give_merody: 1 = K.K. hands over no aircheck for this song (Radiosanity: it arrives as an AP item).
+// Also what the message patch says (pc_ap_msg_patch: an AP item, not full pockets).
+int pc_ap_kk_song_blocked(int song) {
+  g_ap.radio.aircheck_msg = g_ap.radio.count > 0 && pc_ap_radiosanity_has(&g_ap.radio, song);
+  return g_ap.radio.aircheck_msg;
+}
+
+int pc_ap_kk_aircheck_ap(void) {
+  return g_ap.radio.aircheck_msg;
+}
+
 int pc_ap_catalog_pick(mActor_name_t* out, int n, const mActor_name_t* exist, int exist_count, int category,
                        int list_type, int unowned_only, mActor_name_t** lists) {
   // Catalog bits are the current player's (mSP_CollectCheck)
@@ -1562,6 +1699,7 @@ void pc_ap_tick(GAME_PLAY* play) {
   pc_ap_beach_hint_tick();
 #endif
   pc_ap_goal_letter();
+  pc_ap_radio_sync();
   pc_ap_furniture_mail();
   pc_ap_fruit_mail();
   pc_ap_money_mail(); // last: a pile of bags shouldn't hold up the other letters

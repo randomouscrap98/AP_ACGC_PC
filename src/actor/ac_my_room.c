@@ -18,6 +18,9 @@
 #include "m_mark_room.h"
 #include "sys_matrix.h"
 #include "m_rcp.h"
+#ifdef AP_HOOKS
+#include "pc_ap_logic.h"
+#endif
 
 enum {
     aMR_ICON_LEAF,

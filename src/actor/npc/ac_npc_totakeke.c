@@ -9,6 +9,9 @@
 #include "m_player_lib.h"
 #include "m_string_data.h"
 #include "m_ledit_ovl.h"
+#ifdef AP_HOOKS
+#include "pc_ap_logic.h"
+#endif
 
 #ifdef TARGET_PC
 static void aNTT_schedule_proc(NPC_TOTAKEKE_ACTOR* totakeke, GAME_PLAY* play, int schedule_id);

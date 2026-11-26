@@ -517,6 +517,10 @@ int ap_start_offline(const char * json_text) {
   sd->beach_hint_count = 0;
   sd->beach_hint_letter = 0;
   sd->tree_per_fruit = 0;
+  sd->radiosanity = 0;
+  sd->radiosanity_aircheck = 0;
+  sd->radio_count = 0;
+  sd->radio_goal_count = 0;
   sd->tools_in_pool = 0;
   sd->store_upgrades = AP_STORE_VANILLA;
   sd->goal = 0;
