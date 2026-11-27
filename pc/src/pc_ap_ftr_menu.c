@@ -119,11 +119,3 @@ void pc_ap_ftr_menu_draw_page(const pc_ap_ftr_menu* m, struct game_s* game, cons
     pc_ap_ftr_menu_line(m, game, i, in_house[i], x_star, x_count);
   }
 }
-
-// The page on its own, with its own header ("Furniture Set" / "Chess Set")
-void pc_ap_ftr_menu_draw(const pc_ap_ftr_menu* m, struct game_s* game) {
-  char header[16];
-  snprintf(header, sizeof(header), "%s", m->chess ? "Chess Set" : "Furniture Set");
-  pc_menu_fixtext(header);
-  pc_ap_ftr_menu_draw_page(m, game, header);
-}

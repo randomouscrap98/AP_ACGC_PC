@@ -21,18 +21,20 @@ void pc_ap_beach_hint_init(pc_ap_beach_hint* h, const ap_slotdata* sd) {
 void pc_ap_beach_hint_load(pc_ap_beach_hint* h, struct ini_t* ini) {
   h->delivered = pc_ap_ini_get_int(ini, PC_AP_BEACH_HINT_SECTION, PC_AP_BEACH_HINT_KEY_DELIVERED, 0);
   h->pending = pc_ap_ini_get_int(ini, PC_AP_BEACH_HINT_SECTION, PC_AP_BEACH_HINT_KEY_PENDING, -1);
+  h->wait = PC_AP_BEACH_HINT_WAIT_FRAMES; // an earlier session's request never blocks a pickup
 }
 
 void pc_ap_beach_hint_save(const pc_ap_beach_hint* h, struct ini_t* ini) {
   pc_ap_ini_set_int(ini, PC_AP_BEACH_HINT_SECTION, PC_AP_BEACH_HINT_KEY_DELIVERED, h->delivered);
-  pc_ap_ini_set_int(ini, PC_AP_BEACH_HINT_SECTION, PC_AP_BEACH_HINT_KEY_PENDING, (int)h->pending);
+  pc_ap_ini_set_int(ini, PC_AP_BEACH_HINT_SECTION, PC_AP_BEACH_HINT_KEY_PENDING, h->pending);
 }
 
-int pc_ap_beach_hint_spawn(const pc_ap_beach_hint* h, int connected, int eligible, int on_beach, int roll) {
-  if(!connected || h->count - h->delivered <= 0 || eligible <= 0 || on_beach) {
-    return 0;
-  }
-  return roll < PC_AP_BEACH_HINT_PERCENT;
+int pc_ap_beach_hint_spawn(const pc_ap_beach_hint* h, int roll) {
+  return h->count - h->delivered > 0 && roll < PC_AP_BEACH_HINT_PERCENT;
+}
+
+int pc_ap_beach_hint_waiting(const pc_ap_beach_hint* h) {
+  return h->pending >= 0 && h->wait < PC_AP_BEACH_HINT_WAIT_FRAMES;
 }
 
 // 1 if id is in ids[0..n)

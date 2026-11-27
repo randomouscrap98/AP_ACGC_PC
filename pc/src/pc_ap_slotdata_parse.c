@@ -1,7 +1,7 @@
-// slot_data JSON text -> ap_slotdata, in plain C (the future shared parser: PC and GC). A line-by-line copy of
-// apclient/src/ap_slotdata.cpp's ap_slotdata_fill (same defaults, ranges, clamping, tables, string truncation),
-// with jsmn as the tokenizer and small number/string helpers instead of nlohmann. Old seeds are upgraded before
-// this (ap_slotdata_upgrade on the PC, the Python client on the GC), so it only ever sees the current format.
+// slot_data JSON text -> ap_slotdata, in plain C: the one parser of the PC DLL (ap_slotdata_fill calls it) and the
+// GC game. jsmn is the tokenizer. Written as a copy of the old C++ (nlohmann) fill, so where JSON edge cases are
+// concerned the comments say what nlohmann did. Old seeds are upgraded before this (ap_slotdata_upgrade on the PC,
+// the Python client on the GC), so it only ever sees the current format.
 #define JSMN_STATIC // header-only: the implementation belongs to this unit
 #define JSMN_STRICT // reject junk; nlohmann is a strict parser too
 #include "../lib/jsmn/jsmn.h"
@@ -12,8 +12,8 @@
 #include <string.h>
 
 typedef struct {
-  const char * json;
-  const jsmntok_t * tok;
+  const char* json;
+  const jsmntok_t* tok;
 } sd_doc;
 
 // A warning's copy of a token: its raw JSON text (nlohmann's dump() would only differ in quoting/whitespace)
@@ -25,8 +25,8 @@ typedef struct {
 
 // Index just past token i and everything inside it. A container's children are contiguous in jsmn and its size is
 // the number of keys (object) or elements (array)
-static int sd_tok_end(const jsmntok_t * tok, int i) {
-  const jsmntok_t * t = &tok[i];
+static int sd_tok_end(const jsmntok_t* tok, int i) {
+  const jsmntok_t* t = &tok[i];
   int k;
   i++;
   if (t->type == JSMN_OBJECT) {
@@ -45,7 +45,7 @@ static int sd_tok_end(const jsmntok_t * tok, int i) {
 // ---------------------------------------------------------------------------------------------------------------
 
 // Four hex digits at js[*pos..end) -> value, *pos past them; -1 if they are not hex
-static int sd_hex4(const char * js, int * pos, int end) {
+static int sd_hex4(const char* js, int* pos, int end) {
   int i, v = 0;
   if (*pos + 4 > end) { return -1; }
   for (i = 0; i < 4; i++) {
@@ -65,7 +65,7 @@ static int sd_hex4(const char * js, int * pos, int end) {
 }
 
 // Appends one UTF-8 code point, cut off at size - 1 bytes like snprintf does
-static int sd_put_utf8(char * out, int size, int n, unsigned int cp) {
+static int sd_put_utf8(char* out, int size, int n, unsigned int cp) {
   char b[4];
   int len, k;
   if (cp < 0x80) {
@@ -96,7 +96,7 @@ static int sd_put_utf8(char * out, int size, int n, unsigned int cp) {
 // A jsmn string token into out: NUL terminated, cut to size - 1 bytes (what snprintf("%s") does with the C++
 // std::string), but with nlohmann's escapes decoded: \" \\ \/ \b \f \n \r \t and \uXXXX, a UTF-16 surrogate pair
 // becoming the 4 byte UTF-8 sequence. Returns the number of bytes written.
-static int sd_decode(char * out, int size, const char * js, const jsmntok_t * t) {
+static int sd_decode(char* out, int size, const char* js, const jsmntok_t* t) {
   int pos = t->start;
   int end = t->end;
   int n = 0;
@@ -137,7 +137,7 @@ static int sd_decode(char * out, int size, const char * js, const jsmntok_t * t)
 }
 
 // strlen(s) cut to size - 1 bytes: snprintf(out, size, "%s", s)
-static void sd_put_str(char * out, int size, const char * s) {
+static void sd_put_str(char* out, int size, const char* s) {
   int n = 0;
   while (s[n] != 0 && n < size - 1) { n++; }
   memcpy(out, s, (size_t)n);
@@ -152,7 +152,7 @@ static void sd_put_str(char * out, int size, const char * s) {
 // is only for reading). A key missing here still works: sd_obj_get then walks the object for it like before, just
 // slowly, so a forgotten entry can't make a value disappear.
 typedef struct {
-  const char * name;
+  const char* name;
   int len; // = strlen(name), for the cheap reject
 } sd_key;
 
@@ -245,7 +245,7 @@ static const sd_key sd_top_keys[] = {
 static int sd_top_value[SD_TOP_KEY_NUM];
 
 // Index of a decoded key name in sd_top_keys, -1 = not one of the keys the fill reads
-static int sd_top_key_index(const char * name, int len) {
+static int sd_top_key_index(const char* name, int len) {
   int i;
   for (i = 0; i < SD_TOP_KEY_NUM; i++) {
     if (sd_top_keys[i].len == len && memcmp(sd_top_keys[i].name, name, (size_t)len) == 0) { return i; }
@@ -256,7 +256,7 @@ static int sd_top_key_index(const char * name, int len) {
 // One pass over the top-level object's keys to fill sd_top_value, so the fill's ~70 lookups read a table instead
 // of each walking the whole object (nested objects, like bell_credits, still use sd_obj_get's scan). A duplicate
 // key keeps overwriting: the last one wins, exactly like the scan's `found` does.
-static void sd_top_index(const sd_doc * d) {
+static void sd_top_index(const sd_doc* d) {
   int i, k, idx;
   char name[40]; // the longest key we read is shellsanity_item_chance (24), sd_decode cuts at 39 bytes
   for (i = 0; i < SD_TOP_KEY_NUM; i++) { sd_top_value[i] = -1; }
@@ -273,7 +273,7 @@ static void sd_top_index(const sd_doc * d) {
 
 // The value token of key in the object at obj, -1 if there is none. A duplicate key gives the last one (nlohmann).
 // obj 0 is the top-level object, which sd_top_index has indexed: the keys in sd_top_keys come straight from there.
-static int sd_obj_get(const sd_doc * d, int obj, const char * key) {
+static int sd_obj_get(const sd_doc* d, int obj, const char* key) {
   int i, k, found = -1;
   char name[40]; // the longest key we read is shellsanity_item_chance (24)
   if (obj < 0 || d->tok[obj].type != JSMN_OBJECT) { return -1; }
@@ -293,12 +293,12 @@ static int sd_obj_get(const sd_doc * d, int obj, const char * key) {
 }
 
 // A JSON integer token as nlohmann types it (is_number_integer: no '.', 'e', 'E'):
-//   *trunc = the value as ap_slotdata_fill's get<int>() reads it (low 32 bits: 3000000000 -> -1294967296),
+//   *trunc = the value as the old fill's get<int>() read it (low 32 bits: 3000000000 -> -1294967296),
 //   *exact = 1 when the whole value fits an int (where the range checks use the get<long long>() value).
 // 0 = not an integer: a float, true/false, null, a string, or 20+ digits (nlohmann makes those a float).
-static int sd_tok_int(const sd_doc * d, int i, int * trunc, int * exact) {
-  const jsmntok_t * t = &d->tok[i];
-  const char * js = d->json;
+static int sd_tok_int(const sd_doc* d, int i, int* trunc, int* exact) {
+  const jsmntok_t* t = &d->tok[i];
+  const char* js = d->json;
   int pos, end, neg = 0, digits = 0;
   unsigned int mag = 0;
   if (t->type != JSMN_PRIMITIVE) { return 0; }
@@ -323,8 +323,8 @@ static int sd_tok_int(const sd_doc * d, int i, int * trunc, int * exact) {
 }
 
 // true/false -> 1/0 (read_int takes a boolean as an int for every key)
-static int sd_tok_bool(const sd_doc * d, int i, int * out) {
-  const jsmntok_t * t = &d->tok[i];
+static int sd_tok_bool(const sd_doc* d, int i, int* out) {
+  const jsmntok_t* t = &d->tok[i];
   int n;
   if (t->type != JSMN_PRIMITIVE) { return 0; }
   n = t->end - t->start;
@@ -340,12 +340,12 @@ static int sd_tok_bool(const sd_doc * d, int i, int * out) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// key readers (ap_slotdata_fill's read_* helpers)
+// key readers
 // ---------------------------------------------------------------------------------------------------------------
 
 // An int key in [min, max]; missing = def, anything else (wrong type, out of range) = def + a warning.
 // true/false count as 1/0
-static int sd_int(const sd_doc * d, const char * key, int def, int min, int max) {
+static int sd_int(const sd_doc* d, const char* key, int def, int min, int max) {
   int t = sd_obj_get(d, 0, key);
   int v = 0;
   int exact = 1;
@@ -359,13 +359,13 @@ static int sd_int(const sd_doc * d, const char * key, int def, int min, int max)
   return def;
 }
 
-static int sd_bool(const sd_doc * d, const char * key, int def) {
+static int sd_bool(const sd_doc* d, const char* key, int def) {
   return sd_int(d, key, def, 0, 1);
 }
 
 // A string field: snprintf(out, size, "%s", value), def when the key is missing. A present value that is not a
 // string makes the C++ throw (json::value); here it is the default + a warning.
-static void sd_str(char * out, int size, const sd_doc * d, const char * key, const char * def) {
+static void sd_str(char* out, int size, const sd_doc* d, const char* key, const char* def) {
   int t = sd_obj_get(d, 0, key);
   if (t >= 0 && d->tok[t].type == JSMN_STRING) {
     sd_decode(out, size, d->json, &d->tok[t]);
@@ -377,7 +377,7 @@ static void sd_str(char * out, int size, const sd_doc * d, const char * key, con
 
 // out[0..n) from a json int array; a missing key or bad entries keep the defaults (read_int_array: a float, a bool
 // or a string entry leaves that slot alone, a big number is truncated like get<int>())
-static void sd_int_array(const sd_doc * d, const char * key, int * out, const int * defaults, int n) {
+static void sd_int_array(const sd_doc* d, const char* key, int* out, const int* defaults, int n) {
   int a, i, k, v, exact;
   for (i = 0; i < n; i++) { out[i] = defaults[i]; }
   a = sd_obj_get(d, 0, key);
@@ -390,7 +390,7 @@ static void sd_int_array(const sd_doc * d, const char * key, int * out, const in
 
 // Per-thing item indices (bug_passes, fossil_series): out[i] in [0, num), -1 for a missing key, a short list or a
 // bad entry (= nothing needed)
-static void sd_pass_array(const sd_doc * d, const char * key, int * out, int n, int num) {
+static void sd_pass_array(const sd_doc* d, const char* key, int* out, int n, int num) {
   int a, i, k, v, exact;
   for (i = 0; i < n; i++) { out[i] = -1; }
   a = sd_obj_get(d, 0, key);
@@ -407,8 +407,8 @@ static void sd_pass_array(const sd_doc * d, const char * key, int * out, int n, 
 
 // fish_passes: per pass a list of [fish index, area] entries (area "" = every area) -> fish_area_passes bits.
 // Missing key: nothing gated. Bad entries (and passes past AP_FISH_PASS_NUM) are skipped.
-static void sd_fish_passes(const sd_doc * d, ap_slotdata * sd) {
-  static const char * areas[AP_FISH_AREA_NUM] = { "river", "waterfall", "river_mouth", "lake", "pond", "sea" };
+static void sd_fish_passes(const sd_doc* d, ap_slotdata* sd) {
+  static const char* areas[AP_FISH_AREA_NUM] = { "river", "waterfall", "river_mouth", "lake", "pond", "sea" };
   int a, p, k, j, fish, area, v, exact, pass, entry;
   char name[16];
   memset(sd->fish_area_passes, 0, sizeof(sd->fish_area_passes));
@@ -448,7 +448,7 @@ static void sd_fish_passes(const sd_doc * d, ap_slotdata * sd) {
 }
 
 // npc indices from the apworld; bad entries are skipped (apworld/client mismatch)
-static void sd_npc_list(const sd_doc * d, const char * key, unsigned char * out) {
+static void sd_npc_list(const sd_doc* d, const char* key, unsigned char* out) {
   int a, i, k, v, exact;
   memset(out, 0, AP_NPC_NUM);
   a = sd_obj_get(d, 0, key);
@@ -465,7 +465,7 @@ static void sd_npc_list(const sd_doc * d, const char * key, unsigned char * out)
 
 // Radiosanity: the seed's song subset (indices 0-54). Bad entries and repeats are skipped, past AP_RADIO_SONG_NUM
 // dropped. Not radiosanity_song_count: the client counts the list, so a short list can't ask for missing songs.
-static void sd_radio_songs(const sd_doc * d, ap_slotdata * sd) {
+static void sd_radio_songs(const sd_doc* d, ap_slotdata* sd) {
   unsigned char seen[AP_RADIO_SONG_NUM];
   int a, i, k, v, exact;
   sd->radio_count = 0;
@@ -486,7 +486,7 @@ static void sd_radio_songs(const sd_doc * d, ap_slotdata * sd) {
 }
 
 // Shuffle Hourly Music: 24 songs, each of 1-24 once (song per hour). Anything else = all 0 (the game's own)
-static void sd_hourly_music(const sd_doc * d, unsigned char * out) {
+static void sd_hourly_music(const sd_doc* d, unsigned char* out) {
   unsigned char seen[AP_HOUR_NUM + 1];
   int a, h, k, v, exact;
   memset(out, 0, AP_HOUR_NUM);
@@ -511,7 +511,7 @@ static void sd_hourly_music(const sd_doc * d, unsigned char * out) {
 
 // Catalogsanity pools: a list of lists of game item ids. Bad entries are skipped (apworld/client mismatch),
 // anything past AP_CATALOG_MAX is dropped
-static void sd_catalog_pools(const sd_doc * d, ap_slotdata * sd) {
+static void sd_catalog_pools(const sd_doc* d, ap_slotdata* sd) {
   int a, pool, k, item, v, exact;
   sd->catalog_count = 0;
   a = sd_obj_get(d, 0, "catalog_pools");
@@ -537,7 +537,7 @@ static void sd_catalog_pools(const sd_doc * d, ap_slotdata * sd) {
 }
 
 // Furniture Set goal pieces: game item ids. Bad entries are skipped, past AP_FURNITURE_SET_MAX dropped
-static void sd_furniture_set(const sd_doc * d, ap_slotdata * sd) {
+static void sd_furniture_set(const sd_doc* d, ap_slotdata* sd) {
   int a, i, k, v, exact;
   sd->furniture_set_count = 0;
   a = sd_obj_get(d, 0, "furniture_set_items");
@@ -553,9 +553,9 @@ static void sd_furniture_set(const sd_doc * d, ap_slotdata * sd) {
 }
 
 // Catalog Sources option set (names) -> AP_CATALOG_SOURCE_* bits; missing = none
-static int sd_catalog_sources(const sd_doc * d) {
+static int sd_catalog_sources(const sd_doc* d) {
   // Same order as the bits (apworld options.CATALOG_SOURCES)
-  static const char * names[] = { "Favors", "Trades", "Lost and Found", "Dump", "Letters", "Trees", "Presents",
+  static const char* names[] = { "Favors", "Trades", "Lost and Found", "Dump", "Letters", "Trees", "Presents",
                                   "Grab Bags", "Wisp" };
   char name[24];
   int a, i, k, n, bits = 0;
@@ -572,9 +572,9 @@ static int sd_catalog_sources(const sd_doc * d) {
   return bits;
 }
 
-static int sd_goal(const sd_doc * d) {
-  // Same names and bits as ap_slotdata_fill's read_goal
-  static const char * names[] = { "Statue", "Museum", "Froggy Chair", "Catalog", "Music", "Furniture Set",
+static int sd_goal(const sd_doc* d) {
+  // apworld goal names (options.Goal) -> AP_GOAL_* bits
+  static const char* names[] = { "Statue", "Museum", "Froggy Chair", "Catalog", "Music", "Furniture Set",
                                   "Chess Set" };
   static const int bits[] = { AP_GOAL_STATUE, AP_GOAL_MUSEUM, AP_GOAL_FROGGY, AP_GOAL_CATALOG, AP_GOAL_RADIO,
                               AP_GOAL_FURNITURE_SET, AP_GOAL_CHESS_SET };
@@ -594,12 +594,12 @@ static int sd_goal(const sd_doc * d) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// fill (the same order and defaults as ap_slotdata_fill)
+// fill (defaults = the old behaviour for a missing key)
 // ---------------------------------------------------------------------------------------------------------------
 
 // WARN: keep offline_example.json (apclient/) in sync with the keys that matter offline
 // (new town, intro, QoL, loan amounts)
-int pc_ap_slotdata_parse(const char * json, int len, ap_slotdata * out) {
+int pc_ap_slotdata_parse(const char* json, int len, ap_slotdata* out) {
   static jsmntok_t tokens[PC_AP_SD_MAX_TOKENS];
   static const int default_loans[AP_LOAN_NUM] = { 15000, 45000, 30000, 60000, 80000 };
   static const int default_loan_checks[AP_LOAN_NUM] = { 0, 0, 0, 0, 0 }; // missing = no loan checks
@@ -614,7 +614,7 @@ int pc_ap_slotdata_parse(const char * json, int len, ap_slotdata * out) {
     0, 0, 0,          // Ammonite, Dinosaur Egg, Trilobite: spring
   };
   // Keyed by item name in the apworld (Small/Modest/Large Bell Credit)
-  static const char * credit_names[AP_BELLCREDIT_NUM] = { "Small Bell Credit", "Modest Bell Credit",
+  static const char* credit_names[AP_BELLCREDIT_NUM] = { "Small Bell Credit", "Modest Bell Credit",
                                                           "Large Bell Credit" };
   sd_doc d;
   jsmn_parser parser;
@@ -634,7 +634,7 @@ int pc_ap_slotdata_parse(const char * json, int len, ap_slotdata * out) {
   d.tok = tokens;
   sd_top_index(&d); // one walk of the top-level keys: the fill's lookups are table reads from here on
 
-  memset(out, 0, sizeof(*out)); // ap_slotdata_fill expects a zeroed struct (ap_slotdata_init)
+  memset(out, 0, sizeof(*out)); // every field not set below stays 0
   sd_str(out->town_name, sizeof(out->town_name), &d, "town_name", "pelago");
   sd_str(out->player_name, sizeof(out->player_name), &d, "player_name", "archi");
   out->skip_intro = sd_int(&d, "skip_intro", 2, 0, 2);

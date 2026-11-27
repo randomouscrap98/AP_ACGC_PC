@@ -1,11 +1,13 @@
 #include "pc_ap_radiosanity.h"
 
+#include <string.h>
+
 void pc_ap_radiosanity_init(pc_ap_radiosanity* s, const ap_slotdata* sd) {
-  s->on = sd->valid ? sd->radiosanity : 0;
+  int on = sd->valid ? sd->radiosanity : 0;
+  memset(s, 0, sizeof(*s));
   s->aircheck = sd->valid ? sd->radiosanity_aircheck : 0;
   s->goal_count = sd->valid ? sd->radio_goal_count : 0;
-  s->count = 0;
-  if (s->on) {
+  if (on) {
     for (int i = 0; i < sd->radio_count && s->count < PC_AP_RADIO_SONGS; i++) {
       if (sd->radio_songs[i] < PC_AP_RADIO_SONGS) {
         s->songs[s->count++] = sd->radio_songs[i];
@@ -13,7 +15,6 @@ void pc_ap_radiosanity_init(pc_ap_radiosanity* s, const ap_slotdata* sd) {
     }
   }
   s->last_song = -1;
-  s->frames = 0;
 }
 
 int pc_ap_radiosanity_has(const pc_ap_radiosanity* s, int song) {

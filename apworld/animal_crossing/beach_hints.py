@@ -1,6 +1,6 @@
 # Beach hints: an AP Hint sometimes washes up on the town beach; picking it up asks the server for a real hint on
 # one of the player's own unchecked, unhinted locations. Beach Hint Percentage 0-100 (0 = off) of the player's
-# locations, fixed at generation. The client mirrors the slot_data keys (ap_slotdata.h) and the scroll item id.
+# locations, fixed at generation. The client mirrors the slot_data keys (ap_slotdata.h) and the AP Hint item id.
 def count(world) -> int:
     percentage = world.options.beach_hint_percentage.value
     if percentage <= 0:

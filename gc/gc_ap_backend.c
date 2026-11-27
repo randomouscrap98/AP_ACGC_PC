@@ -46,9 +46,10 @@ static u32 gc_ap_hash(u32 id) {
   return (id * 2654435761u) & (GC_AP_CHECKED_SET - 1);
 }
 
-// Ids this boot's game code sent (ap_send_location), like the DLL's own checks set: a one-shot send (tree / beach
-// pickup) counts as checked at once, so a second pickup before the server confirms the first takes the next id.
-// Only cleared at boot, as the DLL's set only goes with the process.
+// Ids the game code sent (ap_send_location), like the DLL's own checks set: a one-shot send (tree / beach pickup)
+// counts as checked at once, so a second pickup before the server confirms the first takes the next id. Cleared when
+// a new client process starts (gc_ap_mailbox_frame): a send the old client never got to the server is then sent
+// again by the code that repeats its sends (museum, favors, loans).
 static u32 gc_ap_sent_set[GC_AP_CHECKED_SET];
 static u32 gc_ap_sent_in_set;
 
@@ -151,6 +152,12 @@ void gc_ap_mailbox_frame(void) {
   }
   m->game_tick++;
   if(m->client_tick != gc_ap_last_client_tick) {
+    // A new client counts client_tick from 1 again: what the old one read from the ring may never have reached
+    // the server, so the sent set starts over
+    if(m->client_tick < gc_ap_last_client_tick) {
+      memset(gc_ap_sent_set, 0, sizeof(gc_ap_sent_set));
+      gc_ap_sent_in_set = 0;
+    }
     gc_ap_last_client_tick = m->client_tick;
     gc_ap_client_quiet = 0;
   } else if(gc_ap_client_quiet < GC_AP_CLIENT_TIMEOUT_FRAMES) {

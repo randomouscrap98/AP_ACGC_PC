@@ -310,7 +310,7 @@ int pc_ap_ground_pickup(mActor_name_t item);
 void pc_ap_ground_item_name(mActor_name_t item, u8* dst);
 // Player_actor_CheckAndRequest_main_pickup_all, before the AP Hint pickup starts: 1 = refuse it without the
 // refusal animation or message (not connected, or the hint letter has no free pocket slot). The caller plays the
-// "can't do that" sound.
+// "can't do that" sound. Also refused while the previous AP Hint's answer is still on its way.
 int pc_ap_beach_hint_refuse(mActor_name_t item);
 // mSP_SelectPlant: what plain sapling slot (0 first) sells: a fruit (pc_ap_treesanity_shop_slot, also
 // with Treesanity off) or ITM_SAPLING

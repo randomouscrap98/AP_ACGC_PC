@@ -51,7 +51,7 @@ ITEM_SIZE = 8  # gc_ap_item: u32 id, s16 sender, u8 flags, u8 pad
 
 # slot_data: the game parses the text with the same C parser as the DLL (pc/src/pc_ap_slotdata_parse.c)
 SLOTDATA_JSON_MAX = 16384  # bytes, GC_AP_SD_JSON_MAX in gc_ap_mailbox.h
-AP_SLOTDATA_VERSION = 8  # format the C parser reads (apclient/include/ap_slotdata.h, world.SLOT_DATA_VERSION)
+AP_SLOTDATA_VERSION = 7  # format the C parser reads (apclient/include/ap_slotdata.h, world.SLOT_DATA_VERSION)
 
 
 def slotdata_json(slot_data: dict[str, Any]) -> str:
@@ -673,7 +673,8 @@ class ACGCContext(CommonContext):
             known = [i for i in ids if i in self.missing_locations or i in self.checked_locations]
             if len(known) != len(ids):
                 logger.warning("Game sent unknown location ids: %s", [i for i in ids if i not in known])
-            # The game queues a check again every tick until the server confirms it: send each id once
+            # The game queues each id once per client run (its sent set), but a new client sees what the old one left in
+            # the ring and repeating senders queue again after a client restart: send each id once
             # (CommonClient sends all of locations_checked again after a reconnect)
             new = [i for i in known if i not in self.locations_checked]
             if new:

@@ -27,9 +27,8 @@ extern "C" {
 
 typedef struct {
   // Config (slot_data)
-  int on;      // Radiosanity: song items and radio checks
   int aircheck; // villager houses send the check too (out of logic)
-  int count;    // songs in the seed's subset
+  int count;    // songs in the seed's subset, 0 = Radiosanity off
   unsigned char songs[PC_AP_RADIO_SONGS]; // the subset, song indices 0-54
   int goal_count; // Music goal: songs listened needed (0 = not a goal)
   // Listening timer (not saved: the checks come from the server's list)

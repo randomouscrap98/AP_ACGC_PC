@@ -24,14 +24,20 @@ struct ini_t;
 #define PC_AP_BEACH_HINT_LINE_PX 192
 // Most missing locations the facade considers at once
 #define PC_AP_BEACH_HINT_MAX 4096
+// Play frames a picked-up AP Hint may wait for its answer before another one can be picked up (it keeps waiting
+// for its letter after that; the GC client side gives up after the same time)
+#define PC_AP_BEACH_HINT_WAIT_FRAMES (30 * 60)
 
 typedef struct {
   // Config (slot_data)
   int count;    // AP Hints this save may find, 0 = off
   int letter;   // also put the hint in a pocket letter
   // Persisted
-  int delivered;    // scrolls whose hint was sent
-  int64_t pending;  // location of a sent hint whose letter isn't in a pocket yet, -1 = none
+  int delivered; // AP Hints picked up that asked for a hint (one answered with no names is taken back)
+  int pending;   // request of a picked-up AP Hint whose answer / letter isn't in yet (pc_ap_beach_hint_request:
+                 // PC the location id, GC the mailbox request number), -1 = none
+  // Not saved
+  int wait;      // play frames pending has waited (a loaded one starts at PC_AP_BEACH_HINT_WAIT_FRAMES)
 } pc_ap_beach_hint;
 
 // Config from slot_data, persisted fields zeroed (pc_ap_beach_hint_load then sets them)
@@ -39,9 +45,12 @@ void pc_ap_beach_hint_init(pc_ap_beach_hint* h, const ap_slotdata* sd);
 void pc_ap_beach_hint_load(pc_ap_beach_hint* h, struct ini_t* ini);
 void pc_ap_beach_hint_save(const pc_ap_beach_hint* h, struct ini_t* ini);
 
-// 1 when this shell spawn may become an AP Hint: connected, scrolls left, no scroll on the beach, some eligible
-// location, and roll (0-99) below PC_AP_BEACH_HINT_PERCENT
-int pc_ap_beach_hint_spawn(const pc_ap_beach_hint* h, int connected, int eligible, int on_beach, int roll);
+// 1 when this town shell spawn may become an AP Hint: hints left and roll (0-99) below PC_AP_BEACH_HINT_PERCENT. The
+// facade checks the rest: connected, no AP Hint on the beach, then some eligible location (asked only on a hit).
+int pc_ap_beach_hint_spawn(const pc_ap_beach_hint* h, int roll);
+
+// 1 while a picked-up AP Hint still waits for its answer: another pickup is refused then, so its letter isn't lost
+int pc_ap_beach_hint_waiting(const pc_ap_beach_hint* h);
 
 // Missing locations (ids) that aren't in hinted (ids of hints where this slot is the finder), written to out up to
 // max. Returns how many there are in all (out may be NULL with max 0)

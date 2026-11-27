@@ -3,8 +3,7 @@
 // gold + key = in the house (pc_ap_furniture_count, read live from the save house).
 // Chess: one line per kind with "in house / needed"; gold once a board's worth is in.
 // Status line: "x / y found", then a done message once every piece is in the house.
-// The pause menu shows them inside the "Other goals" page's tabs (pc_ap_goals_menu.h);
-// pc_ap_ftr_menu_draw is the page on its own, with its own header.
+// The pause menu shows them inside the "Other goals" page's tabs (pc_ap_goals_menu.h).
 #ifndef PC_AP_FTR_MENU_H
 #define PC_AP_FTR_MENU_H
 
@@ -37,11 +36,9 @@ void pc_ap_ftr_menu_enter(pc_ap_ftr_menu* m, int chess);
 // Cancel = PC_MENU_BACK; else PC_MENU_STAY
 int pc_ap_ftr_menu_input(pc_ap_ftr_menu* m, pc_menu_action act);
 
-// Draws into NOW_FONT_DISP with its own dim backdrop. Font projection must be loaded.
-void pc_ap_ftr_menu_draw(const pc_ap_ftr_menu* m, struct game_s* game);
-
-// The same page with a header of the caller's (the "Other goals" page's tab line, pc_ap_goals_menu.h):
-// game font, already through pc_menu_fixtext (e.g. "< Chess Set >")
+// Draws into NOW_FONT_DISP with its own dim backdrop, under the caller's header (the "Other goals" page's tab
+// line, pc_ap_goals_menu.h): game font, already through pc_menu_fixtext (e.g. "< Chess Set >"). Font projection
+// must be loaded.
 void pc_ap_ftr_menu_draw_page(const pc_ap_ftr_menu* m, struct game_s* game, const char* header);
 
 #ifdef __cplusplus

@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 // slot_data format this client reads (apworld SLOT_DATA_VERSION). Bump rules: SLOT_DATA_VERSION in apworld/animal_crossing/world.py
-#define AP_SLOTDATA_VERSION 8
+#define AP_SLOTDATA_VERSION 7
 
 #define AP_LOAN_NUM     5 // starting, medium, basement, large, upper (upgrade order)
 #define AP_BELLCREDIT_NUM 3 // small, modest, large
@@ -163,7 +163,7 @@ typedef struct {
   int catalog_sources;               // AP_CATALOG_SOURCE_* bits (Nook is always a source)
   int beach_per_month;                // Shellsanity: checks per month washing up on the beach, 0 = off (slot_data
                                       // beach_checks_per_month, 0 with shellsanity 0)
-  int beach_hint_count;               // Beach hints: AP Scrolls to find this save (slot_data beach_hint_count)
+  int beach_hint_count;               // Beach hints: AP Hints to find this save (slot_data beach_hint_count)
   int beach_hint_letter;              // Beach hints: also put the hint in a pocket letter (beach_hint_letter)
   int shellsanity_item_chance;        // Shellsanity: percent of washed-up shells that are AP items
   int tree_per_fruit;                 // Treesanity: checks per fruit borne by its trees, 0 = off (slot_data

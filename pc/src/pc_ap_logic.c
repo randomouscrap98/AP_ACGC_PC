@@ -840,28 +840,40 @@ static int pc_ap_beach_count(mActor_name_t item) {
 }
 
 #ifdef AP_BEACH_HINT
-// The AP Hint item's hint: ask the AP client for one (it picks the location and scouted it), remember the request for
-// its letter. The scroll always vanishes.
+// The AP Hint item's hint: ask the AP client for one (it picks the location and scouts it), remember the request for
+// its answer. The scroll always vanishes.
 static int pc_ap_beach_hint_pickup(void) {
   int request = pc_ap_beach_hint_request();
   if(request >= 0) {
     g_ap.hint.pending = request;
-    g_ap.hint.delivered++;
+    g_ap.hint.wait = 0;
+    g_ap.hint.delivered++; // given back if the answer says there was nothing left to hint
   }
   return 1;
 }
 
-// The hint's names arrived: put its letter in a free pocket slot (waits for one), then forget the request
+// The hint's names arrived: put its letter in a free pocket slot (waits for one), then forget the request.
+// No names = no eligible location was left: that AP Hint doesn't count.
 static void pc_ap_beach_hint_tick(void) {
   pc_ap_beach_hint_answer answer;
   if(g_ap.hint.pending < 0) {
     return;
   }
-  if(!pc_ap_beach_hint_poll((int)g_ap.hint.pending, &answer)) {
+  if(g_ap.hint.wait < PC_AP_BEACH_HINT_WAIT_FRAMES) {
+    g_ap.hint.wait++;
+  }
+  if(!pc_ap_beach_hint_poll(g_ap.hint.pending, &answer)) {
     return;
   }
-  if(answer.player[0] == '\0' || !g_ap.hint.letter || Now_Private == NULL) {
-    g_ap.hint.pending = -1; // no eligible location was left, or the hint is the server's to show
+  if(answer.player[0] == '\0') {
+    g_ap.hint.pending = -1;
+    if(g_ap.hint.delivered > 0) {
+      g_ap.hint.delivered--;
+    }
+    return;
+  }
+  if(!g_ap.hint.letter || Now_Private == NULL) {
+    g_ap.hint.pending = -1; // the hint is the server's to show
     return;
   }
   int slot = mMl_chk_mail_free_space(Now_Private->mail, mPr_INVENTORY_MAIL_COUNT);
@@ -885,10 +897,9 @@ mActor_name_t pc_ap_shell_item(mActor_name_t shell, int is_island) {
     }
   }
 #ifdef AP_BEACH_HINT
-  if(!is_island && g_ap.hint.count > g_ap.hint.delivered && pc_ap_accepting() &&
-     ap_getconnectstate()->state == AP_CSTATE_CONNECTED && pc_ap_beach_count(PC_AP_HINT_ITEM) == 0) {
-    int eligible = pc_ap_beach_hint_eligible_count();
-    if(pc_ap_beach_hint_spawn(&g_ap.hint, 1, eligible, 0, RANDOM(100))) {
+  if(!is_island && pc_ap_accepting() && ap_getconnectstate()->state == AP_CSTATE_CONNECTED &&
+     pc_ap_beach_count(PC_AP_HINT_ITEM) == 0) {
+    if(pc_ap_beach_hint_spawn(&g_ap.hint, RANDOM(100)) && pc_ap_beach_hint_eligible_count() > 0) {
       return PC_AP_HINT_ITEM;
     }
   }
@@ -1029,6 +1040,9 @@ int pc_ap_beach_hint_refuse(mActor_name_t item) {
   if(item == PC_AP_HINT_ITEM) {
     if(ap_getconnectstate()->state != AP_CSTATE_CONNECTED) {
       return 1;
+    }
+    if(pc_ap_beach_hint_waiting(&g_ap.hint)) {
+      return 1; // the last one's answer isn't in yet: a second pickup would replace its request (and lose its letter)
     }
     if(g_ap.hint.letter && Now_Private != NULL &&
        mMl_chk_mail_free_space(Now_Private->mail, mPr_INVENTORY_MAIL_COUNT) < 0) {

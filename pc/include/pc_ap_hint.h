@@ -1,4 +1,4 @@
-// AP beach hints: an AP scroll washes up on the town beach; picking it up hints one of the player's
+// AP beach hints: an AP Hint (drawn as a scroll) washes up on the town beach; picking it up hints one of the player's
 // own locations (design: ignore/claude/research/beach_hints.md)
 #ifndef PC_AP_HINT_H
 #define PC_AP_HINT_H

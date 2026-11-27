@@ -17,7 +17,7 @@ extern "C" {
 // catalog plus every table. More = 0 from pc_ap_slotdata_parse.
 #define PC_AP_SD_MAX_TOKENS 2048
 
-// Warnings about ignored values (bad type/range, as ap_slotdata_fill's APLOG_WARN): APLOG_WARN on the PC, nothing
+// Warnings about ignored values (bad type/range): APLOG_WARN on the PC, nothing
 // anywhere else (no ap_log.h in the GC build). Define PC_AP_SD_NO_WARN to silence them on the PC too.
 #if defined(TARGET_PC) && !defined(PC_AP_SD_NO_WARN)
 #include "ap_log.h"
@@ -29,7 +29,7 @@ extern "C" {
 // Fills out (zeroed, then every field, valid = 1) from the slot_data JSON text in json[0..len).
 // 1 = out filled. 0 = json isn't one JSON object (or needs more than PC_AP_SD_MAX_TOKENS tokens): out is left
 // untouched, so the caller decides (the client keeps its own defaults / reports the bad seed).
-int pc_ap_slotdata_parse(const char * json, int len, ap_slotdata * out);
+int pc_ap_slotdata_parse(const char* json, int len, ap_slotdata* out);
 
 #ifdef __cplusplus
 }

@@ -35,10 +35,11 @@ GAME_NAME = "Animal Crossing"
 # slot_data format (the client's AP_SLOTDATA_VERSION; old seeds keep working, a newer seed is refused by an older
 # client). Bump on any change the client reads: new key, new item/location ids, removed/renamed key, changed
 # meaning/units/format. Not for apworld-only changes (logic, defaults, descriptions) or client-only fixes.
-# Once per release: the first such change on a release branch bumps by 1, later ones ride along.
+# Once per release: the first such change on a release branch bumps by 1, later ones ride along. A published release
+# candidate counts as a release (0.7.0-rc3 shipped 6, so 0.7.0-rc4 is 7); never more than one bump between them.
 # Every new key gets an "added" step in slot_data_upgrades.json with the value meaning the old behaviour.
 # Ids are append-only and names are kept; yaml option keys are never removed (a rename keeps the old key hidden).
-SLOT_DATA_VERSION = 8
+SLOT_DATA_VERSION = 7
 # Universal Tracker: slot_data keys named like an option but holding something else (villager indices, the pools,
 # a tool name), so they're not restored as options
 UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "starting_tool"}
@@ -373,10 +374,11 @@ class AnimalCrossingWorld(World):
         start = CollectionState(self.multiworld)  # every player's precollected items
         if not any(location.can_reach(start) for location in self.get_locations()):
             raise self.option_error("No check can be done at the start with these options. Turn on Loansanity, "
-                                    "Favorsanity, Shellsanity, Treesanity or Radiosanity. Museum checks only count "
-                                    "at the start with their category's Availability set to All and its tool as "
-                                    "Starting Tool (without Tools in Pool, Shops Always Open or a non-Morning start "
-                                    "works too); loan checks at a Morning start need Shops Always Open.")
+                                    "Favorsanity, Shellsanity or Treesanity (radio checks need their song first). "
+                                    "Museum checks only count at the start with their category's Availability set "
+                                    "to All and its tool as Starting Tool (without Tools in Pool, Shops Always Open "
+                                    "or a non-Morning start works too); loan checks at a Morning start need Shops "
+                                    "Always Open.")
 
     def fill_slot_data(self) -> Mapping[str, Any]:
         # Random choices are already resolved here, so the client gets plain numbers.

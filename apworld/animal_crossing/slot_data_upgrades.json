@@ -29,12 +29,8 @@
     "added": {"hourly_music": [], "beach_hint_count": 0, "beach_hint_letter": 0}
   },
   "7": {
-    "note": "0.7.0: Radiosanity (off = no song items, no radio checks) and the Music goal",
+    "note": "0.7.0-rc4: Radiosanity (off = no song items or radio checks) + Music goal, Instant Goal Release (off)",
     "added": {"radiosanity": 0, "radiosanity_aircheck": 0, "radiosanity_song_count": 55, "radiosanity_songs": [],
-              "radio_goal_count": 0}
-  },
-  "8": {
-    "note": "0.7.0: Instant Goal Release (off = the goal is only sent when K.K. Slider plays)",
-    "added": {"instant_goal_release": 0}
+              "radio_goal_count": 0, "instant_goal_release": 0}
   }
 }

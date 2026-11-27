@@ -28,12 +28,15 @@ static int aNTT_enso_init(NPC_TOTAKEKE_ACTOR* totakeke) {
 static void aTTN_give_merody(NPC_TOTAKEKE_ACTOR* totakeke) {
     aNTT_event_save_c* save = (aNTT_event_save_c*)mEv_get_save_area(mEv_EVENT_KK_SLIDER, 0xa);
 
+#ifdef AP_HOOKS
+    /* Radiosanity: the aircheck is an AP item. Asked first, on every hand-over, so the "pockets full" message it
+       patches (pc_ap_kk_aircheck_ap) always matches this song */
+    if (pc_ap_kk_song_blocked(totakeke->song)) {
+        totakeke->post_roll_think = aNTT_THINK_POCKETS_FULL;
+    } else
+#endif
     if (mPr_GetPossessionItemSumWithCond(Now_Private, EMPTY_NO, mPr_ITEM_COND_NORMAL) == 0) {
         totakeke->post_roll_think = aNTT_THINK_POCKETS_FULL;
-#ifdef AP_HOOKS
-    } else if (pc_ap_kk_song_blocked(totakeke->song)) {
-        totakeke->post_roll_think = aNTT_THINK_POCKETS_FULL; /* Radiosanity: the aircheck is an AP item */
-#endif
     } else {
         totakeke->post_roll_think = aNTT_THINK_GIVE_MERODY;
         mPr_SetFreePossessionItem(Now_Private, ITM_MINIDISK_START + totakeke->song, mPr_ITEM_COND_NORMAL);
