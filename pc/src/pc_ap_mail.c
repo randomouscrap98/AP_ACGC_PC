@@ -3,6 +3,7 @@
 #include "m_home_h.h"
 #include "m_mail.h"
 #include "m_font.h"
+#include "libc64/qrand.h"
 
 #include <stdio.h>
 
@@ -26,7 +27,8 @@ void pc_ap_mail_build(const pc_ap_mail* m, Private_c* priv, const char* body, mA
   pc_ap_text_to_game(mail.content.footer, MAIL_FOOTER_LEN, m->sender);
   mail.content.font = mMl_FONT_RECV;
   mail.content.mail_type = mMl_TYPE_MAIL;
-  mail.content.paper_type = m->paper;
+  // letter_paper -1 (random_per_letter): a new paper for every letter; fqrand() is < 1
+  mail.content.paper_type = m->paper >= 0 ? m->paper : (int)(fqrand() * 64.0f);
 
   mPr_CopyPersonalID(&mail.header.recipient.personalID, &priv->player_ID);
   mail.header.recipient.type = mMl_NAME_TYPE_PLAYER;

@@ -646,7 +646,7 @@ int pc_ap_slotdata_parse(const char * json, int len, ap_slotdata * out) {
   out->grass_shape = sd_int(&d, "grass_shape", 0, 0, 2);
   out->train_station = sd_int(&d, "train_station", -1, -1, 14);
   out->town_day = sd_int(&d, "town_day", 0, 0, 31);
-  out->letter_paper = sd_int(&d, "letter_paper", 0, 0, 63);
+  out->letter_paper = sd_int(&d, "letter_paper", 0, -1, 63);
   sd_str(out->letter_sender, sizeof(out->letter_sender), &d, "letter_sender", "Archipelago");
   sd_str(out->loan_letter_text, sizeof(out->loan_letter_text), &d, "loan_letter_text",
       "Your loan is ready for\npayoff at the post office!");

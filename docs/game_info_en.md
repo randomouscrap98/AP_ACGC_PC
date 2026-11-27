@@ -119,7 +119,8 @@ Quality-of-life options, mostly on by default:
 
 Cosmetic options: town fruit, grass shape, train station, Town Day, shuffled hourly music (each hour
 plays another hour's theme, fixed by the seed), starting shirt, starting villagers and a villager blacklist,
-and the stationery, signature and text of letters from Archipelago.
+and the stationery (one paper for the seed, or a random paper for every letter), signature and text of
+letters from Archipelago.
 
 ## Updating
 

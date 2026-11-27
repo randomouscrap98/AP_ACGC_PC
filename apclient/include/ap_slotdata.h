@@ -97,7 +97,7 @@ typedef struct {
   int grass_shape;    // mFM_BG_TEX_* index
   int train_station;  // station_type (0-14), -1 if unset
   int town_day;       // day in July, never 4
-  int letter_paper;   // stationery for AP letters (paper_type 0-63)
+  int letter_paper;   // stationery for AP letters: paper_type 0-63, -1 = random per letter
   char letter_sender[33]; // signature (footer) of AP letters, max MAIL_FOOTER_LEN
   char loan_letter_text[193]; // body of the "loan ready for payoff" letter, max MAIL_BODY_LEN, '\n' = line break
   unsigned char villager_blacklist[AP_NPC_NUM]; // 1 = this npc index never moves in

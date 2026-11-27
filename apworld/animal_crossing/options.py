@@ -1,3 +1,4 @@
+import random
 from dataclasses import dataclass
 
 from Options import (
@@ -221,8 +222,10 @@ class ShuffleHourlyMusic(Toggle):
 class LetterPaper(Choice):
     """
     Stationery for letters sent from Archipelago (items, goals, etc).
+    "random" picks one paper for the whole game; random_per_letter picks a random paper for every letter.
     """
     display_name = "Letter Paper"
+    option_random_per_letter = -1
     option_airmail_paper = 0
     option_sparkly_paper = 1
     option_bamboo_paper = 2
@@ -288,6 +291,13 @@ class LetterPaper(Choice):
     option_new_years_card = 62
     option_inky_paper = 63
     default = "random"
+
+    @classmethod
+    def from_text(cls, text: str):
+        # "random" means AP rolls one paper for the seed: don't let it roll random_per_letter itself
+        if text.strip().lower() == "random":
+            return cls(random.choice([v for v in cls.options.values() if v >= 0]))
+        return super().from_text(text)
 
 
 class TownDay(Range):

@@ -20,7 +20,7 @@ struct home_s;
 typedef struct {
   // Config (slot_data)
   char sender[33]; // footer signature (letter_sender)
-  int paper;       // stationery, paper_type 0-63 (letter_paper)
+  int paper;       // stationery, paper_type 0-63 (letter_paper); -1 = random per letter
 } pc_ap_mail;
 
 void pc_ap_mail_init(pc_ap_mail* m, const ap_slotdata* sd);
