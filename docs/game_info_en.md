@@ -44,8 +44,9 @@ Animal Crossing has no dungeons or keys, so the randomizer locks parts of everyd
 - **Beach (Shellsanity, 3 per month by default):** Archipelago items sometimes wash up on the beach in 
   place of shells. Off by default. Picking one up sends a check for the month it washed up in 
   (Beach Checks per Month sets how many). Not good to use without Timesanity (all shells available at start).
-- **Songs (Radiosanity, all 55 by default):** K.K. Slider songs are items. Receiving one puts it in your
-  house's music box; play it for 2 seconds on a stereo or music player at home to send its check. K.K.
+- **Songs (Radiosanity, all 55 by default):** K.K. Slider songs are items, named "Song: <song name>" (e.g.
+  "Song: K.K. Blues"). Receiving one puts it in your house's music box; play it for 2 seconds on a stereo
+  or music player at home to send its check. K.K.
   doesn't hand out songs after a show any more, and only the songs in your seed (Radiosanity Song Count
   picks a random subset) are items. Radiosanity Aircheck also lets the check send from a villager's house
   (out of logic).
@@ -64,7 +65,8 @@ Choose one or more (all chosen goals are required):
 
 - **Statue:** pay off every house loan so Tom Nook builds your statue.
 - **Museum:** receive a percentage of the museum donation items (needs Museumsanity; the donation
-  items only exist with this goal).
+  items only exist with this goal). The donation items are the "Museum Items" item group: `!hint Museum Items`
+  hints one you don't have yet, instead of having to name it.
 - **Froggy Chair:** get the froggy chair into your catalog, any way you can.
 - **Catalog:** get a percentage of the Catalogsanity items into your catalog.
 - **Music:** listen to a percentage of your seed's songs at home (needs Radiosanity).

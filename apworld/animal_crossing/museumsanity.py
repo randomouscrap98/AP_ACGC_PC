@@ -3,6 +3,7 @@
 # Blathers only takes a thing while its donate check is unsent; the goal is Museum Goal Percent of these items.
 # Without the goal there are no donation items: the museum is vanilla and donating sends the donate check.
 # The museum things are generated (museum_data.py).
+# ITEMS is also the world's "Museum Items" item group (world.py), for "!hint Museum Items".
 # WARN: the client mirrors the ids and the slot numbering (pc_ap_museumsanity.h)!
 import math
 

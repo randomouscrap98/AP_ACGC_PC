@@ -21,7 +21,7 @@ extern "C" {
 
 // "Radio: <Song>" location of song s (0-54) = base + s
 #define PC_AP_LOC_RADIO_BASE 0x70000
-// The AP item "K.K. <Song>" of song s = start + s (the 55 ids after the Bell Credits)
+// The AP item "Song: <Song>" of song s = start + s (the 55 ids after the Bell Credits)
 #define PC_AP_RADIO_ITEM_START 0x10340
 #define PC_AP_RADIO_ITEM_END   (PC_AP_RADIO_ITEM_START + PC_AP_RADIO_SONGS)
 

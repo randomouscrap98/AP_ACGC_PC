@@ -229,6 +229,9 @@ class AnimalCrossingWorld(World):
 
     item_name_to_id = ITEM_NAME_TO_ID
     location_name_to_id = LOCATION_NAME_TO_ID
+    # "!hint Museum Items": with the Museum goal a share of the donation items count, and a player can hint one
+    # without knowing its name. Every possible "Museum: X" item, whichever categories this seed has checks for.
+    item_name_groups = {"Museum Items": set(museumsanity.ITEMS)}
 
     # Universal Tracker: the real seed's slot_data, else None (generate_early)
     ut: dict[str, Any] | None

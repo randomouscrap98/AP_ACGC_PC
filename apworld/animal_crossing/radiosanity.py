@@ -15,7 +15,7 @@ from .game_items import ITEM_NAME_TO_ID as GAME_ITEMS
 
 SONG_COUNT_MAX = 55  # ITM_MINIDISK00-54 (the game's MINIDISK_NUM), the 3 secret songs included
 RADIO_BASE_ID = 0x70000  # song s (0-54): "Radio: <Song>" = base + s
-RADIO_ITEM_ID_BASE = 0x10340  # song s: "K.K. <Song>" = base + s (55 ids, after the Bell Credits)
+RADIO_ITEM_ID_BASE = 0x10340  # song s: "Song: <Song>" = base + s (55 ids, after the Bell Credits)
 MINIDISK_START = 0x2A00  # ITM_MINIDISK_START
 # Song index (0-54) -> the game's own item name (game_items.py: the minidisk items in id order)
 SONG_NAMES = [name for name, item_id in sorted(GAME_ITEMS.items(), key=lambda kv: kv[1])
@@ -24,8 +24,9 @@ assert len(SONG_NAMES) == SONG_COUNT_MAX, "minidisk items missing from game_item
 
 
 def radio_item_name(song: int) -> str:
-    # The game's item names are taken by that same item ("K.K. March" is the minidisk), so the AP item adds "K.K."
-    return "K.K. " + SONG_NAMES[song]
+    # The game's own item name is taken by the minidisk ("K.K. March"), so the AP item is "Song: <name>" instead:
+    # it reads as an item and doesn't double up (not "K.K. K.K. Blues")
+    return "Song: " + SONG_NAMES[song]
 
 
 def radio_location_name(song: int) -> str:
