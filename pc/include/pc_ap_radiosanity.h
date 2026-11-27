@@ -2,8 +2,8 @@
 // it for 2 seconds on a music player in the player's own house sends "Radio: <Song>". With Radiosanity Aircheck
 // the same check also sends from a villager's house.
 // Only the seed's song subset (radio_songs, slot_data) is items and checks; songs outside it are vanilla.
-// Reads the received items (ap_getitemcount) only through pc_ap_logic: here it's the subset, the id math and the
-// listening timer.
+// Here: the subset, the id math, the listening timer, the music box bits and the listened list (DLL reads only).
+// The facade (pc_ap_logic.c) finds the room and the home's music box and does the sending.
 // WARN: keep in sync with apworld radiosanity.py! Song s (0-54) = ITM_MINIDISK00 + s
 #ifndef PC_AP_RADIOSANITY_H
 #define PC_AP_RADIOSANITY_H
@@ -35,6 +35,11 @@ typedef struct {
   int last_song; // song being listened to now, -1 = none
   int frames;    // play frames it has played so far
   int aircheck_msg; // K.K. just kept a song back: the aircheck message says it's an AP item
+  // Listened list (pc_ap_radiosanity_listened): a copy of the checked list, made again when it changes
+  unsigned char listened[PC_AP_RADIO_SONGS]; // per subset index, 1 = its check is sent
+  int listened_count;
+  int listened_ok;           // 0 = make it again on the next call
+  unsigned listened_gen;     // ap_checked_generation() it was made at
 } pc_ap_radiosanity;
 
 // Config from slot_data
@@ -55,6 +60,30 @@ int pc_ap_radiosanity_song_of_item(int64_t item);
 // Called every play frame with the song a music player in the room plays (0-54), -1 for silence / anything else.
 // 1 = the same song has now played PC_AP_RADIO_HEARD_FRAMES frames without a break (then the timer starts over).
 int pc_ap_radiosanity_heard(pc_ap_radiosanity* s, int song);
+
+// Rooms for pc_ap_radiosanity_tick
+#define PC_AP_RADIO_ROOM_NONE     0 // not a house (or not taking checks now)
+#define PC_AP_RADIO_ROOM_HOME     1 // the player's own house
+#define PC_AP_RADIO_ROOM_VILLAGER 2 // a villager's house (Radiosanity Aircheck)
+
+// Every play frame in a room with a music player: song as for _heard. The location to send now (the song was heard
+// in a room that counts and isn't checked yet), -1 = nothing
+int64_t pc_ap_radiosanity_tick(pc_ap_radiosanity* s, int song, int room);
+
+// K.K. keeps the aircheck back for a subset song (it's an AP item); remembered for the message (aircheck_msg)
+int pc_ap_radiosanity_kk_blocked(pc_ap_radiosanity* s, int song);
+
+// The home's music box (u32[2], bit s = the stereo offers song s; the game's, passed in): received subset songs
+// get their bit. Every tick (no pocket item, no mail).
+void pc_ap_radiosanity_sync(const pc_ap_radiosanity* s, u32* box);
+// Subset song received = its bit is in box (NULL = not at home: 0)
+int pc_ap_radiosanity_received(const pc_ap_radiosanity* s, const u32* box, int song);
+int pc_ap_radiosanity_received_count(const pc_ap_radiosanity* s, const u32* box);
+
+// listened[i] for the subset's i-th song (1 = check sent) and how many: one ap_locations_checked call, done again
+// only when ap_checked_generation() changes or after a send from _tick (PC: a copy of the DLL's checked set each)
+const unsigned char* pc_ap_radiosanity_listened(pc_ap_radiosanity* s);
+int pc_ap_radiosanity_listened_count(pc_ap_radiosanity* s);
 
 #ifdef __cplusplus
 }

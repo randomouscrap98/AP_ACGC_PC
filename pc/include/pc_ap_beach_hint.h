@@ -52,6 +52,10 @@ int pc_ap_beach_hint_spawn(const pc_ap_beach_hint* h, int roll);
 // 1 while a picked-up AP Hint still waits for its answer: another pickup is refused then, so its letter isn't lost
 int pc_ap_beach_hint_waiting(const pc_ap_beach_hint* h);
 
+// The AP Hint's item name ("AP Hint"), padded with spaces to len chars (out holds len + 1), like
+// pc_ap_shellsanity_name
+void pc_ap_beach_hint_name(char* out, int len);
+
 // Missing locations (ids) that aren't in hinted (ids of hints where this slot is the finder), written to out up to
 // max. Returns how many there are in all (out may be NULL with max 0)
 int pc_ap_beach_hint_eligible(const int64_t* missing, int n, const int64_t* hinted, int hinted_n,

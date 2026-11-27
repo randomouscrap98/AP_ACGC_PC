@@ -339,13 +339,13 @@ int pc_ap_kk_song_blocked(int song);
 // The last aircheck K.K. kept back was an AP item (pc_ap_msg_patch: an AP item, not full pockets)
 int pc_ap_kk_aircheck_ap(void);
 // Tracker / Radio page: songs in the seed's subset (0 = Radiosanity off), the index-th one, and per song:
-// received (in the home music box) / listened (its check is sent)
+// received (in the home music box)
 int pc_ap_radio_total(void);
 int pc_ap_radio_song(int index);
 int pc_ap_radio_received(int song);
-int pc_ap_radio_listened(int song);
 // Radio page rows: out[i] != 0 if the i-th song of the subset (pc_ap_radio_song) is listened (its check is
-// sent). Writes pc_ap_radio_total() entries of out, one copy of the server's list; nothing when off
+// sent). Writes pc_ap_radio_total() entries of out (pc_ap_radiosanity_listened: cached until the checked list
+// changes)
 void pc_ap_radio_listened_songs(unsigned char* out);
 int pc_ap_radio_listened_count(void);
 int pc_ap_radio_received_count(void);

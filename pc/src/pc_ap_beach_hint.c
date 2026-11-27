@@ -33,6 +33,14 @@ int pc_ap_beach_hint_spawn(const pc_ap_beach_hint* h, int roll) {
   return h->count - h->delivered > 0 && roll < PC_AP_BEACH_HINT_PERCENT;
 }
 
+void pc_ap_beach_hint_name(char* out, int len) {
+  int n = snprintf(out, len + 1, "AP Hint");
+  for(; n < len; n++) {
+    out[n] = ' ';
+  }
+  out[len] = 0;
+}
+
 int pc_ap_beach_hint_waiting(const pc_ap_beach_hint* h) {
   return h->pending >= 0 && h->wait < PC_AP_BEACH_HINT_WAIT_FRAMES;
 }
