@@ -6,6 +6,7 @@
 #else
 #include "pc_ap_platform.h" // pc_ap_plat_ms
 #include "gc_ap_hooks.h"     // gc_ap_pause_pads
+#include "gc_ap_diag.h"
 #include "libu64/pad.h"
 #endif
 #include "pc_pause_menu.h"
@@ -536,6 +537,8 @@ static void gc_stick_axis(int axis, int value, int* latch) {
     else if (s_held_src == HELD_AXIS + axis) s_held = PC_MENU_NONE;
 }
 
+static u16 s_gc_held[4]; // per pad: buttons down when the menu closed, hidden from the game until let go
+
 void gc_ap_pause_pads(void* pads, int count) {
     static u16 last;
     static int latch_x, latch_y;
@@ -544,6 +547,7 @@ void gc_ap_pause_pads(void* pads, int count) {
     u16 pressed = now & ~last;
     int i;
 
+    gc_ap_diag_pads(pads, count); // before the hold below zeroes them
     if (!g_pc_paused) {
         int inv_open = g_pc_pause_inv_open;
         g_pc_pause_inv_open = 0; // the next play frame sets it again; other scenes leave it 0
@@ -573,17 +577,29 @@ void gc_ap_pause_pads(void* pads, int count) {
     }
     last = now;
 
-    // Hold input from the game: paused, or draining after Resume until every button is up
+    // Paused: the game gets no input. Closed: the buttons down at that moment stay hidden from the game until each
+    // is let go, the rest goes through. (Holding everything until all buttons read up locked the player out for
+    // good with a pad that rests on a bit: analog trigger > 30 = L / R, C-stick drift = C buttons.)
     if (g_pc_pause_input_drain) {
-        int any = 0;
-        for (i = 0; i < count; i++) any |= pad[i].now.button;
-        if (!any) g_pc_pause_input_drain = 0;
+        for (i = 0; i < count && i < 4; i++) s_gc_held[i] = pad[i].now.button;
+        g_pc_pause_input_drain = 0;
     }
-    if (g_pc_paused || g_pc_pause_input_drain) {
-        for (i = 0; i < count; i++) {
+    for (i = 0; i < count && i < 4; i++) {
+        u16 held = s_gc_held[i];
+        if (g_pc_paused) {
             memset(&pad[i], 0, sizeof(pad[i]));
+            continue;
         }
+        s_gc_held[i] = held & pad[i].now.button;
+        pad[i].now.button &= ~held;
+        pad[i].last.button &= ~held;
+        pad[i].on.button &= ~held;
+        pad[i].off.button &= ~held; // its release doesn't reach the game either
     }
+}
+
+int gc_ap_pause_held(void) {
+    return s_gc_held[0] | s_gc_held[1] | s_gc_held[2] | s_gc_held[3];
 }
 #endif
 

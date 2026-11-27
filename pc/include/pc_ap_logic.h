@@ -382,6 +382,8 @@ int pc_ap_time_start(lbRTC_time_c* start);
 int pc_ap_time_change_allowed(struct game_play_s* play);
 // The gate on the last play frame, for the pause menu (which runs between frames); 0 during a reload
 int pc_ap_time_change_allowed_now(void);
+// Date & Time / Save reload step (0 = none; GC diagnostics log)
+int pc_ap_reload_step(void);
 
 // Global Storage (pc_ap_storage.h): on for this seed
 int pc_ap_storage_on(void);

@@ -7,6 +7,7 @@
 // The game's own town file is never touched.
 // The title check (end of this file) keeps Start from loading a town that isn't this slot's.
 #include "gc_ap_card.h"
+#include "ap_log.h"
 #include "pc_ap_state.h"
 #include "pc_ap_settings.h"
 #include "pc_ap_logic.h"
@@ -82,7 +83,7 @@ int pc_ap_state_write(const char* filename, ini_t* ini) {
   pc_ap_ini_set_int(ini, NULL, PC_AP_STATE_KEY_VERSION, PC_AP_STATE_VERSION);
   size = ini_save(ini, NULL, 0); // with the zero
   if(size > max) {
-    OSReport("[AP] %s: %d bytes, room for %d\n", filename, size, max);
+    APLOG_WARN("%s: %d bytes, room for %d", filename, size, max);
     return 0; // the old text stays
   }
   ini_save(ini, text, size);
@@ -137,7 +138,7 @@ static int gc_ap_card_read(s32 chan) {
   }
   if(result != CARD_RESULT_READY || s_card.magic != GC_AP_CARD_MAGIC) {
     // Missing (AP state zeroed: only errs toward giving Bells again, as on PC) or unreadable
-    OSReport("[AP] card load: no AP file (%d)\n", result);
+    APLOG_INFO("card load: no AP file (%d)", result);
     memset(&s_card, 0, sizeof(s_card));
     return 0;
   }
@@ -249,12 +250,12 @@ void gc_ap_card_save(s32 chan) {
     return; // newer file, or no slot (nothing AP to save)
   }
   if(!pc_ap_save(PC_AP_STATE_FILENAME)) {
-    OSReport("[AP] card save: state didn't fit, the last one stays\n");
+    APLOG_ERROR("card save: state didn't fit, the last one stays");
   }
   gc_ap_card_fill();
   result = gc_ap_card_write(chan);
   if(result != CARD_RESULT_READY) {
-    OSReport("[AP] card save failed (%d)\n", result);
+    APLOG_ERROR("card save failed (%d)", result);
   }
 }
 
@@ -298,7 +299,7 @@ static void gc_ap_check_done(const char* refusal) {
   s_check_refusal = refusal;
   s_check_step = GC_AP_CHECK_DONE;
   if(refusal != NULL) {
-    OSReport("[AP] card check: %s\n", refusal);
+    APLOG_WARN("card check: %s", refusal);
   }
 }
 

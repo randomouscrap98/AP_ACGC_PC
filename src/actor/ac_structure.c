@@ -4,6 +4,8 @@
 #include "m_name_table.h"
 #include "m_malloc.h"
 #include "m_common_data.h"
+#include "ac_shrine.h"
+#include "ac_toudai.h"
 
 static void aSTR_actor_ct(ACTOR* actor, GAME* game);
 static void aSTR_actor_dt(ACTOR* actor, GAME* game);
@@ -23,9 +25,10 @@ ACTOR_PROFILE Structure_Profile = { mAc_PROFILE_STRUCTURE,
                                     NULL };
 
 static u8 aSTR_overlay[aSTR_ACTOR_TBL_COUNT][aSTR_OVERLAY_SIZE];
-#ifdef TARGET_PC
 /* Structure profiles such as TOUDAI_ACTOR are larger than STRUCTURE_ACTOR because of Delta time. 
  * If you are modding, be careful to not make the same mistake. */
+// All builds: on GC the vanilla STRUCTURE_ACTOR slots let SHRINE_ACTOR (texture_frame) overwrite the next slot's
+// id/part, which broke the actor lists on acre changes (research/gc_acre_freeze.md)
 #define aSTR_PC_ACTOR_SLOT_SIZE 0x300
 
 typedef union {
@@ -34,15 +37,15 @@ typedef union {
     u8 bytes[aSTR_PC_ACTOR_SLOT_SIZE];
 } aSTR_pc_actor_storage_c;
 
+// Compile-time checks: the structure actors bigger than STRUCTURE_ACTOR fit a slot
+typedef char aSTR_slot_fits_shrine[(sizeof(SHRINE_ACTOR) <= aSTR_PC_ACTOR_SLOT_SIZE) ? 1 : -1];
+typedef char aSTR_slot_fits_toudai[(sizeof(TOUDAI_ACTOR) <= aSTR_PC_ACTOR_SLOT_SIZE) ? 1 : -1];
+
 static aSTR_pc_actor_storage_c aSTR_actor_cl[aSTR_ACTOR_TBL_COUNT];
 
 static STRUCTURE_ACTOR* aSTR_pc_actor_slot(int idx) {
     return &aSTR_actor_cl[idx].actor;
 }
-#else
-static STRUCTURE_ACTOR aSTR_actor_cl[aSTR_ACTOR_TBL_COUNT];
-#define aSTR_pc_actor_slot(idx) (&aSTR_actor_cl[idx])
-#endif
 
 #include "../src/actor/ac_structure_clip.c_inc"
 

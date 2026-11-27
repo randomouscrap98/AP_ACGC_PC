@@ -1,4 +1,5 @@
 #include "pc_ap_villagers.h"
+#include "ap_log.h"
 #include "ap_slotdata.h"
 
 #include "m_npc.h"
@@ -48,7 +49,7 @@ void pc_ap_villagers_apply(void) {
     }
     if (!pc_ap_villagers_can_live(i)) {
       // apworld/client mismatch: islanders and specials aren't in the apworld list
-      OSReport("[AP] villager options: npc %d can't live in town, ignored\n", i);
+      APLOG_WARN("villager options: npc %d can't live in town, ignored", i);
       continue;
     }
     // The blacklist wins over the pool
@@ -149,7 +150,7 @@ int pc_ap_villagers_pick_starters(int count) {
   pc_ap_villagers_pick_rest(&p, FALSE);
 
   if (p.left > 0) {
-    OSReport("[AP] villager options: not enough villagers for the starting town\n");
+    APLOG_WARN("villager options: not enough villagers for the starting town");
   }
 
   return TRUE;

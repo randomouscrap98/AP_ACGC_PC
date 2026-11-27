@@ -1,4 +1,5 @@
 #include "pc_ap_logic.h"
+#include "ap_log.h"
 #include "pc_ap_state.h"
 #include "pc_ap_loansanity.h"
 #include "pc_ap_credit.h"
@@ -1398,6 +1399,10 @@ int pc_ap_time_change_allowed_now(void) {
   return g_ap.time_change_allowed;
 }
 
+int pc_ap_reload_step(void) {
+  return g_ap.reload.step;
+}
+
 int pc_ap_storage_on(void) {
   return g_ap.storage.mode != PC_AP_STORAGE_OFF;
 }
@@ -1550,7 +1555,7 @@ void pc_ap_time_reload_save(void) {
     g_ap.reload.saved = mCD_SaveHome_bg(0, NULL) == mCD_TRANS_ERR_NONE;
   }
   if(!g_ap.reload.saved) {
-    OSReport("[AP] Date & Time reload: save failed, loading the last save\n");
+    APLOG_ERROR("Date & Time reload: save failed, loading the last save");
   }
   g_ap.reload.step = PC_AP_RELOAD_TITLE;
   pc_ap_plat_saved(g_ap.reload.saved);

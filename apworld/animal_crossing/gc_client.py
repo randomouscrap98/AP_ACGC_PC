@@ -17,6 +17,7 @@ import traceback
 from typing import Any, Iterator, Optional
 
 from . import gc_wii
+from .gc_diag import DiagLog
 from .gc_link import GameLink
 from .slot_data_upgrade import upgrade
 from CommonClient import ClientCommandProcessor, CommonContext, get_base_parser, gui_enabled, logger, server_loop
@@ -29,7 +30,7 @@ MEM1_SIZE = 0x1800000
 
 MAGIC = struct.pack(">II", 0x41434150, 0x4D424F58)  # "ACAP" "MBOX"
 TAIL = 0x454E4421  # "END!"
-VERSION = 5  # GC_AP_MAILBOX_VERSION
+VERSION = 6  # GC_AP_MAILBOX_VERSION
 
 # Header fields: u32 each, in the order of gc_ap_mailbox (index * 4 = offset); tests/test_gc_mailbox checks them
 H_VERSION, H_SIZE = 2, 3
@@ -42,7 +43,9 @@ H_SLOTDATA_READY, H_TOAST_HEAD, H_TEAM, H_SLOT = 28, 29, 30, 31
 H_GSET_OFF, H_GSET_MAX, H_GSET_GAME_GEN, H_GSET_CLIENT_GEN = 32, 33, 34, 35
 # Beach hints (mailbox v5)
 H_HINT_OFF, H_HINT_NAME_LEN, H_HINT_REQ, H_HINT_REQ_DONE, H_HINT_ELIGIBLE = 36, 37, 38, 39, 40
-HEADER_WORDS = 41
+# Diagnostics (mailbox v6, gc_diag.py)
+H_DIAG_OFF, H_DIAG_SIZE, H_LOG_OFF, H_LOG_MAX, H_LOG_LEN = 41, 42, 43, 44, 45
+HEADER_WORDS = 46
 H_SEED, SEED_LEN = HEADER_WORDS * 4, 64
 H_STATUS, STATUS_LEN = H_SEED + SEED_LEN, 96
 H_HOST, HOST_LEN = H_STATUS + STATUS_LEN, 64
@@ -141,8 +144,9 @@ class Mailbox:
     def read(self, addr: int, size: int) -> bytes:
         # Needs the answer now: what's queued goes out first (keeps the order), batching goes on after
         if self.queue:
-            reads = self.end()
-            assert not reads, "queue_read() results dropped"
+            if any(op == "R" for op, _, _ in self.queue):
+                raise RuntimeError("Mailbox.read() during a batch with queue_read()s pending: their results would be lost")
+            self.end()
             self.begin()
         return self.ram.read(addr, size)
 
@@ -434,6 +438,8 @@ class ACGCContext(CommonContext):
         self.wii_uploading = False  # /wii_iso is sending: the start screen answers late and takes no CARD meanwhile
         self.wii_warned: set[tuple[str, ...]] = set()  # address sets already reported as "several Wiis"
         self.link = GameLink()  # history + numbers for the connection tab
+        self.diag: Optional[DiagLog] = None  # the diagnostics log, opened when the game is first found
+        self.diag_head: Optional[int] = None  # the game's log_head at the last read
 
     # Items / Checks tabs: kvui (make_gui) and aplite (aplite_tabs, which only aplite calls). Each imports its UI
     # library only here: aplite has no kivy, upstream no Textual.
@@ -657,10 +663,19 @@ class ACGCContext(CommonContext):
         if h is None:
             return False
         toasts = list(self.toasts)
+        if self.diag is None:
+            self.diag = DiagLog()
+            logger.info("Game diagnostics log: %s", self.diag.path)
         m.begin()
         try:
             connected = self.sync_batched(m, h)
-            ring = m.end()
+            # Diagnostics last in the batch (gc_diag.py): the fixed fields every round, the event ring when it moved.
+            # After sync_batched: its immediate reads (get_gsettings) flush the queue, which must not hold reads yet
+            m.queue_read(m.addr + h[H_DIAG_OFF], h[H_DIAG_SIZE])
+            want_log = self.diag.wants_ring(self.diag_head)
+            if want_log:
+                m.queue_read(m.addr + h[H_LOG_OFF], h[H_LOG_MAX] * h[H_LOG_LEN])
+            reads = m.end()
         except BaseException:
             # The batch didn't (all) arrive, but this round already counted it as written: queued texts and toasts
             # go again next time (the lists go by the game's counts, the slot by mbox_slot_key, reset on a find)
@@ -668,8 +683,11 @@ class ACGCContext(CommonContext):
             self.mbox_texts = {}
             self.toasts[:0] = [t for t in toasts if t not in self.toasts]
             raise
-        if ring:
-            ids = m.send_ids(ring[0], h[H_SEND_HEAD], h[H_SEND_TAIL])
+        log = reads.pop() if want_log else None
+        diag = reads.pop()
+        self.diag_head = self.diag.update(h[H_GAME_TICK], diag, log, h[H_LOG_MAX], h[H_LOG_LEN])
+        if reads:  # the send ring (sync_batched queued it)
+            ids = m.send_ids(reads[0], h[H_SEND_HEAD], h[H_SEND_TAIL])
             known = [i for i in ids if i in self.missing_locations or i in self.checked_locations]
             if len(known) != len(ids):
                 logger.warning("Game sent unknown location ids: %s", [i for i in ids if i not in known])
@@ -686,7 +704,7 @@ class ACGCContext(CommonContext):
             self.finished_game = True
         return True
 
-    # sync's body, all mailbox writes queued; the send ring read is queued last (with send_tail after it).
+    # sync's body, all mailbox writes queued; the send ring read is its last read (with send_tail after it; sync adds the diag reads after).
     # True = connected to the slot the game has
     def sync_batched(self, m: Mailbox, h: tuple[int, ...]) -> bool:
         # gset_client_gen only changes through this client, and the game zeroes it when it starts (a savestate
@@ -832,6 +850,8 @@ async def game_sync_task(ctx: ACGCContext) -> None:
                 ctx.link.connected_at = time.monotonic()
                 last_addr = ctx.mbox.addr
                 logger.debug("Found the game's mailbox at %08X", ctx.mbox.addr)
+                if ctx.diag is not None:
+                    ctx.diag.write(f"found the game in {where} (mailbox {ctx.mbox.addr:08X})")
                 ctx.set_dolphin_status(f"Connected to the game in {where}")
                 connected = True
                 ctx.mbox_slot_key = None
@@ -844,6 +864,8 @@ async def game_sync_task(ctx: ACGCContext) -> None:
                 start = time.monotonic()
                 if not await asyncio.to_thread(ctx.sync):
                     ctx.mbox = None  # gone (the game restarted or quit): the next round looks for it again
+                    if ctx.diag is not None:
+                        ctx.diag.write("the game's mailbox is gone (restarted or quit)")
                     sleep = 0
                 ctx.link.syncs.append(time.monotonic() - start)
                 if ctx.link.report_due():
@@ -863,6 +885,8 @@ async def game_sync_task(ctx: ACGCContext) -> None:
             else:
                 ctx.link.errors += 1
                 ctx.link.add(f"link error: {e!r}")
+                if ctx.diag is not None:
+                    ctx.diag.write(f"lost the game: {e!r}")
                 ctx.set_dolphin_status(f"Lost the game ({e or type(e).__name__}), waiting for it again")
                 connected = False
             sleep = 2

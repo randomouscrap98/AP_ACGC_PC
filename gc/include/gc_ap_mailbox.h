@@ -26,6 +26,9 @@
 //   (or nothing when it found no eligible location), then hint_req_done = that hint_req. The client keeps
 //   hint_eligible = how many of this slot's locations are missing and not hinted with us as the finder (the game's
 //   spawn check). hint_req_done 0 = nothing answered yet; hint_req 0 = no request since the game started.
+// - diag: what the game is doing, for the client's diagnostics log (gc_ap_diag.c, gc_client.py DiagLog): a state
+//   snapshot every frame, a watchdog record while the game stands still, a crash record, and an event log ring
+//   (the game writes log[log_head % log_max], then log_head++). Game -> client, except test.
 
 #include "types.h"
 #include "dolphin/os.h" // OSCachedToUncached
@@ -34,7 +37,7 @@
 #define GC_AP_MAGIC1 0x4D424F58 // "MBOX"
 #define GC_AP_TAIL   0x454E4421 // "END!"
 // Bump when the header layout or a section's entry format changes (client refuses other versions)
-#define GC_AP_MAILBOX_VERSION 5
+#define GC_AP_MAILBOX_VERSION 6
 
 #define GC_AP_ITEM_MAX    2560 // received items (apworld: at most 2220 locations, so items, per slot)
 #define GC_AP_CHECKED_MAX 2560 // checked locations
@@ -46,6 +49,9 @@
 #define GC_AP_SD_JSON_MAX 16384 // slot_data JSON text (9.8 KB raw is the largest real seed, 5.8 KB compact)
 #define GC_AP_STATUS_LEN  96   // client status line, with the zero
 #define GC_AP_HINT_NAME_LEN 64 // beach hint player / item / location name, with the zero
+#define GC_AP_DIAG_TRACE  16   // return addresses in a watchdog / crash record
+#define GC_AP_LOG_MAX     64   // diagnostics event log ring
+#define GC_AP_LOG_LEN     80   // bytes per log entry: u32 game_tick + text with the zero
 
 // Global settings in gset[], by index: append-only (gc_client.py GSET_NAMES lists the same names in this order)
 enum {
@@ -79,6 +85,63 @@ typedef struct {
   u8 flags;   // AP_ITEM_* (ap_archipelago.h)
   u8 pad;
 } gc_ap_item;
+
+// Where a thread was: pc, lr, stack pointer and the return addresses up its stack (0 = end of the chain)
+typedef struct {
+  u32 pc, lr, sp;
+  u32 trace[GC_AP_DIAG_TRACE];
+} gc_ap_diag_ctx;
+
+typedef struct {
+  u32 tick; // game_tick when it was written
+  char text[GC_AP_LOG_LEN - 4];
+} gc_ap_diag_line;
+
+// Diagnostics (v6). All u32, so the client reads it as one struct (gc_client.py DIAG_FIELDS, same order).
+typedef struct {
+  // Every game frame (graph_main)
+  u32 scene;        // Save scene_no
+  u32 game;         // gamePT->exec: which game state (look it up in the map file)
+  u32 paused;       // pause menu open
+  u32 hold;         // buttons down when the pause menu closed, still hidden from the game (gc_ap_pause_held)
+  u32 reload;       // Date & Time / Save reload step (PC_AP_RELOAD_*)
+  u32 pads;         // controllers padmgr reads
+  u32 pad[4];       // button << 16 | (u8)stick_x << 8 | (u8)stick_y, before the pause menu's hold
+  u32 weather;      // Common weather << 16 | intensity
+  u32 save_weather; // the save's weather byte
+  u32 date;         // year << 16 | month << 8 | day
+  u32 time;         // hour << 16 | minute << 8 | second
+  u32 heap;         // free bytes in the game state's arena
+  u32 cost_us;      // microseconds the diagnostics took last frame
+  u32 cost_max_us;  // most they took in one frame since the game started (wall clock: includes other threads)
+  u32 cost_sum_us;  // all of it since the game started (the client logs the average per frame)
+  // Where the REL went (it moves): ignore/claude/tools/gc/diag_addr.py maps the log's addresses with these
+  u32 anchor_text;  // gc_ap_diag_frame
+  u32 anchor_data;  // gc_ap_diag_trap
+  u32 anchor_bss;   // gc_ap_mbox_mem
+  // Every play frame (pc_ap_tick, not while paused)
+  u32 play_tick;
+  s32 pos[3];       // player position, whole units
+  s32 action;       // player now_main_index (mPlayer_INDEX_*), -1 = no player
+  u32 block;        // acre: bx << 8 | bz
+  u32 submenu;      // submenu process_status (0 = none open)
+  u32 demo;         // mDemo_CheckDemo: talk, door, event
+  u32 wipe;         // fb_wipe_mode: scene transition
+  // Watchdog (timer interrupt, once a second)
+  u32 wd_ticks;     // watchdog runs
+  u32 stall;        // seconds game_tick has stood still (0 = moving)
+  u32 hang_seq;     // +1 per hang record (from 2 s standing still on, once a second)
+  gc_ap_diag_ctx hang; // where the graph thread (the game) is
+  // Crash (OS error handler, before the game's own handler restarts it, which waits 3 s for the client)
+  u32 crash_seq;
+  u32 crash_error, crash_dsisr, crash_dar;
+  u32 crash_thread; // the OSThread that crashed (main.h graphThread = the game)
+  gc_ap_diag_ctx crash;
+  // Client -> game
+  u32 test;         // self-test (harnesses): 1 = crash now, 2 = hang while it stays 2
+  u32 log_head;
+  gc_ap_diag_line log[GC_AP_LOG_MAX];
+} gc_ap_diag;
 
 typedef struct {
   // Header: written once by the game at startup
@@ -121,6 +184,10 @@ typedef struct {
   u32 hint_req_done; // client -> game: the hint_req hint[] answers (0 = none answered yet)
   u32 hint_eligible; // client -> game: missing own locations not hinted with us (0 = none / not known)
 
+  // Diagnostics (v6; header place, see diag below)
+  u32 diag_off, diag_size; // the gc_ap_diag struct; diag_size = bytes before log[] (the fixed fields, log_head last)
+  u32 log_off, log_max, log_len; // diag.log
+
   char seed[64];
   char status[GC_AP_STATUS_LEN]; // why the client can't go on (slot_data from a newer apworld...), "" = fine
   char host[64];     // server the client talks to, for the overlay ("" before it knows)
@@ -135,6 +202,7 @@ typedef struct {
   s32 gset[GC_AP_GSET_NUM];
   char slotdata[GC_AP_SD_JSON_MAX]; // compact JSON text of the upgraded slot_data (pc_ap_slotdata_parse)
   char hint[3][GC_AP_HINT_NAME_LEN]; // beach hint: receiving player, item, location; all "" = no eligible one
+  gc_ap_diag diag;
   u32 tail;
 } gc_ap_mailbox;
 

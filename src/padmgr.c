@@ -361,20 +361,18 @@ static void padmgr_UpdatePC(void) {
     {
         extern int g_pc_paused;
         extern int g_pc_pause_input_drain;
-        int suppress = g_pc_paused;
+        /* Buttons down when the pause menu closed stay hidden from the game until each is let go; the rest goes
+         * through. (Holding everything until all buttons read up locked the player out for good with a C-stick
+         * that drifts past the C-button threshold.) */
+        static u16 held[MAXCONTROLLERS];
         if (g_pc_pause_input_drain) {
-            /* Only buttons gate the drain. Gamepad stick drift could keep
-             * cur_pads[].stick_* non-zero indefinitely and lock the player
-             * out. Buttons reliably go to 0 on release. */
-            int any_button = 0;
-            for (i = 0; i < MAXCONTROLLERS; i++) {
-                if (this->cur_pads[i].button != 0) { any_button = 1; break; }
-            }
-            if (any_button) suppress = 1;
-            else            g_pc_pause_input_drain = 0;
+            for (i = 0; i < MAXCONTROLLERS; i++) held[i] = this->cur_pads[i].button;
+            g_pc_pause_input_drain = 0;
         }
-        if (suppress) {
-            for (i = 0; i < MAXCONTROLLERS; i++) {
+        for (i = 0; i < MAXCONTROLLERS; i++) {
+            held[i] &= this->cur_pads[i].button;
+            this->cur_pads[i].button &= ~held[i];
+            if (g_pc_paused) {
                 this->cur_pads[i].button = 0;
                 this->cur_pads[i].stick_x = 0;
                 this->cur_pads[i].stick_y = 0;

@@ -1,8 +1,10 @@
 // GC side of pc_ap_platform.h
 #include "pc_ap_platform.h"
+#include "ap_log.h"
 #include "pc_ap_settings.h"
 #include "gc_ap_card.h"
 #include "gc_ap_hooks.h"
+#include "gc_ap_diag.h"
 #include "gc_ap_mailbox.h"
 #include "pc_ap_logic.h"
 #include "pc_text_draw.h"
@@ -26,11 +28,12 @@ void pc_ap_plat_settings_path(char* out, size_t size) {
 
 void pc_ap_plat_newer_save(const char* filename) {
   // No exit on a console: load nothing more from it and never write it (the overlay says why)
-  OSReport("[AP] %s was written by a newer version\n", filename);
+  APLOG_WARN("%s was written by a newer version", filename);
   gc_ap_card_newer_save();
 }
 
 void pc_ap_plat_frame(struct game_play_s* play) {
+  gc_ap_diag_play(play);
 }
 
 void pc_ap_plat_saved(int ok) {
@@ -63,6 +66,7 @@ int pc_ap_plat_title_ready(void) {
 
 void gc_ap_frame_begin(void) {
   gc_ap_mailbox_frame(); // header, heartbeat, client timeout
+  gc_ap_diag_frame();
   pc_text_begin_frame();
   pc_ap_update();
 }

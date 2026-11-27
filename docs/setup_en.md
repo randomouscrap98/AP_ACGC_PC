@@ -184,3 +184,41 @@ You need the Homebrew Channel and an SD card or USB drive.
 4. Each seed gets its own memory card on the SD/USB (`saves/ap_<seed>_<team>_<slot>.raw`), 
    so nothing to manage.
 
+
+### Reporting a freeze, crash or softlock
+
+The GameCube client keeps a diagnostics log of what the game is doing: scene, acre,
+pause menu, controllers, weather, date, and, if the game freezes or crashes, where in
+the code it stopped. It's written whenever the client is connected to the game, in the
+`logs` folder of your Archipelago install, as `AnimalCrossingGCDiag_<date>.txt` (next
+to the client's own `AnimalCrossingGCClient_<date>.txt`). Keep the client running
+while you play.
+
+If the game freezes or you get stuck:
+
+1. **Leave the client open for about 10 seconds** so it can record it, and note the
+   time.
+2. Write down what you were doing, whether music and animations kept going or the
+   picture froze, and whether you had just used the pause menu (Z+Start).
+3. Send us:
+   - both log files from that session (`AnimalCrossingGCDiag_*` and
+     `AnimalCrossingGCClient_*`),
+   - your memory card (Dolphin: the `.gci` file of the town or the card `.raw`; Wii:
+     `saves/ap_<seed>_<team>_<slot>.raw` on the SD/USB),
+   - your yaml, or the room link,
+   - Wii or Dolphin (and the Dolphin version, Help > About), and which controller you
+     use.
+
+#### Extra logging in Dolphin
+
+Optional, but it helps:
+
+1. **View > Show Log Configuration**: set Verbosity to **Info**, tick **Write to
+   File**, and tick the log types **Master Log (MASTER)**, **OSReport EXI (OSREPORT)**
+   and **OSReport HLE (OSREPORT_HLE)**. Dolphin then writes `Logs/dolphin.log` in its
+   user folder (**File > Open User Folder**). Send it along.
+2. **Config > Interface**: keep **Use Panic Handlers** on. If Dolphin shows an error
+   box, take a screenshot before you close it.
+3. If it happens, make a **save state** right away (**Emulation > Save State**, or
+   Shift+F1) and send it with the other files. Save states only load in the same
+   Dolphin version, so tell us which one you used.

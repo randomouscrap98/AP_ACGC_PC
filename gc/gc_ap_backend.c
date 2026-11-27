@@ -2,6 +2,7 @@
 // answered from the RAM mailbox (gc_ap_mailbox.h) that the PC client (apworld gc_client.py) fills.
 #include "gc_ap_mailbox.h"
 #include "gc_ap_card.h"
+#include "gc_ap_diag.h"
 #include "ap_archipelago.h"
 #include "ap_slotdata.h"
 #include "ap_log.h"
@@ -146,6 +147,11 @@ void gc_ap_mailbox_frame(void) {
     m->gset_max = GC_AP_GSET_NUM;
     m->hint_off = (u32)((u8*)m->hint - (u8*)m);
     m->hint_name_len = GC_AP_HINT_NAME_LEN;
+    m->diag_off = (u32)((u8*)&m->diag - (u8*)m);
+    m->diag_size = (u32)((u8*)m->diag.log - (u8*)&m->diag);
+    m->log_off = (u32)((u8*)m->diag.log - (u8*)m);
+    m->log_max = GC_AP_LOG_MAX;
+    m->log_len = GC_AP_LOG_LEN;
     m->tail = GC_AP_TAIL;
     m->magic[1] = GC_AP_MAGIC1;
     m->magic[0] = GC_AP_MAGIC0;
@@ -179,7 +185,7 @@ void gc_ap_mailbox_frame(void) {
 #endif
       if(!pc_ap_slotdata_parse(gc_ap_sd_json, (int)n, &gc_ap_sd)) {
         // Not JSON / too many tokens: gc_ap_sd stays invalid, so Start stays blocked
-        OSReport("[AP] slot_data: can't parse %u bytes, Start stays blocked\n", n);
+        APLOG_ERROR("slot_data: can't parse %u bytes, Start stays blocked", (unsigned)n);
       }
 #ifdef GC_AP_SD_TIMING
       gc_ap_sd_copy_us = (u32)OSTicksToMicroseconds(t_parsed - t_copy);
@@ -378,7 +384,7 @@ int ap_pop_toast(char* buf, size_t len) {
   return 1;
 }
 
-// ap_log.h: the DLL's log file; on GC the OS console (Dolphin's log)
+// ap_log.h: the DLL's log file; on GC the OS console (Dolphin's log) and the client's diagnostics log
 void ap_log_write(const char* level, const char* fmt, ...) {
   char buf[256];
   va_list args;
@@ -386,4 +392,5 @@ void ap_log_write(const char* level, const char* fmt, ...) {
   vsnprintf(buf, sizeof(buf), fmt, args);
   va_end(args);
   OSReport("[AP %s] %s\n", level, buf);
+  gc_ap_diag_log("%s %s", level, buf);
 }
