@@ -503,13 +503,6 @@ extern void mEnv_DecideWeather_NormalGameStart() {
   u8 intensity;
   int renew_weather = mTM_check_renew_time(mTM_RENEW_TIME_WEATHER);
 
-#ifdef AP_HOOKS
-  // Date & Time reload (pc_ap_logic.c): its save ran after the clock moved, so it says renew_time ==
-  // the new date and the reload's title cleared the flags. Roll that day's weather anyway. |= so the
-  // flag is taken even when the renew flag above is already set.
-  renew_weather |= pc_ap_weather_take_date_change();
-#endif
-
   if (renew_weather) {
     u8 save_weather;
     

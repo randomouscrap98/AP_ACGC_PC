@@ -398,8 +398,17 @@ int ap_pop_toast(char* buf, size_t len) {
 // to apply arrive in the death ring. Both are dropped, not kept, while no client runs (like a toast).
 void ap_send_death(const char* cause) {
   gc_ap_mailbox* m = &gc_ap_mbox;
+  // Built here, then copied as whole words: byte stores to the uncached mirror come out as 32-bit writes in Dolphin
+  // (gc_ap_diag_log; a direct snprintf left only the first letter)
+  u32 buf[GC_AP_DEATH_CAUSE_LEN / 4];
+  u32* dst = (u32*)m->death_cause;
+  int i;
+  memset(buf, 0, sizeof(buf));
+  snprintf((char*)buf, sizeof(buf), "%s", cause != NULL ? cause : "");
   // The cause text first: the client reads it after it sees death_req change
-  snprintf(m->death_cause, GC_AP_DEATH_CAUSE_LEN, "%.*s", GC_AP_DEATH_CAUSE_LEN - 1, cause != NULL ? cause : "");
+  for(i = 0; i < GC_AP_DEATH_CAUSE_LEN / 4; i++) {
+    dst[i] = buf[i];
+  }
   m->death_req++;
   if(m->death_req == 0) {
     m->death_req = 1; // 0 is "no death since the game started"

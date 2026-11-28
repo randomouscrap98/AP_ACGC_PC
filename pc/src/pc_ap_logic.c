@@ -1458,31 +1458,18 @@ int pc_ap_storage_take_item(int idx) {
   return pc_ap_storage_take(&g_ap.storage, Common_Get(player_no), Now_Private, idx);
 }
 
-// Set when a Date & Time reload saves the town after the clock moved but in play frames, so the
-// save says renew_time == the new date and the reload's title clears the renew flags: the load has
-// to roll the day's weather anyway (mEnv_DecideWeather_NormalGameStart takes and clears it)
-static int l_reload_date_change;
-
-int pc_ap_weather_take_date_change(void) {
-  int changed = l_reload_date_change;
-  l_reload_date_change = 0;
-  return changed;
+int pc_ap_time_reload_saving(void) {
+  return g_ap.reload.step == PC_AP_RELOAD_SAVING;
 }
 
 // Before the save: the new date (unless Save only) and the save villager's preparations
 static void pc_ap_reload_prepare(void) {
   pc_ap_overlay_screen_cover(1);
   if(!g_ap.reload.keep_date) {
+    // GC: the card save then steps over play frames (pc_ap_reload_save_tick) with this date in the clock;
+    // mTM_renewal_renew_time holds off meanwhile (pc_ap_time_reload_saving), so the save keeps the old
+    // renew_time and the load runs the new day's renewals, as PC's one-frame save does.
     pc_ap_time_set_date(&g_ap.reload.date);
-    // GC: the card save steps over play frames (pc_ap_reload_save_tick), and mTM_time runs in every
-    // one of them and writes the new date into the save's renew_time. The load then finds
-    // renew_time == the clock, so neither mTM_renewal_renew_time nor the weather re-roll in
-    // aWeather_ChangeWeatherTime0 fires (the held play frames skip that too) and the town keeps
-    // Save_Get(weather), the old day's weather. (PC saves in one frame before the next mTM_time:
-    // its renew_time stays old and its load re-rolls by itself.)
-    if(pc_ap_plat_save_in_play()) {
-      l_reload_date_change = 1;
-    }
   }
   // Like aNRST_before_save. After set_date: it mails/deletes fish records against the clock.
   Save_Set(cheated_flag, FALSE);

@@ -41,6 +41,9 @@
 #include "m_field_info.h"
 #include "m_kabu_manager.h"
 #include "zurumode.h"
+#ifdef AP_HOOKS
+#include "pc_ap_logic.h"
+#endif
 
 static int debug_disp = 0;
 static u8 l_renew_is = 0;
@@ -279,6 +282,11 @@ extern void mTM_renewal_renew_time() {
 
 #if defined(TARGET_PC) || defined(BUGFIXES)
   if (rtc_time->year == 0) return;
+#endif
+#ifdef AP_HOOKS
+  // GC Date & Time reload: its card save runs over play frames with the new date already set. Recording the date
+  // now would save it as handled, and the load would skip the day's renewals (weather, events, villagers)
+  if (pc_ap_time_reload_saving()) return;
 #endif
 
   // Check if the renewal time has changed
