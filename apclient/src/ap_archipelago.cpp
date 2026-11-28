@@ -346,6 +346,10 @@ void ap_send_goal(void) {
   g_ap_goal = 1;
 }
 
+int ap_goal_sent(void) {
+  return g_ap_goal;
+}
+
 // Bad or unfilled config: no client, the overlay shows "EDIT ap_config.ini: <reason>"
 static void ap_bad_config(const char * fmt, ...) {
   va_list args;

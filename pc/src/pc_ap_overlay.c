@@ -489,14 +489,16 @@ static void apo_tracker_text(char* output, size_t size) {
     if(goals[0]) {
       apo_append(output, size, AP_CTRL_GRAY PC_SPAN_RULELINE AP_CTRL_WHITE "%s", goals);
     }
-  } else {
-    snprintf(output, size, "Waiting on save...");
   }
+  // No save loaded yet (title, player select): empty, no tracker box
 }
 
 static void pc_ap_draw_tracker(struct game_s* game) {
   char output[1024];
   apo_tracker_text(output, sizeof(output));
+  if(output[0] == '\0') {
+    return;
+  }
   pc_span_boxtext(game, output, _APO_RIGHT(output), _APO_TOP, _APO_SCALE);
 }
 
@@ -512,6 +514,9 @@ int pc_ap_overlay_tracker_box(f32* left, f32* bottom) {
     return 0;
   }
   apo_tracker_text(output, sizeof(output));
+  if(output[0] == '\0') {
+    return 0;
+  }
   *left = _APO_RIGHT(output) - PC_SPAN_PAD_X;
   *bottom = _APO_TOP + pc_span_height(output, _APO_SCALE) + PC_SPAN_PAD;
   return 1;

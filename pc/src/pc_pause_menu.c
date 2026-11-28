@@ -54,7 +54,7 @@ typedef enum {
     PAGE_CRITTERS = 5, /* Bugs or Fish */
     PAGE_SHELLS = 6,
     PAGE_AP = 7, // list of the AP pages below
-    PAGE_GOALS = 8, // "Other goals": Furniture Set / Chess Set / Radio tabs
+    PAGE_GOALS = 8, // "Goals": Go mode, then Furniture Set / Chess Set / Radio tabs
     PAGE_TREES = 9,
     PAGE_STORAGE = 10,
     PAGE_FOSSILS = 11,
@@ -75,7 +75,7 @@ typedef enum {
     MAIN_FOSSILS, // AP page
     MAIN_SHELLS,  // AP page, Shellsanity only
     MAIN_TREES,   // AP page, Treesanity only
-    MAIN_GOALS,   // AP page: Furniture Set / Chess Set / Radio tabs (pc_ap_goals_menu)
+    MAIN_GOALS,   // AP page: Go mode, then Furniture Set / Chess Set / Radio tabs (pc_ap_goals_menu)
     MAIN_BACK,    // AP page: back to main
     MAIN_MAX,
 } MainItem;
@@ -110,7 +110,7 @@ static pc_ap_critter_menu critter_menu; // Bugs or Fish
 static pc_ap_fossil_menu fossil_menu;
 static pc_ap_shell_menu shell_menu;
 static pc_ap_tree_menu tree_menu;
-static pc_ap_goals_menu goals_menu; // "Other goals" page
+static pc_ap_goals_menu goals_menu; // "Goals" page
 static pc_ap_storage_menu storage_menu;
 
 // Index of item in the list, 0 if it isn't shown
@@ -178,7 +178,7 @@ static const char* main_label(MainItem item) {
         case MAIN_FOSSILS:  return "Fossils";
         case MAIN_SHELLS:   return "Shells";
         case MAIN_TREES:    return "Trees";
-        case MAIN_GOALS:    return "Other goals";
+        case MAIN_GOALS:    return "Goals";
         case MAIN_BACK:     return "Back";
         case MAIN_SETTINGS: return "Settings";
         case MAIN_QUIT:     return "Quit Game";
@@ -308,7 +308,7 @@ static void list_activate(MainItem item) {
                 cur_page = PAGE_GOALS;
                 pc_ap_goals_menu_enter(&goals_menu);
             } else {
-                pc_ap_overlay_toast("Other goals: load your save first");
+                pc_ap_overlay_toast("Goals: load your save first");
             }
             break;
         case MAIN_SETTINGS:
@@ -358,7 +358,7 @@ static void handle_action(pc_menu_action act) {
         return;
     }
 
-    /* Date & Time, Catalog, Bugs/Fish, Fossils, Shells, Trees, Other goals: each page handles its own input. */
+    /* Date & Time, Catalog, Bugs/Fish, Fossils, Shells, Trees, Goals: each page handles its own input. */
     if (cur_page == PAGE_TIME || cur_page == PAGE_CATALOG || cur_page == PAGE_CRITTERS || cur_page == PAGE_FOSSILS ||
         cur_page == PAGE_SHELLS || cur_page == PAGE_TREES || cur_page == PAGE_GOALS || cur_page == PAGE_STORAGE) {
         int result;

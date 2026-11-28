@@ -371,6 +371,10 @@ void ap_send_goal(void) {
   gc_ap_mbox.goal = 1;
 }
 
+int ap_goal_sent(void) {
+  return gc_ap_mbox.goal != 0;
+}
+
 int ap_pop_toast(char* buf, size_t len) {
   gc_ap_mailbox* m = &gc_ap_mbox;
   if(m->toast_tail == m->toast_head || len == 0) {

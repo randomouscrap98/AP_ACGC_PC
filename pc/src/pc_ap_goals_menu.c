@@ -3,6 +3,7 @@
 #include "pc_menu_util.h"
 #include "pc_text_draw.h"
 
+#include "ap_slotdata.h"
 #include "m_font.h"
 #include "m_item_name.h"
 #include "m_name_table.h"
@@ -12,20 +13,29 @@
 
 #define PC_AP_GOALS_MENU_SCALE  0.9f
 #define PC_AP_GOALS_MENU_STAR_W 12.0f // star / key column, then the name (as on the Furniture Set page)
+// Go mode tab: one text column, left aligned; shrunk when the longest line wouldn't fit
+#define PC_AP_GOALS_MENU_SCREEN_W 320.0f
+#define PC_AP_GOALS_MENU_MARGIN   16.0f
 // Radio tab: songs in two columns (55 songs, one column would scroll a lot)
 #define PC_AP_GOALS_MENU_COLUMNS 2
 #define PC_AP_GOALS_MENU_COL_W   160.0f // one column: the star / key then the name
 #define PC_AP_GOALS_MENU_NAME_W  (PC_AP_GOALS_MENU_COL_W - PC_AP_GOALS_MENU_STAR_W - 8.0f) // names, 8 px gutter
 
-static const char* const l_tab_names[PC_AP_GOALS_TAB_MAX] = { "Furniture Set", "Chess Set", "Radio" };
+static const char* const l_tab_names[PC_AP_GOALS_TAB_MAX] = { "Go mode", "Furniture Set", "Chess Set", "Radio" };
 
 int pc_ap_goals_menu_on(void) {
-  return pc_ap_ftr_set_count() > 0 || pc_ap_ftr_chess_on() || pc_ap_radio_total() > 0;
+  // Every AP seed has goals; the offline json plays a fixed goal set nobody hunts for
+  return ap_getslotdata()->valid && !pc_ap_offline();
 }
 
-// The tab's list: the Furniture Set / Chess Set pages load their pieces, Radio's never change
+// The tab's list: the Furniture Set / Chess Set pages load their pieces, Radio's never change, Go mode's are made
+// on entering
 static pc_menu_list* pc_ap_goals_menu_list(pc_ap_goals_menu* m) {
-  return m->tabs[m->tab] == PC_AP_GOALS_TAB_RADIO ? &m->radio : &m->set.list;
+  switch(m->tabs[m->tab]) {
+    case PC_AP_GOALS_TAB_RADIO:   return &m->radio;
+    case PC_AP_GOALS_TAB_GO_MODE: return &m->go;
+    default:                      return &m->set.list;
+  }
 }
 
 static void pc_ap_goals_menu_load_radio(pc_ap_goals_menu* m) {
@@ -59,6 +69,7 @@ static void pc_ap_goals_menu_select(pc_ap_goals_menu* m, int tab) {
 
 void pc_ap_goals_menu_enter(pc_ap_goals_menu* m) {
   m->tab_count = 0;
+  m->tabs[m->tab_count++] = PC_AP_GOALS_TAB_GO_MODE;
   if(pc_ap_ftr_set_count() > 0) {
     m->tabs[m->tab_count++] = PC_AP_GOALS_TAB_FTR_SET;
   }
@@ -68,10 +79,10 @@ void pc_ap_goals_menu_enter(pc_ap_goals_menu* m) {
   if(pc_ap_radio_total() > 0) {
     m->tabs[m->tab_count++] = PC_AP_GOALS_TAB_RADIO;
   }
+  m->go_count = pc_ap_go_mode_fill(m->go_lines, PC_AP_GO_MODE_MAX);
+  pc_menu_list_set(&m->go, m->go_count, 1, PC_AP_GOALS_MENU_ROWS);
   pc_ap_goals_menu_load_radio(m);
-  if(m->tab_count > 0) {
-    pc_ap_goals_menu_select(m, 0);
-  }
+  pc_ap_goals_menu_select(m, 0);
 }
 
 int pc_ap_goals_menu_input(pc_ap_goals_menu* m, pc_menu_action act) {
@@ -154,15 +165,64 @@ static void pc_ap_goals_menu_radio_draw(const pc_ap_goals_menu* m, struct game_s
   }
 }
 
+// One left aligned column of lines: white = do now, gray = wait, gold = Done!
+static void pc_ap_goals_menu_go_draw(const pc_ap_goals_menu* m, struct game_s* game, const char* header) {
+  f32 available = PC_AP_GOALS_MENU_SCREEN_W - 2.0f * PC_AP_GOALS_MENU_MARGIN;
+  f32 scale = PC_AP_GOALS_MENU_SCALE;
+  f32 widest = 0.0f;
+  int do_now = 0;
+  int wait = 0;
+  int done = 0;
+  char status[32];
+
+  for(int i = 0; i < m->go_count; i++) {
+    f32 w = (f32)pc_text_width(m->go_lines[i].text) * PC_AP_GOALS_MENU_SCALE;
+    if(w > widest) {
+      widest = w;
+    }
+    do_now += m->go_lines[i].kind == PC_AP_GO_MODE_DO_NOW;
+    wait += m->go_lines[i].kind == PC_AP_GO_MODE_WAIT;
+    done += m->go_lines[i].kind == PC_AP_GO_MODE_DONE;
+  }
+  if(widest > available) {
+    scale *= available / widest;
+  }
+  if(done || (do_now + wait) == 0) {
+    snprintf(status, sizeof(status), "All goals done!");
+  } else if(do_now > 0 && wait > 0) {
+    snprintf(status, sizeof(status), "%d to do, %d waiting", do_now, wait);
+  } else if(do_now > 0) {
+    snprintf(status, sizeof(status), "%d to do", do_now);
+  } else {
+    snprintf(status, sizeof(status), "%d waiting", wait);
+  }
+  pc_menu_fixtext(status);
+  pc_menu_list_draw(game, &m->go, header, status, 0);
+  for(int i = pc_menu_list_first(&m->go); i < pc_menu_list_end(&m->go); i++) {
+    int kind = m->go_lines[i].kind;
+    uint32_t colour = kind == PC_AP_GO_MODE_DONE ? PC_COL_DONE
+                    : kind == PC_AP_GO_MODE_WAIT ? PC_COL_MISSING
+                                                 : PC_COL_HAVE;
+    pc_menu_draw_left(game, m->go_lines[i].text, PC_AP_GOALS_MENU_MARGIN, pc_menu_list_y(&m->go, i), PC_RGBA(colour),
+                      scale);
+  }
+}
+
 void pc_ap_goals_menu_draw(const pc_ap_goals_menu* m, struct game_s* game) {
   char header[32];
   if(m->tab_count <= 0) {
     return;
   }
   pc_ap_goals_menu_header(m, header, sizeof(header));
-  if(m->tabs[m->tab] == PC_AP_GOALS_TAB_RADIO) {
-    pc_ap_goals_menu_radio_draw(m, game, header);
-  } else {
-    pc_ap_ftr_menu_draw_page(&m->set, game, header);
+  switch(m->tabs[m->tab]) {
+    case PC_AP_GOALS_TAB_RADIO:
+      pc_ap_goals_menu_radio_draw(m, game, header);
+      break;
+    case PC_AP_GOALS_TAB_GO_MODE:
+      pc_ap_goals_menu_go_draw(m, game, header);
+      break;
+    default:
+      pc_ap_ftr_menu_draw_page(&m->set, game, header);
+      break;
   }
 }

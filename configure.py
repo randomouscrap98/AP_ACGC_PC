@@ -347,6 +347,8 @@ AP_GC_UNITS = [
     ("pc/src", "pc_ap_tree_menu.c"),
     ("pc/src", "pc_ap_ftr_menu.c"),
     ("pc/src", "pc_ap_goals_menu.c"),
+    ("pc/src", "pc_ap_go_mode.c"),
+    ("pc/src", "pc_ap_go_mode_data.c"),
     ("pc/src", "pc_ap_storage_menu.c"),
     ("pc/src", "pc_text_draw.c"),
     ("pc/src", "pc_spantext.c"),

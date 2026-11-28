@@ -111,6 +111,8 @@ AP_API void ap_locations_checked(const int64_t * ids, size_t n, uint8_t * out);
 AP_API unsigned ap_checked_generation(void);
 // Tell the server the goal is done (once per session; resent on every reconnect)
 AP_API void ap_send_goal(void);
+// Nonzero once this session sent the goal (ap_send_goal; the client resends it on every reconnect)
+AP_API int ap_goal_sent(void);
 // Pop specifically a toast message (might later depend on user settings?).
 // I GUESS 0 on failure, blegh
 AP_API int ap_pop_toast(char * buf, size_t len);

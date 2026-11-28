@@ -241,6 +241,8 @@ int pc_ap_catalog_goal(void);
 // Tracker: items in the open pools, and in all pools
 int pc_ap_catalog_items_open(void);
 int pc_ap_catalog_items_total(void);
+// Items in the first `pools` pools (Go mode: how many pools the Catalog goal still needs)
+int pc_ap_catalog_items_in_pools(int pools);
 // Catalog page: items of pool (0-based) sorted by id, how many; 0 for a locked pool
 int pc_ap_catalog_pool_items(int pool, mActor_name_t* out, int max);
 // Catalog page: first open pool with an item not in the current player's catalog, 0 if none
