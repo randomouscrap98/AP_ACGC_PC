@@ -1,5 +1,5 @@
 // House stereo song grid (m_music_ovl.c mMU_set_dl): with Radiosanity on, a small AP logo on the icon of every
-// owned song whose "Radio: <Song>" check isn't sent yet, so the player sees which ones still need a listen.
+// owned song whose "Aircheck: <Song>" check isn't sent yet, so the player sees which ones still need a listen.
 // Nothing for songs outside the seed's subset, for listened songs, or with Radiosanity off.
 // The logo is the AP items' Archipelago icon (pc_ap_beach_logo.c) on a quad over the icon's bottom right
 // quarter, in the overlay's own display list: the vanilla marks' material (mus_mark_before) resets everything

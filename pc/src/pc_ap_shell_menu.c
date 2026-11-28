@@ -11,12 +11,7 @@ void pc_ap_shell_menu_enter(pc_ap_shell_menu* m) {
   pc_menu_list_set(&m->list, 12, 1, 12);
 }
 
-int pc_ap_shell_menu_input(pc_ap_shell_menu* m, pc_menu_action act) {
-  (void)m;
-  return act == PC_MENU_CANCEL ? PC_MENU_BACK : PC_MENU_STAY;
-}
-
-void pc_ap_shell_menu_draw(const pc_ap_shell_menu* m, struct game_s* game) {
+void pc_ap_shell_menu_draw_page(const pc_ap_shell_menu* m, struct game_s* game, const char* header) {
   f32 x_star = 74.0f;
   f32 x_name = 86.0f;
   f32 x_count = 200.0f;
@@ -32,7 +27,7 @@ void pc_ap_shell_menu_draw(const pc_ap_shell_menu* m, struct game_s* game) {
   }
   snprintf(text, sizeof(text), "%d / %d found", total_found, per_month * 12);
   pc_menu_fixtext(text);
-  pc_menu_list_draw(game, &m->list, "Shells", text, 0);
+  pc_menu_list_draw(game, &m->list, header, text, 0);
 
   for(int month = 0; month < 12; month++) {
     f32 y = pc_menu_list_y(&m->list, month);

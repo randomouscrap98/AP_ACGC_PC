@@ -1,5 +1,5 @@
 # Radiosanity: K.K. Slider songs are AP items. Receiving one puts the aircheck in your home's music box (no pocket
-# item, no mail); playing it for 2 seconds on a music player in your own house sends its "Radio: <Song>" check.
+# item, no mail); playing it for 2 seconds on a music player in your own house sends its "Aircheck: <Song>" check.
 # Radiosanity Song Count 1-55: the seed's random subset of the 55 songs (listed in slot_data) is what becomes items
 # and checks. Radiosanity Aircheck (out of logic): the same check also sends when the song plays in a villager's
 # house. After a show K.K. hands out no song for a subset song (vanilla for the songs outside it).
@@ -14,8 +14,8 @@ from . import timesanity
 from .game_items import ITEM_NAME_TO_ID as GAME_ITEMS
 
 SONG_COUNT_MAX = 55  # ITM_MINIDISK00-54 (the game's MINIDISK_NUM), the 3 secret songs included
-RADIO_BASE_ID = 0x70000  # song s (0-54): "Radio: <Song>" = base + s
-RADIO_ITEM_ID_BASE = 0x10340  # song s: "Song: <Song>" = base + s (55 ids, after the Bell Credits)
+RADIO_BASE_ID = 0x70000  # song s (0-54): "Aircheck: <Song>" = base + s
+RADIO_ITEM_ID_BASE = 0x10340  # song s: "Radio: <Song>" = base + s (55 ids, after the Bell Credits)
 MINIDISK_START = 0x2A00  # ITM_MINIDISK_START
 # Song index (0-54) -> the game's own item name (game_items.py: the minidisk items in id order)
 SONG_NAMES = [name for name, item_id in sorted(GAME_ITEMS.items(), key=lambda kv: kv[1])
@@ -24,13 +24,13 @@ assert len(SONG_NAMES) == SONG_COUNT_MAX, "minidisk items missing from game_item
 
 
 def radio_item_name(song: int) -> str:
-    # The game's own item name is taken by the minidisk ("K.K. March"), so the AP item is "Song: <name>" instead:
-    # it reads as an item and doesn't double up (not "K.K. K.K. Blues")
-    return "Song: " + SONG_NAMES[song]
+    # "Radio: <name>" for the song item, "Aircheck: <name>" for its check (below), so the two read apart in the
+    # spoiler and the logs; the game's own item name would double up ("K.K. K.K. Blues")
+    return "Radio: " + SONG_NAMES[song]
 
 
 def radio_location_name(song: int) -> str:
-    return "Radio: " + SONG_NAMES[song]
+    return "Aircheck: " + SONG_NAMES[song]
 
 
 ITEMS = {radio_item_name(s): RADIO_ITEM_ID_BASE + s for s in range(SONG_COUNT_MAX)}

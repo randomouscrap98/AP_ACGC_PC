@@ -1,6 +1,6 @@
 // Radiosanity: K.K. songs are AP items. Receiving one puts the song in the player's home music box; playing
-// it for 2 seconds on a music player in the player's own house sends "Radio: <Song>". With Radiosanity Aircheck
-// the same check also sends from a villager's house.
+// it for 2 seconds on a music player in the player's own house sends its "Aircheck: <Song>" check. With Radiosanity
+// Aircheck the same check also sends from a villager's house.
 // Only the seed's song subset (radio_songs, slot_data) is items and checks; songs outside it are vanilla.
 // Here: the subset, the id math, the listening timer, the music box bits and the listened list (DLL reads only).
 // The facade (pc_ap_logic.c) finds the room and the home's music box and does the sending.
@@ -19,9 +19,9 @@ extern "C" {
 // Listening time before a song counts as heard, in play frames (60 Hz)
 #define PC_AP_RADIO_HEARD_FRAMES 120
 
-// "Radio: <Song>" location of song s (0-54) = base + s
+// "Aircheck: <Song>" location of song s (0-54) = base + s
 #define PC_AP_LOC_RADIO_BASE 0x70000
-// The AP item "Song: <Song>" of song s = start + s (the 55 ids after the Bell Credits)
+// The AP item "Radio: <Song>" of song s = start + s (the 55 ids after the Bell Credits)
 #define PC_AP_RADIO_ITEM_START 0x10340
 #define PC_AP_RADIO_ITEM_END   (PC_AP_RADIO_ITEM_START + PC_AP_RADIO_SONGS)
 

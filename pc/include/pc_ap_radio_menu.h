@@ -1,4 +1,4 @@
-// House stereo song grid (m_music_ovl.c mMU_set_dl): an AP logo on the icons of the songs whose "Radio: <Song>"
+// House stereo song grid (m_music_ovl.c mMU_set_dl): an AP logo on the icons of the songs whose "Aircheck: <Song>"
 // check isn't sent yet (Radiosanity). The logo is the AP items' Archipelago icon (pc_ap_beach_logo.c); nothing
 // with Radiosanity off, for songs outside the seed's subset or not owned, or once the check is sent.
 #ifndef PC_AP_RADIO_MENU_H

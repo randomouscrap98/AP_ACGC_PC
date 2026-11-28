@@ -44,9 +44,9 @@ Animal Crossing has no dungeons or keys, so the randomizer locks parts of everyd
 - **Beach (Shellsanity, 3 per month by default):** Archipelago items sometimes wash up on the beach in 
   place of shells. Off by default. Picking one up sends a check for the month it washed up in 
   (Beach Checks per Month sets how many). Not good to use without Timesanity (all shells available at start).
-- **Songs (Radiosanity, all 55 by default):** K.K. Slider songs are items, named "Song: <song name>" (e.g.
-  "Song: K.K. Blues"). Receiving one puts it in your house's music box; play it for 2 seconds on a stereo
-  or music player at home to send its check. K.K.
+- **Songs (Radiosanity, all 55 by default):** K.K. Slider songs are items, named "Radio: <song name>" (e.g.
+  "Radio: K.K. Blues"); their checks are "Aircheck: <song name>". Receiving one puts it in your house's music
+  box; play it for 2 seconds on a stereo or music player at home to send its check. K.K.
   doesn't hand out songs after a show any more, and only the songs in your seed (Radiosanity Song Count
   picks a random subset) are items. Radiosanity Aircheck also lets the check send from a villager's house
   (out of logic).

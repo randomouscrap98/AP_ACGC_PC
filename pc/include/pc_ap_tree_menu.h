@@ -1,5 +1,5 @@
-// Pause menu Trees page (Treesanity): one line per fruit, tree checks sent / total.
-// White + star = fruit complete, else gray; "(Locked)" for fruit the player doesn't have yet.
+// Pause menu Trees tab (Treesanity, on the "Other" page, pc_ap_other_menu.h): one line per fruit, tree checks
+// sent / total. White + star = fruit complete, else gray; "(Locked)" for fruit the player doesn't have yet.
 #ifndef PC_AP_TREE_MENU_H
 #define PC_AP_TREE_MENU_H
 
@@ -19,11 +19,10 @@ typedef struct {
 
 void pc_ap_tree_menu_enter(pc_ap_tree_menu* m);
 
-// Cancel = PC_MENU_BACK; else PC_MENU_STAY
-int pc_ap_tree_menu_input(pc_ap_tree_menu* m, pc_menu_action act);
-
-// Draws into NOW_FONT_DISP with its own dim backdrop. Font projection must be loaded.
-void pc_ap_tree_menu_draw(const pc_ap_tree_menu* m, struct game_s* game);
+// Draws into NOW_FONT_DISP with its own dim backdrop, under the caller's header (the "Other" page's tab line,
+// pc_ap_other_menu.h): game font, already through pc_menu_fixtext (e.g. "< Trees >"). Font projection must be
+// loaded.
+void pc_ap_tree_menu_draw_page(const pc_ap_tree_menu* m, struct game_s* game, const char* header);
 
 #ifdef __cplusplus
 }

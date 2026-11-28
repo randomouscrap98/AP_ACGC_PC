@@ -170,7 +170,8 @@ typedef struct {
   int shellsanity_item_chance;        // Shellsanity: percent of washed-up shells that are AP items
   int tree_per_fruit;                 // Treesanity: checks per fruit borne by its trees, 0 = off (slot_data
                                       // tree_checks_per_fruit, 0 with treesanity 0)
-  // Radiosanity: song items (into the home's music box) and "Radio: <Song>" checks for the seed's song subset
+  // Radiosanity: "Radio: <Song>" song items (into the home's music box) and their "Aircheck: <Song>" checks, for
+  // the seed's song subset
   int radiosanity;                    // nonzero: radiosanity_songs are items and checks; 0 = off (older seeds)
   int radiosanity_aircheck;           // the check also sends when the song plays in a villager's house (out of logic)
   int radio_count;                    // songs in the subset: entries used in radio_songs (0 with radiosanity 0)

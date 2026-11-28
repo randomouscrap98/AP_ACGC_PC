@@ -17,8 +17,7 @@
 #include "pc_ap_catalog_menu.h"
 #include "pc_ap_critter_menu.h"
 #include "pc_ap_fossil_menu.h"
-#include "pc_ap_shell_menu.h"
-#include "pc_ap_tree_menu.h"
+#include "pc_ap_other_menu.h"
 #include "pc_ap_goals_menu.h"
 #include "pc_ap_storage_menu.h"
 #include "pc_ap_logic.h"
@@ -52,12 +51,11 @@ typedef enum {
     PAGE_TIME = 3,
     PAGE_CATALOG = 4,
     PAGE_CRITTERS = 5, /* Bugs or Fish */
-    PAGE_SHELLS = 6,
-    PAGE_AP = 7, // list of the AP pages below
-    PAGE_GOALS = 8, // "Goals": Go mode, then Furniture Set / Chess Set / Radio tabs
-    PAGE_TREES = 9,
-    PAGE_STORAGE = 10,
-    PAGE_FOSSILS = 11,
+    PAGE_AP = 6, // list of the AP pages below
+    PAGE_OTHER = 7, // "Other": Furniture Set / Chess Set / Radio / Shells / Trees tabs
+    PAGE_GOALS = 8, // "Goals": the Go mode checklist
+    PAGE_STORAGE = 9,
+    PAGE_FOSSILS = 10,
 } PauseMenuPage;
 
 // Entries of the main and AP list pages; which ones show is decided by lists_update
@@ -73,9 +71,8 @@ typedef enum {
     MAIN_BUGS,    // AP page
     MAIN_FISH,    // AP page
     MAIN_FOSSILS, // AP page
-    MAIN_SHELLS,  // AP page, Shellsanity only
-    MAIN_TREES,   // AP page, Treesanity only
-    MAIN_GOALS,   // AP page: Go mode, then Furniture Set / Chess Set / Radio tabs (pc_ap_goals_menu)
+    MAIN_OTHER,   // AP page: the other pages' tabs (pc_ap_other_menu), only when one applies
+    MAIN_GOALS,   // AP page: the Go mode checklist (pc_ap_goals_menu)
     MAIN_BACK,    // AP page: back to main
     MAIN_MAX,
 } MainItem;
@@ -108,8 +105,7 @@ static pc_ap_time_menu time_menu;
 static pc_ap_catalog_menu catalog_menu;
 static pc_ap_critter_menu critter_menu; // Bugs or Fish
 static pc_ap_fossil_menu fossil_menu;
-static pc_ap_shell_menu shell_menu;
-static pc_ap_tree_menu tree_menu;
+static pc_ap_other_menu other_menu; // "Other" page
 static pc_ap_goals_menu goals_menu; // "Goals" page
 static pc_ap_storage_menu storage_menu;
 
@@ -152,11 +148,8 @@ static void lists_update(void) {
     list_add(&ap_list, MAIN_BUGS);
     list_add(&ap_list, MAIN_FISH);
     list_add(&ap_list, MAIN_FOSSILS);
-    if (pc_ap_shells_per_month() > 0) {
-        list_add(&ap_list, MAIN_SHELLS);
-    }
-    if (pc_ap_trees_per_fruit() > 0) {
-        list_add(&ap_list, MAIN_TREES);
+    if (pc_ap_other_menu_on()) {
+        list_add(&ap_list, MAIN_OTHER);
     }
     if (pc_ap_goals_menu_on()) {
         list_add(&ap_list, MAIN_GOALS);
@@ -176,8 +169,7 @@ static const char* main_label(MainItem item) {
         case MAIN_BUGS:     return "Bugs";
         case MAIN_FISH:     return "Fish";
         case MAIN_FOSSILS:  return "Fossils";
-        case MAIN_SHELLS:   return "Shells";
-        case MAIN_TREES:    return "Trees";
+        case MAIN_OTHER:    return "Other";
         case MAIN_GOALS:    return "Goals";
         case MAIN_BACK:     return "Back";
         case MAIN_SETTINGS: return "Settings";
@@ -191,8 +183,7 @@ static int main_disabled(MainItem item) {
     if (item == MAIN_TIME || item == MAIN_SAVE) return !pc_ap_time_change_allowed_now();
     if (item == MAIN_STORAGE) return !pc_ap_storage_open_allowed_now();
     if (item == MAIN_AP || item == MAIN_CATALOG || item == MAIN_BUGS || item == MAIN_FISH || item == MAIN_FOSSILS ||
-        item == MAIN_SHELLS ||
-        item == MAIN_TREES || item == MAIN_GOALS) {
+        item == MAIN_OTHER || item == MAIN_GOALS) {
         return !pc_ap_accepting();
     }
     return 0;
@@ -284,20 +275,12 @@ static void list_activate(MainItem item) {
                 pc_ap_overlay_toast("Fossils: load your save first");
             }
             break;
-        case MAIN_SHELLS:
+        case MAIN_OTHER: /* the house and the seed's records are the player's */
             if (pc_ap_accepting()) {
-                cur_page = PAGE_SHELLS;
-                pc_ap_shell_menu_enter(&shell_menu);
+                cur_page = PAGE_OTHER;
+                pc_ap_other_menu_enter(&other_menu);
             } else {
-                pc_ap_overlay_toast("Shells: load your save first");
-            }
-            break;
-        case MAIN_TREES:
-            if (pc_ap_accepting()) {
-                cur_page = PAGE_TREES;
-                pc_ap_tree_menu_enter(&tree_menu);
-            } else {
-                pc_ap_overlay_toast("Trees: load your save first");
+                pc_ap_overlay_toast("Other: load your save first");
             }
             break;
         case MAIN_BACK: /* the main page's cursor is still on AP */
@@ -358,15 +341,14 @@ static void handle_action(pc_menu_action act) {
         return;
     }
 
-    /* Date & Time, Catalog, Bugs/Fish, Fossils, Shells, Trees, Goals: each page handles its own input. */
+    /* Date & Time, Catalog, Bugs/Fish, Fossils, Other, Goals: each page handles its own input. */
     if (cur_page == PAGE_TIME || cur_page == PAGE_CATALOG || cur_page == PAGE_CRITTERS || cur_page == PAGE_FOSSILS ||
-        cur_page == PAGE_SHELLS || cur_page == PAGE_TREES || cur_page == PAGE_GOALS || cur_page == PAGE_STORAGE) {
+        cur_page == PAGE_OTHER || cur_page == PAGE_GOALS || cur_page == PAGE_STORAGE) {
         int result;
         if (cur_page == PAGE_TIME)         result = pc_ap_time_menu_input(&time_menu, act);
         else if (cur_page == PAGE_CATALOG) result = pc_ap_catalog_menu_input(&catalog_menu, act);
         else if (cur_page == PAGE_FOSSILS) result = pc_ap_fossil_menu_input(&fossil_menu, act);
-        else if (cur_page == PAGE_SHELLS)  result = pc_ap_shell_menu_input(&shell_menu, act);
-        else if (cur_page == PAGE_TREES)   result = pc_ap_tree_menu_input(&tree_menu, act);
+        else if (cur_page == PAGE_OTHER)   result = pc_ap_other_menu_input(&other_menu, act);
         else if (cur_page == PAGE_GOALS)   result = pc_ap_goals_menu_input(&goals_menu, act);
         else if (cur_page == PAGE_STORAGE) result = pc_ap_storage_menu_input(&storage_menu, act);
         else                               result = pc_ap_critter_menu_input(&critter_menu, act);
@@ -709,10 +691,8 @@ void pc_pause_menu_draw(struct game_s* game) {
         pc_ap_critter_menu_draw(&critter_menu, game);
     } else if (cur_page == PAGE_FOSSILS) {
         pc_ap_fossil_menu_draw(&fossil_menu, game);
-    } else if (cur_page == PAGE_SHELLS) {
-        pc_ap_shell_menu_draw(&shell_menu, game);
-    } else if (cur_page == PAGE_TREES) {
-        pc_ap_tree_menu_draw(&tree_menu, game);
+    } else if (cur_page == PAGE_OTHER) {
+        pc_ap_other_menu_draw(&other_menu, game);
     } else if (cur_page == PAGE_GOALS) {
         pc_ap_goals_menu_draw(&goals_menu, game);
     } else if (cur_page == PAGE_STORAGE) {
