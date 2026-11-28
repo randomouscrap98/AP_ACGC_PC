@@ -1,6 +1,7 @@
 #include "pc_ap_radiosanity.h"
 #include "ap_archipelago.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 void pc_ap_radiosanity_init(pc_ap_radiosanity* s, const ap_slotdata* sd) {
@@ -16,6 +17,57 @@ void pc_ap_radiosanity_init(pc_ap_radiosanity* s, const ap_slotdata* sd) {
     }
   }
   s->last_song = -1;
+}
+
+int pc_ap_radiosanity_parse_songs(const char* text, u32* mask) {
+  const char* p = text;
+
+  mask[0] = 0;
+  mask[1] = 0;
+  if (strcmp(text, "all") == 0) {
+    for (int song = 0; song < PC_AP_RADIO_SONGS; song++) {
+      mask[song / 32] |= 1u << (song % 32);
+    }
+    return 1;
+  }
+  while (*p != '\0') {
+    char* end;
+    long first = strtol(p, &end, 10);
+    long last = first;
+    if (end == p) {
+      return 0; // not a number
+    }
+    p = end;
+    if (*p == '-') {
+      last = strtol(p + 1, &end, 10);
+      if (end == p + 1) {
+        return 0;
+      }
+      p = end;
+    }
+    if (first < 0 || last >= PC_AP_RADIO_SONGS || first > last) {
+      return 0;
+    }
+    for (long song = first; song <= last; song++) {
+      mask[song / 32] |= 1u << (song % 32);
+    }
+    if (*p == ',') {
+      p++;
+    } else if (*p != '\0') {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+void pc_ap_radiosanity_set_subset(pc_ap_radiosanity* s, const u32* mask) {
+  s->count = 0;
+  for (int song = 0; song < PC_AP_RADIO_SONGS; song++) {
+    if ((mask[song / 32] >> (song % 32)) & 1) {
+      s->songs[s->count++] = (unsigned char)song;
+    }
+  }
+  s->listened_ok = 0;
 }
 
 int pc_ap_radiosanity_has(const pc_ap_radiosanity* s, int song) {

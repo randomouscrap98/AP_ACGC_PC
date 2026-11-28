@@ -20,6 +20,8 @@ void pc_automated_set_generate(const char* dir);
 // --render-list: the scene names, one per line (render_check.py reads them)
 void pc_automated_print_scenes(void);
 void pc_automated_set_save(const char* dir);
+// --radio-owned (ap 0) / --radio-ap (ap 1): song list for the stereo scene; 0 = bad list (message printed)
+int pc_automated_set_radio(int ap, const char* songs);
 
 // After argument parsing: date/time defaults, no frame limit, frame-driven audio, the save folder.
 // 0 = can't run (message printed)

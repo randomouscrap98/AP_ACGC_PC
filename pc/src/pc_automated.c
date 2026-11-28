@@ -6,6 +6,7 @@
 // render_test/save, or a new town there. At the frame (counted from arriving in town for town scenes) the render
 // target goes to render_test/<scene>.png and the game quits.
 // --generate-save <dir>: a new town saved into <dir> (the pause menu Save's way), then quit.
+// --radio-owned / --radio-ap <songs>: the "stereo" scene's owned songs and AP (Radiosanity, unsent) songs.
 #include "pc_automated.h"
 #include "pc_ap_logic.h"
 #include "pc_dirs.h"
@@ -31,6 +32,7 @@
 #include "pc_ap_shellsanity.h"
 #include "pc_ap_hint.h"
 #include "pc_ap_beach_hint.h"
+#include "pc_ap_radiosanity.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -59,7 +61,7 @@ extern int g_pc_uber_shader_only;
 
 // Where a town scene goes RT_ACT_FRAME frames after arriving (the player stays put)
 enum { RT_STAY, RT_HOUSE, RT_SHOP, RT_MUSEUM, RT_PAUSE, RT_MAP, RT_INVENTORY, RT_LETTER, RT_LETTER_HINT, RT_NES,
-       RT_FLOWER_BUGS, RT_GROUND_ITEMS };
+       RT_FLOWER_BUGS, RT_GROUND_ITEMS, RT_STEREO };
 #define RT_ACT_FRAME 30
 
 // One render-test scene. 0 in any field = the default (noon 2026-06-15, the weather of the day, settings.ini)
@@ -103,7 +105,9 @@ static const RTScene s_scenes[] = {
     { .name = "flower_bugs", .town = 1, .frame = 90, .act = RT_FLOWER_BUGS },
     // Ground items in front of the player: vanilla scroll (town map), AP shell, AP hint scroll
     { .name = "ground_items", .town = 1, .frame = 90, .act = RT_GROUND_ITEMS },
-    { .name = "nes", .town = 1, .frame = 600, .act = RT_NES },  // NES game 1 (fixNES, own GL quad), as from the furniture
+    { .name = "nes", .town = 1, .frame = 600, .act = RT_NES },
+    // The house stereo's song grid, opened in the field: --radio-owned songs, AP logo on --radio-ap ones
+    { .name = "stereo", .town = 1, .frame = 120, .act = RT_STEREO },  // NES game 1 (fixNES, own GL quad), as from the furniture
     // The uber shader is only the fallback (variant compile failed, cache full): only these scenes check it
     { .name = "title_uber", .frame = 600, .uber = 1 },
     { .name = "town_uber", .town = 1, .frame = 300, .uber = 1 },
@@ -115,6 +119,9 @@ static const RTScene* s_scene;
 static u32 s_shot_frame;
 static const char* s_generate_dir; // --generate-save
 static const char* s_save_dir;     // --render-save
+// stereo scene: owned / AP songs (music box layout); default every song owned, the first 11 AP
+static u32 s_radio_owned[2] = { 0xFFFFFFFFu, 0x007FFFFFu };
+static u32 s_radio_ap[2] = { 0x7FFu, 0 };
 static u32 s_arrived;              // frame the player could first act in town (0 = not yet)
 static int s_save_requested;
 static int s_player_taken;
@@ -136,6 +143,14 @@ int pc_automated_set_scene(const char* scene, int frame) {
     }
     printf("\n");
     return 0;
+}
+
+int pc_automated_set_radio(int ap, const char* songs) {
+    if (!pc_ap_radiosanity_parse_songs(songs, ap ? s_radio_ap : s_radio_owned)) {
+        printf("--radio-%s: bad song list \"%s\" (all, or 0-54 and ranges: 0-10,20)\n", ap ? "ap" : "owned", songs);
+        return 0;
+    }
+    return 1;
 }
 
 void pc_automated_print_scenes(void) {
@@ -319,6 +334,12 @@ void pc_automated_play(GAME_PLAY* play) {
             break;
         case RT_MAP:
             mSM_open_submenu(&play->submenu, mSM_OVL_MAP, 1, 0); // as from the inventory (m_submenu.c)
+            player_menu_opened(play);
+            break;
+        case RT_STEREO:
+            // As the stereo opens it (ac_my_room_msg_ctrl.c_inc aMR_MsgControlOpenMusicBox), no disc in it
+            pc_ap_radio_test(s_radio_owned, s_radio_ap);
+            mSM_open_submenu(&play->submenu, mSM_OVL_MUSIC, -1, 0);
             player_menu_opened(play);
             break;
         case RT_LETTER: {

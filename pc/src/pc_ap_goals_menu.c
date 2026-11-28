@@ -11,8 +11,11 @@
 #include <stdio.h>
 
 #define PC_AP_GOALS_MENU_SCALE  0.9f
-#define PC_AP_GOALS_MENU_SCREEN_W 320.0f
 #define PC_AP_GOALS_MENU_STAR_W 12.0f // star / key column, then the name (as on the Furniture Set page)
+// Radio tab: songs in two columns (55 songs, one column would scroll a lot)
+#define PC_AP_GOALS_MENU_COLUMNS 2
+#define PC_AP_GOALS_MENU_COL_W   160.0f // one column: the star / key then the name
+#define PC_AP_GOALS_MENU_NAME_W  (PC_AP_GOALS_MENU_COL_W - PC_AP_GOALS_MENU_STAR_W - 8.0f) // names, 8 px gutter
 
 static const char* const l_tab_names[PC_AP_GOALS_TAB_MAX] = { "Furniture Set", "Chess Set", "Radio" };
 
@@ -37,7 +40,7 @@ static void pc_ap_goals_menu_load_radio(pc_ap_goals_menu* m) {
     }
     name[len] = 0;
   }
-  pc_menu_list_set(&m->radio, m->radio_count, 1, PC_AP_GOALS_MENU_ROWS);
+  pc_menu_list_set(&m->radio, m->radio_count, PC_AP_GOALS_MENU_COLUMNS, PC_AP_GOALS_MENU_ROWS);
 }
 
 static void pc_ap_goals_menu_select(pc_ap_goals_menu* m, int tab) {
@@ -99,12 +102,15 @@ static void pc_ap_goals_menu_header(const pc_ap_goals_menu* m, char* out, size_t
   pc_menu_fixtext(out);
 }
 
-// [star or key] name, colours as on the Furniture Set page: gray = not received, white + star = received,
-// gold + key = listened (check sent)
+// Two columns of [star or key] name, colours as on the Furniture Set page: gray = not received, white + star =
+// received, gold + key = listened (check sent)
 static void pc_ap_goals_menu_radio_draw(const pc_ap_goals_menu* m, struct game_s* game, const char* header) {
   unsigned char listened[PC_AP_RADIO_SONGS];
   int listened_count = 0;
-  f32 name_w = 0.0f;
+  f32 name_w[PC_AP_GOALS_MENU_COLUMNS];
+  f32 scale[PC_AP_GOALS_MENU_COLUMNS];
+  f32 x_name[PC_AP_GOALS_MENU_COLUMNS];
+  int c;
   char status[32];
 
   pc_ap_radio_listened_songs(listened);
@@ -115,26 +121,36 @@ static void pc_ap_goals_menu_radio_draw(const pc_ap_goals_menu* m, struct game_s
   pc_menu_fixtext(status);
   pc_menu_list_draw(game, &m->radio, header, status, 0);
 
-  // Longest name centered as one block; the star / key hangs left of it
-  for(int i = 0; i < m->radio_count; i++) {
-    f32 w = pc_text_width(m->radio_names[i]) * PC_AP_GOALS_MENU_SCALE;
-    if(w > name_w) {
-      name_w = w;
+  // Per column: the longest name centered in its slot, the star / key hangs left of it. A column whose longest
+  // name doesn't fit shrinks all of its names, so nothing runs into the next column.
+  for(c = 0; c < PC_AP_GOALS_MENU_COLUMNS; c++) {
+    name_w[c] = 0.0f;
+    for(int i = c; i < m->radio_count; i += PC_AP_GOALS_MENU_COLUMNS) {
+      f32 w = pc_text_width(m->radio_names[i]) * PC_AP_GOALS_MENU_SCALE;
+      if(w > name_w[c]) {
+        name_w[c] = w;
+      }
     }
+    scale[c] = PC_AP_GOALS_MENU_SCALE;
+    if(name_w[c] > PC_AP_GOALS_MENU_NAME_W) {
+      scale[c] *= PC_AP_GOALS_MENU_NAME_W / name_w[c];
+      name_w[c] = PC_AP_GOALS_MENU_NAME_W;
+    }
+    x_name[c] = (f32)c * PC_AP_GOALS_MENU_COL_W + PC_AP_GOALS_MENU_STAR_W +
+                (PC_AP_GOALS_MENU_NAME_W - name_w[c]) * 0.5f;
   }
-  f32 x_name = (PC_AP_GOALS_MENU_SCREEN_W - name_w) * 0.5f;
-  f32 x_star = x_name - PC_AP_GOALS_MENU_STAR_W;
   for(int i = pc_menu_list_first(&m->radio); i < pc_menu_list_end(&m->radio); i++) {
     int done = listened[i] != 0;
     int received = pc_ap_radio_received(m->radio_songs[i]);
-    uint32_t c = done ? PC_COL_DONE : received ? PC_COL_HAVE : PC_COL_MISSING;
+    uint32_t colour = done ? PC_COL_DONE : received ? PC_COL_HAVE : PC_COL_MISSING;
     f32 y = pc_menu_list_y(&m->radio, i);
 
+    c = i % PC_AP_GOALS_MENU_COLUMNS;
     if(done || received) {
       char sym[2] = { (char)(done ? CHAR_SYMBOL_KEY : CHAR_SYMBOL_STAR), 0 };
-      pc_menu_draw_left(game, sym, x_star, y, PC_RGBA(c), PC_AP_GOALS_MENU_SCALE);
+      pc_menu_draw_left(game, sym, x_name[c] - PC_AP_GOALS_MENU_STAR_W, y, PC_RGBA(colour), scale[c]);
     }
-    pc_menu_draw_left(game, m->radio_names[i], x_name, y, PC_RGBA(c), PC_AP_GOALS_MENU_SCALE);
+    pc_menu_draw_left(game, m->radio_names[i], x_name[c], y, PC_RGBA(colour), scale[c]);
   }
 }
 

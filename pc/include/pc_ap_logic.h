@@ -351,6 +351,9 @@ int pc_ap_radio_listened_count(void);
 int pc_ap_radio_received_count(void);
 // Songs the Music goal needs (0 = it isn't a goal)
 int pc_ap_radio_goal(void);
+// Test runs only (--render-test stereo): the home music box = owned, the Radiosanity subset = ap (both u32[2],
+// bit s = song s; checks unsent offline, so every owned ap song shows the AP logo)
+void pc_ap_radio_test(const u32* owned, const u32* ap);
 
 // Time hooks (on top of pc_ap_timesanity.h): frozen clock, date changes,
 // normalized time travel.

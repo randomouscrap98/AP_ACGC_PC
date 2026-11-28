@@ -4,8 +4,8 @@
 // left/right switches tab, up/down scrolls, cancel goes back. The AP list shows the entry only when the
 // seed has at least one of them.
 // The Furniture Set / Chess Set tabs are the old pages (pc_ap_ftr_menu), unchanged.
-// Radio: every song of the seed's subset, gray = not received, white + star = received (in the home music
-// box), gold + key = listened (its check is sent; also possible from a villager's house with Aircheck).
+// Radio: every song of the seed's subset in two columns, gray = not received, white + star = received (in the
+// home music box), gold + key = listened (its check is sent; also possible from a villager's house with Aircheck).
 #ifndef PC_AP_GOALS_MENU_H
 #define PC_AP_GOALS_MENU_H
 
@@ -28,7 +28,7 @@ struct game_s;
 #define PC_AP_GOALS_TAB_RADIO   2 // Radiosanity's songs
 #define PC_AP_GOALS_TAB_MAX     3
 
-#define PC_AP_GOALS_MENU_ROWS 12 // visible lines, like the Furniture Set / Chess Set pages
+#define PC_AP_GOALS_MENU_ROWS 12 // visible rows, like the Furniture Set / Chess Set pages
 
 typedef struct {
   int tabs[PC_AP_GOALS_TAB_MAX]; // PC_AP_GOALS_TAB_* of the seed, in that order

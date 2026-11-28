@@ -442,6 +442,8 @@ int main(int argc, char* argv[]) {
             printf("  --render-save DIR   Town for --render-test: a copy of the save folder DIR\n");
             printf("  --render-list       Print the --render-test scenes, one per line, and quit\n");
             printf("  --generate-save DIR Like --render-test: a new town saved into DIR, then quit\n");
+            printf("  --radio-owned L     --render-test stereo: owned songs (all, or 0-54 and ranges: 0-10,20)\n");
+            printf("  --radio-ap L        --render-test stereo: AP songs, logo when owned (default 0-10)\n");
             printf("  --debug             Debug probes in logs/: actors that jump far in one frame (actor_probe.txt),\n");
             printf("                      butterflies stuck in place (butterfly_probe.txt), fog (fog_probe.txt);\n");
             printf("                      the log goes to logs/debug_log.txt (unless --verbose); \"DEBUG\" next to\n");
@@ -517,6 +519,11 @@ int main(int argc, char* argv[]) {
             pc_automated_set_save(argv[++i]);
         } else if (strcmp(argv[i], "--generate-save") == 0 && i + 1 < argc) {
             pc_automated_set_generate(argv[++i]);
+        } else if ((strcmp(argv[i], "--radio-owned") == 0 || strcmp(argv[i], "--radio-ap") == 0) && i + 1 < argc) {
+            if (!pc_automated_set_radio(argv[i][8] == 'a', argv[i + 1])) {
+                return 1;
+            }
+            i++;
         } else if (strcmp(argv[i], "--crash-test") == 0) {
             crash_test = 1;
         } else if (strcmp(argv[i], "--debug") == 0) {

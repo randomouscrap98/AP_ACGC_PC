@@ -354,6 +354,7 @@ AP_GC_UNITS = [
     ("pc/src", "pc_ap_villagers.c"),
     ("pc/src", "pc_ap_beach_logo.c"),
     ("pc/src", "pc_ap_hint_logo.c"),
+    ("pc/src", "pc_ap_radio_menu.c"),
     ("pc/src", "pc_ap_beach_hint.c"),
     # Gameplay settings (GAME_ENHANCEMENTS)
     ("pc/src", "pc_map_divination.c"),

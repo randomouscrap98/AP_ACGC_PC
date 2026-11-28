@@ -296,6 +296,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_settings.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_beach_logo.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_hint_logo.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_radio_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_beach_hint.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_beach_hint_client.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_planting.c

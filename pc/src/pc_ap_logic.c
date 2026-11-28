@@ -1128,6 +1128,15 @@ int pc_ap_radio_song(int index) {
   return pc_ap_radiosanity_song(&g_ap.radio, index);
 }
 
+void pc_ap_radio_test(const u32* owned, const u32* ap) {
+  u32* box = pc_ap_radio_music_box();
+  if(box != NULL) {
+    box[0] = owned[0];
+    box[1] = owned[1];
+  }
+  pc_ap_radiosanity_set_subset(&g_ap.radio, ap);
+}
+
 int pc_ap_radio_goal(void) {
   return (ap_getslotdata()->goal & AP_GOAL_RADIO) ? g_ap.radio.goal_count : 0;
 }

@@ -45,6 +45,12 @@ typedef struct {
 // Config from slot_data
 void pc_ap_radiosanity_init(pc_ap_radiosanity* s, const ap_slotdata* sd);
 
+// Song list text for test runs (--radio-owned / --radio-ap): "all", or song numbers 0-54 and ranges separated by
+// commas ("0-10,20"). Sets bit s of mask (u32[2], the music box layout). 0 = bad text (mask unspecified)
+int pc_ap_radiosanity_parse_songs(const char* text, u32* mask);
+// Test runs: the subset = the songs in mask (u32[2]), in song order; the listened list is made again
+void pc_ap_radiosanity_set_subset(pc_ap_radiosanity* s, const u32* mask);
+
 // Nonzero if song s (0-54) is in the seed's subset
 int pc_ap_radiosanity_has(const pc_ap_radiosanity* s, int song);
 

@@ -7,6 +7,9 @@
 #include "m_font.h"
 #include "m_msg.h"
 #include "sys_matrix.h"
+#ifdef AP_HOOKS
+#include "pc_ap_radio_menu.h"
+#endif
 
 static mMU_Ovl_c music_ovl_data;
 
@@ -155,6 +158,10 @@ static void mMU_set_dl(Submenu* submenu, mSM_MenuInfo_c* menu_info, GAME* game) 
 
         Matrix_translate(-220.0f, -20.0f, 0.0f, MTX_MULT);
     }
+
+#ifdef AP_HOOKS
+    POLY_OPA_DISP = pc_ap_radio_menu_draw_marks(POLY_OPA_DISP, game, menu_info->position[0] - 100.0f, menu_info->position[1] + 28.0f);
+#endif
     
     gSPDisplayList(POLY_OPA_DISP++, mus_mark_before);
 
