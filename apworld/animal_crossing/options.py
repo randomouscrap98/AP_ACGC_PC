@@ -561,9 +561,9 @@ class TreeChecksPerFruit(Range):
 
 class Radiosanity(Toggle):
     """
-    K.K. Slider songs are items. Receiving one puts its aircheck in your
-    home's music box; play it for 2 seconds on a music player in your house to
-    send its check. K.K. no longer hands out songs after a show.
+    K.K. Slider songs are items. They're put directly into your
+    home's music box; play it for a short bit in your house to
+    send a check. K.K. no longer hands out songs after a show.
     """
     display_name = "Radiosanity"
 
@@ -582,18 +582,18 @@ class RadiosanitySongCount(Range):
 class RadiosanityAircheck(Toggle):
     """
     With Radiosanity, the check also sends when the song plays in a villager's
-    house. Out of logic: no extra rule for it.
+    house (can be out of logic)
     """
     display_name = "Radiosanity Aircheck"
 
 
 class TrapPercent(Range):
     """
-    Percent of the seed's items that become traps: filler items that hurt when
-    they arrive (a swarm of bees, a glitched face, Mr. Resetti, ...). Anyone can
-    find them, but they always hit you: Animal Crossing can't send one.
-    Traps take the slots after Fruit Filler and Extra Bells, before the Bell
-    Credits, which keep at least 25% of those (rounded up). 0 turns traps off.
+    Percent of the seed's items (in total) that become traps: filler items that
+    hurt when they arrive (a swarm of bees, a glitched face, Mr. Resetti, ...).
+    Traps are chosen after other fillers but before loan credits, so traps
+    cannot edge out other "better" filler items if you've requested a lot of them.
+    0 = off.
     """
     display_name = "Trap Percent"
     range_start = 0
@@ -603,8 +603,8 @@ class TrapPercent(Range):
 
 class TrapWeights(OptionCounter):
     """
-    Which traps Trap Percent puts in the pool, as weights: 0 = never.
-    They are all equally likely by default.
+    Choose traps and their weighted chance. You can disable one by setting it
+    to 0. All equally likely by default.
     """
     display_name = "Trap Weights"
     valid_keys = set(TRAP_NAMES)
@@ -614,9 +614,8 @@ class TrapWeights(OptionCounter):
 
 class DeathLinkTrapWeights(OptionCounter):
     """
-    With Death Link, which trap a death in another world applies to you,
-    as weights: 0 = never. All equally likely by default; all 0 = only the
-    message.
+    Choose what Death Link sends and each one's weighted chance. You can disable
+    one by setting it to 0. All equally likely by default.
     """
     display_name = "Death Link Trap Weights"
     valid_keys = set(TRAP_NAMES)
@@ -626,19 +625,17 @@ class DeathLinkTrapWeights(OptionCounter):
 
 class AccumulateResetti(DefaultOnToggle):
     """
-    Mr. Resetti traps (and Death Link Resettis) add to the permanent reset
-    count, so his lectures escalate. Off: they still happen, but don't count.
-    On your birthday he stays away as usual, and the lecture waits for the
-    next load.
+    Mr. Resetti traps + death link accumulate like they do on gamecube
+    (he gets more and more angry). Off means you still get them but he stays
+    at his current level, whatever that is.
     """
     display_name = "Accumulate Resetti"
 
 
 class BeachHintPercentage(Range):
     """
-    Percent of your own locations that become beach hints: an AP Hint sometimes
-    washes up on the town beach, and picking it up asks the server for a real hint
-    on one of your unchecked, unhinted locations. 0 turns beach hints off.
+    Percent of your own locations that can wash up on the beach as hints.
+    Picking them up reveals a new hint for an unchecked location. 0 = off
     """
     display_name = "Beach Hint Percentage"
     range_start = 0
