@@ -3414,6 +3414,16 @@ static void mTG_get_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
     }
 }
 
+// "Throw All Away" keeps these marked letters: a present, or (vanilla) not read yet / written by the player
+#ifdef GAME_ENHANCEMENTS
+// unread letters can go too; never one with a present, never the player's own unsent letter
+#define mTG_MAIL_MARK_KEEP(mail) ((mail)->present != EMPTY_NO || mMl_check_send_mail(mail))
+#else
+#define mTG_MAIL_MARK_KEEP(mail)                                                               \
+    ((mail)->present != EMPTY_NO ||                                                            \
+     ((mail)->content.font != mMl_FONT_RECV_READ && (mail)->content.font != mMl_FONT_RECV_PLAYER_PRESENT_READ))
+#endif
+
 static void mTG_dump_mail_mark_exe_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
     mIV_Ovl_c* inv_ovl = submenu->overlay->inventory_ovl;
     mMB_Ovl_c* mailbox_ovl = submenu->overlay->mailbox_ovl;
@@ -3429,8 +3439,7 @@ static void mTG_dump_mail_mark_exe_proc(Submenu* submenu, mSM_MenuInfo_c* menu_i
             Mail_c* mail = &Common_Get(now_home)->mailbox[i];
 
             // clear selected mail if it has a present or is from the player (sending)
-            if (mail->present != EMPTY_NO ||
-                (mail->content.font != mMl_FONT_RECV_READ && mail->content.font != mMl_FONT_RECV_PLAYER_PRESENT_READ)) {
+            if (mTG_MAIL_MARK_KEEP(mail)) {
                 mailbox_ovl->mark_bitfield &= ~(1 << i);
             }
         }
@@ -3446,8 +3455,7 @@ static void mTG_dump_mail_mark_exe_proc(Submenu* submenu, mSM_MenuInfo_c* menu_i
             Mail_c* mail = &cpmail_ovl->card_mail->mail[page][i];
 
             // clear selected mail if it has a present or is from the player (sending)
-            if (mail->present != EMPTY_NO ||
-                (mail->content.font != mMl_FONT_RECV_READ && mail->content.font != mMl_FONT_RECV_PLAYER_PRESENT_READ)) {
+            if (mTG_MAIL_MARK_KEEP(mail)) {
                 cpmail_ovl->mark_bitfield &= ~(1 << i);
             }
         }
@@ -3462,8 +3470,7 @@ static void mTG_dump_mail_mark_exe_proc(Submenu* submenu, mSM_MenuInfo_c* menu_i
         Mail_c* mail = &Now_Private->mail[i];
 
         // clear selected mail if it has a present or is from the player (sending)
-        if (mail->present != EMPTY_NO ||
-            (mail->content.font != mMl_FONT_RECV_READ && mail->content.font != mMl_FONT_RECV_PLAYER_PRESENT_READ)) {
+        if (mTG_MAIL_MARK_KEEP(mail)) {
             inv_ovl->mail_mark_bitfield2 &= ~(1 << i);
         }
     }
@@ -4527,8 +4534,10 @@ static int mTG_mark_main_sub(Submenu* submenu, int menu_type, int param, int tab
 
                     if (menu_type == mSM_OVL_MAILBOX) {
                         if (mail->present != EMPTY_NO ||
+#ifndef GAME_ENHANCEMENTS // unread letters can be marked too
                             (mail->content.font != mMl_FONT_RECV_READ &&
                              mail->content.font != mMl_FONT_RECV_PLAYER_PRESENT_READ) ||
+#endif
                             (mTG_mail_check(mail) & mTG_MAIL_FLAG_RECV) != mTG_MAIL_FLAG_RECV) {
                             return FALSE;
                         }
@@ -4537,8 +4546,11 @@ static int mTG_mark_main_sub(Submenu* submenu, int menu_type, int param, int tab
                             return FALSE;
                         }
                     } else {
-                        if ((mail->content.font != mMl_FONT_RECV_READ &&
+                        if (
+#ifndef GAME_ENHANCEMENTS // unread letters can be marked too
+                            (mail->content.font != mMl_FONT_RECV_READ &&
                              mail->content.font != mMl_FONT_RECV_PLAYER_PRESENT_READ) ||
+#endif
                             (mTG_mail_check(mail) & mTG_MAIL_FLAG_RECV) != mTG_MAIL_FLAG_RECV ||
                             (mTG_mail_check(mail) & mTG_MAIL_FLAG_PRESENT) == mTG_MAIL_FLAG_PRESENT) {
                             return FALSE;
@@ -4554,6 +4566,9 @@ static int mTG_mark_main_sub(Submenu* submenu, int menu_type, int param, int tab
 
                 if ((mode != mTG_MARK_CHK || mode != mTG_MARK_OFF || mode != mTG_MARK_CLR)) {
                     if (mMl_check_not_used_mail(mail) == TRUE ||
+#ifdef GAME_ENHANCEMENTS // a present letter is never thrown away: no mark
+                        mail->present != EMPTY_NO ||
+#endif
                         (mTG_mail_check(mail) & mTG_MAIL_FLAG_RECV) != mTG_MAIL_FLAG_RECV) {
                         return FALSE;
                     }
@@ -4562,6 +4577,9 @@ static int mTG_mark_main_sub(Submenu* submenu, int menu_type, int param, int tab
             } else if (table == mTG_TABLE_CPMAIL) {
                 if ((mode != mTG_MARK_CHK || mode != mTG_MARK_OFF || mode != mTG_MARK_CLR)) {
                     if (mMl_check_not_used_mail(mail) == TRUE ||
+#ifdef GAME_ENHANCEMENTS // a present letter is never thrown away: no mark
+                        mail->present != EMPTY_NO ||
+#endif
                         (mTG_mail_check(mail) & mTG_MAIL_FLAG_RECV) != mTG_MAIL_FLAG_RECV) {
                         return FALSE;
                     }
@@ -6982,7 +7000,12 @@ static int mTG_select_tag_decide_mail(Submenu* submenu, mSM_MenuInfo_c* menu_inf
 
     if (mMl_check_not_used_mail(mail) != TRUE) {
         if (menu_info->menu_type == mSM_OVL_CPMAIL) {
+#ifdef GAME_ENHANCEMENTS
+            // Throw Away read or unread, never with a present (vanilla offered it for a read letter with one)
+            if (mail->present != EMPTY_NO) {
+#else
             if (mail->content.font == mMl_FONT_RECV_PLAYER_PRESENT || mail->content.font == mMl_FONT_RECV) {
+#endif
                 return mTG_TYPE_ROOM_RMAIL;
             } else {
                 return mTG_TYPE_DEF_RMAIL;
@@ -6990,8 +7013,13 @@ static int mTG_select_tag_decide_mail(Submenu* submenu, mSM_MenuInfo_c* menu_inf
         }
 
         if (menu_info->menu_type == mSM_OVL_MAILBOX) {
+#ifdef GAME_ENHANCEMENTS
+            // Throw Away read or unread, never with a present
+            if (mail->present != EMPTY_NO) {
+#else
             if (mail->content.font == mMl_FONT_RECV_PLAYER_PRESENT || mail->content.font == mMl_FONT_RECV ||
                 mail->present != EMPTY_NO) {
+#endif
                 return mTG_TYPE_ROOM_RMAIL;
             } else {
                 return mTG_TYPE_DEF_RMAIL;
@@ -7016,6 +7044,9 @@ static int mTG_select_tag_decide_mail(Submenu* submenu, mSM_MenuInfo_c* menu_inf
             }
 
             ret = mail_next_type[mail_flags];
+#ifndef GAME_ENHANCEMENTS
+            // Throw Away only outdoors and on read letters (enhanced: anywhere, read or unread; letters with a
+            // present never get it, mail_next_type)
             if (Common_Get(field_type) != mFI_FIELDTYPE2_FG || mail->content.font == mMl_FONT_RECV_PLAYER_PRESENT ||
                 mail->content.font == mMl_FONT_RECV) {
                 if (ret == mTG_TYPE_DEF_SMAIL) {
@@ -7024,6 +7055,7 @@ static int mTG_select_tag_decide_mail(Submenu* submenu, mSM_MenuInfo_c* menu_inf
                     ret = mTG_TYPE_ROOM_RMAIL;
                 }
             }
+#endif
 
             return ret;
         }
