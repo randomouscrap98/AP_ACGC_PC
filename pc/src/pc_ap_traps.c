@@ -35,6 +35,8 @@
 
 // Sendable text length of the toast (pc_ap_overlay_toast)
 #define PC_AP_TRAP_TOAST 96
+// A DeathLink toast: source + cause + trap name
+#define PC_AP_TRAP_DEATH_TOAST 160
 
 // Bug: the bee closes on a running player, so the spawn distance is the only difficulty knob (3-4 tiles)
 #define PC_AP_TRAP_BEE_MIN_TILES 3.0f
@@ -70,10 +72,18 @@ static int s_hue_set; // s_hue picked (0 after a restart: a sidecar colour trap 
 void pc_ap_traps_init(pc_ap_traps* t, const ap_slotdata* sd) {
   memset(t, 0, sizeof(*t));
   t->accumulate_resetti = sd != NULL && sd->valid ? sd->accumulate_resetti : 0;
+  if(sd != NULL && sd->valid) {
+    for(int i = 0; i < AP_TRAP_NUM; i++) {
+      t->death_weights[i] = sd->death_link_trap_weights[i];
+    }
+  }
   s_pal_count = 0;
 }
 
 void pc_ap_traps_load(pc_ap_traps* t, struct ini_t* ini) {
+  // Not saved (memory only). The queued death traps stay: they apply in the loaded session at their safe point. The
+  // bee flag goes, the bee actor didn't survive the load
+  t->death_bee = 0;
   if(ini == NULL) {
     // New town (no sidecar): the traps received before it was made are not the town's business
     t->applied = pc_ap_traps_received();
@@ -146,6 +156,9 @@ int pc_ap_traps_received(void) {
 }
 
 int pc_ap_traps_frame(pc_ap_traps* t) {
+  if(t->death_bee > 0) {
+    t->death_bee--; // no sting came: the bee is gone (outrun, left behind), the next one counts again
+  }
   if(t->face_frames > 0) {
     t->face_frames--;
   }
@@ -266,6 +279,100 @@ int pc_ap_traps_pick(int n, int wanted, const float* rnd, int* out) {
   return picked;
 }
 
+// --- received deaths (DeathLink) ------------------------------------------------------------------------------
+
+int pc_ap_traps_pick_weight(const int* weights, int n, float roll) {
+  int total = 0;
+  int at;
+
+  if(weights == NULL || n <= 0) {
+    return -1;
+  }
+  for(int i = 0; i < n; i++) {
+    if(weights[i] > 0) {
+      total += weights[i];
+    }
+  }
+  if(total <= 0) {
+    return -1; // every trap off: the death is just the toast
+  }
+  at = (int)(roll * (float)total);
+  if(at < 0) {
+    at = 0;
+  }
+  if(at >= total) {
+    at = total - 1;
+  }
+  for(int i = 0; i < n; i++) {
+    if(weights[i] <= 0) {
+      continue;
+    }
+    if(at < weights[i]) {
+      return i;
+    }
+    at -= weights[i];
+  }
+  return -1; // not reached (at was below total)
+}
+
+int pc_ap_traps_death_peek(const pc_ap_traps* t) {
+  return t->death_count > 0 ? t->death_queue[0] : -1;
+}
+
+int pc_ap_traps_death_queue(pc_ap_traps* t, int kind) {
+  if(kind < 0 || kind >= PC_AP_TRAP_KINDS || t->death_count >= PC_AP_DEATH_QUEUE) {
+    return 0; // bad kind, or the queue is full: dropped
+  }
+  t->death_queue[t->death_count++] = kind;
+  return 1;
+}
+
+void pc_ap_traps_death_pop(pc_ap_traps* t) {
+  if(t->death_count <= 0) {
+    return;
+  }
+  memmove(&t->death_queue[0], &t->death_queue[1], sizeof(t->death_queue[0]) * (t->death_count - 1));
+  t->death_count--;
+}
+
+// "<source> died: <cause>. <Trap>!"; no trap (all weights 0): "<source> died: <cause>"; no cause: "<source> died."
+static void pc_ap_trap_death_toast(const char* source, const char* cause, int kind) {
+  char text[PC_AP_TRAP_DEATH_TOAST];
+  const char* who = source[0] != 0 ? source : "Someone"; // the server sends a source, but don't print an empty name
+  const char* trap = kind >= 0 ? pc_ap_trap_name(kind) : NULL;
+
+  if(cause[0] != 0 && trap != NULL) {
+    snprintf(text, sizeof(text), "%s died: %s. %s!", who, cause, trap);
+  } else if(cause[0] != 0) {
+    snprintf(text, sizeof(text), "%s died: %s", who, cause);
+  } else if(trap != NULL) {
+    snprintf(text, sizeof(text), "%s died. %s!", who, trap);
+  } else {
+    snprintf(text, sizeof(text), "%s died.", who);
+  }
+  pc_ap_overlay_toast(text);
+}
+
+void pc_ap_traps_death_tick(pc_ap_traps* t) {
+  char source[32];
+  char cause[64];
+  int kind;
+
+  while(ap_pop_death(source, sizeof(source), cause, sizeof(cause))) {
+    kind = pc_ap_traps_pick_weight(t->death_weights, PC_AP_TRAP_KINDS, fqrand());
+    pc_ap_trap_death_toast(source, cause, kind);
+    if(kind >= 0) {
+      pc_ap_traps_death_queue(t, kind); // full (3 waiting): dropped
+    }
+  }
+}
+
+int pc_ap_traps_death_bee_stung(pc_ap_traps* t) {
+  int bee = t->death_bee != 0;
+  t->death_bee = 0;
+  return bee;
+}
+
 // --- the game side -------------------------------------------------------------------------------------------
 
 // A unit a buried pitfall can go on, as the shovel's bury does it: empty, nothing buried under it, a ground
@@ -295,8 +402,9 @@ static int pc_ap_trap_unit_growable(int ut_x, int ut_z, xyz_t* center) {
 }
 
 // The bee tree shake's spawn (bg_item_common.c_inc), but at a distance and with the vanilla shock: surprise
-// jingle + bee chase BGM (the shake's own call, so the music also stops as it does there)
-static int pc_ap_trap_apply_bee(struct game_play_s* play) {
+// jingle + bee chase BGM (the shake's own call, so the music also stops as it does there). from_death: the flag for
+// the sting hook, so that bee's sting doesn't go back out as a DeathLink (a trap item's does)
+static int pc_ap_trap_apply_bee(pc_ap_traps* t, struct game_play_s* play, int from_death) {
   GAME_PLAY* p = (GAME_PLAY*)play;
   PLAYER_ACTOR* player = GET_PLAYER_ACTOR(p);
   ACTOR* actor;
@@ -319,6 +427,9 @@ static int pc_ap_trap_apply_bee(struct game_play_s* play) {
   }
   if(player->request_main_shock_all_proc != NULL) {
     player->request_main_shock_all_proc((GAME*)p, 24.0f, angle, TRUE, FALSE, mPlayer_REQUEST_PRIORITY_21);
+  }
+  if(from_death) {
+    t->death_bee = PC_AP_TRAP_DEATH_BEE_FRAMES;
   }
   return 1;
 }
@@ -592,9 +703,10 @@ static int pc_ap_trap_apply_cockroach(pc_ap_traps* t) {
   return 1;
 }
 
-int pc_ap_traps_apply_one(pc_ap_traps* t, int kind, struct game_play_s* play) {
+// from_death = a received death's queue (only the bee cares)
+static int pc_ap_trap_apply(pc_ap_traps* t, int kind, struct game_play_s* play, int from_death) {
   switch(kind) {
-    case PC_AP_TRAP_BEE:       return pc_ap_trap_apply_bee(play);
+    case PC_AP_TRAP_BEE:       return pc_ap_trap_apply_bee(t, play, from_death);
     case PC_AP_TRAP_FACE:      return pc_ap_trap_apply_face(t, play);
     case PC_AP_TRAP_RESETTI:   return pc_ap_trap_apply_resetti(t);
     case PC_AP_TRAP_PITFALL:   return pc_ap_trap_apply_pitfall(play);
@@ -603,6 +715,14 @@ int pc_ap_traps_apply_one(pc_ap_traps* t, int kind, struct game_play_s* play) {
     case PC_AP_TRAP_COLOR:     return pc_ap_trap_apply_color(t);
     default:                   return 0;
   }
+}
+
+int pc_ap_traps_apply_one(pc_ap_traps* t, int kind, struct game_play_s* play) {
+  return pc_ap_trap_apply(t, kind, play, 0);
+}
+
+int pc_ap_traps_apply_death(pc_ap_traps* t, int kind, struct game_play_s* play) {
+  return pc_ap_trap_apply(t, kind, play, 1);
 }
 
 // The safe point of each trap (research/trap_mechanics.md): the town outdoors for the field ones, any play frame
@@ -675,6 +795,17 @@ void pc_ap_traps_tick(pc_ap_traps* t, struct game_play_s* play) {
     }
     pc_ap_traps_applied(t);
     pc_ap_trap_toast(kind, ap_getitem_sender((size_t)idx));
+  }
+
+  // Received deaths' traps: the same safe points and apply functions, oldest first
+  while((kind = pc_ap_traps_death_peek(t)) >= 0) {
+    if(pc_ap_trap_safe_point(kind, in_game, town_out) == 0) {
+      return;
+    }
+    if(pc_ap_traps_apply_death(t, kind, play) == 0) {
+      return;
+    }
+    pc_ap_traps_death_pop(t);
   }
 }
 

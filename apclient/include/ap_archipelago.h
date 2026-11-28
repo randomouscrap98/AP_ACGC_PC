@@ -118,6 +118,16 @@ AP_API int ap_goal_sent(void);
 // I GUESS 0 on failure, blegh
 AP_API int ap_pop_toast(char * buf, size_t len);
 
+// DeathLink (slot_data death_link). The "DeathLink" tag can't go in Connect (slot_data only arrives with
+// Connected), so it's set with a ConnectUpdate after every slot connect.
+// Send a death: cause is the whole text, the player's name included ("archi was stung by a bee"). Dropped when
+// not connected or this seed has death_link off (the server stores nothing, a death sent while the other game is
+// closed is lost).
+AP_API void ap_send_death(const char * cause);
+// The oldest death received since the last call: 1 and fills source/cause, 0 = none. Our own bounce comes back
+// from the server too and is dropped by its time (as Archipelago's own clients do); a missing field becomes "".
+AP_API int ap_pop_death(char * source, size_t slen, char * cause, size_t clen);
+
 // Control codes inside toast text. A color code sets the color until the next one;
 // text starts white. AP_CTRL_NEWLINE starts a new line (the box grows to fit). Always write the macro next to a separate literal
 // (AP_CTRL_GREEN "Alice"), never "\x02Alice": C would read the A as hex.

@@ -388,6 +388,19 @@ int ap_pop_toast(char* buf, size_t len) {
   return 1;
 }
 
+// DeathLink: stage 4 (GC client, via the mailbox). Until then a send is dropped and nothing is ever received.
+void ap_send_death(const char* cause) {
+  (void)cause;
+}
+
+int ap_pop_death(char* source, size_t slen, char* cause, size_t clen) {
+  (void)source;
+  (void)slen;
+  (void)cause;
+  (void)clen;
+  return 0;
+}
+
 // ap_log.h: the DLL's log file; on GC the OS console (Dolphin's log) and the client's diagnostics log
 void ap_log_write(const char* level, const char* fmt, ...) {
   char buf[256];

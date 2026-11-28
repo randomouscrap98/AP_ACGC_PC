@@ -15,6 +15,11 @@ extern "C" {
 // no terminator (player names and town names are both 8 bytes)
 void pc_ap_name_to_game(u8* dst, int dst_len, const char* src);
 
+// Game name -> ASCII, the reverse (a save's player name for AP text, e.g. a DeathLink cause): the game font's
+// letters, digits and space are ASCII at the same codes, anything else becomes '?'; trailing spaces dropped,
+// always NUL terminated
+void pc_ap_name_from_game(char* dst, size_t len, const u8* src, int src_len);
+
 // ASCII -> game charset, space padded, no terminator. '\n' becomes a line break.
 void pc_ap_text_to_game(u8* dst, int dst_len, const char* src);
 

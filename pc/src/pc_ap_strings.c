@@ -34,6 +34,23 @@ void pc_ap_text_to_game(u8* dst, int dst_len, const char* src) {
   }
 }
 
+void pc_ap_name_from_game(char* dst, size_t len, const u8* src, int src_len) {
+  size_t n = 0;
+
+  if(dst == NULL || len == 0 || src == NULL) {
+    return;
+  }
+  for(int i = 0; i < src_len && n + 1 < len; i++) {
+    // The game font has the ASCII letters, digits and space at their ASCII codes (m_font.h CHAR_SPACE); its
+    // own extras (accents, symbols) are outside ASCII and not worth mapping for a toast
+    dst[n++] = (src[i] >= 0x20 && src[i] < 0x7F) ? (char)src[i] : '?';
+  }
+  while(n > 0 && dst[n - 1] == ' ') {
+    n--;
+  }
+  dst[n] = 0;
+}
+
 // Index of the first needle (n bytes) at or after from, -1 if missing
 static int pc_find_bytes(const u8* buf, int len, int from, const void* needle, int n) {
   for(int i = from; i <= len - n; i++) {

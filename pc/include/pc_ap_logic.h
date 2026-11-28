@@ -368,6 +368,9 @@ int pc_ap_trap_resetti_pending(void);
 int pc_ap_trap_resetti_count(void);
 // Test runs only (--render-test trap_*): applies one trap now (pc_ap_traps.h PC_AP_TRAP_*), no safe point
 void pc_ap_trap_test(int kind, struct game_play_s* play);
+// DeathLink send: m_player_main_stung_bee.c_inc, once per sting (the swell). Sends "<player name> was stung by a
+// bee" when the seed has death_link on; a received death's own Bee Trap sting is not sent back
+void pc_ap_on_bee_sting(void);
 
 // Time hooks (on top of pc_ap_timesanity.h): frozen clock, date changes,
 // normalized time travel.

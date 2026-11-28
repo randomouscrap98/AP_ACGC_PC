@@ -75,6 +75,9 @@ static void Player_actor_SearchAnimation_Stung_bee(ACTOR* actorx, GAME* game, f3
         cKF_FrameControl_c* fc0_p = &kf0_p->frame_control;
 
         if (Player_actor_Check_AnimationFrame(fc0_p, 21.0f)) {
+#ifdef AP_HOOKS
+            pc_ap_on_bee_sting(); // AP DeathLink: once per sting, at the swell
+#endif
             mNpc_SetTalkBee();
             Common_Set(player_bee_swell_flag, TRUE);
             Common_Set(player_bee_chase_flag, FALSE);

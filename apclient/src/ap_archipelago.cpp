@@ -73,6 +73,13 @@ static bool g_ap_outage_logged = false;
 static std::deque<std::string> g_ap_toast;
 static const size_t AP_TOAST_MAX = 16;
 
+// DeathLink: deaths received since the last ap_pop_death (oldest first), and the time of the last one we sent
+// (our own bounce comes back from the server: dropped by time, as Archipelago's clients do)
+typedef struct { std::string source; std::string cause; } ap_death_recv;
+static std::deque<ap_death_recv> g_ap_deaths;
+static const size_t AP_DEATHS_MAX = 16;
+static double g_ap_death_sent = 0.0;
+
 // Text from outside (server, asio errors) shown in the overlay: control bytes
 // would act as AP_CTRL_* codes there, so they become spaces. Trailing spaces
 // dropped (Windows error text may end in "\r\n").
@@ -274,6 +281,30 @@ int ap_pop_toast(char * buf, size_t len) {
   if(g_ap_toast.size() == 0) return 0;
   snprintf(buf, len, "%s", g_ap_toast.front().c_str());
   g_ap_toast.pop_front();
+  return 1;
+}
+
+void ap_send_death(const char * cause) {
+  if(!g_ap || g_ap_connectstate.state != AP_CSTATE_CONNECTED) return;
+  const ap_slotdata * sd = ap_getslotdata();
+  if(!sd->death_link) return; // the tag isn't set either
+  double time = g_ap->get_server_time(); // the server's clock: other games use the same for deathlinks
+  nlohmann::json data = {
+    {"time", time},
+    {"source", g_ap->get_slot()},
+    {"cause", cause ? cause : ""},
+  };
+  if(!g_ap->Bounce(data, {}, {}, {"DeathLink"})) return; // dropped, not queued, below the slot
+  g_ap_death_sent = time;
+  APLOG_INFO("DEATHLINK: sent (%s)", cause ? cause : "");
+}
+
+int ap_pop_death(char * source, size_t slen, char * cause, size_t clen) {
+  if(g_ap_deaths.size() == 0) return 0;
+  ap_death_recv d = g_ap_deaths.front();
+  g_ap_deaths.pop_front();
+  if(source && slen) snprintf(source, slen, "%s", d.source.c_str());
+  if(cause && clen) snprintf(cause, clen, "%s", d.cause.c_str());
   return 1;
 }
 
@@ -549,6 +580,8 @@ int ap_start_offline(const char * json_text) {
 void ap_start(void) {
   APLOG_INFO("Starting AP system");
 
+  g_ap_deaths.clear();
+  g_ap_death_sent = 0.0;
   ap_config_init(&g_ap_config);
   ap_connectstate_init(&g_ap_connectstate);
 
@@ -612,6 +645,11 @@ void ap_start(void) {
     }
     g_ap_connectstate.connect_once = 1;
     g_ap_connectstate.state = AP_CSTATE_CONNECTED;
+    // DeathLink: tags go in Connect, but slot_data (which says whether it's on) only arrives with Connected, so
+    // every connect updates the tags instead (also on a reconnect, where ConnectSlot starts without tags again)
+    if(sd->death_link) {
+      g_ap->ConnectUpdate(false, 0, true, {"DeathLink"});
+    }
     // The text client's hints: current list now, then every change (retrieved / set_reply handlers)
     g_ap->SetNotify({ ap_hints_key() });
     g_ap_goal_server = 0; // this slot's answer comes with the retrieved handler
@@ -683,6 +721,30 @@ void ap_start(void) {
     g_ap_connectstate.state = AP_CSTATE_JOINING;
     APLOG_INFO("CONNECTED - WAITING ON SLOT: %s", g_ap_config.slotname);
     g_ap->ConnectSlot(name, pw, 0b111 /* items_handling */);
+  });
+
+  g_ap->set_bounced_handler([](const nlohmann::json& cmd) {
+    auto tags = cmd.find("tags");
+    if(tags == cmd.end() || !tags->is_array()) return;
+    bool death_link = false;
+    for(const auto& tag : *tags) {
+      if(tag.is_string() && tag.get<std::string>() == "DeathLink") death_link = true;
+    }
+    if(!death_link) return; // another game's mechanic (e.g. RingLink)
+    auto data = cmd.find("data");
+    if(data == cmd.end() || !data->is_object()) return;
+    // Our own death bounced back to us
+    auto time = data->find("time");
+    double sent = (time != data->end() && time->is_number()) ? time->get<double>() : 0.0;
+    if(g_ap_death_sent != 0.0 && sent == g_ap_death_sent) return;
+    ap_death_recv d;
+    auto source = data->find("source");
+    if(source != data->end() && source->is_string()) d.source = ap_plain(source->get<std::string>());
+    auto cause = data->find("cause");
+    if(cause != data->end() && cause->is_string()) d.cause = ap_plain(cause->get<std::string>());
+    APLOG_INFO("DEATHLINK: %s died (%s)", d.source.c_str(), d.cause.c_str());
+    g_ap_deaths.push_back(d);
+    if(g_ap_deaths.size() > AP_DEATHS_MAX) g_ap_deaths.pop_front();
   });
 
   // Also runs for the full list on every connect
@@ -781,6 +843,7 @@ void ap_poll(void) {
   // Set the state again after: closing the socket may run the disconnect handler.
   if (g_ap && g_ap_room_changed) {
     g_ap.reset();
+    g_ap_deaths.clear(); // another room's deaths are not ours
     g_ap_connectstate.state = AP_CSTATE_SLOTREFUSED;
     snprintf(g_ap_connectstate.last_refuse_reason,
         sizeof(g_ap_connectstate.last_refuse_reason), AP_ROOM_CHANGED_REASON);
@@ -788,6 +851,8 @@ void ap_poll(void) {
 }         // call once per frame
 void ap_stop(void) { 
   g_ap.reset(); 
+  g_ap_deaths.clear();
+  g_ap_death_sent = 0.0;
   ap_connectstate_init(&g_ap_connectstate);
 }
 
