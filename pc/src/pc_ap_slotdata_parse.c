@@ -158,6 +158,7 @@ typedef struct {
 
 #define SD_KEY(s) { s, sizeof(s) - 1 }
 static const sd_key sd_top_keys[] = {
+  SD_KEY("accumulate_resetti"),
   SD_KEY("beach_checks_per_month"),
   SD_KEY("beach_hint_count"),
   SD_KEY("beach_hint_letter"),
@@ -171,6 +172,8 @@ static const sd_key sd_top_keys[] = {
   SD_KEY("catalogsanity"),
   SD_KEY("coconuts_wash_up"),
   SD_KEY("critter_odds"),
+  SD_KEY("death_link"),
+  SD_KEY("death_link_trap_weights"),
   SD_KEY("face"),
   SD_KEY("favor_pools"),
   SD_KEY("favors_per_pool"),
@@ -604,6 +607,8 @@ int pc_ap_slotdata_parse(const char* json, int len, ap_slotdata* out) {
   static const int default_loans[AP_LOAN_NUM] = { 15000, 45000, 30000, 60000, 80000 };
   static const int default_loan_checks[AP_LOAN_NUM] = { 0, 0, 0, 0, 0 }; // missing = no loan checks
   static const int no_thresholds[AP_STORE_LEVELS] = { 0, 0, 0 };
+  // A missing weight list (older seeds) is no DeathLink trap at all
+  static const int no_trap_weights[AP_TRAP_NUM] = { 0, 0, 0, 0, 0, 0, 0 };
   // WARN: copy of the apworld's FOSSIL_SEASONS (fossil_availability.py), the default for offline play
   static const int default_fossil_seasons[AP_FOSSIL_NUM] = {
     2, 2, 2, 2, 2, 2, // Tricera, T-rex: autumn
@@ -727,6 +732,14 @@ int pc_ap_slotdata_parse(const char* json, int len, ap_slotdata* out) {
     sd_radio_songs(&d, out);
   }
   out->radio_goal_count = sd_int(&d, "radio_goal_count", 0, 0, AP_RADIO_SONG_NUM);
+  // Traps / DeathLink. Missing = off (older seeds; the slot_data upgrade adds those 0s): no DeathLink, no DeathLink
+  // traps. accumulate_resetti alone does nothing without a trap, so a missing key keeps the option default (on)
+  out->death_link = sd_bool(&d, "death_link", 0);
+  sd_int_array(&d, "death_link_trap_weights", out->death_link_trap_weights, no_trap_weights, AP_TRAP_NUM);
+  for (i = 0; i < AP_TRAP_NUM; i++) {
+    if (out->death_link_trap_weights[i] < 0) { out->death_link_trap_weights[i] = 0; }
+  }
+  out->accumulate_resetti = sd_bool(&d, "accumulate_resetti", 1);
   credits = sd_obj_get(&d, 0, "bell_credits");
   for (i = 0; i < AP_BELLCREDIT_NUM; i++) {
     int b = sd_obj_get(&d, credits, credit_names[i]);

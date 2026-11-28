@@ -241,7 +241,10 @@ static void pc_save_pre_write_side_effects(int save_mode) {
 
     if (priv != NULL) {
         if (save_mode == 0) {
-            priv->reset_code = 0;
+            // A trap's Resetti is due at the next load: keep the armed reset code (m_card.c, GC)
+            if (!pc_tr_resetti_pending()) {
+                priv->reset_code = 0;
+            }
 
             for (i = 0; i < mPr_POCKETS_SLOT_COUNT; i++) {
                 if (ITEM_IS_WISP(priv->inventory.pockets[i])) {
@@ -791,9 +794,13 @@ int mCD_InitGameStart_bg(int player_no, int card_private_idx, int start_cond, s3
                     /* Birthday clears reset penalty (matches original) */
                     if (Now_Private->state_flags & mPr_FLAG_BIRTHDAY_ACTIVE) {
                         Now_Private->reset_code = 0;
-                    } else if (!ZURUMODE2_ENABLED() && !g_pc_settings.disable_resetti) {
+                    } else if (!ZURUMODE2_ENABLED() &&
+                               (!g_pc_settings.disable_resetti || pc_tr_resetti_pending())) {
                         Common_Set(reset_flag, TRUE);
-                        Now_Private->reset_count++;
+                        // A trap's Resetti counts only with Accumulate Resetti (m_card.c, GC)
+                        if (pc_tr_resetti_count()) {
+                            Now_Private->reset_count++;
+                        }
                         OSReport("[PC] Reset detected! reset_count=%d — Resetti will appear\n",
                                  Now_Private->reset_count);
                     }

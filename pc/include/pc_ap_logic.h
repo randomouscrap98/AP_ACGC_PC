@@ -353,9 +353,21 @@ int pc_ap_radio_listened_count(void);
 int pc_ap_radio_received_count(void);
 // Songs the Music goal needs (0 = it isn't a goal)
 int pc_ap_radio_goal(void);
+// Stereo "take out" (m_tag_ovl.c mTG_music_takeout_proc): 1 = song s (0-54) stays in the player. Seed songs are AP
+// items the tick puts back into the music box every frame, so taking one out would duplicate it.
+int pc_ap_radio_keep_in_player(int song);
 // Test runs only (--render-test stereo): the home music box = owned, the Radiosanity subset = ap (both u32[2],
 // bit s = song s; checks unsent offline, so every owned ap song shows the AP logo)
 void pc_ap_radio_test(const u32* owned, const u32* ap);
+
+// Traps (pc_ap_traps.h). A trap's Resetti is due at the next load: the save keeps the reset code armed, and the
+// load shows Resetti even with Disable Resetti on (m_card.c / pc_m_card.c)
+int pc_tr_resetti_pending(void);
+// Reset detected on load: 1 = add it to the permanent reset count (a trap's Resetti with Accumulate Resetti off
+// doesn't); uses the trap's flag up
+int pc_tr_resetti_count(void);
+// Test runs only (--render-test trap_*): applies one trap now (pc_ap_traps.h PC_AP_TRAP_*), no safe point
+void pc_ap_trap_test(int kind, struct game_play_s* play);
 
 // Time hooks (on top of pc_ap_timesanity.h): frozen clock, date changes,
 // normalized time travel.

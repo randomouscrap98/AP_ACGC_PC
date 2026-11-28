@@ -79,7 +79,7 @@ void pc_ap_goals_menu_enter(pc_ap_goals_menu* m) {
   if(pc_ap_radio_total() > 0) {
     m->tabs[m->tab_count++] = PC_AP_GOALS_TAB_RADIO;
   }
-  m->go_count = pc_ap_go_mode_fill(m->go_lines, PC_AP_GO_MODE_MAX);
+  m->go_count = pc_ap_go_mode_fill(m->go_lines, PC_AP_GO_MODE_MAX, &m->go_left);
   pc_menu_list_set(&m->go, m->go_count, 1, PC_AP_GOALS_MENU_ROWS);
   pc_ap_goals_menu_load_radio(m);
   pc_ap_goals_menu_select(m, 0);
@@ -165,14 +165,12 @@ static void pc_ap_goals_menu_radio_draw(const pc_ap_goals_menu* m, struct game_s
   }
 }
 
-// One left aligned column of lines: white = do now, gray = wait, gold = Done!
+// The checklist: lines left aligned with each other, the block centred by its widest line; white, gold = Done!
 static void pc_ap_goals_menu_go_draw(const pc_ap_goals_menu* m, struct game_s* game, const char* header) {
   f32 available = PC_AP_GOALS_MENU_SCREEN_W - 2.0f * PC_AP_GOALS_MENU_MARGIN;
   f32 scale = PC_AP_GOALS_MENU_SCALE;
   f32 widest = 0.0f;
-  int do_now = 0;
-  int wait = 0;
-  int done = 0;
+  int sent = m->go_count > 0 && m->go_lines[0].kind == PC_AP_GO_MODE_DONE;
   char status[32];
 
   for(int i = 0; i < m->go_count; i++) {
@@ -180,31 +178,24 @@ static void pc_ap_goals_menu_go_draw(const pc_ap_goals_menu* m, struct game_s* g
     if(w > widest) {
       widest = w;
     }
-    do_now += m->go_lines[i].kind == PC_AP_GO_MODE_DO_NOW;
-    wait += m->go_lines[i].kind == PC_AP_GO_MODE_WAIT;
-    done += m->go_lines[i].kind == PC_AP_GO_MODE_DONE;
   }
   if(widest > available) {
     scale *= available / widest;
+    widest = available;
   }
-  if(done || (do_now + wait) == 0) {
+  if(sent) {
     snprintf(status, sizeof(status), "All goals done!");
-  } else if(do_now > 0 && wait > 0) {
-    snprintf(status, sizeof(status), "%d to do, %d waiting", do_now, wait);
-  } else if(do_now > 0) {
-    snprintf(status, sizeof(status), "%d to do", do_now);
+  } else if(m->go_left == 0) {
+    snprintf(status, sizeof(status), "All goals met");
   } else {
-    snprintf(status, sizeof(status), "%d waiting", wait);
+    snprintf(status, sizeof(status), "%d goal%s left", m->go_left, m->go_left == 1 ? "" : "s");
   }
   pc_menu_fixtext(status);
   pc_menu_list_draw(game, &m->go, header, status, 0);
+  f32 x = (PC_AP_GOALS_MENU_SCREEN_W - widest) * 0.5f;
   for(int i = pc_menu_list_first(&m->go); i < pc_menu_list_end(&m->go); i++) {
-    int kind = m->go_lines[i].kind;
-    uint32_t colour = kind == PC_AP_GO_MODE_DONE ? PC_COL_DONE
-                    : kind == PC_AP_GO_MODE_WAIT ? PC_COL_MISSING
-                                                 : PC_COL_HAVE;
-    pc_menu_draw_left(game, m->go_lines[i].text, PC_AP_GOALS_MENU_MARGIN, pc_menu_list_y(&m->go, i), PC_RGBA(colour),
-                      scale);
+    uint32_t colour = m->go_lines[i].kind == PC_AP_GO_MODE_DONE ? PC_COL_DONE : PC_COL_HAVE;
+    pc_menu_draw_left(game, m->go_lines[i].text, x, pc_menu_list_y(&m->go, i), PC_RGBA(colour), scale);
   }
 }
 

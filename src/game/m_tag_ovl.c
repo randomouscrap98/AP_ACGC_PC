@@ -3850,7 +3850,11 @@ static void mTG_music_takeout_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info) 
         if (mPr_GetPossessionItemSum(Now_Private, EMPTY_NO) >= 1) {
             free_idx = mPr_GetPossessionItemIdx(Now_Private, EMPTY_NO);
 
-            if (free_idx >= 0) {
+            if (free_idx >= 0
+#ifdef AP_HOOKS
+                && !pc_ap_radio_keep_in_player(idx) /* Radiosanity song: the sync would put it back (dupe) */
+#endif
+            ) {
                 ClrRoomMusicBox(idx);
                 mPr_SetPossessionItem(Now_Private, free_idx, ITM_MINIDISK_START + idx, mPr_ITEM_COND_NORMAL);
             }
@@ -3866,7 +3870,11 @@ static void mTG_music_takeout_proc(Submenu* submenu, mSM_MenuInfo_c* menu_info) 
                 if (ChkMusicBox(music_ovl->mark_flg, i)) {
                     free_idx = mPr_GetPossessionItemIdx(Now_Private, EMPTY_NO);
 
-                    if (free_idx >= 0) {
+                    if (free_idx >= 0
+#ifdef AP_HOOKS
+                        && !pc_ap_radio_keep_in_player(i)
+#endif
+                    ) {
                         ClrRoomMusicBox(i);
                         mPr_SetPossessionItem(Now_Private, free_idx, ITM_MINIDISK_START + i, mPr_ITEM_COND_NORMAL);
                     }

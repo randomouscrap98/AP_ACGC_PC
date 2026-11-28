@@ -327,6 +327,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_music.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_museumsanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_tools.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_traps.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_money.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_fruit.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_furniture.c

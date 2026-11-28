@@ -124,6 +124,29 @@ plays another hour's theme, fixed by the seed), starting shirt, starting village
 and the stationery (one paper for the seed, or a random paper for every letter), signature and text of
 letters from Archipelago.
 
+## Traps and DeathLink
+
+Traps (Trap Percent, off by default) are filler items that hurt when they arrive. Anyone in the multiworld
+can find one, but Animal Crossing can't send traps: they always hit you. They take slots before the Bell
+Credits, which keep at least a quarter of the filler. Trap Weights picks which of these can appear
+(0 = never, all equally likely by default):
+
+- **Bee Trap:** a swarm of bees appears a few steps away and chases you. You can't outrun it: escape is a
+door, your net, or Easier Critter Catch.
+- **Gyroid Face Trap:** your face becomes the glitched gyroid face until the first save-and-reload (quit and
+  continue, or the pause menu's Save / Date & Time) after 10 minutes of play.
+- **Resetti Trap:** Mr. Resetti scolds you on the next load, as if the game had been reset. Accumulate
+  Resetti (on by default) makes these count towards his permanent reset count, so the lectures escalate.
+- **Pitfall Trap:** 1-5 pitfalls, buried at random around you (your own tile included).
+- **Weed Trap:** 25 weeds sprout across town (vanilla grows about 5 a day).
+- **Cockroach Trap:** cockroaches appear in your house, even with No Cockroaches on.
+- **Color Trap:** the ground, cliffs, bushes, flowers, weeds and trees get absurd colours for 10 minutes of
+  play. It stays readable (no pure black), and everything is restored exactly afterwards.
+
+Traps ignore your quality-of-life settings. Death Link (off by default) shares deaths: when someone else
+dies, one trap picked by Death Link Trap Weights hits you (all 0 = only the message), and a bee sting is
+what you send to the others when you die.
+
 ## Updating
 
 Seeds, options files and saves from 0.5.0 on keep working with newer versions of the game and apworld. A seed

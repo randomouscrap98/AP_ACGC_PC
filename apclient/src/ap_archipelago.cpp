@@ -532,6 +532,9 @@ int ap_start_offline(const char * json_text) {
   sd->radiosanity_aircheck = 0;
   sd->radio_count = 0;
   sd->radio_goal_count = 0;
+  sd->death_link = 0;
+  sd->accumulate_resetti = 0;
+  for (int i = 0; i < AP_TRAP_NUM; i++) { sd->death_link_trap_weights[i] = 0; }
   sd->tools_in_pool = 0;
   sd->store_upgrades = AP_STORE_VANILLA;
   sd->goal = 0;

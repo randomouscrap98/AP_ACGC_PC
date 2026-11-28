@@ -38,6 +38,7 @@ typedef struct {
   int tab; // index into tabs
   // Go mode tab: the goals' remaining steps, made on entering the page
   int go_count;
+  int go_left; // goals not done yet (the status line)
   pc_ap_go_mode_line go_lines[PC_AP_GO_MODE_MAX];
   pc_menu_list go;
   // Furniture Set / Chess Set tab: the pieces (pc_ap_ftr_menu_enter loads the active one)

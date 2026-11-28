@@ -33,6 +33,7 @@
 #include "pc_ap_hint.h"
 #include "pc_ap_beach_hint.h"
 #include "pc_ap_radiosanity.h"
+#include "pc_ap_traps.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -76,6 +77,8 @@ typedef struct {
     int msaa;          // samples
     int scale;         // render scale (PC_RENDER_SCALE_*, 1-6 = x480 lines)
     int uber;          // 1: uber shader only (--uber-shader), the fallback normal scenes never draw with
+    int trap;          // PC_AP_TRAP_* + 1: applies that trap at arrival (0 = none), "trap_*" scenes
+    int trap_repeat;   // how many of that trap (0 = one): weeds are town-wide, a shot needs a lot of them
 } RTScene;
 
 // The only list of scenes: render_check.py reads it through --render-list
@@ -106,6 +109,18 @@ static const RTScene s_scenes[] = {
     // Ground items in front of the player: vanilla scroll (town map), AP shell, AP hint scroll
     { .name = "ground_items", .town = 1, .frame = 90, .act = RT_GROUND_ITEMS },
     { .name = "nes", .town = 1, .frame = 600, .act = RT_NES },
+    // Traps: applied at arrival + RT_ACT_FRAME, shot a few frames later (bee 3-4 tiles away, 1-5 cracks, 25 weeds)
+    { .name = "trap_bee", .town = 1, .frame = 260, .trap = PC_AP_TRAP_BEE + 1 },
+    { .name = "trap_pitfall", .town = 1, .frame = 75, .trap = PC_AP_TRAP_PITFALL + 1 },
+    // Weeds: one weed trap is 25 weeds town-wide, too few to show in one acre, so trap_weeds stacks 30 of them
+    // (the town's starting acre is paved; the grass is behind the house)
+    { .name = "trap_weeds", .town = 1, .frame = 75, .trap = PC_AP_TRAP_WEED + 1, .trap_repeat = 30 },
+    { .name = "trap_face", .town = 1, .frame = 75, .trap = PC_AP_TRAP_FACE + 1 },
+    { .name = "trap_color", .town = 1, .frame = 75, .trap = PC_AP_TRAP_COLOR + 1 },
+    // The colour trap's 10 minutes of play frames are up: the palettes are the vanilla ones again (town's shot)
+    { .name = "trap_color_end", .town = 1, .frame = PC_AP_TRAP_FRAMES + 60, .trap = PC_AP_TRAP_COLOR + 1 },
+    // Cockroaches: the trap, then into the house (the room spawns them when it starts)
+    { .name = "trap_roach", .town = 1, .frame = 150, .trap = PC_AP_TRAP_COCKROACH + 1, .act = RT_HOUSE },
     // The house stereo's song grid, opened in the field: --radio-owned songs, AP logo on --radio-ap ones
     { .name = "stereo", .town = 1, .frame = 120, .act = RT_STEREO },  // NES game 1 (fixNES, own GL quad), as from the furniture
     // The uber shader is only the fallback (variant compile failed, cache full): only these scenes check it
@@ -319,6 +334,11 @@ void pc_automated_play(GAME_PLAY* play) {
         return;
     }
     done = 1;
+    if (s_scene->trap > 0) {
+        for (int i = 0; i < (s_scene->trap_repeat > 0 ? s_scene->trap_repeat : 1); i++) {
+            pc_ap_trap_test(s_scene->trap - 1, play);
+        }
+    }
     switch (s_scene->act) {
         case RT_HOUSE:
             go_inside(play, SCENE_MY_ROOM_S, 120, 220);

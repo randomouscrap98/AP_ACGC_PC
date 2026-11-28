@@ -318,6 +318,7 @@ AP_GC_UNITS = [
     ("pc/src", "pc_ap_critter_data.c"),
     ("pc/src", "pc_ap_mail.c"),
     ("pc/src", "pc_ap_tools.c"),
+    ("pc/src", "pc_ap_traps.c"),
     ("pc/src", "pc_ap_money.c"),
     ("pc/src", "pc_ap_fruit.c"),
     ("pc/src", "pc_ap_furniture.c"),

@@ -46,6 +46,8 @@ extern "C" {
 
 #define AP_BEACH_PER_MONTH_MAX 20 // Shellsanity: apworld BEACH_PER_MONTH_MAX
 #define AP_TREE_PER_FRUIT_MAX 20  // Treesanity: apworld TREE_PER_FRUIT_MAX
+#define AP_TRAP_NUM 7 // trap kinds, apworld traps.TRAP_NAMES order (Bee, Gyroid Face, Resetti, Pitfall, Weed,
+                      // Cockroach, Color); the trap items themselves are item ids 0x10380-
 #define AP_RADIO_SONG_NUM 55     // Radiosanity: K.K. songs, ITM_MINIDISK00-54 (apworld SONG_COUNT_MAX)
 #define AP_CATALOG_MAX 575 // Catalogsanity: eligible catalog items (apworld CATALOG_ELIGIBLE)
 // catalog_sources: sources besides Nook that can give new pool items (bits, apworld CATALOG_SOURCES order)
@@ -178,6 +180,10 @@ typedef struct {
   int bell_credits[AP_BELLCREDIT_NUM]; // bells per small/modest/large bell credit
   int furniture_set_count;           // Furniture Set goal: pieces in furniture_set_items (0 without the goal)
   unsigned short furniture_set_items[AP_FURNITURE_SET_MAX]; // game item ids of the set's pieces
+  // Traps / DeathLink: the trap items are item ids (0x10380 in apworld traps.TRAP_NAMES order); nothing to read there
+  int death_link;                    // nonzero: this seed shares deaths (a received one applies a trap below)
+  int death_link_trap_weights[AP_TRAP_NUM]; // per trap: weight of being the one a death applies; all 0 = the message
+  int accumulate_resetti;            // trap / DeathLink Resettis add to the permanent reset count
   char world_version[16];            // apworld version the seed was generated with ("" if missing)
   // Whether the struct has valid data
   int valid;

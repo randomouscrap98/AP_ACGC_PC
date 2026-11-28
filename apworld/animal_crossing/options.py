@@ -2,10 +2,11 @@ import random
 from dataclasses import dataclass
 
 from Options import (
-    Choice, DefaultOnToggle, FreeText, NamedRange, OptionSet,
+    Choice, DeathLink, DefaultOnToggle, FreeText, NamedRange, OptionCounter, OptionSet,
     PerGameCommonOptions, Range, Toggle
 )
 
+from .traps import TRAP_NAMES
 from .villager_data import PERSONALITIES, VILLAGERS
 
 # Museumsanity check mode bits
@@ -584,6 +585,52 @@ class RadiosanityAircheck(Toggle):
     house. Out of logic: no extra rule for it.
     """
     display_name = "Radiosanity Aircheck"
+
+
+class TrapPercent(Range):
+    """
+    Percent of the seed's items that become traps: filler items that hurt when
+    they arrive (a swarm of bees, a glitched face, Mr. Resetti, ...). Anyone can
+    find them, but they always hit you: Animal Crossing can't send one.
+    Traps take the slots after Fruit Filler and Extra Bells, before the Bell
+    Credits, which keep at least 25% of those (rounded up). 0 turns traps off.
+    """
+    display_name = "Trap Percent"
+    range_start = 0
+    range_end = 80
+    default = 0
+
+
+class TrapWeights(OptionCounter):
+    """
+    Which traps Trap Percent puts in the pool, as weights: 0 = never.
+    They are all equally likely by default.
+    """
+    display_name = "Trap Weights"
+    valid_keys = set(TRAP_NAMES)
+    min = 0
+    default = {name: 1 for name in TRAP_NAMES}
+
+
+class DeathLinkTrapWeights(OptionCounter):
+    """
+    With Death Link, which trap a death in another world applies to you,
+    as weights: 0 = never. All equally likely by default; all 0 = only the
+    message.
+    """
+    display_name = "Death Link Trap Weights"
+    valid_keys = set(TRAP_NAMES)
+    min = 0
+    default = {name: 1 for name in TRAP_NAMES}
+
+
+class AccumulateResetti(DefaultOnToggle):
+    """
+    Mr. Resetti traps (and Death Link Resettis) add to the permanent reset
+    count, so his lectures escalate. Off: they still happen, but don't count.
+    A birthday still clears a pending lecture.
+    """
+    display_name = "Accumulate Resetti"
 
 
 class BeachHintPercentage(Range):
@@ -1281,6 +1328,11 @@ class AnimalCrossingOptions(PerGameCommonOptions):
     radiosanity: Radiosanity
     radiosanity_song_count: RadiosanitySongCount
     radiosanity_aircheck: RadiosanityAircheck
+    trap_percent: TrapPercent
+    trap_weights: TrapWeights
+    death_link: DeathLink
+    death_link_trap_weights: DeathLinkTrapWeights
+    accumulate_resetti: AccumulateResetti
     beach_hint_percentage: BeachHintPercentage
     beach_hint_gives_letter: BeachHintGivesLetter
     loansanity: Loansanity

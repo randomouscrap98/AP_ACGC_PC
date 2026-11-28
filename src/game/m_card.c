@@ -3301,8 +3301,9 @@ static void mCD_SetResetCode(Private_c* priv) {
 static void mCD_SetResetInfo(Private_c* priv) {
     Common_Set(reset_flag, FALSE);
 #ifdef AP_HOOKS
-    // Resetti setting off: no penalty and no reset count (the reset code is still armed; PC: pc_m_card.c)
-    if (g_pc_settings.disable_resetti) {
+    // Resetti setting off: no penalty and no reset count (the reset code is still armed; PC: pc_m_card.c). A trap's
+    // Resetti is shown anyway
+    if (g_pc_settings.disable_resetti && !pc_tr_resetti_pending()) {
         return;
     }
 #endif
@@ -3313,6 +3314,12 @@ static void mCD_SetResetInfo(Private_c* priv) {
             Common_Set(reset_flag, TRUE);
         }
 
+#ifdef AP_HOOKS
+        // A trap's Resetti counts only with Accumulate Resetti (1 otherwise)
+        if (!pc_tr_resetti_count()) {
+            return;
+        }
+#endif
         priv->reset_count++;
     }
 }
@@ -3337,6 +3344,10 @@ static int mCD_SaveHome_bg_set_data(mCD_memMgr_c* mgr, mCD_memMgr_fileInfo_c* fi
         mCkRh_SavePlayTime(Common_Get(player_no));
 
         if (_04 == 0) {
+#ifdef AP_HOOKS
+            // A trap's Resetti is due: keep the armed reset code, the next load shows him
+            if (!pc_tr_resetti_pending())
+#endif
             mCD_ClearResetCode();
             mAGrw_ClearMoneyStoneShineGround();
         } else if (mCD_CheckResetCode(priv) == TRUE) {

@@ -18,6 +18,7 @@
 #include "pc_ap_treesanity.h"
 #include "pc_ap_radiosanity.h"
 #include "pc_ap_storage.h"
+#include "pc_ap_traps.h"
 #include "pc_ap_settings.h"
 #include "pc_ap_shells.h"
 #include "pc_ap_beach_hint.h"
@@ -137,6 +138,7 @@ typedef struct {
   pc_ap_treesanity trees;
   pc_ap_radiosanity radio;
   pc_ap_storage storage;
+  pc_ap_traps traps;
 #ifdef AP_BEACH_HINT
   pc_ap_beach_hint hint;
 #endif
@@ -183,6 +185,7 @@ void pc_ap_init(void) {
   pc_ap_treesanity_init(&g_ap.trees, sd);
   pc_ap_radiosanity_init(&g_ap.radio, sd);
   pc_ap_storage_init(&g_ap.storage, sd); // storage itself: pc_ap_load
+  pc_ap_traps_init(&g_ap.traps, sd);
 #ifdef AP_BEACH_HINT
   pc_ap_beach_hint_init(&g_ap.hint, sd);
 #endif
@@ -295,6 +298,7 @@ void pc_ap_load(const char* filename) {
   pc_ap_fruit_load(&g_ap.fruit, ini);
   pc_ap_furniture_load(&g_ap.furniture, ini);
   pc_ap_storage_load(&g_ap.storage, ini);
+  pc_ap_traps_load(&g_ap.traps, ini);
 #ifdef AP_BEACH_HINT
   pc_ap_beach_hint_load(&g_ap.hint, ini);
 #endif
@@ -324,6 +328,7 @@ int pc_ap_save(const char* filename) {
   pc_ap_fruit_save(&g_ap.fruit, ini);
   pc_ap_furniture_save(&g_ap.furniture, ini);
   pc_ap_storage_save(&g_ap.storage, ini);
+  pc_ap_traps_save(&g_ap.traps, ini);
 #ifdef AP_BEACH_HINT
   pc_ap_beach_hint_save(&g_ap.hint, ini);
 #endif
@@ -1132,6 +1137,10 @@ int pc_ap_radio_song(int index) {
   return pc_ap_radiosanity_song(&g_ap.radio, index);
 }
 
+int pc_ap_radio_keep_in_player(int song) {
+  return pc_ap_radiosanity_has(&g_ap.radio, song);
+}
+
 void pc_ap_radio_test(const u32* owned, const u32* ap) {
   u32* box = pc_ap_radio_music_box();
   if(box != NULL) {
@@ -1710,6 +1719,7 @@ void pc_ap_tick(GAME_PLAY* play) {
   pc_ap_fruit_mail();
   pc_ap_money_mail(); // last: a pile of bags shouldn't hold up the other letters
   pc_ap_museumsanity_sync(&g_ap.museum, &Save_Get(museum_display));
+  pc_ap_traps_tick(&g_ap.traps, play);
   // Vanilla display (no Museum goal): everything on display is donated. Also covers donations made
   // while the check couldn't be sent, and other players' donations
   if(pc_ap_accepting()) {
@@ -1718,6 +1728,20 @@ void pc_ap_tick(GAME_PLAY* play) {
       ap_send_location(id);
     }
   }
+}
+
+// Trap Resetti (pc_ap_traps.h), from the game's save and load paths (m_card.c / pc_m_card.c)
+int pc_tr_resetti_pending(void) {
+  return pc_ap_traps_resetti_pending(&g_ap.traps);
+}
+
+int pc_tr_resetti_count(void) {
+  return pc_ap_traps_resetti_count(&g_ap.traps);
+}
+
+// Test runs only (--render-test trap_*): one trap now, whatever the safe point says
+void pc_ap_trap_test(int kind, GAME_PLAY* play) {
+  pc_ap_traps_apply_one(&g_ap.traps, kind, play);
 }
 
 int pc_ap_museum_display_info(mActor_name_t item, int* info) {

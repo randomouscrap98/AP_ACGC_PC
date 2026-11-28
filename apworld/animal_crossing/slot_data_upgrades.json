@@ -29,8 +29,10 @@
     "added": {"hourly_music": [], "beach_hint_count": 0, "beach_hint_letter": 0}
   },
   "7": {
-    "note": "0.7.0-rc4: Radiosanity (off = no song items or radio checks) + Music goal, Instant Goal Release (off)",
+    "note": "0.7.0-rc4: Radiosanity (off = no song items or radio checks) + Music goal, Instant Goal Release (off); Traps / DeathLink (off)",
     "added": {"radiosanity": 0, "radiosanity_aircheck": 0, "radiosanity_song_count": 55, "radiosanity_songs": [],
-              "radio_goal_count": 0, "instant_goal_release": 0}
+              "radio_goal_count": 0, "instant_goal_release": 0,
+              "death_link": 0, "death_link_trap_weights": [0, 0, 0, 0, 0, 0, 0], "accumulate_resetti": 0,
+              "trap_counts": [0, 0, 0, 0, 0, 0, 0]}
   }
 }

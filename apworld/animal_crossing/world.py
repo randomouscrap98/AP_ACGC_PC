@@ -12,7 +12,7 @@
 #   rules(world)           access rules (add_rule only, so the order of features doesn't matter)
 #   slot_data(world)       its slot_data keys
 #   ITEMS / LOCATIONS      name -> id, every possible one (static)
-# Filler is separate (create_items): fruit_filler / extra_bells filler_items, then bell_credits.
+# Filler is separate (create_items): fruit_filler / extra_bells / traps filler_items, then bell_credits.
 # Features read each other's decisions from the world (e.g. world.museum_modes, set by museumsanity.setup): a file
 # says so at the top, and SETUP_ORDER runs the source first. timesanity.py holds the rule helpers for
 # "when can this be done" (shop hours, months, spawn times).
@@ -27,7 +27,7 @@ from worlds.AutoWorld import WebWorld, World
 from . import (beach_hints, bell_credits, bug_availability, catalogsanity, extra_bells, favor_pools,
                fish_availability, fossil_availability, fruit_filler, furniture_sets, goal, intro, loansanity,
                museumsanity, nook_store_upgrades, options, quality_of_life, radiosanity, shellsanity,
-               slot_data_upgrade, timesanity, tools_in_pool, town_generation, treesanity)
+               slot_data_upgrade, timesanity, tools_in_pool, town_generation, traps, treesanity)
 from .game_items import ITEM_NAME_TO_ID as GAME_ITEMS
 from .options import AnimalCrossingOptions
 
@@ -41,13 +41,14 @@ GAME_NAME = "Animal Crossing"
 # Ids are append-only and names are kept; yaml option keys are never removed (a rename keeps the old key hidden).
 SLOT_DATA_VERSION = 7
 # Universal Tracker: slot_data keys named like an option but holding something else (villager indices, the pools,
-# a tool name), so they're not restored as options
-UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "starting_tool"}
+# a tool name, a weight list), so they're not restored as options
+UT_NOT_OPTIONS = {"villager_blacklist", "starting_villagers", "catalog_pools", "starting_tool",
+                  "death_link_trap_weights"}
 
 FEATURES = (goal, intro, town_generation, loansanity, bell_credits, extra_bells, fruit_filler, timesanity,
             favor_pools, shellsanity, treesanity, museumsanity, fossil_availability, fish_availability,
             bug_availability, tools_in_pool, catalogsanity, nook_store_upgrades, furniture_sets, quality_of_life,
-            beach_hints, radiosanity)
+            beach_hints, radiosanity, traps)
 
 
 def in_order(first: tuple) -> tuple:
@@ -73,7 +74,7 @@ PRECOLLECTED_ORDER = in_order((timesanity, tools_in_pool))
 # create_item's classification: first answer wins (treesanity before fruit_filler)
 CLASSIFY_ORDER = in_order((loansanity, timesanity, favor_pools, catalogsanity, fossil_availability,
                            fish_availability, bug_availability, museumsanity, tools_in_pool, nook_store_upgrades,
-                           furniture_sets, treesanity, fruit_filler))
+                           furniture_sets, treesanity, fruit_filler, traps))
 
 # Every game item is an AP item name (AP item id == the game's item number); the AP-only items are 0x10000+, above
 # every game item number.
@@ -153,6 +154,13 @@ class AnimalCrossingWeb(WebWorld):
             options.Radiosanity,
             options.RadiosanitySongCount,
             options.RadiosanityAircheck,
+        ]),
+        OptionGroup("Traps / DeathLink", [
+            options.TrapPercent,
+            options.TrapWeights,
+            options.DeathLink,
+            options.DeathLinkTrapWeights,
+            options.AccumulateResetti,
         ]),
         OptionGroup("Loansanity", [
             options.Loansanity,
@@ -351,6 +359,9 @@ class AnimalCrossingWorld(World):
         money = [self.create_item(name) for name in extra_bells.filler_items(self, free)]
         pool += money
         free -= len(money)
+        trap_items = [self.create_item(name) for name in traps.filler_items(self, free)]
+        pool += trap_items
+        free -= len(trap_items)
         self.filler_tiers = tuple(bell_credits.tiers(self, free))
         pool += [self.create_filler() for _ in range(free)]
         self.multiworld.itempool += pool
