@@ -29,6 +29,12 @@
 // - diag: what the game is doing, for the client's diagnostics log (gc_ap_diag.c, gc_client.py DiagLog): a state
 //   snapshot every frame, a watchdog record while the game stands still, a crash record, and an event log ring
 //   (the game writes log[log_head % log_max], then log_head++). Game -> client, except test.
+// - death: DeathLink. Game -> client: the beach hint request's pattern: the game writes death_cause (the cause text,
+//   zero-terminated) and then death_req++; the client sends one death per death_req it hasn't seen (two deaths
+//   between two reads: sending the later one is fine). A counter that went back = the game restarted: no send.
+//   Client -> game: a ring of gc_ap_death (source name + cause): the client writes death[death_head % death_max],
+//   then death_head++; the game takes up to death_head and writes death_tail (a full ring drops the oldest and the
+//   game skips ahead). Deaths are dropped, not kept, while the client has no game or no server connection.
 
 #include "types.h"
 #include "dolphin/os.h" // OSCachedToUncached
@@ -37,7 +43,7 @@
 #define GC_AP_MAGIC1 0x4D424F58 // "MBOX"
 #define GC_AP_TAIL   0x454E4421 // "END!"
 // Bump when the header layout or a section's entry format changes (client refuses other versions)
-#define GC_AP_MAILBOX_VERSION 6
+#define GC_AP_MAILBOX_VERSION 7
 
 #define GC_AP_ITEM_MAX    2560 // received items (apworld: at most 2220 locations, so items, per slot)
 #define GC_AP_CHECKED_MAX 2560 // checked locations
@@ -52,6 +58,9 @@
 #define GC_AP_DIAG_TRACE  16   // return addresses in a watchdog / crash record
 #define GC_AP_LOG_MAX     64   // diagnostics event log ring
 #define GC_AP_LOG_LEN     80   // bytes per log entry: u32 game_tick + text with the zero
+#define GC_AP_DEATH_MAX   4    // received deaths, a ring (pc_ap_traps.c keeps 3 traps waiting)
+#define GC_AP_DEATH_NAME_LEN  32 // death source slot name, with the zero (pc_ap_traps.c reads 32)
+#define GC_AP_DEATH_CAUSE_LEN 64 // death cause text, with the zero (pc_ap_traps.c reads 64)
 
 // Global settings in gset[], by index: append-only (gc_client.py GSET_NAMES lists the same names in this order)
 enum {
@@ -96,6 +105,12 @@ typedef struct {
   u32 tick; // game_tick when it was written
   char text[GC_AP_LOG_LEN - 4];
 } gc_ap_diag_line;
+
+// A death received (DeathLink): who died and why, both zero-terminated
+typedef struct {
+  char source[GC_AP_DEATH_NAME_LEN];
+  char cause[GC_AP_DEATH_CAUSE_LEN];
+} gc_ap_death;
 
 // Diagnostics (v6). All u32, so the client reads it as one struct (gc_client.py DIAG_FIELDS, same order).
 typedef struct {
@@ -188,6 +203,13 @@ typedef struct {
   u32 diag_off, diag_size; // the gc_ap_diag struct; diag_size = bytes before log[] (the fixed fields, log_head last)
   u32 log_off, log_max, log_len; // diag.log
 
+  // Deaths (v7; header place, see death[] and death_cause below)
+  u32 death_off, death_max, death_name_len, death_cause_len; // the gc_ap_death ring
+  u32 death_head; // client -> game: entries written (the game reads death[death_tail % death_max])
+  u32 death_tail; // game -> client: entries taken
+  u32 death_req;     // game -> client: +1 per death to send (1, 2, ...: 0 stays "no death")
+  u32 death_req_off, death_req_len; // game -> client: death_cause, the cause of the latest death_req
+
   char seed[64];
   char status[GC_AP_STATUS_LEN]; // why the client can't go on (slot_data from a newer apworld...), "" = fine
   char host[64];     // server the client talks to, for the overlay ("" before it knows)
@@ -203,6 +225,8 @@ typedef struct {
   char slotdata[GC_AP_SD_JSON_MAX]; // compact JSON text of the upgraded slot_data (pc_ap_slotdata_parse)
   char hint[3][GC_AP_HINT_NAME_LEN]; // beach hint: receiving player, item, location; all "" = no eligible one
   gc_ap_diag diag;
+  gc_ap_death death[GC_AP_DEATH_MAX];       // client -> game: deaths to apply, oldest at death_tail
+  char death_cause[GC_AP_DEATH_CAUSE_LEN]; // game -> client: the cause of the latest death_req
   u32 tail;
 } gc_ap_mailbox;
 

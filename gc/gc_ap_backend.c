@@ -152,6 +152,12 @@ void gc_ap_mailbox_frame(void) {
     m->log_off = (u32)((u8*)m->diag.log - (u8*)m);
     m->log_max = GC_AP_LOG_MAX;
     m->log_len = GC_AP_LOG_LEN;
+    m->death_off = (u32)((u8*)m->death - (u8*)m);
+    m->death_max = GC_AP_DEATH_MAX;
+    m->death_name_len = GC_AP_DEATH_NAME_LEN;
+    m->death_cause_len = GC_AP_DEATH_CAUSE_LEN;
+    m->death_req_off = (u32)((u8*)m->death_cause - (u8*)m);
+    m->death_req_len = GC_AP_DEATH_CAUSE_LEN;
     m->tail = GC_AP_TAIL;
     m->magic[1] = GC_AP_MAGIC1;
     m->magic[0] = GC_AP_MAGIC0;
@@ -388,17 +394,36 @@ int ap_pop_toast(char* buf, size_t len) {
   return 1;
 }
 
-// DeathLink: stage 4 (GC client, via the mailbox). Until then a send is dropped and nothing is ever received.
+// DeathLink: a death to send goes to the client through death_req / death_cause (the hint_req pattern); the deaths
+// to apply arrive in the death ring. Both are dropped, not kept, while no client runs (like a toast).
 void ap_send_death(const char* cause) {
-  (void)cause;
+  gc_ap_mailbox* m = &gc_ap_mbox;
+  // The cause text first: the client reads it after it sees death_req change
+  snprintf(m->death_cause, GC_AP_DEATH_CAUSE_LEN, "%.*s", GC_AP_DEATH_CAUSE_LEN - 1, cause != NULL ? cause : "");
+  m->death_req++;
+  if(m->death_req == 0) {
+    m->death_req = 1; // 0 is "no death since the game started"
+  }
 }
 
 int ap_pop_death(char* source, size_t slen, char* cause, size_t clen) {
-  (void)source;
-  (void)slen;
-  (void)cause;
-  (void)clen;
-  return 0;
+  gc_ap_mailbox* m = &gc_ap_mbox;
+  const gc_ap_death* d;
+  if(m->death_head == m->death_tail) {
+    return 0;
+  }
+  if(m->death_head - m->death_tail > GC_AP_DEATH_MAX) {
+    m->death_tail = m->death_head - GC_AP_DEATH_MAX; // the client ran ahead: skip what it wrote over
+  }
+  d = &m->death[m->death_tail % GC_AP_DEATH_MAX];
+  if(source != NULL && slen != 0) {
+    snprintf(source, slen, "%.*s", GC_AP_DEATH_NAME_LEN - 1, d->source);
+  }
+  if(cause != NULL && clen != 0) {
+    snprintf(cause, clen, "%.*s", GC_AP_DEATH_CAUSE_LEN - 1, d->cause);
+  }
+  m->death_tail++;
+  return 1;
 }
 
 // ap_log.h: the DLL's log file; on GC the OS console (Dolphin's log) and the client's diagnostics log

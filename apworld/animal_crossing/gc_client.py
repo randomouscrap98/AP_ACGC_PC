@@ -1,7 +1,7 @@
 # Animal Crossing GameCube client (0.7.0): connects the GC build running in Dolphin to an Archipelago server.
 # The game keeps a RAM mailbox (gc/include/gc_ap_mailbox.h); this client finds it by its magic, writes slot_data
-# (compact JSON text, upgraded here), slot names, received items, checked locations, toasts and the connection
-# state into it, and sends what the game queues.
+# (compact JSON text, upgraded here), slot names, received items, checked locations, toasts, received deaths and the
+# connection state into it, and sends what the game queues (checks, goal, deaths, hint requests).
 # Run from an Archipelago checkout: python -m worlds.animal_crossing.gc_client [--connect host:port]
 # Needs dolphin-memory-engine. Only DolphinRAM touches it, so another RAM bridge can replace that class.
 # Real Wii (Nintendont fork "Animal Crossing AP"): wii_task finds its start screen and names the memory card, then
@@ -30,7 +30,7 @@ MEM1_SIZE = 0x1800000
 
 MAGIC = struct.pack(">II", 0x41434150, 0x4D424F58)  # "ACAP" "MBOX"
 TAIL = 0x454E4421  # "END!"
-VERSION = 6  # GC_AP_MAILBOX_VERSION
+VERSION = 7  # GC_AP_MAILBOX_VERSION
 
 # Header fields: u32 each, in the order of gc_ap_mailbox (index * 4 = offset); tests/test_gc_mailbox checks them
 H_VERSION, H_SIZE = 2, 3
@@ -45,7 +45,10 @@ H_GSET_OFF, H_GSET_MAX, H_GSET_GAME_GEN, H_GSET_CLIENT_GEN = 32, 33, 34, 35
 H_HINT_OFF, H_HINT_NAME_LEN, H_HINT_REQ, H_HINT_REQ_DONE, H_HINT_ELIGIBLE = 36, 37, 38, 39, 40
 # Diagnostics (mailbox v6, gc_diag.py)
 H_DIAG_OFF, H_DIAG_SIZE, H_LOG_OFF, H_LOG_MAX, H_LOG_LEN = 41, 42, 43, 44, 45
-HEADER_WORDS = 46
+# Deaths (mailbox v7)
+H_DEATH_OFF, H_DEATH_MAX, H_DEATH_NAME_LEN, H_DEATH_CAUSE_LEN = 46, 47, 48, 49
+H_DEATH_HEAD, H_DEATH_TAIL, H_DEATH_REQ, H_DEATH_REQ_OFF, H_DEATH_REQ_LEN = 50, 51, 52, 53, 54
+HEADER_WORDS = 55
 H_SEED, SEED_LEN = HEADER_WORDS * 4, 64
 H_STATUS, STATUS_LEN = H_SEED + SEED_LEN, 96
 H_HOST, HOST_LEN = H_STATUS + STATUS_LEN, 64
@@ -55,6 +58,9 @@ ITEM_SIZE = 8  # gc_ap_item: u32 id, s16 sender, u8 flags, u8 pad
 # slot_data: the game parses the text with the same C parser as the DLL (pc/src/pc_ap_slotdata_parse.c)
 SLOTDATA_JSON_MAX = 16384  # bytes, GC_AP_SD_JSON_MAX in gc_ap_mailbox.h
 AP_SLOTDATA_VERSION = 7  # format the C parser reads (apclient/include/ap_slotdata.h, world.SLOT_DATA_VERSION)
+DEATH_NAME_LEN, DEATH_CAUSE_LEN = 32, 64  # gc_ap_death source / cause, with the zero (gc_ap_mailbox.h)
+DEATH_SIZE = DEATH_NAME_LEN + DEATH_CAUSE_LEN  # one death ring entry
+DEATHS_PENDING = 16  # received deaths waiting for a sync (the mailbox ring holds 4: the rest are overwritten)
 
 
 def slotdata_json(slot_data: dict[str, Any]) -> str:
@@ -217,6 +223,11 @@ class Mailbox:
         # One header field (test harnesses, tools); sync uses read_header
         return struct.unpack(">I", self.read(self.addr + field * 4, 4))[0]
 
+    def read_text(self, offset: int, size: int) -> str:
+        # Zero-terminated text the game wrote, at an absolute mailbox offset (utf-8 cut at the zero)
+        data = self.read(self.addr + offset, size)
+        return plain(data.split(b"\0", 1)[0].decode("utf-8", "replace"))
+
     def put(self, field: int, value: int, signed: bool = False) -> None:
         self.write(self.addr + field * 4, struct.pack(">i" if signed else ">I", value))
 
@@ -250,6 +261,17 @@ class Mailbox:
             self.write(self.addr + self.h[H_TOASTS_OFF] + (head % n) * size, c_text(text, size))
             head = (head + 1) & 0xFFFFFFFF
         self.put(H_TOAST_HEAD, head)
+
+    # The game applies up to death_head; a full ring overwrites the oldest (the game skips ahead). head: the current
+    # death_head (only this client writes it)
+    def push_deaths(self, deaths: list[tuple[str, str]], head: int) -> None:
+        n = self.h[H_DEATH_MAX]
+        name_len, cause_len = self.h[H_DEATH_NAME_LEN], self.h[H_DEATH_CAUSE_LEN]
+        for source, cause in deaths[-n:]:
+            entry = c_text(source, name_len) + c_text(cause, cause_len)
+            self.write(self.addr + self.h[H_DEATH_OFF] + (head % n) * len(entry), entry)
+            head = (head + 1) & 0xFFFFFFFF
+        self.put(H_DEATH_HEAD, head)
 
     def queue_send_read(self) -> None:
         # The whole send ring; its bytes from end() go to send_ids
@@ -432,6 +454,8 @@ class ACGCContext(CommonContext):
         self.hint_sent: Optional[tuple[int, int]] = None  # (hint_req, location) scouted, waiting for the hint list
         self.hint_seen_req = 0  # mailbox hint_req last handled
         self.hint_eligible = -1  # hint_eligible last written (-1 = not written yet)
+        self.death_seen_req = 0  # mailbox death_req last handled
+        self.deaths: list[tuple[str, str]] = []  # (source, cause) received, waiting for the mailbox
         self.wii_status = ""  # set_wii_status
         self.wii_address = ""  # the Wii last talked to ("" = none seen)
         self.wii_booting = False  # it had the card and a disc image when last seen
@@ -514,6 +538,8 @@ class ACGCContext(CommonContext):
         if cmd == "Connected":
             self.slot_data = args.get("slot_data") or {}
             self.mbox_slot_key = None  # rewrite slot_data and names
+            # DeathLink: the tag follows this seed's slot_data (CommonClient's helper, also on a reconnect)
+            self.run_soon(self.update_death_link(self.death_link_on()))
             # Goal sent by an earlier session? (the game's "Done!" in Go mode reads the mailbox goal flag)
             self.server_goal = False
             self.run_soon(self.send_msgs([{"cmd": "Get", "keys": [self.status_key()]}]))
@@ -536,6 +562,25 @@ class ACGCContext(CommonContext):
         if text:
             self.toasts.append(text)
             self.watcher_event.set()
+
+    # ---- DeathLink (slot_data death_link): CommonClient's tag/send/echo helpers, the game through the mailbox ----
+    def death_link_on(self) -> bool:
+        return bool((self.slot_data or {}).get("death_link"))
+
+    def on_deathlink(self, data: dict[str, Any]) -> None:
+        # A death another player sent (server_loop drops our own echo by last_death_link). It goes into the mailbox
+        # ring at the next sync; without a game it is dropped (nothing is kept for a later game)
+        data = {"time": 0.0, "source": "", "cause": "", **data}
+        super().on_deathlink(data)
+        if self.mbox is None:
+            logger.info("DeathLink: no game attached, dropping %s's death", data["source"])
+            return
+        source = data["source"] if isinstance(data["source"], str) else ""
+        cause = data["cause"] if isinstance(data["cause"], str) else ""
+        self.deaths.append((plain(source), plain(cause)))
+        if len(self.deaths) > DEATHS_PENDING:
+            self.deaths.pop(0)
+        self.watcher_event.set()
 
     # The DLL's toast lines (ap_archipelago.cpp print_json handler): items and hints to or from this slot, and
     # everyone's goals
@@ -598,6 +643,20 @@ class ACGCContext(CommonContext):
     def run_soon(self, coro: Any) -> None:
         # sync() runs in a worker thread (the Wii's RAM is blocking network calls): hand coroutines to the loop
         asyncio.run_coroutine_threadsafe(coro, self.loop)
+
+    # ---- DeathLink: the game asks for a death to send (death_req), the deaths to apply go into its ring ----
+    def sync_death_req(self, m: Mailbox, h: tuple[int, ...], connected: bool) -> None:
+        # The beach hint request's pattern: the game writes death_cause, then death_req. A counter that went back
+        # (or 0) = the game started over, nothing to send. Not connected (or death_link off): dropped, and
+        # death_seen_req moves on, so it is not sent later either
+        req = h[H_DEATH_REQ]
+        if req == self.death_seen_req:
+            return
+        restarted = req < self.death_seen_req or req == 0
+        self.death_seen_req = req
+        if restarted or not connected or not self.death_link_on():
+            return
+        self.run_soon(self.send_death(m.read_text(h[H_DEATH_REQ_OFF], h[H_DEATH_REQ_LEN])))
 
     # ---- beach hints: the game asks (hint_req), this client picks the location and scouts it ----
     def status_key(self) -> str:
@@ -709,6 +768,7 @@ class ACGCContext(CommonContext):
             if new:
                 self.locations_checked.update(new)
                 self.run_soon(self.check_locations(new))
+        self.sync_death_req(m, h, connected)
         # After the checks (a goal may release the rest)
         if connected and h[H_GOAL] and not self.finished_game:
             self.run_soon(self.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}]))
@@ -737,6 +797,8 @@ class ACGCContext(CommonContext):
         self.put_text_changed(m, H_HOST, HOST_LEN, host.split("://")[-1])
         self.put_text_changed(m, H_SLOTNAME, SLOTNAME_LEN, self.auth or "")
         if not connected:
+            # DeathLink: deaths are dropped while the client has no slot connection (nothing is sent later)
+            self.deaths.clear()
             m.put_tick_state(self.client_tick, CSTATE_CONNECTING)
             return False
         key = (self.seed_name, self.team or 0, self.slot)
@@ -764,6 +826,9 @@ class ACGCContext(CommonContext):
         if self.toasts:
             m.push_toasts(self.toasts, h[H_TOAST_HEAD])
             self.toasts.clear()
+        if self.deaths:
+            m.push_deaths(self.deaths, h[H_DEATH_HEAD])
+            self.deaths.clear()
         for loc in sorted(self.checked_locations - self.checked_known):
             self.checked_order.append(loc)
             self.checked_known.add(loc)
