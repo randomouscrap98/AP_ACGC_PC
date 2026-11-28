@@ -77,9 +77,9 @@ void pc_ap_traps_save(const pc_ap_traps* t, struct ini_t* ini);
 int pc_ap_trap_kind(int64_t id);
 const char* pc_ap_trap_name(int kind);
 
-// Which received item is next: its index in the received list, -1 when there is none. *it = scan position
-// (start at 0), *kind = the trap kind. The next trap the cursor hasn't reached yet, in list order
-int pc_ap_traps_next(const pc_ap_traps* t, int* it, int* kind);
+// The next trap to apply (the first one past the cursor, in list order): its index in the received list, -1 when
+// there is none. *kind = the trap kind
+int pc_ap_traps_next(const pc_ap_traps* t, int* kind);
 // The next trap was applied: the cursor moves past it
 void pc_ap_traps_applied(pc_ap_traps* t);
 // Traps in the received list right now (the new-town skip)
@@ -104,7 +104,8 @@ int pc_ap_traps_apply_one(pc_ap_traps* t, int kind, struct game_play_s* play);
 void pc_ap_traps_tick(pc_ap_traps* t, struct game_play_s* play);
 
 // Resetti trap, from the game's save / load paths (m_card.c / pc_m_card.c): nonzero while the trap's Resetti is
-// due at the next load (the save keeps the reset code armed, and it bypasses Disable Resetti)
+// due at the next load (the save keeps the reset code armed, and it bypasses Disable Resetti). A birthday load
+// forgives the reset as in vanilla but leaves this set, so the trap's Resetti comes at the load after it
 int pc_ap_traps_resetti_pending(const pc_ap_traps* t);
 // Reset detected on load: 1 = add it to the permanent reset count. A trap's Resetti counts only with Accumulate
 // Resetti (slot_data). Uses the trap's flag up

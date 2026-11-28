@@ -1,6 +1,7 @@
 #include "m_card.h"
 #ifdef AP_HOOKS
 #include "gc_ap_hooks.h"
+#include "pc_ap_logic.h"
 #include "pc_settings.h"
 #endif
 
@@ -3303,7 +3304,7 @@ static void mCD_SetResetInfo(Private_c* priv) {
 #ifdef AP_HOOKS
     // Resetti setting off: no penalty and no reset count (the reset code is still armed; PC: pc_m_card.c). A trap's
     // Resetti is shown anyway
-    if (g_pc_settings.disable_resetti && !pc_tr_resetti_pending()) {
+    if (g_pc_settings.disable_resetti && !pc_ap_trap_resetti_pending()) {
         return;
     }
 #endif
@@ -3316,7 +3317,7 @@ static void mCD_SetResetInfo(Private_c* priv) {
 
 #ifdef AP_HOOKS
         // A trap's Resetti counts only with Accumulate Resetti (1 otherwise)
-        if (!pc_tr_resetti_count()) {
+        if (!pc_ap_trap_resetti_count()) {
             return;
         }
 #endif
@@ -3346,7 +3347,7 @@ static int mCD_SaveHome_bg_set_data(mCD_memMgr_c* mgr, mCD_memMgr_fileInfo_c* fi
         if (_04 == 0) {
 #ifdef AP_HOOKS
             // A trap's Resetti is due: keep the armed reset code, the next load shows him
-            if (!pc_tr_resetti_pending())
+            if (!pc_ap_trap_resetti_pending())
 #endif
             mCD_ClearResetCode();
             mAGrw_ClearMoneyStoneShineGround();

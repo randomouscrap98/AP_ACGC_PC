@@ -362,10 +362,10 @@ void pc_ap_radio_test(const u32* owned, const u32* ap);
 
 // Traps (pc_ap_traps.h). A trap's Resetti is due at the next load: the save keeps the reset code armed, and the
 // load shows Resetti even with Disable Resetti on (m_card.c / pc_m_card.c)
-int pc_tr_resetti_pending(void);
+int pc_ap_trap_resetti_pending(void);
 // Reset detected on load: 1 = add it to the permanent reset count (a trap's Resetti with Accumulate Resetti off
 // doesn't); uses the trap's flag up
-int pc_tr_resetti_count(void);
+int pc_ap_trap_resetti_count(void);
 // Test runs only (--render-test trap_*): applies one trap now (pc_ap_traps.h PC_AP_TRAP_*), no safe point
 void pc_ap_trap_test(int kind, struct game_play_s* play);
 

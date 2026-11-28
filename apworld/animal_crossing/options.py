@@ -628,7 +628,8 @@ class AccumulateResetti(DefaultOnToggle):
     """
     Mr. Resetti traps (and Death Link Resettis) add to the permanent reset
     count, so his lectures escalate. Off: they still happen, but don't count.
-    A birthday still clears a pending lecture.
+    On your birthday he stays away as usual, and the lecture waits for the
+    next load.
     """
     display_name = "Accumulate Resetti"
 

@@ -1731,11 +1731,11 @@ void pc_ap_tick(GAME_PLAY* play) {
 }
 
 // Trap Resetti (pc_ap_traps.h), from the game's save and load paths (m_card.c / pc_m_card.c)
-int pc_tr_resetti_pending(void) {
+int pc_ap_trap_resetti_pending(void) {
   return pc_ap_traps_resetti_pending(&g_ap.traps);
 }
 
-int pc_tr_resetti_count(void) {
+int pc_ap_trap_resetti_count(void) {
   return pc_ap_traps_resetti_count(&g_ap.traps);
 }
 

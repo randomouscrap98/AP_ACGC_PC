@@ -43,8 +43,8 @@
 // Cockroaches per Cockroach Trap: 3 (one visit's worth) to the house maximum (mCkRh_MAX_NUM)
 #define PC_AP_TRAP_GOKI_MIN 3
 
-// The colour trap's palette entries (16 RGB5A3 each) and groups; see pc_ap_trap_pals()
-#define PC_AP_TRAP_PALS 13
+// The colour trap's palettes (16 RGB5A3 entries each); see pc_ap_trap_pal_list()
+#define PC_AP_TRAP_PALS 14
 
 // Very dark entries (RGB bit sums of the 5/4 bit channels) are outlines and shadows: left alone
 #define PC_AP_TRAP_DARK5 6
@@ -54,7 +54,7 @@ static const char* pc_ap_trap_names[PC_AP_TRAP_KINDS] = {
   "Bee Trap", "Gyroid Face Trap", "Resetti Trap", "Pitfall Trap", "Weed Trap", "Cockroach Trap", "Color Trap",
 };
 
-// Colour trap, one entry per palette the field reads (built fresh each apply, the pointers can move)
+// Colour trap, one slot per palette the field reads (rebuilt at each repaint)
 typedef struct {
   unsigned short* live;
   int group;
@@ -65,6 +65,7 @@ static int s_pal_count;
 static unsigned short s_pal_vanilla[PC_AP_TRAP_PALS][16]; // what was there before our write
 static unsigned short s_pal_shown[PC_AP_TRAP_PALS][16];   // what we wrote (to notice a refill)
 static pc_ap_traps_hue s_hue[PC_AP_TRAP_COLOR_GROUPS];
+static int s_hue_set; // s_hue picked (0 after a restart: a sidecar colour trap gets new ones)
 
 void pc_ap_traps_init(pc_ap_traps* t, const ap_slotdata* sd) {
   memset(t, 0, sizeof(*t));
@@ -112,21 +113,19 @@ const char* pc_ap_trap_name(int kind) {
   return pc_ap_trap_names[kind];
 }
 
-int pc_ap_traps_next(const pc_ap_traps* t, int* it, int* kind) {
+int pc_ap_traps_next(const pc_ap_traps* t, int* kind) {
   size_t n = ap_getitemcount();
-  int seen = 0;
-  for(size_t k = (size_t)*it; k < n; k++) {
-    int k2 = pc_ap_trap_kind(ap_getitem(k));
-    if(k2 < 0) {
-      *it = (int)k + 1;
+  int seen = 0; // traps before item k
+  for(size_t k = 0; k < n; k++) {
+    int trap = pc_ap_trap_kind(ap_getitem(k));
+    if(trap < 0) {
       continue;
     }
     if(seen == t->applied) {
-      *kind = k2;
+      *kind = trap;
       return (int)k;
     }
     seen++;
-    *it = (int)k + 1;
   }
   return -1;
 }
@@ -180,13 +179,14 @@ static int pc_ap_trap_round(float f) {
 }
 
 unsigned short pc_ap_traps_hue_apply(const pc_ap_traps_hue* h, unsigned short v) {
+  int opaque = (v & 0x8000) != 0;
   int a = 0;
   int r, g, b;
   int max;
   int rr, gg, bb;
 
-  if((v & 0x8000) != 0) {
-    // RGB555, opaque
+  if(opaque) {
+    // RGB555
     r = (v >> 10) & 0x1F;
     g = (v >> 5) & 0x1F;
     b = v & 0x1F;
@@ -217,10 +217,10 @@ unsigned short pc_ap_traps_hue_apply(const pc_ap_traps_hue* h, unsigned short v)
   gg = CLAMP(gg, 0, max);
   bb = CLAMP(bb, 0, max);
 
-  if(a != 0 || (v & 0x8000) == 0) {
-    return (unsigned short)((a << 12) | (rr << 8) | (gg << 4) | bb);
+  if(opaque) {
+    return (unsigned short)(0x8000 | (rr << 10) | (gg << 5) | bb);
   }
-  return (unsigned short)(0x8000 | (rr << 10) | (gg << 5) | bb);
+  return (unsigned short)((a << 12) | (rr << 8) | (gg << 4) | bb);
 }
 
 int pc_ap_traps_pick(int n, int wanted, const float* rnd, int* out) {
@@ -342,8 +342,7 @@ static int pc_ap_trap_apply_face(pc_ap_traps* t, struct game_play_s* play) {
 }
 
 // Resetti on the next load: only a flag here, the save / load paths (m_card.c / pc_m_card.c) do the rest
-static int pc_ap_trap_apply_resetti(pc_ap_traps* t, struct game_play_s* play) {
-  (void)play;
+static int pc_ap_trap_apply_resetti(pc_ap_traps* t) {
   t->resetti = 1;
   return 1;
 }
@@ -351,7 +350,7 @@ static int pc_ap_trap_apply_resetti(pc_ap_traps* t, struct game_play_s* play) {
 // 1-5 buried pitfalls in the 5x5 around the player (their own tile included)
 static int pc_ap_trap_apply_pitfall(struct game_play_s* play) {
   PLAYER_ACTOR* player = GET_PLAYER_ACTOR((GAME_PLAY*)play);
-  int tiles[PC_AP_TRAP_PITFALLS * 5];
+  int tiles[5 * 5]; // the 5x5 around the player
   int picked[PC_AP_TRAP_PITFALLS];
   float rnd[PC_AP_TRAP_PITFALLS];
   xyz_t center;
@@ -482,82 +481,57 @@ static int pc_ap_trap_apply_weed(struct game_play_s* play) {
 }
 
 // The palettes the field draws with: the bg texture dummies (ground, cliffs, bushes) and the field palette rows
-// (filled per season by mFM_SetFieldPal; trees are mFM_pal_area[8], read as bIT_PAL_TREE)
-static int pc_ap_trap_pal_list(void) {
-  mFM_field_pal_c* pal;
-  int n = 0;
+// (filled per season by mFM_SetFieldPal). Fixed slots, NULL = not there right now
+static void pc_ap_trap_pal_list(void) {
+  static const int groups[PC_AP_TRAP_PALS] = {
+    PC_AP_TRAP_COLOR_GROUND, PC_AP_TRAP_COLOR_CLIFF,  PC_AP_TRAP_COLOR_BUSH,   // bg texture dummies
+    PC_AP_TRAP_COLOR_GROUND, PC_AP_TRAP_COLOR_CLIFF,  PC_AP_TRAP_COLOR_BUSH,   // field rows: earth, cliff, bush
+    PC_AP_TRAP_COLOR_TREE,   PC_AP_TRAP_COLOR_TREE,                            // tree, cedar
+    PC_AP_TRAP_COLOR_FLOWER, PC_AP_TRAP_COLOR_FLOWER, PC_AP_TRAP_COLOR_FLOWER, // flower 0-2
+    PC_AP_TRAP_COLOR_WEED,                                                     // grass (weeds)
+    PC_AP_TRAP_COLOR_PALM,   PC_AP_TRAP_COLOR_PALM,                            // palm, golden tree
+  };
+  mFM_field_pal_c* pal = mFI_CheckFieldData() ? mFI_GetFieldPal() : NULL;
+  unsigned short* live[PC_AP_TRAP_PALS] = {
+    (unsigned short*)earth_pal_dummy, (unsigned short*)cliff_pal_dummy, (unsigned short*)bush_pal_dummy,
+  };
 
-  s_pal_count = 0;
-  s_pals[n].live = (unsigned short*)earth_pal_dummy;
-  s_pals[n++].group = PC_AP_TRAP_COLOR_GROUND;
-  s_pals[n].live = (unsigned short*)cliff_pal_dummy;
-  s_pals[n++].group = PC_AP_TRAP_COLOR_CLIFF;
-  s_pals[n].live = (unsigned short*)bush_pal_dummy;
-  s_pals[n++].group = PC_AP_TRAP_COLOR_BUSH;
+  if(pal != NULL) {
+    live[3] = pal->earth_pal;
+    live[4] = pal->cliff_pal;
+    live[5] = pal->bush_pal;
+    live[6] = pal->tree_pal;
+    live[7] = pal->cedar_tree_pal;
+    live[8] = pal->flower0_pal;
+    live[9] = pal->flower1_pal;
+    live[10] = pal->flower2_pal;
+    live[11] = pal->grass_pal;
+    live[12] = pal->palm_tree_pal;
+    live[13] = pal->golden_tree_pal;
+  }
+  for(int i = 0; i < PC_AP_TRAP_PALS; i++) {
+    s_pals[i].live = live[i];
+    s_pals[i].group = groups[i];
+  }
+  s_pal_count = PC_AP_TRAP_PALS;
+}
 
-  if(mFI_CheckFieldData() == FALSE) {
-    s_pal_count = n;
-    return n;
+// One random hue per group; away from 0 so it always shows
+static void pc_ap_trap_color_hues(void) {
+  for(int g = 0; g < PC_AP_TRAP_COLOR_GROUPS; g++) {
+    pc_ap_traps_hue_init(&s_hue[g], (short)(0x2000 + RANDOM(0xC000)));
   }
-  pal = mFI_GetFieldPal();
-  if(pal == NULL) {
-    s_pal_count = n;
-    return n;
-  }
-  if(pal->earth_pal != NULL) {
-    s_pals[n].live = pal->earth_pal;
-    s_pals[n++].group = PC_AP_TRAP_COLOR_GROUND;
-  }
-  if(pal->cliff_pal != NULL) {
-    s_pals[n].live = pal->cliff_pal;
-    s_pals[n++].group = PC_AP_TRAP_COLOR_CLIFF;
-  }
-  if(pal->bush_pal != NULL) {
-    s_pals[n].live = pal->bush_pal;
-    s_pals[n++].group = PC_AP_TRAP_COLOR_BUSH;
-  }
-  if(pal->tree_pal != NULL) {
-    s_pals[n].live = pal->tree_pal;
-    s_pals[n++].group = PC_AP_TRAP_COLOR_TREE;
-  }
-  if(pal->cedar_tree_pal != NULL) {
-    s_pals[n].live = pal->cedar_tree_pal;
-    s_pals[n++].group = PC_AP_TRAP_COLOR_TREE;
-  }
-  if(pal->flower0_pal != NULL) {
-    s_pals[n].live = pal->flower0_pal;
-    s_pals[n++].group = PC_AP_TRAP_COLOR_FLOWER;
-  }
-  if(pal->flower1_pal != NULL) {
-    s_pals[n].live = pal->flower1_pal;
-    s_pals[n++].group = PC_AP_TRAP_COLOR_FLOWER;
-  }
-  if(pal->flower2_pal != NULL) {
-    s_pals[n].live = pal->flower2_pal;
-    s_pals[n++].group = PC_AP_TRAP_COLOR_FLOWER;
-  }
-  if(pal->grass_pal != NULL) {
-    s_pals[n].live = pal->grass_pal;
-    s_pals[n++].group = PC_AP_TRAP_COLOR_WEED;
-  }
-  if(pal->palm_tree_pal != NULL) {
-    s_pals[n].live = pal->palm_tree_pal;
-    s_pals[n++].group = PC_AP_TRAP_COLOR_PALM;
-  }
-  if(pal->golden_tree_pal != NULL) {
-    s_pals[n].live = pal->golden_tree_pal;
-    s_pals[n++].group = PC_AP_TRAP_COLOR_PALM;
-  }
-  s_pal_count = n;
-  return n;
+  s_hue_set = 1;
 }
 
 // Repaints the palettes that aren't ours any more (first frame, after a load, a season change, an island swap):
 // what is in them now is vanilla, so it becomes the snapshot and the hue goes over it
 static void pc_ap_trap_color_apply(void) {
-  int n = pc_ap_trap_pal_list();
-
-  for(int i = 0; i < n; i++) {
+  if(!s_hue_set) {
+    pc_ap_trap_color_hues(); // the trap came from the sidecar (hues aren't saved): new ones
+  }
+  pc_ap_trap_pal_list();
+  for(int i = 0; i < s_pal_count; i++) {
     unsigned short* live = s_pals[i].live;
     if(live == NULL) {
       continue;
@@ -591,12 +565,9 @@ static int pc_ap_trap_apply_color(pc_ap_traps* t) {
   if(mFI_CheckFieldData() == FALSE) {
     return 0;
   }
-  // One random hue per group; away from 0 so it always shows
-  for(int g = 0; g < PC_AP_TRAP_COLOR_GROUPS; g++) {
-    pc_ap_traps_hue_init(&s_hue[g], (short)(0x2000 + RANDOM(0xC000)));
-  }
+  pc_ap_trap_color_hues();
   t->color_frames = PC_AP_TRAP_FRAMES;
-  s_pal_count = 0; // make every palette look foreign, so all are snapshotted and painted
+  // make every palette look foreign, so all are snapshotted and painted
   memset(s_pal_shown, 0, sizeof(s_pal_shown));
   pc_ap_trap_color_apply();
   return 1;
@@ -620,7 +591,7 @@ int pc_ap_traps_apply_one(pc_ap_traps* t, int kind, struct game_play_s* play) {
   switch(kind) {
     case PC_AP_TRAP_BEE:       return pc_ap_trap_apply_bee(play);
     case PC_AP_TRAP_FACE:      return pc_ap_trap_apply_face(t, play);
-    case PC_AP_TRAP_RESETTI:   return pc_ap_trap_apply_resetti(t, play);
+    case PC_AP_TRAP_RESETTI:   return pc_ap_trap_apply_resetti(t);
     case PC_AP_TRAP_PITFALL:   return pc_ap_trap_apply_pitfall(play);
     case PC_AP_TRAP_WEED:      return pc_ap_trap_apply_weed(play);
     case PC_AP_TRAP_COCKROACH: return pc_ap_trap_apply_cockroach(t);
@@ -631,7 +602,7 @@ int pc_ap_traps_apply_one(pc_ap_traps* t, int kind, struct game_play_s* play) {
 
 // The safe point of each trap (research/trap_mechanics.md): the town outdoors for the field ones, any play frame
 // for the face and cockroaches, no gate at all for Resetti
-static int pc_ap_trap_safe_point(int kind, struct game_play_s* play, int in_game, int town_out) {
+static int pc_ap_trap_safe_point(int kind, int in_game, int town_out) {
   switch(kind) {
     case PC_AP_TRAP_BEE:
     case PC_AP_TRAP_PITFALL:
@@ -659,7 +630,6 @@ void pc_ap_traps_tick(pc_ap_traps* t, struct game_play_s* play) {
   int in_game = pc_ap_in_game((GAME_PLAY*)play);
   int town_out = in_game && pc_ap_time_change_allowed((GAME_PLAY*)play);
   int color_over = pc_ap_traps_frame(t);
-  int it = 0;
   int kind;
   int idx;
 
@@ -691,8 +661,8 @@ void pc_ap_traps_tick(pc_ap_traps* t, struct game_play_s* play) {
     return;
   }
   // Due traps, in list order: the first one the safe point doesn't allow holds the cursor
-  while((idx = pc_ap_traps_next(t, &it, &kind)) >= 0) {
-    if(pc_ap_trap_safe_point(kind, play, in_game, town_out) == 0) {
+  while((idx = pc_ap_traps_next(t, &kind)) >= 0) {
+    if(pc_ap_trap_safe_point(kind, in_game, town_out) == 0) {
       return;
     }
     if(pc_ap_traps_apply_one(t, kind, play) == 0) {
