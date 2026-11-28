@@ -419,6 +419,7 @@ class ACGCContext(CommonContext):
         self.loop: Optional[asyncio.AbstractEventLoop] = None  # set by game_sync_task
         self.mbox: Optional[Mailbox] = None
         self.dolphin_status = ""  # set_dolphin_status
+        self.server_goal = False  # the server has our goal from an earlier session (_read_client_status)
         self.checked_order: list[int] = []  # mailbox order of checked locations (append-only)
         self.checked_known: set[int] = set()  # the same ids, for lookups
         self.mbox_slot_key: Optional[tuple[str, int, int]] = None  # (seed, team, slot) the mailbox holds
@@ -513,6 +514,13 @@ class ACGCContext(CommonContext):
         if cmd == "Connected":
             self.slot_data = args.get("slot_data") or {}
             self.mbox_slot_key = None  # rewrite slot_data and names
+            # Goal sent by an earlier session? (the game's "Done!" in Go mode reads the mailbox goal flag)
+            self.server_goal = False
+            self.run_soon(self.send_msgs([{"cmd": "Get", "keys": [self.status_key()]}]))
+        if cmd == "Retrieved" and args.get("keys", {}).get(self.status_key()) == ClientStatus.CLIENT_GOAL:
+            self.server_goal = True
+            self.finished_game = True
+            self.watcher_event.set()
         if cmd in ("Retrieved", "SetReply"):
             # The server's hint list changed (a beach hint we scouted, say): let sync() write its answer now
             key = self.hints_key()
@@ -592,6 +600,9 @@ class ACGCContext(CommonContext):
         asyncio.run_coroutine_threadsafe(coro, self.loop)
 
     # ---- beach hints: the game asks (hint_req), this client picks the location and scouts it ----
+    def status_key(self) -> str:
+        return f"_read_client_status_{self.team}_{self.slot}"
+
     def hints_key(self) -> Optional[str]:
         return f"_read_hints_{self.team}_{self.slot}" if self.team is not None and self.slot is not None else None
 
@@ -702,6 +713,9 @@ class ACGCContext(CommonContext):
         if connected and h[H_GOAL] and not self.finished_game:
             self.run_soon(self.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}]))
             self.finished_game = True
+        # The server has the goal from an earlier session: tell the game (batch is over, a direct write)
+        if connected and self.server_goal and not h[H_GOAL]:
+            m.put(H_GOAL, 1)
         return True
 
     # sync's body, all mailbox writes queued; the send ring read is its last read (with send_tail after it; sync adds the diag reads after).

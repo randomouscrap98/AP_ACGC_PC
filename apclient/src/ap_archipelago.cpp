@@ -61,6 +61,8 @@ static uint64_t g_ap_hint_version = 0;
 static std::set<int64_t> g_ap_checks;
 static unsigned g_ap_checked_generation = 0; // +1 when the server's checked list changes
 static int g_ap_goal = 0;
+// The server already has our goal (data storage _read_client_status: an earlier session sent it)
+static int g_ap_goal_server = 0;
 // Connected to a different room than the first one (server restarted with a
 // new seed): the game's save belongs to the old room, so ap_poll stops the client
 static bool g_ap_room_changed = false;
@@ -161,6 +163,11 @@ int ap_my_slot(void) {
 
 int ap_slot_is_me(int slot) {
   return ap_my_slot() != 0 && g_ap->slot_concerns_self(slot);
+}
+
+// Our slot's status on the server (ClientStatus: 30 = goal), read once per connect
+static std::string ap_status_key(void) {
+  return "_read_client_status_" + std::to_string(g_ap->get_team_number()) + "_" + std::to_string(g_ap->get_player_number());
 }
 
 static std::string ap_hints_key(void) {
@@ -347,7 +354,7 @@ void ap_send_goal(void) {
 }
 
 int ap_goal_sent(void) {
-  return g_ap_goal;
+  return g_ap_goal || g_ap_goal_server;
 }
 
 // Bad or unfilled config: no client, the overlay shows "EDIT ap_config.ini: <reason>"
@@ -604,7 +611,8 @@ void ap_start(void) {
     g_ap_connectstate.state = AP_CSTATE_CONNECTED;
     // The text client's hints: current list now, then every change (retrieved / set_reply handlers)
     g_ap->SetNotify({ ap_hints_key() });
-    g_ap->Get({ ap_hints_key() });
+    g_ap_goal_server = 0; // this slot's answer comes with the retrieved handler
+    g_ap->Get({ ap_hints_key(), ap_status_key() });
     if(!ap_roomplayer_valid(&g_ap_connectstate.roomplayer)) {
       g_ap_connectstate.roomplayer.player = g_ap->get_player_number();
       g_ap_connectstate.roomplayer.team = g_ap->get_team_number();
@@ -705,6 +713,10 @@ void ap_start(void) {
   g_ap->set_retrieved_handler([](const std::map<std::string, nlohmann::json>& keys) {
     auto it = keys.find(ap_hints_key());
     if (it != keys.end()) ap_hints_from_json(it->second);
+    it = keys.find(ap_status_key());
+    if (it != keys.end() && it->second.is_number_integer() && it->second.get<int>() == (int)APClient::ClientStatus::GOAL) {
+      g_ap_goal_server = 1;
+    }
   });
   g_ap->set_set_reply_handler([](const std::string& key, const nlohmann::json& value, const nlohmann::json&) {
     if (key == ap_hints_key()) ap_hints_from_json(value);
