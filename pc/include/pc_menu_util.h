@@ -38,6 +38,8 @@ typedef enum {
   PC_MENU_DOWN,
   PC_MENU_LEFT,
   PC_MENU_RIGHT,
+  PC_MENU_TAB_LEFT,  // L: previous tab / month / season / pool on the pages with a header switcher
+  PC_MENU_TAB_RIGHT, // R: the next one. Once per press (no repeat), from any row
   PC_MENU_CONFIRM,
   PC_MENU_CANCEL,
 } pc_menu_action;

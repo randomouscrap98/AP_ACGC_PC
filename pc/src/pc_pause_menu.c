@@ -345,6 +345,8 @@ static void handle_action(pc_menu_action act) {
             case PC_MENU_DOWN:  pc_settings_menu_nav_down();  break;
             case PC_MENU_LEFT:  pc_settings_menu_nav_left();  break;
             case PC_MENU_RIGHT: pc_settings_menu_nav_right(); break;
+            case PC_MENU_TAB_LEFT:  pc_settings_menu_nav_tab(-1); break;
+            case PC_MENU_TAB_RIGHT: pc_settings_menu_nav_tab(+1); break;
             case PC_MENU_CONFIRM:
                 if (!pc_settings_menu_confirm()) cur_page = PAGE_MAIN;
                 break;
@@ -450,7 +452,7 @@ static int is_direction(pc_menu_action act) {
 }
 
 // A press or release from src: directions only change the held state (pause_tick fires them),
-// confirm / cancel act once per press
+// confirm / cancel / L / R act once per press
 static void input(pc_menu_action act, int src, int down) {
     if (is_direction(act)) {
         if (down) {
@@ -496,6 +498,9 @@ int pc_pause_menu_handle_event(const SDL_Event* e) {
                 if (dir != PC_MENU_NONE) input(dir, HELD_AXIS + e->gaxis.axis, 1);
                 else if (s_held_src == HELD_AXIS + e->gaxis.axis) s_held = PC_MENU_NONE;
             }
+            // Most pads report the GameCube L / R as trigger axes: one tab step per press
+            pc_menu_action tab = pc_menu_input_pad_trigger(e->gaxis.axis, e->gaxis.value);
+            if (tab != PC_MENU_NONE) handle_action(tab);
             return 1;
         }
     }
@@ -505,7 +510,7 @@ int pc_pause_menu_handle_event(const SDL_Event* e) {
 // GC pad adapter: pad 1 (N64-style buttons in pad_t, as the game sees them). Start pressed while Z is held opens the
 // menu, and so does Z while the game's inventory is open (g_pc_pause_inv_open); the game never sees that press
 // (Z alone still reaches it: room light etc.). Start closes the menu from any page (Settings: like B, for the
-// Apply prompt). While paused A / B / Start / d-pad / stick drive it
+// Apply prompt). While paused A / B / Start / d-pad / stick / L / R drive it
 // like the PC pad. Every pad's input is held from the game while paused and, after closing, until all buttons
 // are let go (the PC drain in padmgr.c).
 #define GC_STICK_PRESS   48 // stick range about +-80
@@ -518,6 +523,7 @@ static const struct {
     { BUTTON_A, PC_MENU_CONFIRM }, { BUTTON_B, PC_MENU_CANCEL }, { BUTTON_START, PC_MENU_CANCEL },
     { BUTTON_DUP, PC_MENU_UP },    { BUTTON_DDOWN, PC_MENU_DOWN }, { BUTTON_DLEFT, PC_MENU_LEFT },
     { BUTTON_DRIGHT, PC_MENU_RIGHT },
+    { BUTTON_L, PC_MENU_TAB_LEFT }, { BUTTON_R, PC_MENU_TAB_RIGHT }, // digital full press (trigger >= 170/255 in Pad.c)
 };
 
 // Per-axis latch as on PC; feeds input() on a change. src = HELD_AXIS + axis (0 = x, 1 = y)

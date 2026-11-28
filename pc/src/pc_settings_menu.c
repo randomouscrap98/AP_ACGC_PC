@@ -881,6 +881,25 @@ static void list_reset(void) {
     pc_menu_list_set(&s_list, cur_item_count(), 1, SETTINGS_VISIBLE);
 }
 
+/* One tab left / right, clamped at the ends like the tab row (no wrap); 1 when the tab changed */
+static int tab_step(int dir) {
+    if (dir < 0) {
+        if (s_tab <= 0) return 0;
+        s_tab--;
+    } else {
+        if (s_tab >= tab_count() - 1) return 0;
+        s_tab++;
+    }
+    // The slot connected while the menu was open: take its AP settings, not the slot-less ones
+    if (!s_ap_snapshot_available && pc_ap_settings_available()) {
+        pc_ap_settings_get(&s_ap_current);
+        s_ap_pending = s_ap_current;
+        s_ap_snapshot_available = 1;
+    }
+    list_reset();
+    return 1;
+}
+
 /* Keep the cursor's row on screen */
 static void list_follow(void) {
     if (s_sel >= 0 && s_sel < cur_item_count()) pc_menu_list_show(&s_list, s_sel);
@@ -1028,16 +1047,7 @@ static int nav_horizontal(int dir) {
         return 1;
     }
     if (s_sel == -1) {
-        /* Tab row: clamp at the ends, no wrap. */
-        if (dir < 0) { if (s_tab > 0) s_tab--; }
-        else         { if (s_tab < tab_count() - 1) s_tab++; }
-        // The slot connected while the menu was open: take its AP settings, not the slot-less ones
-        if (!s_ap_snapshot_available && pc_ap_settings_available()) {
-            pc_ap_settings_get(&s_ap_current);
-            s_ap_pending = s_ap_current;
-            s_ap_snapshot_available = 1;
-        }
-        list_reset();
+        tab_step(dir);
     } else if (s_sel < cur_item_count()) {
         item_cycle(s_tabs[s_tab].items[s_sel].id, dir);
     }
@@ -1046,6 +1056,30 @@ static int nav_horizontal(int dir) {
 
 int pc_settings_menu_nav_left(void)  { return nav_horizontal(-1); }
 int pc_settings_menu_nav_right(void) { return nav_horizontal(+1); }
+
+/* L / R: the previous / next tab from any row, the same clamp at the ends as the tab row (no wrap). The
+ * cursor stays on its row (Apply / Back stay on theirs, a shorter tab clamps to its last row), so hopping
+ * tabs doesn't send it back up to the tab row first. */
+int pc_settings_menu_nav_tab(int dir) {
+    int was, was_count;
+    if (!s_active) return 0;
+#ifdef TARGET_PC
+    if (s_sub == SUB_BINDINGS) return 1; /* L / R pick the keyboard / pad column there */
+#endif
+    if (s_sub != SUB_SETTINGS) return 1;
+    was = s_sel;
+    was_count = cur_item_count();
+    if (!tab_step(dir)) return 1;
+    if (was >= 0 && was < was_count) {
+        /* was on a row: stay on that row, clamped to the new tab's shorter list */
+        if (s_sel > cur_item_count() - 1) s_sel = cur_item_count() - 1;
+        if (s_sel < 0) s_sel = 0;
+        list_follow();
+    } else if (was >= was_count) {
+        s_sel = (was == was_count + 1) ? idx_back() : idx_apply(); /* Apply / Back stay on Apply / Back */
+    }
+    return 1;
+}
 
 int pc_settings_menu_confirm(void) {
     if (!s_active) return 0;

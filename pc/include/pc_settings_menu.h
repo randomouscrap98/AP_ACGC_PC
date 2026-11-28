@@ -29,6 +29,10 @@ int  pc_settings_menu_nav_up(void);
 int  pc_settings_menu_nav_down(void);
 int  pc_settings_menu_nav_left(void);
 int  pc_settings_menu_nav_right(void);
+/* L / R: previous / next tab from any row (dir -1 / +1). Same clamp at the ends as
+ * the tab row (no wrap), the AP tab only once it is available; the cursor stays on
+ * its row (Apply / Back stay on theirs). */
+int  pc_settings_menu_nav_tab(int dir);
 int  pc_settings_menu_confirm(void);
 int  pc_settings_menu_cancel(void); /* Esc/B - reverts on res-confirm, else closes */
 

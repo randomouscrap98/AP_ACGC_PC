@@ -78,8 +78,10 @@ int pc_ap_goals_menu_input(pc_ap_goals_menu* m, pc_menu_action act) {
   switch(act) {
     case PC_MENU_UP:    pc_menu_list_up(pc_ap_goals_menu_list(m)); break;
     case PC_MENU_DOWN:  pc_menu_list_down(pc_ap_goals_menu_list(m)); break;
-    case PC_MENU_LEFT:  pc_ap_goals_menu_select(m, (m->tab + m->tab_count - 1) % m->tab_count); break;
-    case PC_MENU_RIGHT: pc_ap_goals_menu_select(m, (m->tab + 1) % m->tab_count); break;
+    case PC_MENU_LEFT:
+    case PC_MENU_TAB_LEFT:  pc_ap_goals_menu_select(m, (m->tab + m->tab_count - 1) % m->tab_count); break;
+    case PC_MENU_RIGHT:
+    case PC_MENU_TAB_RIGHT: pc_ap_goals_menu_select(m, (m->tab + 1) % m->tab_count); break;
     case PC_MENU_CANCEL: return PC_MENU_BACK;
     default: break;
   }

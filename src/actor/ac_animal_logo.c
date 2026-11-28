@@ -441,6 +441,10 @@ static void aAL_pc_game_start_wait(ANIMAL_LOGO_ACTOR* actor, GAME* game) {
         default: break;
       }
     }
+    // PC: L / R switch the settings tabs from any row (keyboard L / R, pad triggers -> the L / R button bits)
+    if (actor->pc_cursor_cooldown <= 0.0f && (on_btn & (BUTTON_L | BUTTON_R))) {
+      pc_settings_menu_nav_tab((on_btn & BUTTON_R) ? 1 : -1);
+    }
     return;
   }
 

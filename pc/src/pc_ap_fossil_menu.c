@@ -94,11 +94,13 @@ int pc_ap_fossil_menu_input(pc_ap_fossil_menu* m, pc_menu_action act) {
     case PC_MENU_UP:   pc_menu_list_up(&m->list); break;
     case PC_MENU_DOWN: pc_menu_list_down(&m->list); break;
     case PC_MENU_LEFT:
+    case PC_MENU_TAB_LEFT:
       if(m->seasons) {
         pc_ap_fossil_menu_load(m, (m->season + 3) % 4);
       }
       break;
     case PC_MENU_RIGHT:
+    case PC_MENU_TAB_RIGHT:
       if(m->seasons) {
         pc_ap_fossil_menu_load(m, (m->season + 1) % 4);
       }
