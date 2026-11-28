@@ -14,6 +14,10 @@ struct game_s;
 extern "C" {
 #endif
 
+// ----------------------------------------------------------------------------
+// Core: the g_ap facade itself (pc_ap_logic.c)
+// ----------------------------------------------------------------------------
+
 // Nonzero once we know which room/slot we're in, so the save root can be set
 int pc_ap_start_allowed(void);
 // Title screen, every frame while Start could be pressed: pc_ap_start_allowed and the platform's own check
@@ -48,12 +52,6 @@ struct pc_ap_settings_s;
 void pc_ap_settings_get(struct pc_ap_settings_s* out);
 // The menu's Apply: takes effect now and saves the file. Returns 0 if the file couldn't be written
 int pc_ap_settings_apply(const struct pc_ap_settings_s* s);
-
-// Amount of loan k in AP order (Starting, Medium, Basement, Large, Upper),
-// not an mHm_HOMESIZE_*. Returns 0 for anything invalid
-int pc_ap_loan_amount(int loan);
-// Nonzero with loansanity on (slot_data)
-int pc_ap_loans_enabled(void);
 // Nonzero once the current player owns their house (from the save) and we're
 // not on the title screen. Until then nothing AP happens: no items applied
 // (Bells, mail, ...), no locations or goal sent. Also stops loan 0 before the
@@ -64,6 +62,82 @@ int pc_ap_offline(void);
 // Kapp'n won't sail to the island (AP only; offline keeps it). Temporary until the
 // island is designed.
 int pc_ap_island_closed(void);
+
+// The current player's house, or NULL (title screen, visiting another town)
+struct home_s* pc_ap_my_home(void);
+
+// Per-frame AP work, called at the end of Game_play_move. Only while
+// pc_ap_in_game: sends loan checks, resends favor checks saved while offline,
+// applies Bell Credits (loan down to 100, or savings after the
+// last loan), sends the "loan ready" letter once credits bring the loan to 100
+// (after Nook's job, retried while the mailbox is full, dropped if that loan
+// got paid off first), syncs the museum display with the received donation items.
+void pc_ap_tick(struct game_play_s* play);
+// Start of Game_play_move: 1 = the world doesn't move this frame (return at once). The pause menu is open, or (GC)
+// the Date & Time / Save reload's card save steps here: with the new date already set, a moving town reacts to the
+// jump (the scene restarts and rebuilds zelda_arena under the running card write), so it holds still until saved.
+int pc_ap_play_hold(struct game_play_s* play);
+// pc_ap_accepting + no submenu, no demo (talk, door, event, save), no scene wipe
+int pc_ap_in_game(struct game_play_s* play);
+// Shellsanity beach items and Treesanity tree items ("AP ground items": the AP logo on the ground)
+int pc_ap_ground_item(mActor_name_t item);
+// Player_actor_setup_main_Pickup: nonzero for an AP ground item, which never goes into the pockets
+// (the caller clears its tile); sends the next unsent check of its month / fruit, if any.
+int pc_ap_ground_pickup(mActor_name_t item);
+// mIN_copy_name_str: name of an AP ground item in the game charset (mIN_ITEM_NAME_LEN chars)
+void pc_ap_ground_item_name(mActor_name_t item, u8* dst);
+// The clock for things that wait for time to pass within the day (beach shells every 10 minutes, balloons at
+// :x3 / :x8, the train at :14:50): seconds into the day. While frozen (the clock never leaves HH:00:16): the
+// frozen hour plus time played, wrapping after a day; else the real time
+int pc_ap_clock_day_seconds(void);
+// Its day: changes when pc_ap_clock_day_seconds wraps (only compare it, not a calendar day; 0-255)
+int pc_ap_clock_day(void);
+// Its minute (0-59)
+int pc_ap_clock_minute(void);
+// Real seconds since the first play frame after launch (pause time included; loading another save doesn't
+// reset it), for the pause menu's session timer; -1 before that frame
+int pc_ap_session_seconds(void);
+// Date & Time / Save reload step (0 = none; GC diagnostics log)
+int pc_ap_reload_step(void);
+
+// Save (pause menu): on the next play frame, if the Date & Time gate still passes, the Date & Time
+// reload without the date change (save and quit, load again), then a toast. Saving inside the live
+// scene breaks the town: structures are dummy tiles until the scene ends (research/midplay_save.md).
+void pc_ap_save_request(void);
+
+// Date & Time change request (item 3). The pause menu only requests; pc_ap_tick applies it on
+// the next play frame. A newer request replaces an unapplied one. If the gate fails then, the
+// request is dropped with a toast (also while a reload runs). Same date: sets the time live.
+// New date: the reload below.
+void pc_ap_time_request(const lbRTC_time_c* time);
+
+// Reload for a new date (stage 5). pc_ap_tick fades out like the save villager's quit, the
+// trademark scene saves with the new date, loads it and goes straight to player select, whose
+// villager starts the same player without talking. The overlay covers the screen from the save
+// until player select is left.
+// Top of trademark_init (before common_data_reinit): sets the date and saves. Nothing without a reload.
+void pc_ap_time_reload_save(void);
+// End of trademark_init: replaces the logo with the load + player select. Nothing without a reload.
+void pc_ap_time_reload_takeover(struct game_s* game);
+// Player select's villager, every frame: the player to start without talking (once), else -1
+int pc_ap_time_reload_take_player(void);
+// Player select couldn't load the save: stop the reload, the villager talks as usual
+void pc_ap_time_reload_failed(void);
+// Nonzero from the fade until player select is left (player select's music stays off)
+int pc_ap_time_reloading(void);
+// GC Date & Time reload: nonzero while its card save runs in play frames (new date already set).
+// mTM_renewal_renew_time doesn't record the date then, so the load sees a new day (as on PC).
+int pc_ap_time_reload_saving(void);
+
+// ----------------------------------------------------------------------------
+// Loans and Bell Credits (pc_ap_logic_loans.c)
+// ----------------------------------------------------------------------------
+
+// Amount of loan k in AP order (Starting, Medium, Basement, Large, Upper),
+// not an mHm_HOMESIZE_*. Returns 0 for anything invalid
+int pc_ap_loan_amount(int loan);
+// Nonzero with loansanity on (slot_data)
+int pc_ap_loans_enabled(void);
 
 // Progressive House items received
 int pc_ap_houses_received(void);
@@ -81,9 +155,16 @@ int pc_ap_house_offer_allowed(void);
 int pc_ap_house_permit_pending_from(u32 loan, int renew, int size, int next_size, int basement_ordered,
                                     int offer_allowed);
 int pc_ap_house_permit_pending(void);
+// Bell Credits received but not yet applied (waiting on the last 100 or the next loan)
+int pc_ap_bells_pending(void);
 
-// The current player's house, or NULL (title screen, visiting another town)
-struct home_s* pc_ap_my_home(void);
+// Pure versions of the above (unit tested): size = mHm_HOMESIZE_*
+int pc_ap_stage_from(int size, int has_basement);
+int pc_ap_loans_paid_from(int stage, u32 loan, int renew);
+
+// ----------------------------------------------------------------------------
+// Favorsanity (pc_ap_logic_favors.c)
+// ----------------------------------------------------------------------------
 
 // Favor checks the server has, any id (collected ones too; see pc_ap_favorsanity.h)
 int pc_ap_favors_checked(void);
@@ -93,6 +174,27 @@ int pc_ap_favors_ahead(void);
 int pc_ap_favors_total(void);
 // Favor checks in the open pools, -1 without pools (old slot_data)
 int pc_ap_favors_open(void);
+// Call when a favor is completed (reward hook): counts it, sends "Favor n"
+// while n <= favorsanity. Does nothing until pc_ap_accepting().
+void pc_ap_favor_done(void);
+
+// ----------------------------------------------------------------------------
+// Goals (pc_ap_logic_goals.c)
+// ----------------------------------------------------------------------------
+// One goal (an AP_GOAL_* bit) is done: statue ordered, museum_goal_count donation items received,
+// froggy chair in the current player's catalog, catalog_goal_count open-pool items in it, the
+// furniture / chess set in the house with the basement. 0 off the own town (no pc_ap_my_home).
+int pc_ap_goal_done(int goal);
+// All goals set in slot_data are done
+int pc_ap_goals_done(void);
+// K.K.'s song starts (aNTT_roll1_init, every performance is the staff roll): sends the goal once all goals are
+// done (with Instant Goal Release it's sent from pc_ap_tick instead). Own town only (pc_ap_goals_done needs
+// pc_ap_my_home).
+void pc_ap_kk_song_started(void);
+
+// ----------------------------------------------------------------------------
+// Museumsanity (pc_ap_logic_museum.c)
+// ----------------------------------------------------------------------------
 // Museum donation items received (museumsanity), total; counts[mMmd_CATEGORY_*] per category
 int pc_ap_museum_received(int counts[4]);
 // Museum find/donate checks sent in a category; *total = its number of checks (0 if not run by AP)
@@ -106,39 +208,6 @@ int pc_ap_museum_critters_available(int cat);
 int pc_ap_museum_category_size(int cat);
 // Donation items the Museum goal needs, 0 if it isn't a goal
 int pc_ap_museum_goal(void);
-// Call when a favor is completed (reward hook): counts it, sends "Favor n"
-// while n <= favorsanity. Does nothing until pc_ap_accepting().
-void pc_ap_favor_done(void);
-
-// Per-frame AP work, called at the end of Game_play_move. Only while
-// pc_ap_in_game: sends loan checks, resends favor checks saved while offline,
-// applies Bell Credits (loan down to 100, or savings after the
-// last loan), sends the "loan ready" letter once credits bring the loan to 100
-// (after Nook's job, retried while the mailbox is full, dropped if that loan
-// got paid off first), syncs the museum display with the received donation items.
-void pc_ap_tick(struct game_play_s* play);
-// Start of Game_play_move: 1 = the world doesn't move this frame (return at once). The pause menu is open, or (GC)
-// the Date & Time / Save reload's card save steps here: with the new date already set, a moving town reacts to the
-// jump (the scene restarts and rebuilds zelda_arena under the running card write), so it holds still until saved.
-int pc_ap_play_hold(struct game_play_s* play);
-// pc_ap_accepting + no submenu, no demo (talk, door, event, save), no scene wipe
-int pc_ap_in_game(struct game_play_s* play);
-// One goal (an AP_GOAL_* bit) is done: statue ordered, museum_goal_count donation items received,
-// froggy chair in the current player's catalog, catalog_goal_count open-pool items in it, the
-// furniture / chess set in the house with the basement. 0 off the own town (no pc_ap_my_home).
-int pc_ap_goal_done(int goal);
-// All goals set in slot_data are done
-int pc_ap_goals_done(void);
-// K.K.'s song starts (aNTT_roll1_init, every performance is the staff roll): sends the goal once all goals are
-// done (with Instant Goal Release it's sent from pc_ap_tick instead). Own town only (pc_ap_goals_done needs
-// pc_ap_my_home).
-void pc_ap_kk_song_started(void);
-// Bell Credits received but not yet applied (waiting on the last 100 or the next loan)
-int pc_ap_bells_pending(void);
-
-// Pure versions of the above (unit tested): size = mHm_HOMESIZE_*
-int pc_ap_stage_from(int size, int has_basement);
-int pc_ap_loans_paid_from(int stage, u32 loan, int renew);
 
 // Museumsanity hooks (pc_ap_museumsanity.h). Each one leaves anything that isn't a
 // museum thing of an AP category to vanilla. The tick syncs the museum display bits.
@@ -208,6 +277,10 @@ int pc_ap_critter_passes(int cat, int idx);
 // mAGrw_SetHoneycombTree (daily grow): 0 = no new bee trees (the Bee's pass is closed)
 int pc_ap_bee_trees_allowed(void);
 
+// ----------------------------------------------------------------------------
+// Tools in Pool (pc_ap_logic_tools.c)
+// ----------------------------------------------------------------------------
+
 // Tools in Pool hooks (pc_ap_tools.h). The tick mails received tools.
 
 // 1 if the game may hand out item (not a pool tool, or received, or the option is off)
@@ -221,6 +294,10 @@ int pc_ap_shop_tools(const int* table, int n, int* out);
 // mPB_get_force_set_item_item (lost and found): a tool not received yet becomes a sapling
 mActor_name_t pc_ap_lost_found_item(mActor_name_t item);
 
+// ----------------------------------------------------------------------------
+// Nook Store Upgrades (pc_ap_logic_store.c)
+// ----------------------------------------------------------------------------
+
 // Nook Store Upgrades hooks (pc_ap_store.h)
 
 // mSP_GetRealShopLevel: target store level (catalog count of the current player),
@@ -228,6 +305,10 @@ mActor_name_t pc_ap_lost_found_item(mActor_name_t item);
 int pc_ap_shop_real_level(int cur_level, u32 sales_sum);
 // mSP_PlusSales: 1 and *cap = the most sales_sum may be, 0 = vanilla clamp
 int pc_ap_shop_sales_cap(int cur_level, u32* cap);
+
+// ----------------------------------------------------------------------------
+// Catalogsanity (pc_ap_logic_catalog.c)
+// ----------------------------------------------------------------------------
 
 // Catalogsanity hooks (pc_ap_catalogsanity.h). The tick sends the checks.
 
@@ -262,6 +343,17 @@ int pc_ap_catalog_pick(mActor_name_t* out, int n, const mActor_name_t* exist, in
 // Passwords: 0 if item is a pool item not in the current player's catalog, or a
 // blocked set piece (pc_ap_ftr_blocked); the game treats the password as invalid. Else 1.
 int pc_ap_catalog_item_allowed(mActor_name_t item);
+// Villager hand-overs (favor rewards, trade offers): item if allowed, else a roll of
+// the same shop category as source (AP_CATALOG_SOURCE_*); a starter shirt if that's empty
+mActor_name_t pc_ap_catalog_safe_item(mActor_name_t item, int source);
+// aEGH_not_collect_get (Wisp's reward): 1 = handled, *item from his lists (the game's
+// table) by Catalog Sources, never a blocked set piece; EMPTY_NO if they're empty.
+// 0 = vanilla (Catalogsanity and the set goals off).
+int pc_ap_wisp_item(mActor_name_t* const* lists, int list_count, mActor_name_t* item);
+
+// ----------------------------------------------------------------------------
+// Furniture Set / Chess Set goals (pc_ap_logic_furniture.c)
+// ----------------------------------------------------------------------------
 // Furniture Set / Chess Set goals: 1 if item is a goal piece whose AP item hasn't arrived
 // (nothing may hand it out), pc_ap_ftr_blocking: 1 if any set goal is on.
 int pc_ap_ftr_blocked(mActor_name_t item);
@@ -279,13 +371,10 @@ int pc_ap_ftr_received(mActor_name_t piece);
 // Tracker: pieces placed toward the chess (chess = 1) or set goal and how many it needs
 // (pc_ap_furniture_progress); returns 1 if the basement is built. All 0 off the own town.
 int pc_ap_ftr_goal_progress(int chess, int* placed, int* needed);
-// Villager hand-overs (favor rewards, trade offers): item if allowed, else a roll of
-// the same shop category as source (AP_CATALOG_SOURCE_*); a starter shirt if that's empty
-mActor_name_t pc_ap_catalog_safe_item(mActor_name_t item, int source);
-// aEGH_not_collect_get (Wisp's reward): 1 = handled, *item from his lists (the game's
-// table) by Catalog Sources, never a blocked set piece; EMPTY_NO if they're empty.
-// 0 = vanilla (Catalogsanity and the set goals off).
-int pc_ap_wisp_item(mActor_name_t* const* lists, int list_count, mActor_name_t* item);
+
+// ----------------------------------------------------------------------------
+// Shellsanity (pc_ap_logic_shells.c)
+// ----------------------------------------------------------------------------
 
 // mFI_GetShell: what washes up instead of the game's shell (town and island). Shellsanity
 // beach item of the current month first, then Coconuts Wash Up, else shell.
@@ -293,6 +382,18 @@ mActor_name_t pc_ap_shell_item(mActor_name_t shell, int is_island);
 // Shells page: Shellsanity checks per month (0 = off), and checks of month (0-11) not sent yet
 int pc_ap_shells_per_month(void);
 int pc_ap_shells_left(int month);
+
+// ----------------------------------------------------------------------------
+// Beach hints (pc_ap_logic_hint.c)
+// ----------------------------------------------------------------------------
+// Player_actor_CheckAndRequest_main_pickup_all, before the AP Hint pickup starts: 1 = refuse it without the
+// refusal animation or message (not connected, or the hint letter has no free pocket slot). The caller plays the
+// "can't do that" sound. Also refused while the previous AP Hint's answer is still on its way.
+int pc_ap_beach_hint_refuse(mActor_name_t item);
+
+// ----------------------------------------------------------------------------
+// Treesanity (pc_ap_logic_trees.c)
+// ----------------------------------------------------------------------------
 
 // Treesanity (pc_ap_treesanity.h). drop_fruit: AP items (0-3) a bearing tree drops before its real fruit,
 // *item = that fruit's tree item; 0 for any other tree, or when Treesanity is off.
@@ -303,17 +404,6 @@ mActor_name_t pc_ap_tree_draw_fg(mActor_name_t fg);
 // What a bearing tree with AP items shows at fruit spot (0-2, the drop spots): its tree item or its
 // fruit; EMPTY_NO when the tree is drawn as vanilla
 mActor_name_t pc_ap_tree_draw_item(mActor_name_t fg, int spot);
-// Shellsanity beach items and Treesanity tree items ("AP ground items": the AP logo on the ground)
-int pc_ap_ground_item(mActor_name_t item);
-// Player_actor_setup_main_Pickup: nonzero for an AP ground item, which never goes into the pockets
-// (the caller clears its tile); sends the next unsent check of its month / fruit, if any.
-int pc_ap_ground_pickup(mActor_name_t item);
-// mIN_copy_name_str: name of an AP ground item in the game charset (mIN_ITEM_NAME_LEN chars)
-void pc_ap_ground_item_name(mActor_name_t item, u8* dst);
-// Player_actor_CheckAndRequest_main_pickup_all, before the AP Hint pickup starts: 1 = refuse it without the
-// refusal animation or message (not connected, or the hint letter has no free pocket slot). The caller plays the
-// "can't do that" sound. Also refused while the previous AP Hint's answer is still on its way.
-int pc_ap_beach_hint_refuse(mActor_name_t item);
 // mSP_SelectPlant: what plain sapling slot (0 first) sells: a fruit (pc_ap_treesanity_shop_slot, also
 // with Treesanity off) or ITM_SAPLING
 mActor_name_t pc_ap_shop_sapling(int slot);
@@ -330,6 +420,10 @@ mActor_name_t pc_ap_gate_fruit(mActor_name_t item);
 int pc_ap_trees_per_fruit(void);
 int pc_ap_trees_left(int fruit);
 int pc_ap_trees_fruit_owned(int fruit);
+
+// ----------------------------------------------------------------------------
+// Radiosanity (pc_ap_logic_radio.c)
+// ----------------------------------------------------------------------------
 
 // Radiosanity (pc_ap_radiosanity.h). Received songs go into the home music box (pc_ap_tick), playing one at home
 // sends its check.
@@ -360,34 +454,15 @@ int pc_ap_radio_keep_in_player(int song);
 // bit s = song s; checks unsent offline, so every owned ap song shows the AP logo)
 void pc_ap_radio_test(const u32* owned, const u32* ap);
 
-// Traps (pc_ap_traps.h). A trap's Resetti is due at the next load: the save keeps the reset code armed, and the
-// load shows Resetti even with Disable Resetti on (m_card.c / pc_m_card.c)
-int pc_ap_trap_resetti_pending(void);
-// Reset detected on load: 1 = add it to the permanent reset count (a trap's Resetti with Accumulate Resetti off
-// doesn't); uses the trap's flag up
-int pc_ap_trap_resetti_count(void);
-// Test runs only (--render-test trap_*): applies one trap now (pc_ap_traps.h PC_AP_TRAP_*), no safe point
-void pc_ap_trap_test(int kind, struct game_play_s* play);
-// DeathLink send: m_player_main_stung_bee.c_inc, once per sting (the swell). Sends "<player name> was stung by a
-// bee" when the seed has death_link on; a received death's own Bee Trap sting is not sent back
-void pc_ap_on_bee_sting(void);
+// ----------------------------------------------------------------------------
+// Timesanity and the clock helpers (pc_ap_logic_time.c)
+// ----------------------------------------------------------------------------
 
 // Time hooks (on top of pc_ap_timesanity.h): frozen clock, date changes,
 // normalized time travel.
 
 // Nonzero when the clock is frozen (timesanity on in slot_data)
 int pc_ap_time_frozen(void);
-// The clock for things that wait for time to pass within the day (beach shells every 10 minutes, balloons at
-// :x3 / :x8, the train at :14:50): seconds into the day. While frozen (the clock never leaves HH:00:16): the
-// frozen hour plus time played, wrapping after a day; else the real time
-int pc_ap_clock_day_seconds(void);
-// Its day: changes when pc_ap_clock_day_seconds wraps (only compare it, not a calendar day; 0-255)
-int pc_ap_clock_day(void);
-// Its minute (0-59)
-int pc_ap_clock_minute(void);
-// Real seconds since the first play frame after launch (pause time included; loading another save doesn't
-// reset it), for the pause menu's session timer; -1 before that frame
-int pc_ap_session_seconds(void);
 // Tracker: received months (bit m = month m, 0 = January) and time slots (bit s, 0 = Morning)
 int pc_ap_time_owned_months(void);
 int pc_ap_time_owned_slots(void);
@@ -402,8 +477,31 @@ int pc_ap_time_start(lbRTC_time_c* start);
 int pc_ap_time_change_allowed(struct game_play_s* play);
 // The gate on the last play frame, for the pause menu (which runs between frames); 0 during a reload
 int pc_ap_time_change_allowed_now(void);
-// Date & Time / Save reload step (0 = none; GC diagnostics log)
-int pc_ap_reload_step(void);
+
+// Stage 3. Called by the reload right before the save. Sets the clock to time (lbRTC_SetTime,
+// plus Common rtc_time so the save stamps the new date). With normalized_time_travel on, also
+// rewrites the "last" timestamps so the change counts as one day passing, and stashes the turnip
+// decision (old clock -> time) for the next grow tick. Off = a plain vanilla clock change.
+void pc_ap_time_set_date(const lbRTC_time_c* time);
+
+// Player select's "start game" (aNPS2_game_start_wait, after vanilla's cheat check and Set clock):
+// with normalized_time_travel on and a new date since the last save (time passing or Set clock),
+// applies the same one-day rule as set_date and clears cheated_flag / npc_force_go_home.
+void pc_ap_time_normalize_start(void);
+
+// For the hook in mAGrw_CheckSpoilKabuTime: once after a set_date, returns 1 with the stashed
+// decision in spoil; otherwise 0 (vanilla check runs).
+int pc_ap_time_take_turnip_spoil(int* spoil);
+
+// Date & Time page stepping (dir +1/-1), see pc_ap_timesanity_step_*
+void pc_ap_time_step_year(lbRTC_time_c* t, int dir);
+void pc_ap_time_step_month(lbRTC_time_c* t, int dir);
+void pc_ap_time_step_day(lbRTC_time_c* t, int dir);
+void pc_ap_time_step_hour(lbRTC_time_c* t, int dir);
+
+// ----------------------------------------------------------------------------
+// Global Storage (pc_ap_logic_storage.c)
+// ----------------------------------------------------------------------------
 
 // Global Storage (pc_ap_storage.h): on for this seed
 int pc_ap_storage_on(void);
@@ -421,65 +519,35 @@ int pc_ap_storage_item_allowed(mActor_name_t item, int cond);
 int pc_ap_storage_put_pocket(int pocket);
 int pc_ap_storage_take_item(int idx);
 
-// Save (pause menu): on the next play frame, if the Date & Time gate still passes, the Date & Time
-// reload without the date change (save and quit, load again), then a toast. Saving inside the live
-// scene breaks the town: structures are dummy tiles until the scene ends (research/midplay_save.md).
-void pc_ap_save_request(void);
+// ----------------------------------------------------------------------------
+// Traps and DeathLink (pc_ap_logic_traps.c)
+// ----------------------------------------------------------------------------
 
-// Date & Time change request (item 3). The pause menu only requests; pc_ap_tick applies it on
-// the next play frame. A newer request replaces an unapplied one. If the gate fails then, the
-// request is dropped with a toast (also while a reload runs). Same date: sets the time live.
-// New date: the reload below.
-void pc_ap_time_request(const lbRTC_time_c* time);
+// Traps (pc_ap_traps.h). A trap's Resetti is due at the next load: the save keeps the reset code armed, and the
+// load shows Resetti even with Disable Resetti on (m_card.c / pc_m_card.c)
+int pc_ap_trap_resetti_pending(void);
+// Reset detected on load: 1 = add it to the permanent reset count (a trap's Resetti with Accumulate Resetti off
+// doesn't); uses the trap's flag up
+int pc_ap_trap_resetti_count(void);
+// Test runs only (--render-test trap_*): applies one trap now (pc_ap_traps.h PC_AP_TRAP_*), no safe point
+void pc_ap_trap_test(int kind, struct game_play_s* play);
+// DeathLink send: m_player_main_stung_bee.c_inc, once per sting (the swell). Sends "<player name> was stung by a
+// bee" when the seed has death_link on; a received death's own Bee Trap sting is not sent back
+void pc_ap_on_bee_sting(void);
 
-// Stage 3. Called by the reload right before the save. Sets the clock to time (lbRTC_SetTime,
-// plus Common rtc_time so the save stamps the new date). With normalized_time_travel on, also
-// rewrites the "last" timestamps so the change counts as one day passing, and stashes the turnip
-// decision (old clock -> time) for the next grow tick. Off = a plain vanilla clock change.
-void pc_ap_time_set_date(const lbRTC_time_c* time);
-
-// Player select's "start game" (aNPS2_game_start_wait, after vanilla's cheat check and Set clock):
-// with normalized_time_travel on and a new date since the last save (time passing or Set clock),
-// applies the same one-day rule as set_date and clears cheated_flag / npc_force_go_home.
-void pc_ap_time_normalize_start(void);
-
-// For the hook in mAGrw_CheckSpoilKabuTime: once after a set_date, returns 1 with the stashed
-// decision in spoil; otherwise 0 (vanilla check runs).
-int pc_ap_time_take_turnip_spoil(int* spoil);
-
-// Reload for a new date (stage 5). pc_ap_tick fades out like the save villager's quit, the
-// trademark scene saves with the new date, loads it and goes straight to player select, whose
-// villager starts the same player without talking. The overlay covers the screen from the save
-// until player select is left.
-// Top of trademark_init (before common_data_reinit): sets the date and saves. Nothing without a reload.
-void pc_ap_time_reload_save(void);
-// End of trademark_init: replaces the logo with the load + player select. Nothing without a reload.
-void pc_ap_time_reload_takeover(struct game_s* game);
-// Player select's villager, every frame: the player to start without talking (once), else -1
-int pc_ap_time_reload_take_player(void);
-// Player select couldn't load the save: stop the reload, the villager talks as usual
-void pc_ap_time_reload_failed(void);
-// Nonzero from the fade until player select is left (player select's music stays off)
-int pc_ap_time_reloading(void);
+// ----------------------------------------------------------------------------
+// Fixed weather (pc_ap_logic_weather.c)
+// ----------------------------------------------------------------------------
 
 // For the hook in mEnv_RandomWeather: today's roll (0-9) from the town id and the date, see
 // pc_ap_weather.h
 int pc_ap_weather_roll_today(void);
 // For the hook at the end of mEnv_RandomWeather: nonzero when today is the rain day
 int pc_ap_weather_rain_day_today(void);
-// GC Date & Time reload: nonzero while its card save runs in play frames (new date already set).
-// mTM_renewal_renew_time doesn't record the date then, so the load sees a new day (as on PC).
-int pc_ap_time_reload_saving(void);
 // Date & Time page: today's weather type (mEnv_WEATHER_*) and intensity (mEnv_WEATHER_INTENSITY_*),
 // or the ones another date will roll (ignores event days, which force their own weather, and
 // Nook's job, which turns rain into clear)
 int pc_ap_weather_of_date(const lbRTC_time_c* date, int* intensity_out);
-
-// Date & Time page stepping (dir +1/-1), see pc_ap_timesanity_step_*
-void pc_ap_time_step_year(lbRTC_time_c* t, int dir);
-void pc_ap_time_step_month(lbRTC_time_c* t, int dir);
-void pc_ap_time_step_day(lbRTC_time_c* t, int dir);
-void pc_ap_time_step_hour(lbRTC_time_c* t, int dir);
 
 #ifdef __cplusplus
 }

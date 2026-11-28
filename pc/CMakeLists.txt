@@ -53,9 +53,9 @@ add_compile_definitions(
                       # where gc/ implements them; sites still under TARGET_PC are PC-only for now.
     PC_OUTDOOR_FTR    # Outdoor furniture (item menu "Place", pc_outdoor_ftr.c). Remove to turn it off: the decomp
                       # hooks go, outdoor furniture is leaves again; the sidecar keeps the placed list for later.
-    AP_BEACH_HINT     # Beach hints (AP Hint, pc_ap_beach_hint.c): the AP client side in pc_ap_logic.c
+    AP_BEACH_HINT     # Beach hints (AP Hint, pc_ap_beach_hint.c): the AP client side in pc_ap_logic_hint.c
                       # (pc_ap_beach_hint_client.c here, gc/gc_ap_beach_hint_client.c on GC). The C unit tests
-                      # build pc_ap_logic.c without it (neither backend has stubs there).
+                      # build the facade without it (neither backend has stubs there).
 )
 
 # Common compiler flags (applied to all sources). GCC is required:
@@ -279,6 +279,24 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_ui_sdl.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_spantext.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_loans.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_favors.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_goals.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_museum.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_tools.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_store.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_catalog.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_furniture.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_shells.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_hint.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_trees.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_radio.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_time.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_storage.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_traps.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_weather.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_money.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_logic_fruit.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_loansanity.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_credit.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_ap_favorsanity.c
