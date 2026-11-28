@@ -341,9 +341,14 @@ static int pc_ap_trap_apply_face(pc_ap_traps* t, struct game_play_s* play) {
   return 1;
 }
 
-// Resetti on the next load: only a flag here, the save / load paths (m_card.c / pc_m_card.c) do the rest
+// Resetti on the next load: the flag, the save / load paths (m_card.c / pc_m_card.c) do the rest. A new town's
+// first session has no reset code yet (the game arms it at a load from the save): armed here, so the next load
+// sees one either way
 static int pc_ap_trap_apply_resetti(pc_ap_traps* t) {
   t->resetti = 1;
+  if(Now_Private != NULL && Now_Private->reset_code == 0) {
+    Now_Private->reset_code = 1;
+  }
   return 1;
 }
 
